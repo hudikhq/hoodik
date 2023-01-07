@@ -1,3 +1,20 @@
-[workspace]
+[package]
+name = "drive"
+version = "0.1.0"
+edition = "2021"
 
-members = ["app", "config", "context", "error"]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[workspace]
+members = [".", "config", "context", "error", "migration"]
+
+
+[dependencies]
+log = "^0.4"
+env_logger = "^0.10"
+actix-web = "^4"
+
+config = { path = "./config" }
+context = { path = "./context" }
+error = { path = "./error" }
+migration = { path = "./migration" }
