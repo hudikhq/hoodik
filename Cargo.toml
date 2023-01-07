@@ -1,0 +1,3 @@
+[workspace]
+
+members = ["app", "config", "context", "error"]

@@ -1,0 +1,5 @@
+/target
+.env
+sqlite.db
+/data/*
+!/data/.gitkeep
