@@ -49,14 +49,12 @@ impl Config {
             panic!("Failed loading configuration:\n{:#?}", errors);
         }
 
-        let config = Config {
+        Config {
             port,
             bind,
             data_dir: parse_path(data_dir.unwrap()),
             pg_url,
-        };
-
-        config
+        }
     }
 
     /// Try loading the port from env or arguments
@@ -80,7 +78,7 @@ impl Config {
     }
 
     /// Try loading the bind address from env or arguments
-    fn parse_bind(matches: &ArgMatches, _errors: &mut Vec<String>) -> String {
+    fn parse_bind(matches: &ArgMatches, _errors: &mut [String]) -> String {
         let value = match env_var("HTTP_BIND") {
             Ok(v) => Some(v),
             Err(_) => match matches.try_get_one::<String>("HTTP_BIND") {
@@ -89,7 +87,7 @@ impl Config {
             },
         };
 
-        value.unwrap_or("127.0.0.1".to_string())
+        value.unwrap_or_else(|| "127.0.0.1".to_string())
     }
 
     /// Try loading the data_dir from env or arguments
@@ -109,7 +107,7 @@ impl Config {
     }
 
     /// Try loading the pg_url from the arguments or env
-    fn parse_pg_url(matches: &ArgMatches, _errors: &mut Vec<String>) -> Option<String> {
+    fn parse_pg_url(matches: &ArgMatches, _errors: &mut [String]) -> Option<String> {
         let value = match env_var("PG_URL") {
             Ok(v) => Some(v),
             Err(_) => match matches.try_get_one::<String>("PG_URL") {
@@ -192,17 +190,15 @@ fn dotenv(path: Option<String>) {
     };
 
     for (key, value) in vars.iter() {
-        std::env::set_var(&key, &value);
+        std::env::set_var(key, value);
     }
 }
 
 /// Set the log level from the cli if possible
 fn parse_log(matches: &ArgMatches) {
     if env_var("RUST_LOG").is_err() {
-        if let Ok(value) = matches.try_get_one::<String>("RUST_LOG") {
-            if let Some(v) = value {
-                std::env::set_var("RUST_LOG", v);
-            }
+        if let Ok(Some(value)) = matches.try_get_one::<String>("RUST_LOG") {
+            std::env::set_var("RUST_LOG", value);
         }
     }
 }
