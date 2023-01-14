@@ -36,7 +36,9 @@ impl Context {
         let config = Config::mock();
         std::env::set_var("RUST_LOG", "debug");
 
-        env_logger::init();
+        if let Ok(_) = env_logger::try_init() {
+            debug!("Log has been initialized");
+        }
 
         let db = Database::connect("sqlite::memory:?mode=rwc").await.unwrap();
 

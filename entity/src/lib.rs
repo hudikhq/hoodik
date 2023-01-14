@@ -6,7 +6,7 @@ pub use prelude::*;
 
 pub use sea_orm::{
     entity::{ActiveModelTrait, EntityTrait},
-    ActiveValue,
+    ActiveValue, ColumnTrait, QueryFilter,
 };
 
 #[cfg(feature = "mock")]

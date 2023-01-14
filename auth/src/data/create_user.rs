@@ -1,3 +1,4 @@
+use ::error::AppResult;
 use chrono::Utc;
 use entity::{users::ActiveModel, ActiveValue};
 use serde::{Deserialize, Serialize};
@@ -44,14 +45,16 @@ impl Validation for CreateUser {
 }
 
 impl CreateUser {
-    pub fn into_active_model(self) -> ActiveModel {
-        ActiveModel {
+    pub fn into_active_model(self) -> AppResult<ActiveModel> {
+        let data = self.validate()?;
+
+        Ok(ActiveModel {
             id: ActiveValue::NotSet,
-            email: ActiveValue::Set(self.email.unwrap()),
-            password: ActiveValue::Set(hash(&self.password.unwrap())),
-            secret: ActiveValue::Set(self.secret),
+            email: ActiveValue::Set(data.email.unwrap()),
+            password: ActiveValue::Set(hash(&data.password.unwrap())),
+            secret: ActiveValue::Set(data.secret),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
-        }
+        })
     }
 }
