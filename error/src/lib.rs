@@ -1,5 +1,6 @@
 use sea_orm::error::{ColumnFromStrErr, DbErr, RuntimeErr};
 use thiserror::Error as ThisError;
+use validr::error::ValidationErrors;
 
 pub type AppResult<T> = Result<T, Error>;
 
@@ -9,6 +10,7 @@ pub enum Error {
     DbErr(DbErr),
     RuntimeErr(RuntimeErr),
     ColumnFromStrErr(ColumnFromStrErr),
+    Validation(ValidationErrors),
 }
 
 impl std::fmt::Display for Error {
@@ -38,5 +40,11 @@ impl From<RuntimeErr> for Error {
 impl From<ColumnFromStrErr> for Error {
     fn from(source: ColumnFromStrErr) -> Error {
         Error::ColumnFromStrErr(source)
+    }
+}
+
+impl From<ValidationErrors> for Error {
+    fn from(source: ValidationErrors) -> Error {
+        Error::Validation(source)
     }
 }

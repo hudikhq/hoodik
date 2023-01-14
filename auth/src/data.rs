@@ -1,6 +1,6 @@
 use chrono::Utc;
+use entity::{users::ActiveModel, ActiveValue};
 use serde::{Deserialize, Serialize};
-use store::{user::ActiveModel, ActiveValue};
 use util::{
     password::hash,
     validation::{validate_otp, validate_password},
@@ -49,10 +49,7 @@ impl CreateUser {
             id: ActiveValue::NotSet,
             email: ActiveValue::Set(self.email.unwrap()),
             password: ActiveValue::Set(hash(&self.password.unwrap())),
-            secret: self
-                .secret
-                .map(ActiveValue::Set)
-                .unwrap_or_else(|| ActiveValue::NotSet),
+            secret: ActiveValue::Set(self.secret),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
         }

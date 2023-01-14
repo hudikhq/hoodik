@@ -5,6 +5,9 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+mock = ["config/mock", "sea-orm/mock", "migration"]
+
 [dependencies]
 sea-orm = { version = "^0.10", features = [
   "sqlx-postgres",
@@ -13,16 +16,8 @@ sea-orm = { version = "^0.10", features = [
   "macros",
 ] }
 log = "^0.4"
+env_logger = "^0.10"
 
 config = { path = "../config" }
 error = { path = "../error" }
-
-[dev-dependencies]
-sea-orm = { version = "^0.10", features = [
-  "sqlx-postgres",
-  "sqlx-sqlite",
-  "runtime-actix-rustls",
-  "macros",
-  "debug-print",
-  "mock",
-] }
+migration = { path = "../migration", optional = true }

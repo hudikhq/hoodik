@@ -29,6 +29,15 @@ pub struct Config {
 }
 
 impl Config {
+    #[cfg(feature = "mock")]
+    pub fn mock() -> Config {
+        Config {
+            port: 4554,
+            address: "127.0.0.1".to_string(),
+            data_dir: "./data".to_string(),
+            database_url: None,
+        }
+    }
     /// Read the env and arguments and init the config struct
     /// # panics if required attributes are missing or parsing went wrong
     pub fn new(name: &str, version: &str, about: &str) -> Config {

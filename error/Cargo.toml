@@ -12,3 +12,4 @@ sea-orm = { version = "^0.10", features = [
   "sqlx-sqlite",
   "runtime-actix-rustls",
 ] }
+validr = "^0.3"

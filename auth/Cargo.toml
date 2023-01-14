@@ -14,5 +14,11 @@ serde_json = "*"
 
 context = { path = "../context" }
 error = { path = "../error" }
-store = { path = "../store" }
+entity = { path = "../entity" }
 util = { path = "../util" }
+
+[dev-dependencies]
+async-std = { version = "^1", features = ["attributes", "tokio1"] }
+
+context = { path = "../context", features = ["mock"] }
+entity = { path = "../entity", features = ["mock"] }
