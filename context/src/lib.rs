@@ -21,4 +21,29 @@ impl Context {
 
         Ok(Context { config, db })
     }
+
+    #[cfg(feature = "mock")]
+    pub fn mock(db: DatabaseConnection) -> Context {
+        let config = Config::mock();
+
+        Context { config, db }
+    }
+
+    #[cfg(feature = "mock")]
+    pub async fn mock_sqlite() -> Context {
+        use migration::MigratorTrait;
+
+        let config = Config::mock();
+        std::env::set_var("RUST_LOG", "debug");
+
+        env_logger::init();
+
+        let db = Database::connect("sqlite::memory:?mode=rwc").await.unwrap();
+
+        let context = Context { config, db };
+
+        migration::Migrator::up(&context.db, None).await.unwrap();
+
+        context
+    }
 }
