@@ -1,9 +1,9 @@
-use crate::data::CreateUser;
-use entity::users;
+use crate::data::authenticated::Authenticated;
 use error::AppResult;
 
 #[async_trait::async_trait]
-pub trait AuthContract {
-    async fn create(&self, data: CreateUser) -> AppResult<users::Model>;
-    async fn get_by_id(&self, id: i32) -> AppResult<users::Model>;
+pub trait AuthProviderContract {
+    /// Authentication method that has to be implemented on the providers
+    /// that will handle their own authentication methods
+    async fn authenticate(&self) -> AppResult<Authenticated>;
 }

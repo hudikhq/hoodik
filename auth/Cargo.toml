@@ -9,6 +9,8 @@ edition = "2021"
 async-trait = "0.1.57"
 validr = "^0.3"
 chrono = { version = "0.4.23", features = ["serde"] }
+uuid = { version = "1.2.2", features = ["serde", "v4"] }
+log = "^0.4"
 serde = "*"
 serde_json = "*"
 

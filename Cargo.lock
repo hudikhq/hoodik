@@ -437,9 +437,11 @@ dependencies = [
  "context",
  "entity",
  "error",
+ "log",
  "serde",
  "serde_json",
  "util",
+ "uuid",
  "validr",
 ]
 

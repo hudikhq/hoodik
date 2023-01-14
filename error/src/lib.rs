@@ -11,6 +11,16 @@ pub enum Error {
     RuntimeErr(RuntimeErr),
     ColumnFromStrErr(ColumnFromStrErr),
     Validation(ValidationErrors),
+    Unauthorized(String),
+}
+
+impl Error {
+    pub fn is_not_found(&self) -> bool {
+        match self {
+            Error::NotFound(_) => true,
+            _ => false,
+        }
+    }
 }
 
 impl std::fmt::Display for Error {
