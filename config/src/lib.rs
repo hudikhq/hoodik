@@ -1,6 +1,6 @@
 use clap::{builder::Str, Arg, ArgMatches, Command};
 use dotenv::{from_path, vars};
-use std::env::var as env_var;
+use std::env::{set_var as set_env_var, var as env_var};
 
 /// Config struct that holds all the loaded configuration
 /// from the env and arguments.
@@ -13,10 +13,10 @@ pub struct Config {
     /// default: 4554
     pub port: i32,
 
-    /// HTTP_BIND address where the application will bind
+    /// HTTP_ADDRESS address where the application will address
     /// *optional*
     /// default: 127.0.0.1
-    pub bind: String,
+    pub address: String,
 
     /// DATA_DIR where all the uploaded data will be stored
     /// *required*
@@ -25,25 +25,27 @@ pub struct Config {
     /// URL connection info for Postgres database
     /// *optional*
     /// default: uses sqlite instead of postgres
-    pub pg_url: Option<String>,
+    pub database_url: Option<String>,
 }
 
 impl Config {
     /// Read the env and arguments and init the config struct
     /// # panics if required attributes are missing or parsing went wrong
     pub fn new(name: &str, version: &str, about: &str) -> Config {
-        let matches = arguments(name, version, about);
+        let matches = Some(arguments(name, version, about));
 
-        dotenv(matches.try_get_one("CONFIG_PATH").unwrap_or(None).cloned());
+        if let Some(m) = matches.as_ref() {
+            dotenv(m.try_get_one("CONFIG_PATH").unwrap_or(None).cloned());
+        }
 
-        parse_log(&matches);
+        parse_log(matches.as_ref());
 
         let mut errors = vec![];
 
-        let port = Self::parse_port(&matches, &mut errors);
-        let bind = Self::parse_bind(&matches, &mut errors);
-        let data_dir = Self::parse_data_dir(&matches, &mut errors);
-        let pg_url = Self::parse_pg_url(&matches, &mut errors);
+        let port = Self::parse_port(matches.as_ref(), &mut errors);
+        let address = Self::parse_address(matches.as_ref(), &mut errors);
+        let data_dir = Self::parse_data_dir(matches.as_ref(), &mut errors);
+        let database_url = Self::parse_database_url(matches.as_ref(), &mut errors);
 
         if !errors.is_empty() {
             panic!("Failed loading configuration:\n{:#?}", errors);
@@ -51,14 +53,59 @@ impl Config {
 
         Config {
             port,
-            bind,
+            address,
             data_dir: parse_path(data_dir.unwrap()),
-            pg_url,
+            database_url,
         }
+        .set_env()
+    }
+
+    pub fn env_only() -> Config {
+        let matches = None;
+
+        dotenv(None);
+
+        parse_log(matches.as_ref());
+
+        let mut errors = vec![];
+
+        let port = Self::parse_port(matches.as_ref(), &mut errors);
+        let address = Self::parse_address(matches.as_ref(), &mut errors);
+        let data_dir = Self::parse_data_dir(matches.as_ref(), &mut errors);
+        let database_url = Self::parse_database_url(matches.as_ref(), &mut errors);
+
+        if !errors.is_empty() {
+            panic!("Failed loading configuration:\n{:#?}", errors);
+        }
+
+        Config {
+            port,
+            address,
+            data_dir: parse_path(data_dir.unwrap()),
+            database_url,
+        }
+        .set_env()
+    }
+
+    /// Set everything back into the env variables so it can be used also for the migration
+    fn set_env(self) -> Self {
+        set_env_var("HTTP_PORT", format!("{}", self.port));
+        set_env_var("HTTP_ADDRESS", self.address.clone());
+
+        if let Some(db) = &self.database_url {
+            set_env_var("DATABASE_URL", db);
+        } else {
+            set_env_var(
+                "DATABASE_URL",
+                format!("sqlite:{}/sqlite.db?mode=rwc", &self.data_dir),
+            );
+        }
+
+        self
     }
 
     /// Try loading the port from env or arguments
-    fn parse_port(matches: &ArgMatches, errors: &mut Vec<String>) -> i32 {
+    fn parse_port(matches: Option<&ArgMatches>, errors: &mut Vec<String>) -> i32 {
         let value = match env_var("HTTP_PORT") {
             Ok(v) => match v.parse::<i32>() {
                 Ok(v) => Some(v),
@@ -68,22 +115,28 @@ impl Config {
                     None
                 }
             },
-            Err(_) => match matches.try_get_one::<i32>("HTTP_PORT") {
-                Ok(v) => v.cloned(),
-                Err(_) => None,
+            Err(_) => match matches {
+                Some(m) => match m.try_get_one::<i32>("HTTP_PORT") {
+                    Ok(v) => v.cloned(),
+                    Err(_) => None,
+                },
+                None => None,
             },
         };
 
         value.unwrap_or(4554)
     }
 
-    /// Try loading the bind address from env or arguments
-    fn parse_bind(matches: &ArgMatches, _errors: &mut [String]) -> String {
-        let value = match env_var("HTTP_BIND") {
+    /// Try loading the address address from env or arguments
+    fn parse_address(matches: Option<&ArgMatches>, _errors: &mut [String]) -> String {
+        let value = match env_var("HTTP_ADDRESS") {
             Ok(v) => Some(v),
-            Err(_) => match matches.try_get_one::<String>("HTTP_BIND") {
-                Ok(v) => v.cloned(),
-                Err(_) => None,
+            Err(_) => match matches {
+                Some(m) => match m.try_get_one::<String>("HTTP_ADDRESS") {
+                    Ok(v) => v.cloned(),
+                    Err(_) => None,
+                },
+                None => None,
             },
         };
 
@@ -91,28 +144,32 @@ impl Config {
     }
 
     /// Try loading the data_dir from env or arguments
-    fn parse_data_dir(matches: &ArgMatches, errors: &mut Vec<String>) -> Option<String> {
-        match env_var("DATA_DIR") {
+    fn parse_data_dir(matches: Option<&ArgMatches>, errors: &mut Vec<String>) -> Option<String> {
+        let data_dir = match env_var("DATA_DIR") {
             Ok(v) => Some(v),
-            Err(_) => match matches.get_one::<String>("DATA_DIR") {
-                Some(v) => Some(v.clone()),
-                None => {
-                    println!("HERE");
-                    errors.push("Required attribute 'data_dir' not specified, please provide 'DATA_DIR' environment variable or '--data-dir' cli argument when starting the application".to_string());
-
-                    None
-                }
+            Err(_) => match matches {
+                Some(m) => m.get_one::<String>("DATA_DIR").cloned(),
+                None => None,
             },
+        };
+
+        if data_dir.is_none() {
+            errors.push("Required attribute 'data_dir' not specified, please provide 'DATA_DIR' environment variable or '--data-dir' cli argument when starting the application".to_string());
         }
+
+        data_dir
     }
 
-    /// Try loading the pg_url from the arguments or env
-    fn parse_pg_url(matches: &ArgMatches, _errors: &mut [String]) -> Option<String> {
-        let value = match env_var("PG_URL") {
+    /// Try loading the database_url from the arguments or env
+    fn parse_database_url(matches: Option<&ArgMatches>, _errors: &mut [String]) -> Option<String> {
+        let value = match env_var("DATABASE_URL") {
             Ok(v) => Some(v),
-            Err(_) => match matches.try_get_one::<String>("PG_URL") {
-                Ok(v) => v.cloned(),
-                Err(_) => None,
+            Err(_) => match matches {
+                Some(m) => match m.try_get_one::<String>("DATABASE_URL") {
+                    Ok(v) => v.cloned(),
+                    Err(_) => None,
+                },
+                None => None,
             },
         };
 
@@ -134,10 +191,10 @@ pub fn arguments<'a>(name: &'a str, version: &'a str, about: &'a str) -> ArgMatc
                 .required(false),
         )
         .arg(
-            Arg::new("bind")
-                .id("HTTP_BIND")
+            Arg::new("address")
+                .id("HTTP_ADDRESS")
                 .short('b')
-                .long("bind")
+                .long("address")
                 .help("HTTP address where the application will attach itself")
                 .required(false),
         )
@@ -150,8 +207,8 @@ pub fn arguments<'a>(name: &'a str, version: &'a str, about: &'a str) -> ArgMatc
                 .required(false),
         )
         .arg(
-            Arg::new("pg_url")
-                .id("PG_URL")
+            Arg::new("database_url")
+                .id("DATABASE_URL")
                 .long("pg-url")
                 .help("Connection string for the postgres database, by default we will fallback to sqlite database stored in your data-dir")
                 .required(false),
@@ -195,10 +252,12 @@ fn dotenv(path: Option<String>) {
 }
 
 /// Set the log level from the cli if possible
-fn parse_log(matches: &ArgMatches) {
+fn parse_log(matches: Option<&ArgMatches>) {
     if env_var("RUST_LOG").is_err() {
-        if let Ok(Some(value)) = matches.try_get_one::<String>("RUST_LOG") {
-            std::env::set_var("RUST_LOG", value);
+        if let Some(m) = matches {
+            if let Ok(Some(value)) = m.try_get_one::<String>("RUST_LOG") {
+                std::env::set_var("RUST_LOG", value);
+            }
         }
     }
 }

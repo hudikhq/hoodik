@@ -1,0 +1,12 @@
+[package]
+name = "util"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+zxcvbn = "2.2.1"
+google-authenticator = "0.3.0"
+log = "^0.4"
+bcrypt = "^0.13"

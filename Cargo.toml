@@ -6,7 +6,16 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = [".", "config", "context", "error", "migration"]
+members = [
+  ".",
+  "config",
+  "context",
+  "error",
+  "migration",
+  "auth",
+  "store",
+  "util",
+]
 
 
 [dependencies]

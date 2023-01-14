@@ -1,0 +1,16 @@
+---
+version: "2"
+
+services:
+  postgres:
+    image: bitnami/postgresql:latest
+    restart: always
+    hostname: postgres
+    container_name: postgres
+    environment:
+      - POSTGRESQL_USERNAME=postgres
+      - POSTGRESQL_PASSWORD=postgres
+      - POSTGRESQL_DATABASE=postgres
+      - POSTGRESQL_WAL_LEVEL=logical
+    ports:
+      - "5432:5432"
