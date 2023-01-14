@@ -10,25 +10,15 @@ pub struct Context {
 
 impl Context {
     pub async fn new(config: Config) -> AppResult<Context> {
-        let sqlite_file = format!("sqlite:{}/sqlite.db?mode=rwc", parse_path(&config.data_dir));
+        let sqlite_file = format!("sqlite:{}/sqlite.db?mode=rwc", &config.data_dir);
 
         debug!("{}", &sqlite_file);
 
-        let db = match &config.pg_url {
-            Some(v) => Database::connect(v).await?,
+        let db = match &config.database_url {
+            Some(value) => Database::connect(value).await?,
             None => Database::connect(sqlite_file).await?,
         };
 
         Ok(Context { config, db })
     }
-}
-
-fn parse_path(path: &str) -> String {
-    let mut path = path.trim().to_string();
-
-    if path.ends_with('/') {
-        let _ = path.pop();
-    }
-
-    path
 }
