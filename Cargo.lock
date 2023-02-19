@@ -36,7 +36,7 @@ dependencies = [
  "actix-service",
  "actix-utils",
  "ahash",
- "base64",
+ "base64 0.13.1",
  "bitflags",
  "brotli",
  "bytes",
@@ -431,12 +431,14 @@ dependencies = [
 name = "auth"
 version = "0.1.0"
 dependencies = [
+ "actix-web",
  "async-std",
  "async-trait",
  "chrono",
  "context",
  "entity",
  "error",
+ "futures-util",
  "log",
  "serde",
  "serde_json",
@@ -477,14 +479,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
 
 [[package]]
-name = "bcrypt"
-version = "0.13.0"
+name = "base64"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7e7c93a3fb23b2fdde989b2c9ec4dd153063ec81f408507f84c090cd91c6641"
+checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
+
+[[package]]
+name = "bcrypt"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9df288bec72232f78c1ec5fe4e8f1d108aa0265476e93097593c803c8c02062a"
 dependencies = [
- "base64",
+ "base64 0.21.0",
  "blowfish",
  "getrandom 0.2.8",
+ "subtle",
  "zeroize",
 ]
 
@@ -1153,7 +1162,10 @@ dependencies = [
 name = "error"
 version = "0.1.0"
 dependencies = [
+ "actix-web",
  "sea-orm",
+ "serde",
+ "serde_json",
  "thiserror",
  "validr",
 ]
@@ -2455,7 +2467,7 @@ version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0864aeff53f8c05aa08d86e5ef839d3dfcf07aeba2db32f12db0ef716e87bd55"
 dependencies = [
- "base64",
+ "base64 0.13.1",
 ]
 
 [[package]]
@@ -2822,7 +2834,7 @@ checksum = "dcbc16ddba161afc99e14d1713a453747a2b07fc097d2009f4c300ec99286105"
 dependencies = [
  "ahash",
  "atoi",
- "base64",
+ "base64 0.13.1",
  "bitflags",
  "byteorder",
  "bytes",
@@ -3278,7 +3290,6 @@ version = "0.1.0"
 dependencies = [
  "bcrypt",
  "google-authenticator",
- "log",
  "zxcvbn",
 ]
 
