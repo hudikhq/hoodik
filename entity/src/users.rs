@@ -10,6 +10,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     pub email: String,
+    #[serde(skip_serializing)]
     pub password: String,
     pub secret: Option<String>,
     pub created_at: NaiveDateTime,

@@ -25,7 +25,7 @@ async fn auth_create_user() {
         token: None,
     };
 
-    let response = lib.create(create_user).await;
+    let response = lib.register(create_user).await;
 
     if let Err(e) = response {
         panic!("Errored: {:#?}", e);
@@ -65,7 +65,7 @@ async fn test_credentials_valid() {
 
     let credentials_provider = CredentialsProvider::new(&auth, credentials);
 
-    let response = auth.create(create_user).await;
+    let response = auth.register(create_user).await;
 
     if let Err(e) = response {
         panic!("Errored: {:#?}", e);
@@ -106,7 +106,7 @@ async fn test_credentials_invalid() {
 
     let credentials_provider = CredentialsProvider::new(&auth, credentials);
 
-    let response = auth.create(create_user).await;
+    let response = auth.register(create_user).await;
 
     if let Err(e) = response {
         panic!("Errored: {:#?}", e);
@@ -126,4 +126,52 @@ async fn test_credentials_invalid() {
     } else {
         panic!("Authentication passed with incorrect credentials")
     }
+}
+
+#[async_std::test]
+async fn test_retrieve_authenticated_session_by_token_and_csrf() {
+    let context = Context::mock_sqlite().await;
+    let auth = create_lib(&context);
+
+    let create_user = CreateUser {
+        email: Some("john@doe.com".to_string()),
+        password: Some("very-strong-password".to_string()),
+        secret: None,
+        token: None,
+    };
+
+    let credentials = Credentials {
+        email: Some("john@doe.com".to_string()),
+        password: Some("very-strong-password".to_string()),
+        token: None,
+        remember: Some(true),
+    };
+
+    let credentials_provider = CredentialsProvider::new(&auth, credentials);
+
+    let response = auth.register(create_user).await;
+
+    if let Err(e) = response {
+        panic!("Errored: {:#?}", e);
+    }
+
+    let response = credentials_provider.authenticate().await;
+
+    if let Err(e) = response {
+        panic!("Errored: {:#?}", e);
+    }
+
+    let authenticated = response.unwrap();
+
+    let response = auth
+        .get_by_token_and_csrf(&authenticated.session.token, &authenticated.session.csrf)
+        .await;
+
+    if let Err(e) = response {
+        panic!("Errored: {:#?}", e);
+    }
+
+    let authenticated = response.unwrap();
+
+    println!("{:#?}", authenticated);
 }

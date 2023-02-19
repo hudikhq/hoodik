@@ -13,3 +13,6 @@ sea-orm = { version = "^0.10", features = [
   "runtime-actix-rustls",
 ] }
 validr = "^0.3"
+actix-web = "^4"
+serde = "*"
+serde_json = "*"

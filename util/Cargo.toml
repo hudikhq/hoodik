@@ -8,5 +8,4 @@ edition = "2021"
 [dependencies]
 zxcvbn = "2.2.1"
 google-authenticator = "0.3.0"
-log = "^0.4"
-bcrypt = "^0.13"
+bcrypt = "^0.14"
