@@ -20,10 +20,7 @@ pub enum Error {
 
 impl Error {
     pub fn is_not_found(&self) -> bool {
-        match self {
-            Error::NotFound(_) => true,
-            _ => false,
-        }
+        matches!(self, Error::NotFound(_))
     }
 }
 
