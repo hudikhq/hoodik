@@ -5,6 +5,10 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "error"
+path = "src/lib.rs"
+
 [dependencies]
 thiserror = "^1"
 sea-orm = { version = "^0.10", features = [

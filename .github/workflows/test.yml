@@ -19,4 +19,4 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Run tests
-        run: cargo clippy -- -D warnings && cargo test --workspace
+        run: cargo clippy -- -D warnings && cargo test --workspace --lib

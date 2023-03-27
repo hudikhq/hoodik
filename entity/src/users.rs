@@ -13,6 +13,7 @@ pub struct Model {
     #[serde(skip_serializing)]
     pub password: String,
     pub secret: Option<String>,
+    pub pubkey: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }

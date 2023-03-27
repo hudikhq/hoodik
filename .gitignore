@@ -3,3 +3,4 @@
 sqlite.db
 /data/*
 !/data/.gitkeep
+.node_modules

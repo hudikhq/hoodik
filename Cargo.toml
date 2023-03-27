@@ -15,6 +15,7 @@ members = [
   "auth",
   "entity",
   "util",
+  "cryptfns",
 ]
 
 
