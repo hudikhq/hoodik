@@ -4,16 +4,16 @@ use google_authenticator::GoogleAuthenticator;
 pub fn validate_password(password: &str) -> bool {
     let entropy = match zxcvbn::zxcvbn(password, &[]) {
         Ok(e) => e,
-        Err(_) => return true,
+        Err(_) => return false,
     };
 
-    entropy.score() < 3
+    entropy.score() > 3
 }
 
 /// Validate the provided token with the provided secret that it matches
 pub fn validate_otp(secret: &str, token: Option<&String>) -> bool {
     match token {
-        Some(t) => GoogleAuthenticator::new().verify_code(secret, t, 1, 0),
-        None => true,
+        Some(t) => !GoogleAuthenticator::new().verify_code(secret, t, 1, 0),
+        None => false,
     }
 }

@@ -21,6 +21,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Users::Email).string().not_null())
                     .col(ColumnDef::new(Users::Password).string().not_null())
                     .col(ColumnDef::new(Users::Secret).string())
+                    .col(ColumnDef::new(Users::Pubkey).string())
                     .col(ColumnDef::new(Users::CreatedAt).timestamp().not_null())
                     .col(ColumnDef::new(Users::UpdatedAt).timestamp().not_null())
                     .to_owned(),
@@ -43,6 +44,7 @@ pub enum Users {
     Email,
     Password,
     Secret,
+    Pubkey,
     CreatedAt,
     UpdatedAt,
 }
