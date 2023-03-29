@@ -1,6 +1,9 @@
 use clap::{builder::Str, Arg, ArgMatches, Command};
 use dotenv::{from_path, vars};
-use std::env::{set_var as set_env_var, var as env_var};
+use std::{
+    env::{set_var as set_env_var, var as env_var},
+    fs::{self, DirBuilder},
+};
 
 /// Config struct that holds all the loaded configuration
 /// from the env and arguments.
@@ -108,6 +111,7 @@ impl Config {
             cookie_same_site: "None".to_string(),
         }
         .set_env()
+        .ensure_data_dir()
     }
 
     pub fn env_only() -> Config {
@@ -157,6 +161,7 @@ impl Config {
             cookie_same_site,
         }
         .set_env()
+        .ensure_data_dir()
     }
 
     /// Set everything back into the env variables so it can be used also for the migration
@@ -171,6 +176,25 @@ impl Config {
                 "DATABASE_URL",
                 format!("sqlite:{}/sqlite.db?mode=rwc", &self.data_dir),
             );
+        }
+
+        self
+    }
+
+    /// Make sure the data directory exists and create it if not
+    fn ensure_data_dir(self) -> Self {
+        let mut dir_builder = DirBuilder::new();
+
+        match dir_builder.recursive(true).create(&self.data_dir) {
+            Ok(_) => (),
+            Err(e) => println!("Error creating directory: {:?}", e),
+        };
+
+        let metadata = fs::metadata(&self.data_dir).unwrap();
+        let permissions = metadata.permissions();
+
+        if permissions.readonly() {
+            panic!("DATA_DIR is not writeable to the application, aborting...")
         }
 
         self
