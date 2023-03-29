@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Authenticated {
     pub user: users::Model,
-    pub session: sessions::Model,
+    pub session: Option<sessions::Model>,
 }
 
 impl TryFrom<&HttpRequest> for Authenticated {

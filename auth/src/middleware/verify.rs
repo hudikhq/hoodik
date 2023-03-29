@@ -15,6 +15,14 @@ pub enum CsrfVerify {
     Query(String),
 }
 
+/// Verify middleware
+///
+/// This middleware will verify if the request has a valid user and session.
+/// It can also be instantiated in a way so it verifies the CSRF token on the request.
+///
+/// For csrf verification the request needs to have valid user and session which means
+/// if the authentication has been done via the signature method the csrf token will be ignored
+/// even if its send in the request.
 pub struct Verify {
     pub(crate) csrf_verify: Option<CsrfVerify>,
 }
@@ -115,16 +123,8 @@ where
         let csrf = req
             .extensions()
             .get::<Authenticated>()
-            .map(|a| a.session.csrf.clone());
-
-        if csrf.is_none() {
-            return Box::pin(async move {
-                Ok(ServiceResponse::new(
-                    req.into_parts().0,
-                    AppError::Unauthorized("no_session".to_string()).error_response(),
-                ))
-            });
-        }
+            .map(|a| a.session.as_ref().map(|s| s.csrf.clone()))
+            .unwrap_or(None);
 
         if self.should_verify_csrf() && self.extract_csrf(&req) != csrf {
             return Box::pin(async move {

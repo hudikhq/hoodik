@@ -15,5 +15,6 @@ mock = []
 [dependencies]
 rand = "^0.7"
 ed25519-dalek = "^1.0"
-base64 = "^0.21"
 bip39 = "^2"
+
+error = { path = "../error" }

@@ -7,6 +7,7 @@ use actix_web::{
     dev::{Service, ServiceRequest, Transform},
     web, Error, HttpMessage, ResponseError,
 };
+use base64::prelude::*;
 use context::Context;
 use error::Error as AppError;
 use futures_util::future::{ok, LocalBoxFuture, Ready};
@@ -17,6 +18,23 @@ pub enum TokenExtractor {
     Cookie(String),
 }
 
+/// Middleware that will load the session and user from the database on each request
+/// and add them to the request extensions.
+///
+/// The middleware can be configured to ignore certain routes, in which case it will skip any session check
+/// and just pass the request through.
+///
+/// IMPORTANT: This middleware DOES NOT protect the route from unauthenticated users. It only loads the session on the request.
+///
+/// This middleware works by extracting the session token from the header via `Authorization` header, or
+/// via extracting it from the cookie. The token is then used to find the session in the database.
+/// There are two possible ways to extract the token:
+///
+///  - `Bearer <token>`
+///     - the token is looked up in the database and the session is loaded (if its currently active)
+///  - `Signature <signature-base64> <pubkey-base64>`
+///     - middleware will look into the database for the user with the given pubkey and will verify the signature
+///     - in case you are using the signature the session doesn't exist so the csrf token is not used
 #[derive(Clone)]
 pub struct Load {
     pub(crate) ignore: Vec<String>,
@@ -77,6 +95,7 @@ pub struct LoadMiddleware<S> {
 }
 
 impl<S> LoadMiddleware<S> {
+    /// Extracts the token from the request to try and find the active session
     fn extract_token(&self, req: &ServiceRequest) -> Option<String> {
         match &self.token_extractor {
             TokenExtractor::Header(name) => {
@@ -95,6 +114,32 @@ impl<S> LoadMiddleware<S> {
                 let token = cookie.value();
                 Some(token.to_string())
             }
+        }
+    }
+
+    /// Extracts the signature and pubkey from the request to run the authentication by using the pubkey
+    /// Header name: Authorization
+    /// Header format: Signature <signature-base64> <pubkey-base64>
+    fn extract_signature_and_pubkey(&self, req: &ServiceRequest) -> Option<(Vec<u8>, String)> {
+        let header = req.headers().get("Authorization")?;
+        let mut header_value = header.to_str().ok()?.split(' ');
+        let header_type = header_value.next()?;
+
+        if header_type == "Signature" {
+            // Extract both the signature and pubkey out of the header value
+            let signature = header_value.next()?;
+            let pubkey = header_value.next()?;
+
+            // Decode the signature and pubkey from base64 into bytes
+            let signature = BASE64_STANDARD.decode(signature).ok()?;
+            let pubkey = BASE64_STANDARD.decode(pubkey).ok()?;
+
+            // Attempt to generate mnemonic from the pubkey bytes
+            let pubkey = cryptfns::bytes_to_mnemonic(&pubkey)?;
+
+            Some((signature, pubkey))
+        } else {
+            None
         }
     }
 }
@@ -121,6 +166,7 @@ where
 
         let svc = self.service.clone();
         let maybe_token = self.extract_token(&req);
+        let maybe_signature_and_pubkey = self.extract_signature_and_pubkey(&req);
 
         Box::pin(async move {
             let context = match req.app_data::<web::Data<Context>>() {
@@ -136,9 +182,20 @@ where
                 }
             };
 
-            if let Some(token) = maybe_token {
-                if let Ok(authenticated) = Auth::new(context).get_by_token(&token).await {
+            if let Some(token) = &maybe_token {
+                if let Ok(authenticated) = Auth::new(context).get_by_token(token).await {
                     req.extensions_mut().insert(authenticated);
+                }
+            }
+
+            if maybe_token.is_none() {
+                if let Some((signature, pubkey)) = &maybe_signature_and_pubkey {
+                    if let Ok(authenticated) = Auth::new(context)
+                        .get_by_signature_and_pubkey(signature, pubkey)
+                        .await
+                    {
+                        req.extensions_mut().insert(authenticated);
+                    }
                 }
             }
 

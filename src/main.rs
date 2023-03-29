@@ -1,5 +1,4 @@
-use config::Config;
-use context::Context;
+use hoodik::{Config, Context};
 use migration::{Migrator, MigratorTrait};
 
 #[actix_web::main]
