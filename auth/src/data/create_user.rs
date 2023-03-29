@@ -44,7 +44,7 @@ impl Validation for CreateUser {
                         error.add("invalid_pubkey_not_bip39");
                     }
 
-                    if v.split(" ").count() != 24 {
+                    if v.split(' ').count() != 24 {
                         error.add("invalid_pubkey_length");
                     }
                 }
@@ -64,7 +64,7 @@ impl CreateUser {
         Ok(ActiveModel {
             id: ActiveValue::NotSet,
             email: ActiveValue::Set(data.email.unwrap()),
-            password: ActiveValue::Set(hash(&data.password.unwrap())),
+            password: ActiveValue::Set(data.password.map(hash)),
             secret: ActiveValue::Set(data.secret),
             pubkey: ActiveValue::Set(data.pubkey.unwrap()),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),

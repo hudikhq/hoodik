@@ -1,4 +1,5 @@
 use crate::data::{authenticated::Authenticated, create_user::CreateUser};
+use actix_web::cookie::{time::OffsetDateTime, Cookie, SameSite};
 use chrono::{Duration, Utc};
 use context::Context;
 use entity::{
@@ -130,5 +131,42 @@ impl<'ctx> Auth<'ctx> {
             .update(&self.context.db)
             .await
             .map_err(Error::from)
+    }
+
+    pub async fn manage_cookie(
+        &self,
+        session: &sessions::Model,
+        destroy: bool,
+    ) -> AppResult<Cookie<'static>> {
+        let mut cookie = Cookie::build(
+            self.context.config.cookie_name.clone(),
+            session.token.clone(),
+        )
+        .path("/")
+        .secure(self.context.config.cookie_secure)
+        .http_only(self.context.config.cookie_http_only)
+        .finish();
+
+        if let Some(domain) = &self.context.config.cookie_domain {
+            cookie.set_domain(domain.clone());
+        }
+
+        match self.context.config.cookie_same_site.as_ref() {
+            "Lax" => cookie.set_same_site(SameSite::Lax),
+            "Strict" => cookie.set_same_site(SameSite::Strict),
+            _ => cookie.set_same_site(SameSite::None),
+        };
+
+        // If we are not destroying the cookie we will set
+        // The proper expiration time on it, but if we are
+        // We will set it to 1970-01-01
+        if !destroy {
+            let timestamp = session.expires_at.timestamp();
+            cookie.set_expires(OffsetDateTime::from_unix_timestamp(timestamp).unwrap());
+        } else {
+            cookie.set_expires(OffsetDateTime::from_unix_timestamp(0).unwrap());
+        }
+
+        Ok(cookie)
     }
 }

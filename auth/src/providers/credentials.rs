@@ -32,7 +32,11 @@ impl<'ctx> AuthProviderContract for CredentialsProvider<'ctx> {
             }
         };
 
-        if !util::password::verify(&password, &user.password) {
+        if let Some(hashed_password) = &user.password {
+            if !util::password::verify(&password, hashed_password) {
+                return Err(Error::Unauthorized("invalid_credentials".to_string()));
+            }
+        } else {
             return Err(Error::Unauthorized("invalid_credentials".to_string()));
         }
 

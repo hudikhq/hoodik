@@ -5,7 +5,7 @@ use actix_web::{
     body::BoxBody,
     dev::ServiceResponse,
     dev::{Service, ServiceRequest, Transform},
-    Error, HttpMessage, ResponseError,
+    web, Error, HttpMessage, ResponseError,
 };
 use context::Context;
 use error::Error as AppError;
@@ -24,6 +24,7 @@ pub struct Load {
 }
 
 impl Load {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Load {
         Load {
             ignore: vec![],
@@ -80,7 +81,7 @@ impl<S> LoadMiddleware<S> {
         match &self.token_extractor {
             TokenExtractor::Header(name) => {
                 let header = req.headers().get(name)?;
-                let mut header_value = header.to_str().ok()?.clone().split(" ");
+                let mut header_value = header.to_str().ok()?.split(' ');
                 let header_type = header_value.next()?;
 
                 if header_type == "Bearer" {
@@ -122,7 +123,7 @@ where
         let maybe_token = self.extract_token(&req);
 
         Box::pin(async move {
-            let context = match req.app_data::<Context>() {
+            let context = match req.app_data::<web::Data<Context>>() {
                 Some(v) => v,
                 None => {
                     return Ok(ServiceResponse::new(

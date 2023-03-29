@@ -1,5 +1,5 @@
 [package]
-name = "drive"
+name = "hoodik"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,23 +8,33 @@ edition = "2021"
 [workspace]
 members = [
   ".",
+  "auth",
   "config",
   "context",
+  "cryptfns",
+  "entity",
   "error",
   "migration",
-  "auth",
-  "entity",
   "util",
-  "cryptfns",
 ]
-
 
 [dependencies]
 log = "^0.4"
 env_logger = "^0.10"
 actix-web = "^4"
+serde = "*"
+serde_json = "*"
 
+auth = { path = "./auth" }
 config = { path = "./config" }
 context = { path = "./context" }
+cryptfns = { path = "./cryptfns" }
+entity = { path = "./entity" }
 error = { path = "./error" }
 migration = { path = "./migration" }
+
+[dev-dependencies]
+lazy_static = "^1.4"
+auth = { path = "./auth", features = ["mock"] }
+context = { path = "./context", features = ["mock"] }
+cryptfns = { path = "./cryptfns", features = ["mock"] }
