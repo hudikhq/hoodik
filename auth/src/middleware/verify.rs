@@ -20,19 +20,30 @@ pub struct Verify {
 }
 
 impl Verify {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Verify {
         Verify { csrf_verify: None }
     }
-    pub fn csrf_header_name(mut self, name: String) -> Self {
-        self.csrf_verify = Some(CsrfVerify::Header(name));
 
-        self
+    pub fn new_with(csrf_verify: CsrfVerify) -> Verify {
+        Verify {
+            csrf_verify: Some(csrf_verify),
+        }
+    }
+    pub fn csrf_header_name(name: String) -> Self {
+        Self::new_with(CsrfVerify::Header(name))
     }
 
-    pub fn csrf_query_name(mut self, name: String) -> Self {
-        self.csrf_verify = Some(CsrfVerify::Query(name));
+    pub fn csrf_header_default() -> Self {
+        Self::new_with(CsrfVerify::Header("X-CSRF-TOKEN".to_string()))
+    }
 
-        self
+    pub fn csrf_query_name(name: String) -> Self {
+        Self::new_with(CsrfVerify::Query(name))
+    }
+
+    pub fn csrf_query_default() -> Self {
+        Self::new_with(CsrfVerify::Query("__csrf".to_string()))
     }
 }
 impl<S> Transform<S, ServiceRequest> for Verify
@@ -73,12 +84,12 @@ impl<S> VerifyMiddleware<S> {
                     Some(csrf.to_string())
                 }
                 CsrfVerify::Query(name) => {
-                    let query = req.query_string().to_string().replace("?", "");
-                    let mut query_value = query.split("&");
+                    let query = req.query_string().to_string().replace('?', "");
+                    let mut query_value = query.split('&');
 
                     let csrf = query_value
                         .find(|v| v.starts_with(format!("{name}=").as_str()))
-                        .map(|v| v.split("=").nth(1))?;
+                        .map(|v| v.split('=').nth(1))?;
 
                     csrf.map(|i| i.to_string())
                 }
@@ -115,15 +126,13 @@ where
             });
         }
 
-        if self.should_verify_csrf() {
-            if self.extract_csrf(&req) != csrf {
-                return Box::pin(async move {
-                    Ok(ServiceResponse::new(
-                        req.into_parts().0,
-                        AppError::Unauthorized("csrf_mismatch".to_string()).error_response(),
-                    ))
-                });
-            }
+        if self.should_verify_csrf() && self.extract_csrf(&req) != csrf {
+            return Box::pin(async move {
+                Ok(ServiceResponse::new(
+                    req.into_parts().0,
+                    AppError::Unauthorized("csrf_mismatch".to_string()).error_response(),
+                ))
+            });
         }
 
         let fut = self.service.call(req);

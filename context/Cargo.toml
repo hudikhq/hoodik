@@ -13,6 +13,7 @@ path = "src/lib.rs"
 mock = ["config/mock", "sea-orm/mock", "migration"]
 
 [dependencies]
+actix-web = "^4"
 sea-orm = { version = "^0.10", features = [
   "sqlx-postgres",
   "sqlx-sqlite",

@@ -26,6 +26,37 @@ pub struct Config {
     /// *optional*
     /// default: uses sqlite instead of postgres
     pub database_url: Option<String>,
+
+    /// COOKIE_DOMAIN This should be the URL you are entering to view the application
+    /// and it will be used as the cookie domain so its scoped only to this
+    /// *optional*
+    pub cookie_domain: Option<String>,
+
+    /// COOKIE_NAME This should be the name of the cookie that will be used to store the session
+    /// in your browser it is not that important and you probably don't need to set it
+    /// *optional*
+    /// *default: hoodik_session*
+    pub cookie_name: String,
+
+    /// COOKIE_HTTP This tells us if the cookie is supposed to be http only or not. Http only cookie will
+    /// only be seen by the browser and not by the javascript frontend. This is okay and its supposed
+    /// to work like this.
+    /// *optional*
+    /// *default: true*
+    pub cookie_http_only: bool,
+
+    /// COOKIE_SECURE This tells us if the cookie is supposed to be secure or not. Secure cookie will
+    /// only be sent over https.
+    /// *optional*
+    /// *default: true*
+    pub cookie_secure: bool,
+
+    /// COOKIE_SAME_SITE: This tells us if the cookie is supposed to be same site or not. Same site cookie will
+    /// only be sent over same site.
+    /// *optional*
+    /// *default: Lax*
+    /// *possible values: Lax, Strict, None*
+    pub cookie_same_site: String,
 }
 
 impl Config {
@@ -36,6 +67,11 @@ impl Config {
             address: "127.0.0.1".to_string(),
             data_dir: "./data".to_string(),
             database_url: None,
+            cookie_domain: None,
+            cookie_name: "hoodik_session".to_string(),
+            cookie_http_only: false,
+            cookie_secure: false,
+            cookie_same_site: "None".to_string(),
         }
     }
     /// Read the env and arguments and init the config struct
@@ -65,6 +101,11 @@ impl Config {
             address,
             data_dir: parse_path(data_dir.unwrap()),
             database_url,
+            cookie_domain: None,
+            cookie_name: "hoodik_session".to_string(),
+            cookie_http_only: false,
+            cookie_secure: false,
+            cookie_same_site: "None".to_string(),
         }
         .set_env()
     }
@@ -82,6 +123,23 @@ impl Config {
         let address = Self::parse_address(matches.as_ref(), &mut errors);
         let data_dir = Self::parse_data_dir(matches.as_ref(), &mut errors);
         let database_url = Self::parse_database_url(matches.as_ref(), &mut errors);
+        let cookie_domain = env_var("COOKIE_DOMAIN").ok();
+        let cookie_name = env_var("COOKIE_NAME")
+            .ok()
+            .unwrap_or_else(|| "hoodik_session".to_string());
+        let cookie_http_only = env_var("COOKIE_HTTP")
+            .ok()
+            .map(|c| c.to_lowercase())
+            .unwrap_or_else(|| "true".to_string())
+            .as_str()
+            == "true";
+        let cookie_secure = env_var("COOKIE_SECURE")
+            .ok()
+            .map(|c| c.to_lowercase())
+            .unwrap_or_else(|| "true".to_string())
+            .as_str()
+            == "true";
+        let cookie_same_site = Self::parse_cookie_same_site();
 
         if !errors.is_empty() {
             panic!("Failed loading configuration:\n{:#?}", errors);
@@ -92,6 +150,11 @@ impl Config {
             address,
             data_dir: parse_path(data_dir.unwrap()),
             database_url,
+            cookie_domain,
+            cookie_name,
+            cookie_http_only,
+            cookie_secure,
+            cookie_same_site,
         }
         .set_env()
     }
@@ -183,6 +246,33 @@ impl Config {
         };
 
         value
+    }
+
+    pub fn parse_cookie_same_site() -> String {
+        let value = match env_var("COOKIE_SAME_SITE") {
+            Ok(v) => Some(v),
+            Err(_) => None,
+        };
+
+        match value {
+            Some(x) => {
+                if matches!(x.as_str(), "Strict" | "Lax" | "None") {
+                    x
+                } else {
+                    "Lax".to_string()
+                }
+            }
+            _ => "Lax".to_string(),
+        }
+    }
+
+    /// Get the full bind address
+    pub fn get_full_bind_address(&self) -> String {
+        format!("{}:{}", self.address, self.port)
+    }
+
+    pub fn get_cookie_name(&self) -> String {
+        self.cookie_name.clone()
     }
 }
 

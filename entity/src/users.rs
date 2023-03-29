@@ -11,7 +11,7 @@ pub struct Model {
     pub id: i32,
     pub email: String,
     #[serde(skip_serializing)]
-    pub password: String,
+    pub password: Option<String>,
     pub secret: Option<String>,
     pub pubkey: String,
     pub created_at: NaiveDateTime,

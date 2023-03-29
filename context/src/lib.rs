@@ -3,9 +3,39 @@ use error::AppResult;
 use log::debug;
 use sea_orm::{Database, DatabaseConnection};
 
+/// Holder of the application context
+/// all the available database connections
+/// and application configurations are in here.
+/// Context is passed through the application
 pub struct Context {
     pub config: Config,
     pub db: DatabaseConnection,
+}
+
+/// We need to implement clone for the context manually because
+/// the DatabaseConnection does not implement Clone when feature flag "mock" is enabled
+/// We are not too worries about the pitfalls of cloning the mock database connection since
+/// we will be using this clone only to spread out the context to the different actix actors
+/// and that means we are running in the regular mode and not the testing mode where we would need mock
+impl Clone for Context {
+    fn clone(&self) -> Context {
+        Context {
+            config: self.config.clone(),
+            db: match &self.db {
+                DatabaseConnection::SqlxPostgresPoolConnection(conn) => {
+                    DatabaseConnection::SqlxPostgresPoolConnection(conn.clone())
+                }
+                DatabaseConnection::SqlxSqlitePoolConnection(conn) => {
+                    DatabaseConnection::SqlxSqlitePoolConnection(conn.clone())
+                }
+                #[cfg(feature = "mock")]
+                DatabaseConnection::MockDatabaseConnection(conn) => {
+                    DatabaseConnection::MockDatabaseConnection(conn.clone())
+                }
+                DatabaseConnection::Disconnected => DatabaseConnection::Disconnected,
+            },
+        }
+    }
 }
 
 impl Context {
@@ -23,10 +53,20 @@ impl Context {
     }
 
     #[cfg(feature = "mock")]
-    pub fn mock(db: DatabaseConnection) -> Context {
+    pub fn mock_inject(db: DatabaseConnection) -> Context {
         let config = Config::mock();
 
         Context { config, db }
+    }
+
+    #[cfg(feature = "mock")]
+    pub fn mock() -> Context {
+        let config = Config::mock();
+
+        Context {
+            config,
+            db: DatabaseConnection::Disconnected,
+        }
     }
 
     #[cfg(feature = "mock")]
@@ -47,5 +87,10 @@ impl Context {
         migration::Migrator::up(&context.db, None).await.unwrap();
 
         context
+    }
+
+    #[cfg(feature = "mock")]
+    pub fn is_disconnected(&self) -> bool {
+        matches!(self.db, DatabaseConnection::Disconnected)
     }
 }

@@ -19,7 +19,7 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(Users::Email).string().not_null())
-                    .col(ColumnDef::new(Users::Password).string().not_null())
+                    .col(ColumnDef::new(Users::Password).string())
                     .col(ColumnDef::new(Users::Secret).string())
                     .col(ColumnDef::new(Users::Pubkey).string())
                     .col(ColumnDef::new(Users::CreatedAt).timestamp().not_null())
