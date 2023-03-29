@@ -12,7 +12,6 @@ env:
 
 jobs:
   rustdoc:
-    if: github.repository == 'rust-lang/rust-analyzer'
     runs-on: ubuntu-latest
 
     steps:
