@@ -1,4 +1,5 @@
 use actix_web::{HttpResponse, HttpResponseBuilder, ResponseError};
+use ed25519_dalek::SignatureError;
 use sea_orm::error::{ColumnFromStrErr, DbErr, RuntimeErr};
 use serde::Serialize;
 use thiserror::Error as ThisError;
@@ -16,6 +17,7 @@ pub enum Error {
     Validation(ValidationErrors),
     Unauthorized(String),
     InternalError(String),
+    SignatureError(String),
 }
 
 impl Error {
@@ -57,6 +59,12 @@ impl From<ColumnFromStrErr> for Error {
 impl From<ValidationErrors> for Error {
     fn from(source: ValidationErrors) -> Error {
         Error::Validation(source)
+    }
+}
+
+impl From<SignatureError> for Error {
+    fn from(source: SignatureError) -> Error {
+        Error::SignatureError(source.to_string())
     }
 }
 
@@ -107,6 +115,11 @@ impl From<&Error> for ErrorResponse {
                 context: None,
             },
             Error::InternalError(message) => ErrorResponse {
+                status: 500,
+                message: message.clone(),
+                context: None,
+            },
+            Error::SignatureError(message) => ErrorResponse {
                 status: 500,
                 message: message.clone(),
                 context: None,

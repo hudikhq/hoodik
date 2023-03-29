@@ -34,7 +34,8 @@ error = { path = "./error" }
 migration = { path = "./migration" }
 
 [dev-dependencies]
-lazy_static = "^1.4"
+chrono = { version = "0.4.23", features = ["serde"] }
+base64 = "^0.21"
 auth = { path = "./auth", features = ["mock"] }
 context = { path = "./context", features = ["mock"] }
 cryptfns = { path = "./cryptfns", features = ["mock"] }

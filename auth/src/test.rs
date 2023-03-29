@@ -83,7 +83,10 @@ async fn test_credentials_valid() {
 
     let authenticated = response.unwrap();
 
-    assert!(authenticated.session.expires_at > (Utc::now() + Duration::minutes(20)).naive_utc());
+    assert!(
+        authenticated.session.unwrap().expires_at
+            > (Utc::now() + Duration::minutes(20)).naive_utc()
+    );
     assert_eq!(authenticated.user.id, user.id);
 }
 
@@ -166,9 +169,10 @@ async fn test_retrieve_authenticated_session_by_token_and_csrf() {
     }
 
     let authenticated = response.unwrap();
+    let session = authenticated.session.clone().unwrap();
 
     let response = auth
-        .get_by_token_and_csrf(&authenticated.session.token, &authenticated.session.csrf)
+        .get_by_token_and_csrf(&session.token, &session.csrf)
         .await;
 
     if let Err(e) = response {

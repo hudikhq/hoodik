@@ -18,5 +18,6 @@ sea-orm = { version = "^0.10", features = [
 ] }
 validr = "^0.3"
 actix-web = "^4"
+ed25519-dalek = "^1.0"
 serde = "*"
 serde_json = "*"

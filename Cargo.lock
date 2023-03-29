@@ -434,6 +434,7 @@ dependencies = [
  "actix-web",
  "async-std",
  "async-trait",
+ "base64 0.21.0",
  "chrono",
  "context",
  "cryptfns",
@@ -932,9 +933,9 @@ dependencies = [
 name = "cryptfns"
 version = "0.1.0"
 dependencies = [
- "base64 0.21.0",
  "bip39",
  "ed25519-dalek",
+ "error",
  "rand 0.7.3",
 ]
 
@@ -1233,6 +1234,7 @@ name = "error"
 version = "0.1.0"
 dependencies = [
  "actix-web",
+ "ed25519-dalek",
  "sea-orm",
  "serde",
  "serde_json",
@@ -1595,13 +1597,14 @@ version = "0.1.0"
 dependencies = [
  "actix-web",
  "auth",
+ "base64 0.21.0",
+ "chrono",
  "config",
  "context",
  "cryptfns",
  "entity",
  "env_logger",
  "error",
- "lazy_static",
  "log",
  "migration",
  "serde",

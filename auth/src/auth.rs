@@ -61,7 +61,35 @@ impl<'ctx> Auth<'ctx> {
         // always Some so we can unwrap it safely
         let (session, user) = (result.0, result.1.unwrap());
 
-        Ok(Authenticated { user, session })
+        Ok(Authenticated {
+            user,
+            session: Some(session),
+        })
+    }
+
+    /// Get Authenticated by signature and pubkey
+    pub async fn get_by_signature_and_pubkey(
+        &self,
+        signature: &[u8],
+        pubkey: &str,
+    ) -> AppResult<Authenticated> {
+        let user = users::Entity::find()
+            .filter(users::Column::Pubkey.eq(pubkey))
+            .one(&self.context.db)
+            .await
+            .map_err(Error::from)?
+            .ok_or_else(|| Error::Unauthorized("invalid_signature".to_string()))?;
+
+        let message = (Utc::now().timestamp() / 60).to_string();
+
+        if cryptfns::verify_signature(&user.pubkey, &message, signature).is_err() {
+            return Err(Error::Unauthorized("invalid_signature".to_string()));
+        }
+
+        Ok(Authenticated {
+            user,
+            session: None,
+        })
     }
 
     /// Get user and session by token
@@ -79,7 +107,10 @@ impl<'ctx> Auth<'ctx> {
         // always Some so we can unwrap it safely
         let (session, user) = (result.0, result.1.unwrap());
 
-        Ok(Authenticated { user, session })
+        Ok(Authenticated {
+            user,
+            session: Some(session),
+        })
     }
 
     /// Generate a new session for a user

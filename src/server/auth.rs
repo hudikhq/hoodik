@@ -35,7 +35,10 @@ pub async fn login(
 
     let response = provider.authenticate().await?;
 
-    let cookie = auth.manage_cookie(&response.session, false).await?;
+    // We can safely unwrap here because we know that the session is present when using credentials
+    let cookie = auth
+        .manage_cookie(response.session.as_ref().unwrap(), false)
+        .await?;
 
     Ok(HttpResponse::Ok().cookie(cookie).json(response))
 }
@@ -53,7 +56,11 @@ pub async fn refresh(req: HttpRequest, context: web::Data<Context>) -> AppResult
 
     let auth = Auth::new(&context);
 
-    let response = auth.refresh_session(&authenticated.session).await?;
+    let session = authenticated
+        .session
+        .ok_or(error::Error::Unauthorized("invalid_session".to_string()))?;
+
+    let response = auth.refresh_session(&session).await?;
 
     let cookie = auth.manage_cookie(&response, false).await?;
 
