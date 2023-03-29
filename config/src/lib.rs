@@ -38,7 +38,7 @@ pub struct Config {
     /// *default: hoodik_session*
     pub cookie_name: String,
 
-    /// COOKIE_HTTP This tells us if the cookie is supposed to be http only or not. Http only cookie will
+    /// COOKIE_HTTP_ONLY This tells us if the cookie is supposed to be http only or not. Http only cookie will
     /// only be seen by the browser and not by the javascript frontend. This is okay and its supposed
     /// to work like this.
     /// *optional*
@@ -127,7 +127,7 @@ impl Config {
         let cookie_name = env_var("COOKIE_NAME")
             .ok()
             .unwrap_or_else(|| "hoodik_session".to_string());
-        let cookie_http_only = env_var("COOKIE_HTTP")
+        let cookie_http_only = env_var("COOKIE_HTTP_ONLY")
             .ok()
             .map(|c| c.to_lowercase())
             .unwrap_or_else(|| "true".to_string())
