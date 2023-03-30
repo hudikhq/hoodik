@@ -132,12 +132,8 @@ impl<S> LoadMiddleware<S> {
 
             // Decode the signature and pubkey from base64 into bytes
             let signature = BASE64_STANDARD.decode(signature).ok()?;
-            let pubkey = BASE64_STANDARD.decode(pubkey).ok()?;
 
-            // Attempt to generate mnemonic from the pubkey bytes
-            let pubkey = cryptfns::bytes_to_mnemonic(&pubkey)?;
-
-            Some((signature, pubkey))
+            Some((signature, pubkey.to_string()))
         } else {
             None
         }

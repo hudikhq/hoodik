@@ -1,6 +1,8 @@
 use actix_web::{HttpResponse, HttpResponseBuilder, ResponseError};
+use bip39::Error as Bip39Error;
 use ed25519_dalek::SignatureError;
 use sea_orm::error::{ColumnFromStrErr, DbErr, RuntimeErr};
+use secp256k1::Error as Secp256k1Error;
 use serde::Serialize;
 use thiserror::Error as ThisError;
 use validr::error::ValidationErrors;
@@ -18,6 +20,8 @@ pub enum Error {
     Unauthorized(String),
     InternalError(String),
     SignatureError(String),
+    EncryptionError(String),
+    Bip39Error(String),
 }
 
 impl Error {
@@ -65,6 +69,18 @@ impl From<ValidationErrors> for Error {
 impl From<SignatureError> for Error {
     fn from(source: SignatureError) -> Error {
         Error::SignatureError(source.to_string())
+    }
+}
+
+impl From<Secp256k1Error> for Error {
+    fn from(source: Secp256k1Error) -> Error {
+        Error::EncryptionError(source.to_string())
+    }
+}
+
+impl From<Bip39Error> for Error {
+    fn from(source: Bip39Error) -> Error {
+        Error::EncryptionError(source.to_string())
     }
 }
 
@@ -120,6 +136,16 @@ impl From<&Error> for ErrorResponse {
                 context: None,
             },
             Error::SignatureError(message) => ErrorResponse {
+                status: 500,
+                message: message.clone(),
+                context: None,
+            },
+            Error::EncryptionError(message) => ErrorResponse {
+                status: 500,
+                message: message.clone(),
+                context: None,
+            },
+            Error::Bip39Error(message) => ErrorResponse {
                 status: 500,
                 message: message.clone(),
                 context: None,

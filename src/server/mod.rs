@@ -17,7 +17,7 @@ pub mod middleware {
     pub use ::auth::middleware::{load::Load, verify::Verify};
 }
 
-pub mod auth;
+pub mod api;
 
 /// Create the web application and inject all the routes into it
 pub fn app(
@@ -39,10 +39,10 @@ pub fn app(
         .wrap(middleware::Load::new().token_cookie_name(cookie_name))
         // PRETTY PLEASE: keep the routes in alphabetical order
         //  There is a VSCode extension "Alphabetical Sorter" that can help you with this
-        .service(auth::authenticated_self)
-        .service(auth::login)
-        .service(auth::refresh)
-        .service(auth::register)
+        .service(api::auth::authenticated_self)
+        .service(api::auth::login)
+        .service(api::auth::refresh)
+        .service(api::auth::register)
 }
 
 /// Start the server

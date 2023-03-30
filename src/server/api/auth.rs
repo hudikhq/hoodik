@@ -13,7 +13,11 @@ use context::Context;
 use error::AppResult;
 
 /// If the user is authenticated, return the user data, this is used once the frontend refreshes
-#[route("/auth/self", method = "POST", wrap = "Verify::csrf_header_default()")]
+#[route(
+    "/api/auth/self",
+    method = "POST",
+    wrap = "Verify::csrf_header_default()"
+)]
 pub async fn authenticated_self(req: HttpRequest) -> AppResult<HttpResponse> {
     let authenticated = Authenticated::try_from(&req)?;
 
@@ -24,7 +28,7 @@ pub async fn authenticated_self(req: HttpRequest) -> AppResult<HttpResponse> {
 ///
 /// Request: [auth::data::credentials::Credentials]
 /// Response: [auth::data::authenticated::Authenticated]
-#[route("/auth/login", method = "POST")]
+#[route("/api/auth/login", method = "POST")]
 pub async fn login(
     context: web::Data<Context>,
     data: web::Json<Credentials>,
@@ -47,7 +51,7 @@ pub async fn login(
 ///
 /// Response: [entity::sessions::Model]
 #[route(
-    "/auth/refresh",
+    "/api/auth/refresh",
     method = "POST",
     wrap = "Verify::csrf_header_default()"
 )]
@@ -71,7 +75,7 @@ pub async fn refresh(req: HttpRequest, context: web::Data<Context>) -> AppResult
 ///
 /// Request: [auth::data::create_user::CreateUser]
 /// Response: [entity::users::Model]
-#[route("/auth/register", method = "POST")]
+#[route("/api/auth/register", method = "POST")]
 pub async fn register(
     context: web::Data<Context>,
     data: web::Json<CreateUser>,

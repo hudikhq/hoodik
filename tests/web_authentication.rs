@@ -11,19 +11,19 @@ async fn test_registration_and_login() {
     let context = context::Context::mock_sqlite().await;
     let auth = Auth::new(&context);
 
-    let (public, secret) = cryptfns::generate_ed25519_keypair();
+    let (public, secret) = cryptfns::generate_secp256k1_keypair();
 
-    let pubkey = cryptfns::bytes_to_mnemonic(public.as_bytes());
+    let pubkey = public.to_string();
 
     let mut app = test::init_service(server::app(context.clone())).await;
     let req = test::TestRequest::post()
-        .uri("/auth/register")
+        .uri("/api/auth/register")
         .set_json(&CreateUser {
             email: Some("john@doe.com".to_string()),
             password: Some("not-4-weak-password-for-god-sakes!".to_string()),
             secret: None,
             token: None,
-            pubkey: pubkey.clone(),
+            pubkey: Some(pubkey.clone()),
         })
         .to_request();
 
@@ -32,7 +32,7 @@ async fn test_registration_and_login() {
     assert_eq!(resp.status(), StatusCode::CREATED);
 
     let req = test::TestRequest::post()
-        .uri("/auth/login")
+        .uri("/api/auth/login")
         .set_json(&Credentials {
             email: Some("john@doe.com".to_string()),
             password: Some("not-4-weak-password-for-god-sakes!".to_string()),
@@ -54,7 +54,7 @@ async fn test_registration_and_login() {
         .unwrap();
 
     let req = test::TestRequest::post()
-        .uri("/auth/refresh")
+        .uri("/api/auth/refresh")
         .cookie(cookie.clone())
         .append_header((
             "X-CSRF-Token",
@@ -72,7 +72,7 @@ async fn test_registration_and_login() {
     let cookie = auth.manage_cookie(&session, false).await.unwrap();
 
     let req = test::TestRequest::post()
-        .uri("/auth/self")
+        .uri("/api/auth/self")
         .cookie(cookie.clone())
         .append_header(("X-CSRF-Token", session.csrf.clone()))
         .to_request();
@@ -82,20 +82,18 @@ async fn test_registration_and_login() {
     assert_eq!(resp.status(), StatusCode::OK);
 
     let message = (chrono::Utc::now().timestamp() / 60).to_string();
-    let signature = cryptfns::sign(&message, secret.as_bytes(), public.as_bytes())
+    let signature = cryptfns::sign(&message, secret.as_ref())
         .unwrap()
-        .to_bytes();
-
-    let pubkey_as_bytes = cryptfns::mnemonic_to_bytes(pubkey.as_ref().unwrap()).unwrap();
+        .serialize_compact();
 
     let value = format!(
         "Signature {} {}",
         BASE64_STANDARD.encode(&signature),
-        BASE64_STANDARD.encode(&pubkey_as_bytes)
+        pubkey.to_string()
     );
 
     let req = test::TestRequest::post()
-        .uri("/auth/self")
+        .uri("/api/auth/self")
         .append_header(("Authorization", value))
         .to_request();
 
@@ -104,20 +102,18 @@ async fn test_registration_and_login() {
     assert_eq!(resp.status(), StatusCode::OK);
 
     let message = ((chrono::Utc::now().timestamp() / 60) - 60).to_string();
-    let signature = cryptfns::sign(&message, secret.as_bytes(), public.as_bytes())
+    let signature = cryptfns::sign(&message, secret.as_ref())
         .unwrap()
-        .to_bytes();
-
-    let pubkey_as_bytes = cryptfns::mnemonic_to_bytes(pubkey.as_ref().unwrap()).unwrap();
+        .serialize_compact();
 
     let value = format!(
         "Signature {} {}",
         BASE64_STANDARD.encode(&signature),
-        BASE64_STANDARD.encode(&pubkey_as_bytes)
+        pubkey.to_string()
     );
 
     let req = test::TestRequest::post()
-        .uri("/auth/self")
+        .uri("/api/auth/self")
         .append_header(("Authorization", value))
         .to_request();
 

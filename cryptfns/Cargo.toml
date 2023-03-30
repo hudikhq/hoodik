@@ -14,7 +14,7 @@ mock = []
 
 [dependencies]
 rand = "^0.7"
-ed25519-dalek = "^1.0"
-bip39 = "^2"
+bip39 = { version = "^2", features = ["rand_core", "rand"] }
+secp256k1 = { version = "^0.26", features = ["bitcoin_hashes"] }
 
 error = { path = "../error" }
