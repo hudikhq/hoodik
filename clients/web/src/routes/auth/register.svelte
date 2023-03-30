@@ -1,22 +1,19 @@
 <script lang="ts">
 	import { Label, Input } from 'flowbite-svelte';
-	import { SignIn } from '$lib';
-
-	let title = 'Sign in to platform';
-	let site = {
+	import { Register } from '$lib';
+	const title = 'Create a Free Account';
+	const site = {
 		name: 'Flowbite',
 		img: 'https://flowbite-admin-dashboard.vercel.app/images/logo.svg',
 		link: 'https://flowbite-admin-dashboard.vercel.app/',
 		imgAlt: 'FlowBite Logo'
 	};
-	let rememberMe = true;
-	let lostPassword = true;
-	let createAccount = true;
-	let lostPasswordLink = 'forgot-password';
-	let loginTitle = 'Login to your account';
-	let registerLink = 'sign-up';
-	let createAccountTitle = 'Create account';
-
+	const acceptTerms = true;
+	const haveAccount = true;
+	const btnTitle = 'Create account';
+	const termsLink = '/';
+	const loginLink = 'sign-in';
+	const labelClass = 'mb-2';
 	const onSubmit = (e: Event) => {
 		const formData = new FormData(e.target as HTMLFormElement);
 
@@ -29,16 +26,14 @@
 	};
 </script>
 
-<SignIn
+<Register
 	{title}
 	{site}
-	{rememberMe}
-	{lostPassword}
-	{createAccount}
-	{lostPasswordLink}
-	{loginTitle}
-	{registerLink}
-	{createAccountTitle}
+	{acceptTerms}
+	{haveAccount}
+	{btnTitle}
+	{termsLink}
+	{loginLink}
 	on:submit={onSubmit}
 >
 	<div>
@@ -46,7 +41,17 @@
 		<Input type="email" name="email" id="email" placeholder="name@company.com" required />
 	</div>
 	<div>
-		<Label for="password" class="mb-2">Your password</Label>
+		<Label for="password" class={labelClass}>Your password</Label>
 		<Input type="password" name="password" id="password" placeholder="••••••••" required />
 	</div>
-</SignIn>
+	<div>
+		<Label for="confirm-password" class={labelClass}>Confirm password</Label>
+		<Input
+			type="password"
+			name="confirm-password"
+			id="confirm-password"
+			placeholder="••••••••"
+			required
+		/>
+	</div>
+</Register>

@@ -14,6 +14,7 @@ pub struct CreateUser {
     pub password: Option<String>,
     pub secret: Option<String>,
     pub token: Option<String>,
+    pub encrypted_secret_key: Option<String>,
     pub pubkey: Option<String>,
 }
 
@@ -63,6 +64,7 @@ impl CreateUser {
             password: ActiveValue::Set(data.password.map(hash)),
             secret: ActiveValue::Set(data.secret),
             pubkey: ActiveValue::Set(data.pubkey.unwrap()),
+            encrypted_secret_key: ActiveValue::Set(data.encrypted_secret_key),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
         })

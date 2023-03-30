@@ -1,4 +1,4 @@
-import type * as AppCrypto from './crypto';
+import * as crypto from './crypto';
 import Cookies from 'js-cookie';
 
 export type Query = {
@@ -139,36 +139,57 @@ export function getFlattenedTimestampMinutes(): string {
  * @class
  */
 export default class Api {
-	crypt: typeof AppCrypto;
-
-	constructor(crypt: typeof AppCrypto) {
-		this.crypt = crypt;
+	/**
+	 * Make get request
+	 */
+	static async get<R>(
+		path: string,
+		query?: Query,
+		headers?: Headers
+	): Promise<Response<undefined, R>> {
+		return new Api().make('get', path, query, undefined, headers);
 	}
 
 	/**
-	 * Prepare headers before sending the request
+	 * Make post request
+	 * @throws
 	 */
-	async getHeaders(headers?: Headers): Promise<Headers> {
-		headers = headers || {};
-		headers['Content-Type'] = 'application/json';
+	static async post<B, R>(
+		path: string,
+		query?: Query,
+		body?: B,
+		headers?: Headers
+	): Promise<Response<B, R>> {
+		return new Api().make('post', path, query, body, headers);
+	}
 
-		if (getCsrf()) {
-			headers['X-Csrf-Token'] = getCsrf() || '';
-		}
+	/**
+	 * Make put request
+	 * @throws
+	 */
+	static async put<B, R>(
+		path: string,
+		query?: Query,
+		body?: B,
+		headers?: Headers
+	): Promise<Response<B, R>> {
+		return new Api().make('put', path, query, body, headers);
+	}
 
-		try {
-			const { pubkey, signature } = await this.crypt.sign(getFlattenedTimestampMinutes());
-			headers['Authorization'] = `Signature ${signature} ${pubkey}`;
-		} catch (e) {
-			/**/
-		}
-
-		return headers;
+	/**
+	 * Make delete request
+	 * @throws
+	 */
+	static async delete<R>(
+		path: string,
+		query?: Query,
+		headers?: Headers
+	): Promise<Response<undefined, R>> {
+		return new Api().make('get', path, query, undefined, headers);
 	}
 
 	/**
 	 * Main method to run the requests
-	 *
 	 * @throws
 	 */
 	async make<B, R>(
@@ -231,5 +252,26 @@ export default class Api {
 		}
 
 		return response;
+	}
+
+	/**
+	 * Prepare headers before sending the request
+	 */
+	async getHeaders(headers?: Headers): Promise<Headers> {
+		headers = headers || {};
+		headers['Content-Type'] = 'application/json';
+
+		if (getCsrf()) {
+			headers['X-Csrf-Token'] = getCsrf() || '';
+		}
+
+		try {
+			const { pubkey, signature } = await crypto.sign(getFlattenedTimestampMinutes());
+			headers['Authorization'] = `Signature ${signature} ${pubkey}`;
+		} catch (e) {
+			/**/
+		}
+
+		return headers;
 	}
 }

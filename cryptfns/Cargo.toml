@@ -17,4 +17,7 @@ rand = "^0.7"
 bip39 = { version = "^2", features = ["rand_core", "rand"] }
 secp256k1 = { version = "^0.26", features = ["bitcoin_hashes"] }
 
+serde = "*"
+serde_json = "*"
+
 error = { path = "../error" }

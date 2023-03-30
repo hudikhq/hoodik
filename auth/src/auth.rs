@@ -6,6 +6,7 @@ use entity::{
     sessions, users, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, QueryFilter,
 };
 use error::{AppResult, Error};
+use log::error;
 
 pub struct Auth<'ctx> {
     pub context: &'ctx Context,
@@ -70,7 +71,7 @@ impl<'ctx> Auth<'ctx> {
     /// Get Authenticated by signature and pubkey
     pub async fn get_by_signature_and_pubkey(
         &self,
-        signature: &[u8],
+        signature: &str,
         pubkey: &str,
     ) -> AppResult<Authenticated> {
         let user = users::Entity::find()
@@ -82,7 +83,8 @@ impl<'ctx> Auth<'ctx> {
 
         let message = (Utc::now().timestamp() / 60).to_string();
 
-        if cryptfns::verify_signature(&user.pubkey, &message, signature).is_err() {
+        if let Err(e) = cryptfns::verify_signature(&user.pubkey, &message, signature) {
+            error!("Error verifying signature: {}", e);
             return Err(Error::Unauthorized("invalid_signature".to_string()));
         }
 

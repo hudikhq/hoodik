@@ -20,7 +20,6 @@ uuid = { version = "1.2.2", features = ["serde", "v4"] }
 log = "^0.4"
 actix-web = "^4"
 futures-util = "^0.3"
-base64 = "^0.21"
 serde = "*"
 serde_json = "*"
 

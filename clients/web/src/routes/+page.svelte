@@ -13,8 +13,6 @@
 
 <Heading tag="h2" class="my-4" customSize="text-3xl">Authentication</Heading>
 <List class="space-y-1">
-	<Li><A href="/auth/profile-lock" class="underline hover:no-underline">Profile lock</A></Li>
-	<Li><A href="/auth/reset-password" class="underline hover:no-underline">Reset password</A></Li>
-	<Li><A href="/auth/sign-in" class="underline hover:no-underline">Sign in</A></Li>
-	<Li><A href="/auth/sign-up" class="underline hover:no-underline">Sign up</A></Li>
+	<Li><A href="/auth/login" class="underline hover:no-underline">Login</A></Li>
+	<Li><A href="/auth/register" class="underline hover:no-underline">Register</A></Li>
 </List>

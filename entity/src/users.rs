@@ -14,6 +14,7 @@ pub struct Model {
     pub password: Option<String>,
     pub secret: Option<String>,
     pub pubkey: String,
+    pub encrypted_secret_key: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }

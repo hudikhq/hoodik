@@ -1,20 +1,16 @@
 import CryptoJS from 'crypto-js';
-import Crypto from 'crypto';
 import elliptic from 'elliptic';
 import bip39 from 'bip39';
 import { writable } from 'svelte/store';
-import { webcrypto } from 'node:crypto';
 
 const encryptedSecretStorageName = 'encrypted-secret';
 
-if (!globalThis.crypto) globalThis.crypto = webcrypto as Crypto;
-
-export interface Globals {
+export interface Keypair {
 	publicKey: string | null;
 	secretKey: string | null;
 }
 
-export const { subscribe, set: _set } = writable<Globals>({
+export const { subscribe, set: _set } = writable<Keypair>({
 	publicKey: null,
 	secretKey: null
 });
@@ -23,8 +19,8 @@ export const { subscribe, set: _set } = writable<Globals>({
  * Encrypt the given input with the given pin
  */
 export function encrypt(value: string, pin: string): string {
-	const encrypted = CryptoJS.AES.encrypt(value, pin);
-	return encrypted.toString();
+	const encrypted = CryptoJS.AES.encrypt(value, pin, { format: CryptoJS.format.OpenSSL });
+	return encrypted.toString(CryptoJS.format.OpenSSL);
 }
 
 /**
@@ -42,6 +38,30 @@ export function decrypt(encrypted: string, pin: string): string {
 export function encryptAndStore(secret: string, pin: string) {
 	const encryptedSecret = encrypt(secret, pin);
 	localStorage.setItem(encryptedSecretStorageName, encryptedSecret);
+}
+
+/**
+ * Try to get the encrypted secret from the localStorage and decrypt it with the given pin
+ * if decryption is okay then set the globals with new values.
+ *
+ * @throws
+ */
+export function decryptAndSet(encryptedSecret: string, pin: string) {
+	const secret = decrypt(encryptedSecret, pin);
+	set(generateKeyFrom(secret));
+}
+
+/**
+ * Get the encrypted secret from the localStorage
+ */
+export function getEncryptedSecret(): string | null {
+	return localStorage.getItem(encryptedSecretStorageName);
+}
+/**
+ * Lets us know if we should even attempt the decryption
+ */
+export function hasEncryptedSecretKey(): boolean {
+	return !!getEncryptedSecret();
 }
 
 /**
@@ -63,16 +83,16 @@ export function hexToMnemonic(hex: string): string {
 }
 
 /**
- * Generate a random keypair in a format of Globals
+ * Generate a random keypair in a format of Keypair
  */
-export function generateKey(): Globals {
-	return generateKeyFrom(bip39.generateMnemonic());
+export function generateKey(): Keypair {
+	return generateKeyFrom(bip39.generateMnemonic(256));
 }
 
 /**
  * Generate a key from mnemonic
  */
-export function generateKeyFrom(mnemonic: string): Globals {
+export function generateKeyFrom(mnemonic: string): Keypair {
 	const ec = new elliptic.ec('secp256k1');
 
 	const hex = bip39.mnemonicToSeedSync(mnemonic);
@@ -80,7 +100,7 @@ export function generateKeyFrom(mnemonic: string): Globals {
 	const keyPair = ec.keyFromPrivate(hex);
 
 	return {
-		publicKey: keyPair.getPublic().toString(),
+		publicKey: keyPair.getPublic().encode('hex', true),
 		secretKey: mnemonic
 	};
 }
@@ -88,14 +108,27 @@ export function generateKeyFrom(mnemonic: string): Globals {
 /**
  * Get the value right away
  */
-export async function get(): Promise<Globals> {
+export async function _get(): Promise<Keypair> {
 	return new Promise((resolve) => subscribe(resolve));
+}
+
+/**
+ * Gets the authenticated object if it exists
+ */
+export async function get(): Promise<Keypair | null> {
+	const globals = await _get();
+
+	if (!globals || !globals.secretKey || !globals.publicKey) {
+		return null;
+	}
+
+	return globals;
 }
 
 /**
  * Set the globals value
  */
-export function set(glob: Globals) {
+export function set(glob: Keypair) {
 	_set(glob);
 }
 
@@ -110,21 +143,10 @@ export function clearGlob() {
 }
 
 /**
- * Try to get the encrypted secret from the localStorage and decrypt it with the given pin
- * if decryption is okay then set the globals with new values.
- *
- * @throws
- */
-export function decryptAndSet(encryptedSecret: string, pin: string) {
-	const secret = decrypt(encryptedSecret, pin);
-	set(generateKeyFrom(secret));
-}
-
-/**
  * Sign the given message with current secret key and return an object with signature and pubkey
  */
 export async function sign(message: string): Promise<{ signature: string; pubkey: string }> {
-	const { secretKey } = await get();
+	const { secretKey } = await _get();
 
 	if (!secretKey) {
 		throw new Error('No secretKey on globals, cannot sign message');
@@ -132,11 +154,12 @@ export async function sign(message: string): Promise<{ signature: string; pubkey
 
 	const keypair = mnemonicToKeypair(secretKey);
 
+	// TODO: Maybe add hashing here... The signature is not matching for some reason!
 	const signature = keypair.sign(message);
 
 	return {
 		signature: signature.toDER('hex'),
-		pubkey: keypair.getPublic().toString()
+		pubkey: keypair.getPublic().encode('hex', true)
 	};
 }
 
@@ -144,7 +167,7 @@ export async function sign(message: string): Promise<{ signature: string; pubkey
  * Verify signed message
  */
 export async function verify(signature: string, message: string): Promise<boolean> {
-	const { secretKey } = await get();
+	const { secretKey } = await _get();
 
 	if (!secretKey) {
 		throw new Error('No secretKey on globals, cannot verify message');
