@@ -7,7 +7,6 @@ use actix_web::{
     dev::{Service, ServiceRequest, Transform},
     web, Error, HttpMessage, ResponseError,
 };
-use base64::prelude::*;
 use context::Context;
 use error::Error as AppError;
 use futures_util::future::{ok, LocalBoxFuture, Ready};
@@ -119,8 +118,8 @@ impl<S> LoadMiddleware<S> {
 
     /// Extracts the signature and pubkey from the request to run the authentication by using the pubkey
     /// Header name: Authorization
-    /// Header format: Signature <signature-base64> <pubkey-base64>
-    fn extract_signature_and_pubkey(&self, req: &ServiceRequest) -> Option<(Vec<u8>, String)> {
+    /// Header format: Signature <signature-base64> <pubkey-hex>
+    fn extract_signature_and_pubkey(&self, req: &ServiceRequest) -> Option<(String, String)> {
         let header = req.headers().get("Authorization")?;
         let mut header_value = header.to_str().ok()?.split(' ');
         let header_type = header_value.next()?;
@@ -130,10 +129,7 @@ impl<S> LoadMiddleware<S> {
             let signature = header_value.next()?;
             let pubkey = header_value.next()?;
 
-            // Decode the signature and pubkey from base64 into bytes
-            let signature = BASE64_STANDARD.decode(signature).ok()?;
-
-            Some((signature, pubkey.to_string()))
+            Some((signature.to_string(), pubkey.to_string()))
         } else {
             None
         }
@@ -178,13 +174,16 @@ where
                 }
             };
 
+            let mut have_session = false;
+
             if let Some(token) = &maybe_token {
                 if let Ok(authenticated) = Auth::new(context).get_by_token(token).await {
                     req.extensions_mut().insert(authenticated);
+                    have_session = true;
                 }
             }
 
-            if maybe_token.is_none() {
+            if !have_session {
                 if let Some((signature, pubkey)) = &maybe_signature_and_pubkey {
                     if let Ok(authenticated) = Auth::new(context)
                         .get_by_signature_and_pubkey(signature, pubkey)

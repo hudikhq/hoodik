@@ -43,10 +43,10 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"@noble/ed25519": "^2.0.0",
 		"bip39": "^3.1.0",
 		"crypto-js": "^4.1.1",
 		"elliptic": "^6.5.4",
-		"js-cookie": "^3.0.1"
+		"js-cookie": "^3.0.1",
+		"svelte-routing": "^1.6.0"
 	}
 }

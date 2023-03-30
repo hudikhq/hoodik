@@ -3,7 +3,6 @@ use auth::{
     auth::Auth,
     data::{authenticated::Authenticated, create_user::CreateUser, credentials::Credentials},
 };
-use base64::prelude::*;
 use hoodik::server;
 
 #[actix_web::test]
@@ -13,7 +12,8 @@ async fn test_registration_and_login() {
 
     let (public, secret) = cryptfns::generate_secp256k1_keypair();
 
-    let pubkey = public.to_string();
+    let hex_pubkey = public.to_string();
+    let encrypted_secret = "some-random-encrypted-secret".to_string();
 
     let mut app = test::init_service(server::app(context.clone())).await;
     let req = test::TestRequest::post()
@@ -23,7 +23,8 @@ async fn test_registration_and_login() {
             password: Some("not-4-weak-password-for-god-sakes!".to_string()),
             secret: None,
             token: None,
-            pubkey: Some(pubkey.clone()),
+            pubkey: Some(hex_pubkey.clone()),
+            encrypted_secret_key: Some(encrypted_secret.clone()),
         })
         .to_request();
 
@@ -84,13 +85,9 @@ async fn test_registration_and_login() {
     let message = (chrono::Utc::now().timestamp() / 60).to_string();
     let signature = cryptfns::sign(&message, secret.as_ref())
         .unwrap()
-        .serialize_compact();
+        .to_string();
 
-    let value = format!(
-        "Signature {} {}",
-        BASE64_STANDARD.encode(&signature),
-        pubkey.to_string()
-    );
+    let value = format!("Signature {} {}", signature, hex_pubkey.to_string());
 
     let req = test::TestRequest::post()
         .uri("/api/auth/self")
@@ -104,13 +101,9 @@ async fn test_registration_and_login() {
     let message = ((chrono::Utc::now().timestamp() / 60) - 60).to_string();
     let signature = cryptfns::sign(&message, secret.as_ref())
         .unwrap()
-        .serialize_compact();
+        .to_string();
 
-    let value = format!(
-        "Signature {} {}",
-        BASE64_STANDARD.encode(&signature),
-        pubkey.to_string()
-    );
+    let value = format!("Signature {} {}", signature, hex_pubkey.to_string());
 
     let req = test::TestRequest::post()
         .uri("/api/auth/self")

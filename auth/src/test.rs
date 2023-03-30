@@ -23,6 +23,7 @@ async fn auth_create_user() {
         password: Some("very-strong-password".to_string()),
         secret: None,
         pubkey: cryptfns::get_hex_pubkey().ok(),
+        encrypted_secret_key: Some("encrypted-gibberish".to_string()),
         token: None,
     };
 
@@ -55,6 +56,7 @@ async fn test_credentials_valid() {
         password: Some("very-strong-password".to_string()),
         secret: None,
         pubkey: cryptfns::get_hex_pubkey().ok(),
+        encrypted_secret_key: Some("encrypted-gibberish".to_string()),
         token: None,
     };
 
@@ -100,6 +102,7 @@ async fn test_credentials_invalid() {
         password: Some("very-strong-password".to_string()),
         secret: None,
         pubkey: cryptfns::get_hex_pubkey().ok(),
+        encrypted_secret_key: Some("encrypted-gibberish".to_string()),
         token: None,
     };
 
@@ -145,6 +148,7 @@ async fn test_retrieve_authenticated_session_by_token_and_csrf() {
         password: Some("very-strong-password".to_string()),
         secret: None,
         pubkey,
+        encrypted_secret_key: Some("encrypted-gibberish".to_string()),
         token: None,
     };
 

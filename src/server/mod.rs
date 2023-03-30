@@ -36,7 +36,11 @@ pub fn app(
     App::new()
         .app_data(web::Data::new(context))
         // Authentication load middleware that only sets it up on the app
-        .wrap(middleware::Load::new().token_cookie_name(cookie_name))
+        .wrap(
+            middleware::Load::new()
+                .token_cookie_name(cookie_name)
+                .add_ignore("/api/auth/register".to_string()),
+        )
         // PRETTY PLEASE: keep the routes in alphabetical order
         //  There is a VSCode extension "Alphabetical Sorter" that can help you with this
         .service(api::auth::authenticated_self)

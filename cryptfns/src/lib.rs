@@ -47,10 +47,10 @@ pub fn sign(message: &str, secret: &[u8]) -> AppResult<Signature> {
 }
 
 /// Verify signature with the given public key
-pub fn verify_signature(public_key: &str, message: &str, signature: &[u8]) -> AppResult<()> {
+pub fn verify_signature(public_key: &str, message: &str, signature: &str) -> AppResult<()> {
+    let signature = Signature::from_str(signature)?;
     let secp = Secp256k1::verification_only();
     let message = Message::from_hashed_data::<sha256::Hash>(message.as_bytes());
-    let signature = Signature::from_der(signature)?;
     let pk = PublicKey::from_str(public_key)?;
 
     secp.verify_ecdsa(&message, &signature, &pk)
@@ -117,7 +117,11 @@ mod tests {
 
         let signature = sign(message, secret.as_ref()).unwrap();
 
-        let result = verify_signature(&public.to_string(), message, &signature.serialize_compact());
+        let result = verify_signature(
+            &public.to_string(),
+            message,
+            &signature.serialize_der().to_string(),
+        );
 
         println!("{:?}", result);
         assert!(result.is_ok());

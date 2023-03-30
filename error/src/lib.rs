@@ -84,6 +84,12 @@ impl From<Bip39Error> for Error {
     }
 }
 
+impl From<std::str::Utf8Error> for Error {
+    fn from(source: std::str::Utf8Error) -> Error {
+        Error::InternalError(source.to_string())
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
     #[serde(skip_serializing)]
