@@ -40,12 +40,8 @@ impl Validation for CreateUser {
             }),
             Rule::new("pubkey", |obj: &Self, error| {
                 if let Some(v) = &obj.pubkey {
-                    if cryptfns::mnemonic_to_bytes(v).is_none() {
-                        error.add("invalid_pubkey_not_bip39");
-                    }
-
-                    if v.split(' ').count() != 24 {
-                        error.add("invalid_pubkey_length");
+                    if cryptfns::pubkey_from_hex(v).is_err() {
+                        error.add("invalid_pubkey_not_ecc_hex");
                     }
                 }
             }),

@@ -515,6 +515,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93f2635620bf0b9d4576eb7bb9a38a55df78bd1205d26fa994b25911a69f212f"
 dependencies = [
  "bitcoin_hashes",
+ "rand 0.8.5",
+ "rand_core 0.6.4",
  "serde",
  "unicode-normalization",
 ]
@@ -935,9 +937,9 @@ name = "cryptfns"
 version = "0.1.0"
 dependencies = [
  "bip39",
- "ed25519-dalek",
  "error",
  "rand 0.7.3",
+ "secp256k1",
 ]
 
 [[package]]
@@ -1235,8 +1237,10 @@ name = "error"
 version = "0.1.0"
 dependencies = [
  "actix-web",
+ "bip39",
  "ed25519-dalek",
  "sea-orm",
+ "secp256k1",
  "serde",
  "serde_json",
  "thiserror",
@@ -2768,6 +2772,25 @@ name = "seahash"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c107b6f4780854c8b126e228ea8869f4d7b71260f962fefb57b996b8959ba6b"
+
+[[package]]
+name = "secp256k1"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4124a35fe33ae14259c490fd70fa199a32b9ce9502f2ee6bc4f81ec06fa65894"
+dependencies = [
+ "bitcoin_hashes",
+ "secp256k1-sys",
+]
+
+[[package]]
+name = "secp256k1-sys"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70a129b9e9efbfb223753b9163c4ab3b13cff7fd9c7f010fbac25ab4099fa07e"
+dependencies = [
+ "cc",
+]
 
 [[package]]
 name = "semver"
