@@ -177,22 +177,35 @@ where
             let mut have_session = false;
 
             if let Some(token) = &maybe_token {
-                if let Ok(authenticated) = Auth::new(context).get_by_token(token).await {
-                    req.extensions_mut().insert(authenticated);
-                    have_session = true;
+                match Auth::new(context).get_by_token(token).await {
+                    Ok(authenticated) => {
+                        req.extensions_mut().insert(authenticated);
+                        have_session = true;
+                    }
+                    Err(e) => {
+                        log::debug!("auth::middleware::load|error: {}", e);
+                    }
                 }
             }
 
             if !have_session {
                 if let Some((signature, pubkey)) = &maybe_signature_and_pubkey {
-                    if let Ok(authenticated) = Auth::new(context)
+                    match Auth::new(context)
                         .get_by_signature_and_pubkey(signature, pubkey)
                         .await
                     {
-                        req.extensions_mut().insert(authenticated);
+                        Ok(authenticated) => {
+                            req.extensions_mut().insert(authenticated);
+                            have_session = true;
+                        }
+                        Err(e) => {
+                            log::debug!("auth::middleware::load|error: {}", e);
+                        }
                     }
                 }
             }
+
+            log::debug!("auth::middleware::load|have_session: {}", have_session);
 
             svc.call(req).await
         })

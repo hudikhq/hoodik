@@ -48,7 +48,8 @@ pub fn sign(message: &str, secret: &[u8]) -> AppResult<Signature> {
 
 /// Verify signature with the given public key
 pub fn verify_signature(public_key: &str, message: &str, signature: &str) -> AppResult<()> {
-    let signature = Signature::from_str(signature)?;
+    let signature = hex::decode(signature).unwrap_or_default();
+    let signature = Signature::from_der(&signature)?;
     let secp = Secp256k1::verification_only();
     let message = Message::from_hashed_data::<sha256::Hash>(message.as_bytes());
     let pk = PublicKey::from_str(public_key)?;
