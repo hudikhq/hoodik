@@ -24,7 +24,8 @@ export function encrypt(value: string, pin: string): string {
 }
 
 /**
- * Decrypt the given input with the given pin
+ * Decrypt the given encrypted input with the given pin
+ * @throws
  */
 export function decrypt(encrypted: string, pin: string): string {
 	const decryptedBytes = CryptoJS.AES.decrypt(encrypted, pin);
@@ -42,7 +43,7 @@ export function encryptAndStore(secret: string, pin: string) {
 
 /**
  * Try to get the encrypted secret from the localStorage and decrypt it with the given pin
- * if decryption is okay then set the globals with new values.
+ * if decryption is okay then set the keypair with new values.
  *
  * @throws
  */
@@ -116,26 +117,26 @@ export async function _get(): Promise<Keypair> {
  * Gets the authenticated object if it exists
  */
 export async function get(): Promise<Keypair | null> {
-	const globals = await _get();
+	const keypair = await _get();
 
-	if (!globals || !globals.secretKey || !globals.publicKey) {
+	if (!keypair || !keypair.secretKey || !keypair.publicKey) {
 		return null;
 	}
 
-	return globals;
+	return keypair;
 }
 
 /**
- * Set the globals value
+ * Set the keypair value
  */
 export function set(glob: Keypair) {
 	_set(glob);
 }
 
 /**
- * Clear the globals value
+ * Clear the keypair value
  */
-export function clearGlob() {
+export function clearKeypair() {
 	_set({
 		publicKey: null,
 		secretKey: null
@@ -149,7 +150,7 @@ export async function sign(message: string): Promise<{ signature: string; pubkey
 	const { secretKey } = await _get();
 
 	if (!secretKey) {
-		throw new Error('No secretKey on globals, cannot sign message');
+		throw new Error('No secretKey on keypair, cannot sign message');
 	}
 
 	const keypair = mnemonicToKeypair(secretKey);
@@ -170,7 +171,7 @@ export async function verify(signature: string, message: string): Promise<boolea
 	const { secretKey } = await _get();
 
 	if (!secretKey) {
-		throw new Error('No secretKey on globals, cannot verify message');
+		throw new Error('No secretKey on keypair, cannot verify message');
 	}
 
 	const keypair = mnemonicToKeypair(secretKey);

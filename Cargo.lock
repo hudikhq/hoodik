@@ -937,6 +937,7 @@ version = "0.1.0"
 dependencies = [
  "bip39",
  "error",
+ "hex",
  "rand 0.7.3",
  "secp256k1",
  "serde",

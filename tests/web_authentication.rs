@@ -85,6 +85,7 @@ async fn test_registration_and_login() {
     let message = (chrono::Utc::now().timestamp() / 60).to_string();
     let signature = cryptfns::sign(&message, secret.as_ref())
         .unwrap()
+        .serialize_der()
         .to_string();
 
     let value = format!("Signature {} {}", signature, hex_pubkey.to_string());
@@ -101,6 +102,7 @@ async fn test_registration_and_login() {
     let message = ((chrono::Utc::now().timestamp() / 60) - 60).to_string();
     let signature = cryptfns::sign(&message, secret.as_ref())
         .unwrap()
+        .serialize_der()
         .to_string();
 
     let value = format!("Signature {} {}", signature, hex_pubkey.to_string());

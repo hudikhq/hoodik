@@ -16,6 +16,7 @@ mock = []
 rand = "^0.7"
 bip39 = { version = "^2", features = ["rand_core", "rand"] }
 secp256k1 = { version = "^0.26", features = ["bitcoin_hashes"] }
+hex = "^0.4"
 
 serde = "*"
 serde_json = "*"
