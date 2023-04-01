@@ -14,7 +14,7 @@ pub struct CreateUser {
     pub password: Option<String>,
     pub secret: Option<String>,
     pub token: Option<String>,
-    pub encrypted_secret_key: Option<String>,
+    pub encrypted_private_key: Option<String>,
     pub pubkey: Option<String>,
 }
 
@@ -41,8 +41,8 @@ impl Validation for CreateUser {
             }),
             Rule::new("pubkey", |obj: &Self, error| {
                 if let Some(v) = &obj.pubkey {
-                    if cryptfns::pubkey_from_hex(v).is_err() {
-                        error.add("invalid_pubkey_not_ecc_hex");
+                    if cryptfns::public::from_str(v).is_err() {
+                        error.add("invalid_pubkey_not_pkcs8_pem");
                     }
                 }
             }),
@@ -64,7 +64,7 @@ impl CreateUser {
             password: ActiveValue::Set(data.password.map(hash)),
             secret: ActiveValue::Set(data.secret),
             pubkey: ActiveValue::Set(data.pubkey.unwrap()),
-            encrypted_secret_key: ActiveValue::Set(data.encrypted_secret_key),
+            encrypted_private_key: ActiveValue::Set(data.encrypted_private_key),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
         })

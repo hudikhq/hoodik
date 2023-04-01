@@ -13,9 +13,9 @@ path = "src/lib.rs"
 mock = []
 
 [dependencies]
-rand = "^0.7"
-bip39 = { version = "^2", features = ["rand_core", "rand"] }
-secp256k1 = { version = "^0.26", features = ["bitcoin_hashes"] }
+rand = "^0.8"
+rsa = { version = "^0.8", features = ["sha2"] }
+base64 = "^0.21"
 hex = "^0.4"
 
 serde = "*"

@@ -10,9 +10,11 @@ async fn test_registration_and_login() {
     let context = context::Context::mock_sqlite().await;
     let auth = Auth::new(&context);
 
-    let (public, secret) = cryptfns::generate_secp256k1_keypair();
+    let private = cryptfns::private::generate().unwrap();
+    let private_string = cryptfns::private::to_string(&private).unwrap();
+    let public = cryptfns::public::from_private(&private).unwrap();
+    let public_string = cryptfns::public::to_string(&public).unwrap();
 
-    let hex_pubkey = public.to_string();
     let encrypted_secret = "some-random-encrypted-secret".to_string();
 
     let mut app = test::init_service(server::app(context.clone())).await;
@@ -23,8 +25,8 @@ async fn test_registration_and_login() {
             password: Some("not-4-weak-password-for-god-sakes!".to_string()),
             secret: None,
             token: None,
-            pubkey: Some(hex_pubkey.clone()),
-            encrypted_secret_key: Some(encrypted_secret.clone()),
+            pubkey: Some(public_string.clone()),
+            encrypted_private_key: Some(encrypted_secret.clone()),
         })
         .to_request();
 
@@ -83,12 +85,9 @@ async fn test_registration_and_login() {
     assert_eq!(resp.status(), StatusCode::OK);
 
     let message = (chrono::Utc::now().timestamp() / 60).to_string();
-    let signature = cryptfns::sign(&message, secret.as_ref())
-        .unwrap()
-        .serialize_der()
-        .to_string();
+    let signature = cryptfns::private::sign(&message, &private_string).unwrap();
 
-    let value = format!("Signature {} {}", signature, hex_pubkey.to_string());
+    let value = format!("Signature {} {}", signature, public_string.to_string());
 
     let req = test::TestRequest::post()
         .uri("/api/auth/self")
@@ -100,12 +99,9 @@ async fn test_registration_and_login() {
     assert_eq!(resp.status(), StatusCode::OK);
 
     let message = ((chrono::Utc::now().timestamp() / 60) - 60).to_string();
-    let signature = cryptfns::sign(&message, secret.as_ref())
-        .unwrap()
-        .serialize_der()
-        .to_string();
+    let signature = cryptfns::private::sign(&message, &private_string).unwrap();
 
-    let value = format!("Signature {} {}", signature, hex_pubkey.to_string());
+    let value = format!("Signature {} {}", signature, public_string.to_string());
 
     let req = test::TestRequest::post()
         .uri("/api/auth/self")

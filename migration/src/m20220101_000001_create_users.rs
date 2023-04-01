@@ -22,7 +22,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Users::Password).string())
                     .col(ColumnDef::new(Users::Secret).string())
                     .col(ColumnDef::new(Users::Pubkey).string())
-                    .col(ColumnDef::new(Users::EncryptedSecretKey).string())
+                    .col(ColumnDef::new(Users::EncryptedPrivateKey).string())
                     .col(ColumnDef::new(Users::CreatedAt).timestamp().not_null())
                     .col(ColumnDef::new(Users::UpdatedAt).timestamp().not_null())
                     .to_owned(),
@@ -46,7 +46,7 @@ pub enum Users {
     Password,
     Secret,
     Pubkey,
-    EncryptedSecretKey,
+    EncryptedPrivateKey,
     CreatedAt,
     UpdatedAt,
 }
