@@ -130,8 +130,10 @@ export function toQueryValue(
  * Gives out a rounded epoch timestamp in minutes
  */
 export function getFlattenedTimestampMinutes(): string {
-	const timestamp = Math.floor(Date.now() / 1000);
-	return `${Math.floor(timestamp / 60)}`;
+	const timestamp = parseInt(`${Date.now() / 1000}`);
+	const flat = `${parseInt(`${timestamp / 60}`)}`;
+
+	return flat;
 }
 
 /**

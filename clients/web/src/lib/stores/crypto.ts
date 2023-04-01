@@ -68,11 +68,18 @@ export function hasEncryptedSecretKey(): boolean {
 /**
  * Convert seed mnemonic to raw secret key
  */
-export function mnemonicToKeypair(mnemonic: string): elliptic.ec.KeyPair {
+export function mnemonicToKeypairRaw(mnemonic: string): elliptic.ec.KeyPair {
 	const ec = new elliptic.ec('secp256k1');
 	const keyPair = ec.keyFromPrivate(bip39.mnemonicToSeedSync(mnemonic));
 
 	return keyPair;
+}
+
+/**
+ * Convert seed mnemonic to keypair - alias for generateKeyFrom
+ */
+export function mnemonicToKeypair(mnemonic: string): Keypair {
+	return generateKeyFrom(mnemonic);
 }
 
 /**
@@ -153,10 +160,10 @@ export async function sign(message: string): Promise<{ signature: string; pubkey
 		throw new Error('No secretKey on keypair, cannot sign message');
 	}
 
-	const keypair = mnemonicToKeypair(secretKey);
+	const keypair = mnemonicToKeypairRaw(secretKey);
 
 	// TODO: Maybe add hashing here... The signature is not matching for some reason!
-	const signature = keypair.sign(message);
+	const signature = keypair.sign(CryptoJS.SHA256(message).toString());
 
 	return {
 		signature: signature.toDER('hex'),
@@ -174,7 +181,7 @@ export async function verify(signature: string, message: string): Promise<boolea
 		throw new Error('No secretKey on keypair, cannot verify message');
 	}
 
-	const keypair = mnemonicToKeypair(secretKey);
+	const keypair = mnemonicToKeypairRaw(secretKey);
 
-	return keypair.verify(message, signature);
+	return keypair.verify(CryptoJS.SHA256(message).toString(), signature);
 }
