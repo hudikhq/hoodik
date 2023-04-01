@@ -15,10 +15,13 @@
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^2.0.0",
 		"@sveltejs/kit": "^1.5.0",
+		"@types/chai-subset": "^1.3.3",
 		"@types/crypto-js": "^4.1.1",
 		"@types/elliptic": "^6.4.14",
+		"@types/hdkey": "^2.0.1",
 		"@types/js-cookie": "^3.0.3",
 		"@types/node-forge": "^1.3.1",
+		"@types/node-rsa": "^1.1.1",
 		"@typescript-eslint/eslint-plugin": "^5.45.0",
 		"@typescript-eslint/parser": "^5.45.0",
 		"autoprefixer": "^10.4.7",
@@ -44,9 +47,13 @@
 	"type": "module",
 	"dependencies": {
 		"bip39": "^3.1.0",
+		"cryptico": "^1.0.2",
 		"crypto-js": "^4.1.1",
+		"eciesjs": "^0.3.16",
 		"elliptic": "^6.5.4",
+		"hdkey": "^2.1.0",
 		"js-cookie": "^3.0.1",
+		"node-rsa": "^1.1.1",
 		"svelte-routing": "^1.6.0"
 	}
 }
