@@ -1,8 +1,13 @@
+use std::string::FromUtf8Error;
+
 use actix_web::{HttpResponse, HttpResponseBuilder, ResponseError};
-use bip39::Error as Bip39Error;
-use ed25519_dalek::SignatureError;
+use base64::DecodeError;
+use hex::FromHexError;
+use rsa::{
+    errors::Error as RSAError, pkcs1::Error as PKCS1Error, pkcs8::spki::Error as SpkiError,
+    pkcs8::Error as PKCS8Error, signature::Error as SignatureError,
+};
 use sea_orm::error::{ColumnFromStrErr, DbErr, RuntimeErr};
-use secp256k1::Error as Secp256k1Error;
 use serde::Serialize;
 use thiserror::Error as ThisError;
 use validr::error::ValidationErrors;
@@ -19,9 +24,14 @@ pub enum Error {
     Validation(ValidationErrors),
     Unauthorized(String),
     InternalError(String),
-    SignatureError(String),
-    EncryptionError(String),
-    Bip39Error(String),
+    RSAError(RSAError),
+    PKCS1Error(PKCS1Error),
+    PKCS8Error(PKCS8Error),
+    PKCS8SpkiError(SpkiError),
+    SignatureError(SignatureError),
+    Base64DecodeError(DecodeError),
+    HexDecodeError(FromHexError),
+    FromUtf8Error(FromUtf8Error),
 }
 
 impl Error {
@@ -66,27 +76,51 @@ impl From<ValidationErrors> for Error {
     }
 }
 
+impl From<RSAError> for Error {
+    fn from(source: RSAError) -> Error {
+        Error::RSAError(source)
+    }
+}
+
 impl From<SignatureError> for Error {
     fn from(source: SignatureError) -> Error {
-        Error::SignatureError(source.to_string())
+        Error::SignatureError(source)
     }
 }
 
-impl From<Secp256k1Error> for Error {
-    fn from(source: Secp256k1Error) -> Error {
-        Error::EncryptionError(source.to_string())
+impl From<PKCS1Error> for Error {
+    fn from(source: PKCS1Error) -> Error {
+        Error::PKCS1Error(source)
     }
 }
 
-impl From<Bip39Error> for Error {
-    fn from(source: Bip39Error) -> Error {
-        Error::EncryptionError(source.to_string())
+impl From<PKCS8Error> for Error {
+    fn from(source: PKCS8Error) -> Error {
+        Error::PKCS8Error(source)
     }
 }
 
-impl From<std::str::Utf8Error> for Error {
-    fn from(source: std::str::Utf8Error) -> Error {
-        Error::InternalError(source.to_string())
+impl From<SpkiError> for Error {
+    fn from(source: SpkiError) -> Error {
+        Error::PKCS8SpkiError(source)
+    }
+}
+
+impl From<DecodeError> for Error {
+    fn from(source: DecodeError) -> Error {
+        Error::Base64DecodeError(source)
+    }
+}
+
+impl From<FromHexError> for Error {
+    fn from(source: FromHexError) -> Error {
+        Error::HexDecodeError(source)
+    }
+}
+
+impl From<FromUtf8Error> for Error {
+    fn from(source: FromUtf8Error) -> Error {
+        Error::FromUtf8Error(source)
     }
 }
 
@@ -141,19 +175,44 @@ impl From<&Error> for ErrorResponse {
                 message: message.clone(),
                 context: None,
             },
+            Error::RSAError(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
+                context: None,
+            },
             Error::SignatureError(message) => ErrorResponse {
                 status: 500,
-                message: message.clone(),
+                message: message.to_string(),
                 context: None,
             },
-            Error::EncryptionError(message) => ErrorResponse {
+            Error::PKCS1Error(message) => ErrorResponse {
                 status: 500,
-                message: message.clone(),
+                message: message.to_string(),
                 context: None,
             },
-            Error::Bip39Error(message) => ErrorResponse {
+            Error::PKCS8Error(message) => ErrorResponse {
                 status: 500,
-                message: message.clone(),
+                message: message.to_string(),
+                context: None,
+            },
+            Error::PKCS8SpkiError(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::Base64DecodeError(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::HexDecodeError(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::FromUtf8Error(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
                 context: None,
             },
         }

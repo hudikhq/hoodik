@@ -82,7 +82,7 @@ impl<'ctx> Auth<'ctx> {
 
         let message = (Utc::now().timestamp() / 60).to_string();
 
-        cryptfns::verify_signature(&user.pubkey, &message, signature)?;
+        cryptfns::public::verify(&message, signature, &user.pubkey)?;
 
         Ok(Authenticated {
             user,

@@ -11,15 +11,15 @@ path = "src/lib.rs"
 
 [dependencies]
 thiserror = "^1"
-sea-orm = { version = "^0.10", features = [
+sea-orm = { version = "^0.11", features = [
   "sqlx-postgres",
   "sqlx-sqlite",
   "runtime-actix-rustls",
 ] }
 validr = "^0.3"
 actix-web = "^4"
-ed25519-dalek = "^1.0"
-secp256k1 = "^0.26"
-bip39 = "^2"
+rsa = "^0.8"
+base64 = "^0.21"
+hex = "^0.4"
 serde = "*"
 serde_json = "*"
