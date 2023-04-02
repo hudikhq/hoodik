@@ -1,15 +1,20 @@
-import CryptoJS from 'crypto-js';
 import { writable } from 'svelte/store';
 import RSA from 'node-rsa';
+import { decryptSecret } from './aes';
+import constants from 'constants';
+import crypto from 'crypto';
 
-const encryptedMnemonicStorageName = 'encrypted-secret';
-
-const RSAb = 2048;
-const environment = 'browser';
-const privateKeyFormat = 'pkcs8-private-pem';
-const publicKeyFormat = 'pkcs8-public-pem';
+const RSAb = 1024;
+const environment = 'node';
+const privateKeyFormat = 'pkcs1';
+const publicKeyFormat = 'pkcs1-public-pem';
 const signingScheme = 'pss-sha256';
-const encryptionScheme = 'pkcs1_oaep';
+
+// const encryptionScheme = 'pkcs1';
+const encryptionScheme: RSA.AdvancedEncryptionSchemePKCS1 = {
+	scheme: 'pkcs1',
+	padding: constants.RSA_PKCS1_PADDING
+};
 
 export interface Raw extends RSA {
 	input?: string;
@@ -93,19 +98,6 @@ export function clear() {
 }
 
 /**
- * Get the encrypted secret from the localStorage
- */
-export function getEncryptedSecret(): string | null {
-	return localStorage.getItem(encryptedMnemonicStorageName);
-}
-/**
- * Lets us know if we should even attempt the decryption
- */
-export function hasEncryptedSecretKey(): boolean {
-	return !!getEncryptedSecret();
-}
-
-/**
  * Convert input to raw
  */
 export function inputToRaw(input: string): RawKeypair {
@@ -121,8 +113,11 @@ export function inputToRaw(input: string): RawKeypair {
  * Generate RawKeypair from public key, this can only be used to verify signatures
  */
 export function publicToRaw(publicKey: string): RawKeypair {
-	const key: Raw = new RSA({ b: RSAb }).importKey(publicKey, publicKeyFormat);
-	key.setOptions({ environment, signingScheme, encryptionScheme });
+	const key = new RSA(publicKey, publicKeyFormat, {
+		environment,
+		signingScheme,
+		encryptionScheme
+	});
 
 	return { key, publicKey };
 }
@@ -206,14 +201,6 @@ export async function verify(
 }
 
 /**
- * Take the given secret, encrypt it with a pin and store it in localStorage
- */
-export function encryptSecretAndStore(secret: string, pin: string) {
-	const encryptedMnemonic = encryptSecret(secret, pin);
-	localStorage.setItem(encryptedMnemonicStorageName, encryptedMnemonic);
-}
-
-/**
  * Try to get the encrypted secret from the localStorage and decrypt it with the given pin
  * if decryption is okay then set the keypair with new values.
  *
@@ -225,52 +212,35 @@ export function decryptSecretAndSet(encryptedMnemonic: string, pin: string) {
 }
 
 /**
- * Encrypt the given input with the given pin
- */
-export function encryptSecret(secret: string, pin: string): string {
-	const encrypted = CryptoJS.AES.encrypt(secret, pin, { format: CryptoJS.format.OpenSSL });
-	return encrypted.toString(CryptoJS.format.OpenSSL);
-}
-
-/**
- * Decrypt the given encrypted input with the given pin
- * @throws
- */
-export function decryptSecret(encrypted: string, pin: string): string {
-	const wordArray = CryptoJS.AES.decrypt(encrypted, pin);
-	const value = wordArray.toString(CryptoJS.enc.Utf8);
-	return value;
-}
-
-/**
  * Encrypt a message with given public key
  */
-export async function encryptMessage(
-	data: EncryptionData,
-	inputPublicKey?: string
-): Promise<string> {
-	let { key } = await _get();
+export async function encryptMessage(message: string, inputPublicKey?: string): Promise<string> {
+	let key;
 
 	if (inputPublicKey) {
-		const { key: publicRawKey } = publicToRaw(inputPublicKey as string);
-
-		key = publicRawKey;
+		const { key: p } = publicToRaw(inputPublicKey as string);
+		key = p;
+	} else {
+		const { key: p } = await _get();
+		key = p;
 	}
 
 	if (!key) {
 		throw new Error('No publicKey, cannot encrypt message');
 	}
 
-	key.setOptions({ encryptionScheme: 'pkcs1' });
+	if (!key.isPublic()) {
+		throw new Error('Key is not public, cannot encrypt message');
+	}
 
-	return key.encrypt(data.message, data.encoding || 'base64');
+	return key.encrypt(message, 'base64');
 }
 
 /**
  * Encrypt a message with given public key (pkcs1_oaep)
  */
 export async function encryptOaepMessage(
-	data: EncryptionData,
+	message: string,
 	inputPublicKey?: string
 ): Promise<string> {
 	let { key } = await _get();
@@ -287,41 +257,64 @@ export async function encryptOaepMessage(
 
 	key.setOptions({ encryptionScheme: 'pkcs1_oaep' });
 
-	return key.encrypt(data.message, data.encoding || 'base64');
+	return key.encrypt(Buffer.from(message, 'utf8')).toString('base64');
 }
 
 /**
  * Decrypt a message with stored private key
  */
-export async function decryptMessage(
-	message: string,
-	encoding: Encoding = 'utf8'
-): Promise<string> {
+export async function decryptMessage(message: string): Promise<string> {
 	const { key } = await _get();
 
 	if (!key || !key.isPrivate()) {
 		throw new Error('No privateKey, cannot decrypt message');
 	}
 
-	key.setOptions({ encryptionScheme: 'pkcs1' });
+	// key.setOptions({
+	// 	encryptionScheme: {
+	// 		scheme: 'pkcs1',
+	// 		padding: constants.RSA_PKCS1_PADDING
+	// 	}
+	// });
 
-	return key.decrypt(message, encoding);
+	return key.decrypt(Buffer.from(message, 'base64'), 'utf8');
 }
 
 /**
  * Decrypt a message with stored private key (pkcs1_oaep)
  */
-export async function decryptOaepMessage(
-	message: string,
-	encoding: Encoding = 'utf8'
-): Promise<string> {
+export async function decryptOaepMessage(message: string): Promise<string> {
+	return testDecryptOaepMessage(message);
+	// const { key } = await _get();
+
+	// if (!key || !key.isPrivate()) {
+	// 	throw new Error('No privateKey, cannot decrypt message');
+	// }
+
+	// key.setOptions({
+	// 	encryptionScheme: 'pkcs1_oaep'
+	// });
+
+	// return key.decrypt(message, 'utf8');
+}
+
+async function testDecryptOaepMessage(message: string): Promise<string> {
 	const { key } = await _get();
 
-	if (!key || !key.isPrivate()) {
+	if (!key || !key.isPrivate() || !key.input) {
 		throw new Error('No privateKey, cannot decrypt message');
 	}
 
-	key.setOptions({ encryptionScheme: 'pkcs1_oaep' });
+	const buffer = Buffer.from(message, 'base64');
 
-	return key.decrypt(message, encoding);
+	const decrypted = crypto.privateDecrypt(
+		{
+			key: key.input,
+			padding: constants.RSA_PKCS1_OAEP_PADDING,
+			oaepHash: 'sha256'
+		},
+		buffer
+	);
+
+	return decrypted.toString('utf8');
 }

@@ -1,5 +1,5 @@
 import * as register from '$lib/stores/register';
-import * as crypto from '$lib/stores/crypto';
+import * as crypto from '$lib/stores/cryptfns/rsa';
 import { describe, it, expect } from 'vitest';
 
 const rng = () => `${Math.random() * 99999}`;

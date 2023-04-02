@@ -1,6 +1,6 @@
 import * as api from './api';
 import * as auth from './auth';
-import * as crypto from './crypto';
+import * as crypto from './cryptfns/rsa';
 import * as register from './register';
 
 import { navigate } from 'svelte-routing';

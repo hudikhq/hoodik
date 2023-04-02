@@ -1,5 +1,5 @@
 import type { User } from './auth';
-import * as crypto from './crypto';
+import * as crypto from './cryptfns/rsa';
 import Api from './api';
 
 export interface CreateUser {
