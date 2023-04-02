@@ -41,7 +41,7 @@ impl Validation for CreateUser {
             }),
             Rule::new("pubkey", |obj: &Self, error| {
                 if let Some(v) = &obj.pubkey {
-                    if cryptfns::public::from_str(v).is_err() {
+                    if cryptfns::rsa::public::from_str(v).is_err() {
                         error.add("invalid_pubkey_not_pkcs8_pem");
                     }
                 }

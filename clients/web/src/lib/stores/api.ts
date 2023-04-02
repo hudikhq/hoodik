@@ -1,4 +1,4 @@
-import * as crypto from './crypto';
+import * as crypto from './cryptfns/rsa';
 import Cookies from 'js-cookie';
 
 export type Query = {

@@ -22,7 +22,7 @@ async fn auth_create_user() {
         email: Some("john@doe.com".to_string()),
         password: Some("very-strong-password".to_string()),
         secret: None,
-        pubkey: cryptfns::get_string_pubkey().ok(),
+        pubkey: cryptfns::rsa::get_string_pubkey().ok(),
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
         token: None,
     };
@@ -55,7 +55,7 @@ async fn test_credentials_valid() {
         email: Some("john@doe.com".to_string()),
         password: Some("very-strong-password".to_string()),
         secret: None,
-        pubkey: cryptfns::get_string_pubkey().ok(),
+        pubkey: cryptfns::rsa::get_string_pubkey().ok(),
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
         token: None,
     };
@@ -101,7 +101,7 @@ async fn test_credentials_invalid() {
         email: Some("john@doe.com".to_string()),
         password: Some("very-strong-password".to_string()),
         secret: None,
-        pubkey: cryptfns::get_string_pubkey().ok(),
+        pubkey: cryptfns::rsa::get_string_pubkey().ok(),
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
         token: None,
     };
@@ -141,7 +141,7 @@ async fn test_credentials_invalid() {
 async fn test_retrieve_authenticated_session_by_token_and_csrf() {
     let context = Context::mock_sqlite().await;
     let auth = create_lib(&context);
-    let pubkey = cryptfns::get_string_pubkey().ok();
+    let pubkey = cryptfns::rsa::get_string_pubkey().ok();
 
     let create_user = CreateUser {
         email: Some("john@doe.com".to_string()),

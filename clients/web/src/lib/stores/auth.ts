@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import Api from './api';
-import * as crypto from './crypto';
+import * as crypto from './cryptfns/rsa';
 
 export interface Authenticated {
 	user: User;

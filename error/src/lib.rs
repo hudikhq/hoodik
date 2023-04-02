@@ -8,6 +8,7 @@ use rsa::{
     pkcs8::Error as PKCS8Error, signature::Error as SignatureError,
 };
 use sea_orm::error::{ColumnFromStrErr, DbErr, RuntimeErr};
+use sequoia_openpgp::Error as PGPError;
 use serde::Serialize;
 use thiserror::Error as ThisError;
 use validr::error::ValidationErrors;
@@ -32,6 +33,7 @@ pub enum Error {
     Base64DecodeError(DecodeError),
     HexDecodeError(FromHexError),
     FromUtf8Error(FromUtf8Error),
+    PGPError(PGPError),
 }
 
 impl Error {
@@ -124,6 +126,11 @@ impl From<FromUtf8Error> for Error {
     }
 }
 
+impl From<PGPError> for Error {
+    fn from(source: PGPError) -> Error {
+        Error::PGPError(source)
+    }
+}
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
     #[serde(skip_serializing)]
@@ -211,6 +218,11 @@ impl From<&Error> for ErrorResponse {
                 context: None,
             },
             Error::FromUtf8Error(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::PGPError(message) => ErrorResponse {
                 status: 500,
                 message: message.to_string(),
                 context: None,
