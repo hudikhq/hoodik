@@ -19,4 +19,4 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Run tests
-        run: apt install -y clang llvm pkg-config nettle-dev && ./test
+        run: sudo apt install -y clang llvm pkg-config nettle-dev && ./test
