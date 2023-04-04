@@ -13,16 +13,26 @@ fn create_lib<'ctx>(context: &'ctx Context) -> Auth<'ctx> {
     Auth::<'ctx> { context }
 }
 
+fn get_pubkey_and_fingerprint() -> (Option<String>, Option<String>) {
+    let pubkey = cryptfns::rsa::get_string_pubkey().unwrap();
+    let fingerprint =
+        cryptfns::rsa::fingerprint(cryptfns::rsa::public::from_str(&pubkey).unwrap()).unwrap();
+
+    (Some(pubkey), Some(fingerprint))
+}
+
 #[async_std::test]
 async fn auth_create_user() {
     let context = Context::mock_sqlite().await;
     let lib = create_lib(&context);
+    let (pubkey, fingerprint) = get_pubkey_and_fingerprint();
 
     let create_user = CreateUser {
         email: Some("john@doe.com".to_string()),
         password: Some("very-strong-password".to_string()),
         secret: None,
-        pubkey: cryptfns::rsa::get_string_pubkey().ok(),
+        pubkey,
+        fingerprint,
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
         token: None,
     };
@@ -50,12 +60,14 @@ async fn auth_create_user() {
 async fn test_credentials_valid() {
     let context = Context::mock_sqlite().await;
     let auth = create_lib(&context);
+    let (pubkey, fingerprint) = get_pubkey_and_fingerprint();
 
     let create_user = CreateUser {
         email: Some("john@doe.com".to_string()),
         password: Some("very-strong-password".to_string()),
         secret: None,
-        pubkey: cryptfns::rsa::get_string_pubkey().ok(),
+        pubkey,
+        fingerprint,
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
         token: None,
     };
@@ -96,12 +108,14 @@ async fn test_credentials_valid() {
 async fn test_credentials_invalid() {
     let context = Context::mock_sqlite().await;
     let auth = create_lib(&context);
+    let (pubkey, fingerprint) = get_pubkey_and_fingerprint();
 
     let create_user = CreateUser {
         email: Some("john@doe.com".to_string()),
         password: Some("very-strong-password".to_string()),
         secret: None,
-        pubkey: cryptfns::rsa::get_string_pubkey().ok(),
+        pubkey,
+        fingerprint,
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
         token: None,
     };
@@ -141,13 +155,14 @@ async fn test_credentials_invalid() {
 async fn test_retrieve_authenticated_session_by_token_and_csrf() {
     let context = Context::mock_sqlite().await;
     let auth = create_lib(&context);
-    let pubkey = cryptfns::rsa::get_string_pubkey().ok();
+    let (pubkey, fingerprint) = get_pubkey_and_fingerprint();
 
     let create_user = CreateUser {
         email: Some("john@doe.com".to_string()),
         password: Some("very-strong-password".to_string()),
         secret: None,
         pubkey,
+        fingerprint,
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
         token: None,
     };
