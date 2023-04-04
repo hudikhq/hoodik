@@ -4,6 +4,7 @@
 //! This module and its sub-modules will give you a good idea of the application endpoints
 //! and endpoint Request and Response structs.
 use actix_web::{
+    body::{BoxBody, EitherBody},
     dev::{ServiceFactory, ServiceRequest, ServiceResponse},
     web, App, HttpServer,
 };
@@ -18,6 +19,7 @@ pub mod middleware {
 }
 
 pub mod api;
+pub mod cors;
 
 /// Create the web application and inject all the routes into it
 pub fn app(
@@ -26,7 +28,7 @@ pub fn app(
     impl ServiceFactory<
         ServiceRequest,
         Config = (),
-        Response = ServiceResponse,
+        Response = ServiceResponse<EitherBody<BoxBody>>,
         Error = actix_web::Error,
         InitError = (),
     >,
@@ -41,6 +43,7 @@ pub fn app(
                 .token_cookie_name(cookie_name)
                 .add_ignore("/api/auth/register".to_string()),
         )
+        .wrap(cors::setup())
         // PRETTY PLEASE: keep the routes in alphabetical order
         //  There is a VSCode extension "Alphabetical Sorter" that can help you with this
         .service(api::auth::authenticated_self)

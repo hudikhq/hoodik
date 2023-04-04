@@ -125,9 +125,10 @@ pub mod private {
 
 /// Operations performed with a public key
 pub mod public {
-    use rsa::pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey};
-    // use rsa::pkcs8::{DecodePublicKey, EncodePublicKey};
-    use rsa::{Oaep, PublicKey as InnerRsaPublicKey};
+    use rsa::{
+        pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey},
+        Oaep, PublicKey as _,
+    };
 
     use super::*;
 

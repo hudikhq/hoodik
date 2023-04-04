@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import RSA from 'node-rsa';
-import { decryptSecret } from './aes';
+import { decrypt as decryptSecret } from './aes';
 import constants from 'constants';
 import crypto from 'crypto';
 

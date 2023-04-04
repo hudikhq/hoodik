@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import Api from './api';
-import * as crypto from './cryptfns/rsa';
+import * as crypto from './cryptfns';
 
 export interface Authenticated {
 	user: User;
@@ -12,7 +12,7 @@ export interface User {
 	email: string;
 	secret?: string;
 	pubkey: string;
-	encrypted_secret_key?: string;
+	encrypted_private_key?: string;
 	created_at: Date;
 	updated_at: Date;
 }
@@ -32,7 +32,7 @@ export interface Credentials {
 	password: string;
 	token?: string;
 	remember?: boolean;
-	mnemonic?: string;
+	privateKey?: string;
 }
 
 export const { subscribe, set: _set } = writable<Authenticated | null>();
@@ -83,12 +83,12 @@ export async function login(credentials: Credentials): Promise<Authenticated> {
 
 	set(response.body as Authenticated);
 
-	if (response.body?.user.encrypted_secret_key) {
-		crypto.decryptAndSet(response.body?.user.encrypted_secret_key, credentials.password);
-	} else if (credentials.mnemonic) {
-		crypto.set(crypto.generateKeyFrom(credentials.mnemonic));
+	if (response.body?.user.encrypted_private_key) {
+		crypto.rsa.decryptSecretAndSet(response.body?.user.encrypted_private_key, credentials.password);
+	} else if (credentials.privateKey) {
+		crypto.rsa.set(crypto.rsa.inputToKeypair(credentials.privateKey));
 	} else {
-		throw new Error('No encrypted secret key found on user from backend, not mnemonic provided');
+		throw new Error('No encrypted secret key found on user from backend, not privateKey provided');
 	}
 
 	return response.body as Authenticated;
@@ -98,10 +98,10 @@ export async function login(credentials: Credentials): Promise<Authenticated> {
  * Generates the keypair from the mnemonic and attempts to get the current user from backend
  * @throws
  */
-export async function loginWithMnemonic(mnemonic: string): Promise<Authenticated> {
-	const keypair = crypto.generateKeyFrom(mnemonic);
+export async function loginWithPrivateKey(mnemonic: string): Promise<Authenticated> {
+	const keypair = crypto.rsa.inputToKeypair(mnemonic);
 
-	crypto.set(keypair);
+	crypto.rsa.set(keypair);
 
 	return self();
 }
@@ -111,11 +111,11 @@ export async function loginWithMnemonic(mnemonic: string): Promise<Authenticated
  * @throws
  */
 export async function loginWithPin(pin: string): Promise<Authenticated> {
-	const encryptedSecret = crypto.getEncryptedSecret();
+	const encryptedSecret = crypto.aes.getEncryptedSecret();
 
 	if (!encryptedSecret) {
 		throw new Error('No encrypted secret found');
 	}
 
-	return loginWithMnemonic(crypto.decrypt(encryptedSecret, pin));
+	return loginWithPrivateKey(crypto.aes.decrypt(encryptedSecret, pin));
 }

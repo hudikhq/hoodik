@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pgp as crypto } from '../../src/lib/stores/cryptfns';
+import { pgp as crypto } from '../../../src/lib/stores/cryptfns';
 
 const privatePem = `-----BEGIN PGP PRIVATE KEY BLOCK-----
 
@@ -95,7 +95,7 @@ Auy2m7XWSSfSe2d1IZTu9ygZeZ35mP4dMxEtxRlmmQ==
 -----END PGP PUBLIC KEY BLOCK-----`;
 
 describe('Crypto test', () => {
-	it('GPG: can generate secret key from input', async () => {
+	it('UNIT: GPG: can generate secret key from input', async () => {
 		const keypair = await crypto.generateKey();
 
 		const { input } = await crypto.privateToKeypair(keypair.input as string);
@@ -104,7 +104,7 @@ describe('Crypto test', () => {
 		expect(input !== keypair.publicKey).toBe(true);
 	});
 
-	it('GPG: can sign messages and verify signatures', async () => {
+	it('UNIT: GPG: can sign messages and verify signatures', async () => {
 		const keypair = await crypto.privateToKeypair(privatePem);
 		await crypto.set(keypair);
 
@@ -115,7 +115,7 @@ describe('Crypto test', () => {
 		expect(await crypto.verify(signature, message)).toBe(true);
 	});
 
-	it('GPG: can sign messages and verify signatures with specific input', async () => {
+	it('UNIT: GPG: can sign messages and verify signatures with specific input', async () => {
 		const keypair = await crypto.privateToKeypair(privatePem);
 		await crypto.set(keypair);
 
@@ -140,7 +140,7 @@ describe('Crypto test', () => {
 		console.log(keypair.keyId);
 	});
 
-	it('GPG: can encrypt and decrypt message with generated keys', async () => {
+	it('UNIT: GPG: can encrypt and decrypt message with generated keys', async () => {
 		const keypair = await crypto.privateToKeypair(privatePem);
 		await crypto.set(keypair);
 
@@ -156,7 +156,7 @@ describe('Crypto test', () => {
 		expect(message).toEqual(decrypted);
 	});
 
-	it('GPG: both private and public key return the same ID', async () => {
+	it('UNIT: GPG: both private and public key return the same ID', async () => {
 		const { keyId: priv1 } = await crypto.privateToKeypair(privatePem);
 		const { keyId: priv2 } = await crypto.privateToKeypair(privatePem);
 		const { keyId: pub } = await crypto.publicToKeypair(publicPem);
