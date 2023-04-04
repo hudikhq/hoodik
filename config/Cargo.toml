@@ -14,5 +14,6 @@ mock = []
 
 [dependencies]
 dotenv = "^0.15"
+uuid = "^1"
 error = { path = "../error" }
 clap = { version = "^4", features = ["string"] }

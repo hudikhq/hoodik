@@ -48,9 +48,6 @@ impl<'ctx> AuthProviderContract for CredentialsProvider<'ctx> {
 
         let session = self.auth.generate_session(&user, remember).await?;
 
-        Ok(Authenticated {
-            user,
-            session: Some(session),
-        })
+        Ok(Authenticated { user, session })
     }
 }

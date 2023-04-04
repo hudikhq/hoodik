@@ -12,52 +12,92 @@ use std::{
 #[derive(Clone, Debug)]
 pub struct Config {
     /// HTTP_PORT where the application will listen at
+    ///
     /// *optional*
+    ///
     /// default: 4554
     pub port: i32,
 
     /// HTTP_ADDRESS address where the application will address
+    ///
     /// *optional*
+    ///
     /// default: 127.0.0.1
     pub address: String,
 
     /// DATA_DIR where all the uploaded data will be stored
+    ///
     /// *required*
     pub data_dir: String,
 
     /// URL connection info for Postgres database
+    ///
     /// *optional*
+    ///
     /// default: uses sqlite instead of postgres
     pub database_url: Option<String>,
 
+    /// JWT_SECRET secret that will be used to sign the JWT tokens
+    /// if you don't set this it will generate a random secret every time
+    /// the application restarts, that means that all the sessions will be
+    /// invalidated every time the application restarts.
+    ///
+    /// *optional*
+    ///
+    /// default: generates a random secret
+    pub jwt_secret: String,
+
+    /// USE_COOKIES This tells us if we should use cookies or not.
+    /// Turning this on if you wish to use the API only with your custom
+    /// frontend application that might benefit from this way of authentication.
+    /// But generally, for most of the modern frontend applications JWT is the way to go.
+    ///
+    /// Note: Even when using cookies, JWT will still be generated, but it will be ignored  
+    /// when authenticating requests.
+    ///
+    /// *optional*
+    ///
+    /// default: false
+    pub use_cookies: bool,
+
     /// COOKIE_DOMAIN This should be the URL you are entering to view the application
     /// and it will be used as the cookie domain so its scoped only to this
+    ///
     /// *optional*
     pub cookie_domain: Option<String>,
 
     /// COOKIE_NAME This should be the name of the cookie that will be used to store the session
     /// in your browser it is not that important and you probably don't need to set it
+    ///
     /// *optional*
+    ///
     /// *default: hoodik_session*
     pub cookie_name: String,
 
     /// COOKIE_HTTP_ONLY This tells us if the cookie is supposed to be http only or not. Http only cookie will
     /// only be seen by the browser and not by the javascript frontend. This is okay and its supposed
     /// to work like this.
+    ///
     /// *optional*
+    ///
     /// *default: true*
     pub cookie_http_only: bool,
 
     /// COOKIE_SECURE This tells us if the cookie is supposed to be secure or not. Secure cookie will
     /// only be sent over https.
+    ///
     /// *optional*
+    ///
     /// *default: true*
     pub cookie_secure: bool,
 
     /// COOKIE_SAME_SITE: This tells us if the cookie is supposed to be same site or not. Same site cookie will
     /// only be sent over same site.
+    ///
     /// *optional*
+    ///
     /// *default: Lax*
+    ///
     /// *possible values: Lax, Strict, None*
     pub cookie_same_site: String,
 }
@@ -70,6 +110,8 @@ impl Config {
             address: "127.0.0.1".to_string(),
             data_dir: "./data".to_string(),
             database_url: None,
+            jwt_secret: uuid::Uuid::new_v4().to_string(),
+            use_cookies: false,
             cookie_domain: None,
             cookie_name: "hoodik_session".to_string(),
             cookie_http_only: false,
@@ -77,8 +119,9 @@ impl Config {
             cookie_same_site: "None".to_string(),
         }
     }
+
     /// Read the env and arguments and init the config struct
-    /// # panics if required attributes are missing or parsing went wrong
+    /// **panics** if required attributes are missing or parsing went wrong
     pub fn new(name: &str, version: &str, about: &str) -> Config {
         let matches = Some(arguments(name, version, about));
 
@@ -94,39 +137,13 @@ impl Config {
         let address = Self::parse_address(matches.as_ref(), &mut errors);
         let data_dir = Self::parse_data_dir(matches.as_ref(), &mut errors);
         let database_url = Self::parse_database_url(matches.as_ref(), &mut errors);
-
-        if !errors.is_empty() {
-            panic!("Failed loading configuration:\n{:#?}", errors);
-        }
-
-        Config {
-            port,
-            address,
-            data_dir: parse_path(data_dir.unwrap()),
-            database_url,
-            cookie_domain: None,
-            cookie_name: "hoodik_session".to_string(),
-            cookie_http_only: false,
-            cookie_secure: false,
-            cookie_same_site: "None".to_string(),
-        }
-        .set_env()
-        .ensure_data_dir()
-    }
-
-    pub fn env_only() -> Config {
-        let matches = None;
-
-        dotenv(None);
-
-        parse_log(matches.as_ref());
-
-        let mut errors = vec![];
-
-        let port = Self::parse_port(matches.as_ref(), &mut errors);
-        let address = Self::parse_address(matches.as_ref(), &mut errors);
-        let data_dir = Self::parse_data_dir(matches.as_ref(), &mut errors);
-        let database_url = Self::parse_database_url(matches.as_ref(), &mut errors);
+        let jwt_secret = env_var("JWT_SECRET").unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
+        let use_cookies = env_var("USE_COOKIES")
+            .ok()
+            .map(|c| c.to_lowercase())
+            .unwrap_or_else(|| "false".to_string())
+            .as_str()
+            == "true";
         let cookie_domain = env_var("COOKIE_DOMAIN").ok();
         let cookie_name = env_var("COOKIE_NAME")
             .ok()
@@ -154,6 +171,67 @@ impl Config {
             address,
             data_dir: parse_path(data_dir.unwrap()),
             database_url,
+            jwt_secret,
+            use_cookies,
+            cookie_domain,
+            cookie_name,
+            cookie_http_only,
+            cookie_secure,
+            cookie_same_site,
+        }
+        .set_env()
+        .ensure_data_dir()
+    }
+
+    pub fn env_only() -> Config {
+        let matches = None;
+
+        dotenv(None);
+
+        parse_log(matches.as_ref());
+
+        let mut errors = vec![];
+
+        let port = Self::parse_port(matches.as_ref(), &mut errors);
+        let address = Self::parse_address(matches.as_ref(), &mut errors);
+        let data_dir = Self::parse_data_dir(matches.as_ref(), &mut errors);
+        let database_url = Self::parse_database_url(matches.as_ref(), &mut errors);
+        let jwt_secret = env_var("JWT_SECRET").unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
+        let use_cookies = env_var("USE_COOKIES")
+            .ok()
+            .map(|c| c.to_lowercase())
+            .unwrap_or_else(|| "false".to_string())
+            .as_str()
+            == "true";
+        let cookie_domain = env_var("COOKIE_DOMAIN").ok();
+        let cookie_name = env_var("COOKIE_NAME")
+            .ok()
+            .unwrap_or_else(|| "hoodik_session".to_string());
+        let cookie_http_only = env_var("COOKIE_HTTP_ONLY")
+            .ok()
+            .map(|c| c.to_lowercase())
+            .unwrap_or_else(|| "true".to_string())
+            .as_str()
+            == "true";
+        let cookie_secure = env_var("COOKIE_SECURE")
+            .ok()
+            .map(|c| c.to_lowercase())
+            .unwrap_or_else(|| "true".to_string())
+            .as_str()
+            == "true";
+        let cookie_same_site = Self::parse_cookie_same_site();
+
+        if !errors.is_empty() {
+            panic!("Failed loading configuration:\n{:#?}", errors);
+        }
+
+        Config {
+            port,
+            address,
+            data_dir: parse_path(data_dir.unwrap()),
+            database_url,
+            jwt_secret,
+            use_cookies,
             cookie_domain,
             cookie_name,
             cookie_http_only,
@@ -295,6 +373,7 @@ impl Config {
         format!("{}:{}", self.address, self.port)
     }
 
+    /// Get the cookie name
     pub fn get_cookie_name(&self) -> String {
         self.cookie_name.clone()
     }

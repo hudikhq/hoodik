@@ -10,6 +10,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     pub user_id: i32,
+    pub device_id: String,
     pub token: String,
     pub csrf: String,
     pub created_at: NaiveDateTime,

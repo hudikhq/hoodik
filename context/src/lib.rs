@@ -42,8 +42,6 @@ impl Context {
     pub async fn new(config: Config) -> AppResult<Context> {
         let sqlite_file = format!("sqlite:{}/sqlite.db?mode=rwc", &config.data_dir);
 
-        debug!("{}", &sqlite_file);
-
         let db = match &config.database_url {
             Some(value) => Database::connect(value).await?,
             None => Database::connect(sqlite_file).await?,
@@ -74,7 +72,6 @@ impl Context {
         use migration::MigratorTrait;
 
         let config = Config::mock();
-        std::env::set_var("RUST_LOG", "debug");
 
         if let Ok(_) = env_logger::try_init() {
             debug!("Log has been initialized");
