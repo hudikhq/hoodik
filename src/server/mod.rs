@@ -45,6 +45,7 @@ pub fn app(
         .service(api::auth::login)
         .service(api::auth::refresh)
         .service(api::auth::register)
+        .service(api::auth::signature)
 }
 
 /// Start the server
@@ -54,7 +55,9 @@ pub async fn engage(context: Context) -> std::io::Result<()> {
 
     let auth_load_middleware = middleware::Load::new()
         .token_cookie_name(cookie_name)
-        .add_ignore("/api/auth/register".to_string());
+        .add_ignore("/api/auth/register".to_string())
+        .add_ignore("/api/auth/login".to_string())
+        .add_ignore("/api/auth/signature".to_string());
 
     HttpServer::new(move || app(context.clone(), auth_load_middleware.clone()))
         .bind(&bind_address)?

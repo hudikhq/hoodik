@@ -24,4 +24,4 @@ jobs:
         run: sudo apt install -y clang llvm pkg-config nettle-dev
 
       - name: Run tests
-        run: ./test
+        run: ./test-rust

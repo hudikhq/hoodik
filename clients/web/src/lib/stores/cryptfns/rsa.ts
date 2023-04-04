@@ -1,19 +1,23 @@
-import { writable } from 'svelte/store';
 import RSA from 'node-rsa';
-import { decrypt as decryptSecret } from './aes';
 import constants from 'constants';
 import crypto from 'crypto';
 
-const RSAb = 1024;
-const environment = 'node';
-const privateKeyFormat = 'pkcs1';
-const publicKeyFormat = 'pkcs1-public-pem';
-const signingScheme = 'pss-sha256';
-
-// const encryptionScheme = 'pkcs1';
-const encryptionScheme: RSA.AdvancedEncryptionSchemePKCS1 = {
+const RSA_BYTES = 1024;
+const ENVIRONMENT = 'node';
+const PRIVATE_KEY_FORMAT: RSA.FormatPem = 'pkcs1';
+const PUBLIC_KEY_FORMAT: RSA.FormatPem = 'pkcs1-public-pem';
+const SIGNING_SCHEME = 'pss-sha256';
+const RSA_OPTIONS: RSA.Options = {
+	environment: ENVIRONMENT,
+	signingScheme: SIGNING_SCHEME
+};
+const ENCRYPTION_SCHEME_PKCS1: RSA.AdvancedEncryptionSchemePKCS1 = {
 	scheme: 'pkcs1',
 	padding: constants.RSA_PKCS1_PADDING
+};
+const ENCRYPTION_SCHEME_OAEP: RSA.AdvancedEncryptionSchemePKCS1OAEP = {
+	scheme: 'pkcs1_oaep',
+	hash: 'sha256'
 };
 
 export interface Raw extends RSA {
@@ -28,7 +32,7 @@ export interface EncryptionData {
 	encoding?: Encoding;
 }
 
-export interface Keypair {
+export interface KeyPair {
 	/**
 	 * Private RSA key string
 	 */
@@ -45,81 +49,57 @@ export interface Keypair {
 	publicKey: string | null;
 }
 
-interface RawKeypair {
-	key: Raw | null;
-	publicKey: string | null;
-}
-
-export const { subscribe, set: _set } = writable<RawKeypair>({ key: null, publicKey: null });
-
 /**
- * Get the raw keypair value
+ * Decrypt a private key
+ * @throws
  */
-export async function _get(): Promise<RawKeypair> {
-	return new Promise((resolve) => subscribe((value) => resolve(value)));
-}
-
-/**
- * Get the keypair value that is presented outside
- */
-export async function get(): Promise<Keypair> {
-	const { key, publicKey } = await _get();
-
-	if (key) {
-		return keypairFromRaw({ key, publicKey });
-	}
-
-	return { input: null, key: null, publicKey };
+export function decryptPrivateKey(key: string, passphrase: string): string {
+	return crypto
+		.createPrivateKey({
+			key,
+			type: 'pkcs1',
+			format: 'pem',
+			passphrase
+		})
+		.export({ type: 'pkcs1', format: 'pem' }) as string;
 }
 
 /**
- * Set the external keypair value into the internal one
+ * Protect private key with passphrase
+ * @throws
  */
-export function set(keypair: Keypair) {
-	if (keypair.input) {
-		const raw = inputToRaw(keypair.input);
-
-		_set(raw);
-	} else if (keypair.publicKey) {
-		_set({
-			key: null,
-			publicKey: keypair.publicKey
-		});
-	} else {
-		clear();
-	}
-}
-
-/**
- * Clear the keypair value
- */
-export function clear() {
-	_set({ key: null, publicKey: null });
+export function protectPrivateKey(key: string, passphrase: string): string {
+	return crypto
+		.createPrivateKey({
+			key,
+			passphrase
+		})
+		.export({ type: 'pkcs1', format: 'pem', cipher: 'aes128', passphrase }) as string;
 }
 
 /**
  * Convert input to raw
  */
-export function inputToRaw(input: string): RawKeypair {
-	const key: Raw = new RSA({ b: RSAb }).importKey(input, privateKeyFormat);
-	key.setOptions({ environment, signingScheme, encryptionScheme });
+export function inputToKeyPair(input: string): KeyPair {
+	try {
+		const key: Raw = new RSA({ b: RSA_BYTES }).importKey(input, PRIVATE_KEY_FORMAT);
+		key.setOptions(RSA_OPTIONS);
 
-	key.input = input;
+		key.input = input;
 
-	return { key, publicKey: key.exportKey(publicKeyFormat) };
+		return { key, publicKey: key.exportKey(PUBLIC_KEY_FORMAT), input };
+	} catch (e) {
+		throw new Error(`Invalid private key or encrypted private key, upstream error: ${e}`);
+	}
 }
 
 /**
- * Generate RawKeypair from public key, this can only be used to verify signatures
+ * Generate KeyPair from public key, this can only be used to verify signatures
  */
-export function publicToRaw(publicKey: string): RawKeypair {
-	const key = new RSA(publicKey, publicKeyFormat, {
-		environment,
-		signingScheme,
-		encryptionScheme
-	});
+export function publicToKeyPair(publicKey: string): KeyPair {
+	const key = new RSA(publicKey, PUBLIC_KEY_FORMAT, RSA_OPTIONS);
 
-	return { key, publicKey };
+	return { key, publicKey, input: null };
 }
 
 /**
@@ -129,7 +109,7 @@ export function publicToRaw(publicKey: string): RawKeypair {
  */
 export async function getFingerprint(input: string): Promise<string> {
 	try {
-		const { key } = publicToRaw(input);
+		const { key } = publicToKeyPair(input);
 
 		if (!key) {
 			throw new Error('Not public key, or not a public key');
@@ -137,13 +117,13 @@ export async function getFingerprint(input: string): Promise<string> {
 
 		return getFingerprintFromRaw(key);
 	} catch (e) {
-		const { publicKey } = inputToRaw(input);
+		const { publicKey } = inputToKeyPair(input);
 
 		if (!publicKey) {
 			throw new Error(`Not a public key or a private key, upstream error: ${e}`);
 		}
 
-		const { key } = publicToRaw(publicKey);
+		const { key } = publicToKeyPair(publicKey);
 
 		if (!key) {
 			throw new Error(`Not a public key or a private key, upstream error: ${e}`);
@@ -169,29 +149,16 @@ export async function getFingerprintFromRaw(key: Raw): Promise<string> {
 }
 
 /**
- * Generate a random input in a format of Keypair
+ * Generate a random input in a format of KeyPair
  */
-export function generateKey(): Keypair {
-	return inputToKeypair(new RSA({ b: RSAb }).generateKeyPair().exportKey(privateKeyFormat));
+export function generateKeyPair(): KeyPair {
+	return inputToKeyPair(new RSA({ b: RSA_BYTES }).generateKeyPair().exportKey(PRIVATE_KEY_FORMAT));
 }
 
 /**
- * Generate a Keypair from input
+ * Generate a KeyPair from input
  */
-export function inputToKeypair(input: string): Keypair {
-	const { key, publicKey } = inputToRaw(input);
-
-	return {
-		input,
-		key,
-		publicKey
-	};
-}
-
-/**
- * Generate a Keypair from input
- */
-export function keypairFromRaw(internal: RawKeypair): Keypair {
+export function keypairFromRaw(internal: KeyPair): KeyPair {
 	const { key, publicKey } = internal;
 
 	return {
@@ -204,40 +171,21 @@ export function keypairFromRaw(internal: RawKeypair): Keypair {
 /**
  * Sign the given message with current secret key and return an object with signature and publicKey
  */
-export async function sign(message: string): Promise<{ signature: string; publicKey: string }> {
-	const { key, publicKey } = await _get();
+export function sign(kp: KeyPair, message: string): string {
+	const { key } = kp;
 
 	if (!key || !key.isPrivate()) {
 		throw new Error('No privateKey, cannot sign message');
 	}
 
-	const signature = key.sign(message, 'hex');
-
-	return {
-		signature,
-		publicKey: publicKey as string
-	};
+	return key.sign(message, 'hex');
 }
 
 /**
  * Verify the message with the given public key or the stored one
  */
-export async function verify(
-	signature: string,
-	message: string,
-	publicKey?: string
-): Promise<boolean> {
-	const { publicKey: _publicKey } = await _get();
-
-	if (!publicKey) {
-		publicKey = _publicKey as string;
-	}
-
-	if (!publicKey) {
-		throw new Error('No publicKey, cannot verify message');
-	}
-
-	const { key } = publicToRaw(publicKey);
+export function verify(signature: string, message: string, publicKey: string): boolean {
+	const { key } = publicToKeyPair(publicKey);
 
 	if (!key) {
 		throw new Error('No publicKey, cannot verify message');
@@ -247,29 +195,10 @@ export async function verify(
 }
 
 /**
- * Try to get the encrypted secret from the localStorage and decrypt it with the given pin
- * if decryption is okay then set the keypair with new values.
- *
- * @throws
- */
-export function decryptSecretAndSet(encryptedMnemonic: string, pin: string) {
-	const input = decryptSecret(encryptedMnemonic, pin);
-	_set(inputToRaw(input));
-}
-
-/**
  * Encrypt a message with given public key
  */
-export async function encryptMessage(message: string, inputPublicKey?: string): Promise<string> {
-	let key;
-
-	if (inputPublicKey) {
-		const { key: p } = publicToRaw(inputPublicKey as string);
-		key = p;
-	} else {
-		const { key: p } = await _get();
-		key = p;
-	}
+export function encryptMessage(message: string, publicKey: string): string {
+	const { key } = publicToKeyPair(publicKey as string);
 
 	if (!key) {
 		throw new Error('No publicKey, cannot encrypt message');
@@ -280,10 +209,7 @@ export async function encryptMessage(message: string, inputPublicKey?: string): 
 	}
 
 	key.setOptions({
-		encryptionScheme: {
-			scheme: 'pkcs1',
-			padding: constants.RSA_PKCS1_PADDING
-		}
+		encryptionScheme: ENCRYPTION_SCHEME_PKCS1
 	});
 
 	return key.encrypt(message, 'base64');
@@ -292,27 +218,15 @@ export async function encryptMessage(message: string, inputPublicKey?: string): 
 /**
  * Encrypt a message with given public key (pkcs1_oaep)
  */
-export async function encryptOaepMessage(
-	message: string,
-	inputPublicKey?: string
-): Promise<string> {
-	let { key } = await _get();
-
-	if (inputPublicKey) {
-		const { key: publicRawKey } = publicToRaw(inputPublicKey as string);
-
-		key = publicRawKey;
-	}
+export function encryptOaepMessage(message: string, publicKey: string): string {
+	const { key } = publicToKeyPair(publicKey as string);
 
 	if (!key) {
 		throw new Error('No publicKey, cannot encrypt message');
 	}
 
 	key.setOptions({
-		encryptionScheme: {
-			scheme: 'pkcs1_oaep',
-			hash: 'sha256'
-		}
+		encryptionScheme: ENCRYPTION_SCHEME_OAEP
 	});
 
 	return key.encrypt(Buffer.from(message, 'utf8')).toString('base64');
@@ -321,18 +235,15 @@ export async function encryptOaepMessage(
 /**
  * Decrypt a message with stored private key
  */
-export async function decryptMessage(message: string): Promise<string> {
-	const { key } = await _get();
+export function decryptMessage(kp: KeyPair, message: string): string {
+	const { key } = kp;
 
 	if (!key || !key.isPrivate()) {
 		throw new Error('No privateKey, cannot decrypt message');
 	}
 
 	key.setOptions({
-		encryptionScheme: {
-			scheme: 'pkcs1',
-			padding: constants.RSA_PKCS1_PADDING
-		}
+		encryptionScheme: ENCRYPTION_SCHEME_PKCS1
 	});
 
 	return key.decrypt(Buffer.from(message, 'base64'), 'utf8');
@@ -341,18 +252,15 @@ export async function decryptMessage(message: string): Promise<string> {
 /**
  * Decrypt a message with stored private key (pkcs1_oaep)
  */
-export async function decryptOaepMessage(message: string): Promise<string> {
-	const { key } = await _get();
+export function decryptOaepMessage(kp: KeyPair, message: string): string {
+	const { key } = kp;
 
 	if (!key || !key.isPrivate()) {
 		throw new Error('No privateKey, cannot decrypt message');
 	}
 
 	key.setOptions({
-		encryptionScheme: {
-			scheme: 'pkcs1_oaep',
-			hash: 'sha256'
-		}
+		encryptionScheme: ENCRYPTION_SCHEME_OAEP
 	});
 
 	return key.decrypt(Buffer.from(message, 'base64'), 'utf8');

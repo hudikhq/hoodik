@@ -1,5 +1,4 @@
-import * as crypto from './cryptfns/rsa';
-import Cookies from 'js-cookie';
+import * as auth from './auth';
 
 export type Query = {
 	[key: string]: string | number | string[] | { [key: string]: string | number | string[] };
@@ -57,8 +56,6 @@ export class ErrorResponse<B, R> extends Error {
 	}
 }
 
-const csrfCookieName = 'X-CSRF-TOKEN';
-
 /**
  * Remove the ending slash from the url
  */
@@ -78,13 +75,6 @@ export function getClientUrl(): string {
  */
 export function getApiUrl(): string {
 	return ensureEndingSlash(import.meta.env.APP_API_URL || getClientUrl());
-}
-
-/**
- * Load the CSRF token from the cookie
- */
-export function getCsrf(): string | null {
-	return Cookies.get(csrfCookieName) || null;
 }
 
 /**
@@ -124,16 +114,6 @@ export function toQueryValue(
 	if (typeof value === 'object') {
 		return JSON.stringify(value);
 	}
-}
-
-/**
- * Gives out a rounded epoch timestamp in minutes
- */
-export function getFlattenedTimestampMinutes(): string {
-	const timestamp = parseInt(`${Date.now() / 1000}`);
-	const flat = `${parseInt(`${timestamp / 60}`)}`;
-
-	return flat;
 }
 
 /**
@@ -263,18 +243,12 @@ export default class Api {
 		headers = headers || {};
 		headers['Content-Type'] = 'application/json';
 
-		if (getCsrf()) {
-			headers['X-Csrf-Token'] = getCsrf() || '';
+		if (auth.getCsrf()) {
+			headers['X-Csrf-Token'] = auth.getCsrf() || '';
 		}
 
-		try {
-			const { publicKey, signature } = await crypto.sign(getFlattenedTimestampMinutes());
-			const fingerprint = await crypto.getFingerprint(publicKey);
-
-			headers['Authorization'] = `Signature ${signature}`;
-			headers['X-Key-Fingerprint'] = `${fingerprint}`;
-		} catch (e) {
-			/**/
+		if (auth.getJwt()) {
+			headers['Authorization'] = `Bearer ${auth.getJwt() || ''}`;
 		}
 
 		return headers;

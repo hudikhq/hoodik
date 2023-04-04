@@ -4,8 +4,8 @@ import { describe, it, expect } from 'vitest';
 
 const rng = () => `${Math.random() * 99999}`;
 
-export async function getUser(noSecret = false) {
-	const keypair = crypto.rsa.generateKey();
+async function getUser(sendKey = false) {
+	const keypair = crypto.rsa.generateKeyPair();
 	const password = 'some-not-so-weak-password!!1';
 
 	const createUser: register.CreateUser = {
@@ -15,26 +15,37 @@ export async function getUser(noSecret = false) {
 		fingerprint: await crypto.rsa.getFingerprint(keypair.publicKey as string)
 	};
 
-	if (!noSecret) {
-		const encrypted = crypto.aes.encrypt(keypair.input as string, createUser.password);
-		createUser.encrypted_private_key = encrypted;
-	} else {
+	if (sendKey) {
 		createUser.unencrypted_private_key = keypair.input as string;
 	}
 
-	const user = await register.register(createUser);
+	const {
+		authenticated: { user },
+		jwt
+	} = await register.register(createUser);
 
-	return { user, password, privateKey: keypair.input as string };
+	return { user, jwt, password, privateKey: keypair.input as string };
 }
 
-describe('API: Register test', () => {
-	it('Can we register user', async () => {
-		const { user, privateKey, password } = await getUser();
+export async function getUserWithKey() {
+	return getUser(true);
+}
+
+export async function getUserWithoutKey() {
+	return getUser(false);
+}
+
+describe('Register test', () => {
+	it('API: Can we register user', async () => {
+		const { user, privateKey, password } = await getUserWithKey();
 
 		expect(!!user).toBeTruthy();
 
-		const secret = crypto.aes.decrypt(user.encrypted_private_key as string, password);
+		const secret = crypto.rsa.decryptPrivateKey(user.encrypted_private_key as string, password);
 
-		expect(secret).toBe(privateKey);
+		const secretFingerprint = await crypto.rsa.getFingerprint(secret);
+		const privateKeyFingerprint = await crypto.rsa.getFingerprint(privateKey);
+
+		expect(secretFingerprint).toBe(privateKeyFingerprint);
 	});
 });

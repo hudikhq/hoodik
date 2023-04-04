@@ -12,8 +12,16 @@ pub struct Auth<'ctx> {
 }
 
 impl<'ctx> Auth<'ctx> {
-    pub fn get_minutes_timestamp() -> String {
-        format!("{}", chrono::Utc::now().timestamp() / 60)
+    pub fn generate_nonce_seconds() -> String {
+        format!("{}", Utc::now().timestamp())
+    }
+
+    pub fn generate_nonce_minutes() -> String {
+        format!("{}", Utc::now().timestamp() / 60)
+    }
+
+    pub fn generate_fingerprint_nonce(fingerprint: &str) -> String {
+        format!("{}-{}", fingerprint, Self::generate_nonce_minutes())
     }
 }
 
@@ -49,6 +57,16 @@ impl<'ctx> Auth<'ctx> {
             .await
             .map_err(Error::from)?
             .ok_or_else(|| Error::NotFound(format!("user_not_found:{}", email)))
+    }
+
+    /// Get a user by fingerprint
+    pub async fn get_by_fingerprint(&self, fingerprint: &str) -> AppResult<users::Model> {
+        users::Entity::find()
+            .filter(users::Column::Fingerprint.contains(fingerprint))
+            .one(&self.context.db)
+            .await
+            .map_err(Error::from)?
+            .ok_or_else(|| Error::NotFound(format!("user_not_found:{}", fingerprint)))
     }
 
     /// Validate a session by its device id

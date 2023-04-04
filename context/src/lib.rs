@@ -1,6 +1,5 @@
 use config::Config;
 use error::AppResult;
-use log::debug;
 use sea_orm::{Database, DatabaseConnection};
 
 /// Holder of the application context
@@ -74,7 +73,7 @@ impl Context {
         let config = Config::mock();
 
         if let Ok(_) = env_logger::try_init() {
-            debug!("Log has been initialized");
+            log::debug!("Log has been initialized");
         }
 
         let db = Database::connect("sqlite::memory:?mode=rwc").await.unwrap();
