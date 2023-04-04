@@ -118,7 +118,7 @@ impl<S> LoadMiddleware<S> {
                 .map(ExtractionResult::Claims)
                 .unwrap_or(ExtractionResult::None),
             TokenExtractor::Cookie(name) => self
-                .token_extractor(name, &req)
+                .token_extractor(name, req)
                 .map(ExtractionResult::Token)
                 .unwrap_or(ExtractionResult::None),
         }
