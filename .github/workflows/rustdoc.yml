@@ -21,6 +21,9 @@ jobs:
       - name: Install Rust toolchain
         run: rustup update --no-self-update stable
 
+      - name: Install pkg-config
+        run: sudo apt install -y clang llvm pkg-config nettle-dev
+
       - name: Build Documentation
         run: cargo doc --workspace --no-deps
 
