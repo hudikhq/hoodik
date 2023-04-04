@@ -5,6 +5,7 @@ use actix_web::{
     body::BoxBody,
     dev::ServiceResponse,
     dev::{Service, ServiceRequest, Transform},
+    http::header::HeaderMap,
     web, Error, HttpMessage, ResponseError,
 };
 use context::Context;
@@ -31,9 +32,10 @@ pub enum TokenExtractor {
 ///
 ///  - `Bearer <token>`
 ///     - the token is looked up in the database and the session is loaded (if its currently active)
-///  - `Signature <signature-base64> <pubkey-base64>`
-///     - middleware will look into the database for the user with the given pubkey and will verify the signature
+///  - `Signature <signature-base64>`
+///     - middleware will look into the database for the user with the given fingerprint and will verify the signature
 ///     - in case you are using the signature the session doesn't exist so the csrf token is not used
+///     - **When using this method be sure to also provide a header with `X-Key-Fingerprint` with the HEX fingerprint of the key**
 #[derive(Clone)]
 pub struct Load {
     pub(crate) ignore: Vec<String>,
@@ -116,23 +118,41 @@ impl<S> LoadMiddleware<S> {
         }
     }
 
-    /// Extracts the signature and pubkey from the request to run the authentication by using the pubkey
+    /// Extracts the signature and fingerprint from the request headers
+    fn extract_signature_and_fingerprint(&self, req: &ServiceRequest) -> Option<(String, String)> {
+        let signature = self.extract_signature_header(req.headers())?;
+        let fingerprint = self.extract_fingerprint_header(req.headers())?;
+
+        (signature, fingerprint).into()
+    }
+
+    /// Extract the header containing the signature
     /// Header name: Authorization
-    /// Header format: Signature <signature-base64> <pubkey-hex>
-    fn extract_signature_and_pubkey(&self, req: &ServiceRequest) -> Option<(String, String)> {
-        let header = req.headers().get("Authorization")?;
+    /// Header format: Signature <signature-base64>
+    fn extract_signature_header(&self, headers: &HeaderMap) -> Option<String> {
+        let header = headers.get("authorization")?;
         let mut header_value = header.to_str().ok()?.split(' ');
         let header_type = header_value.next()?;
 
         if header_type == "Signature" {
-            // Extract both the signature and pubkey out of the header value
+            // Extract both the signature and fingerprint out of the header value
             let signature = header_value.next()?;
-            let pubkey = header_value.next()?;
 
-            Some((signature.to_string(), pubkey.to_string()))
+            Some(signature.to_string())
         } else {
             None
         }
+    }
+
+    /// Extract the header containing the key fingerprint
+    /// Header name: X-Key-Fingerprint
+    /// Header format: <fingerprint-hex>
+    fn extract_fingerprint_header(&self, headers: &HeaderMap) -> Option<String> {
+        headers
+            .get("X-Key-Fingerprint")?
+            .to_str()
+            .ok()
+            .map(|s| s.to_string())
     }
 }
 
@@ -158,7 +178,7 @@ where
 
         let svc = self.service.clone();
         let maybe_token = self.extract_token(&req);
-        let maybe_signature_and_pubkey = self.extract_signature_and_pubkey(&req);
+        let maybe_fingerprint_and_signature = self.extract_signature_and_fingerprint(&req);
 
         Box::pin(async move {
             let context = match req.app_data::<web::Data<Context>>() {
@@ -189,9 +209,11 @@ where
             }
 
             if !have_session {
-                if let Some((signature, pubkey)) = &maybe_signature_and_pubkey {
+                if let Some((signature, fingerprint)) = &maybe_fingerprint_and_signature {
+                    let verify_message = Auth::get_minutes_timestamp();
+
                     match Auth::new(context)
-                        .get_by_signature_and_pubkey(signature, pubkey)
+                        .get_by_signature_and_fingerprint(fingerprint, signature, &verify_message)
                         .await
                     {
                         Ok(authenticated) => {

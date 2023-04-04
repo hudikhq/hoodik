@@ -15,6 +15,7 @@ mock = []
 [dependencies]
 rand = "^0.8"
 rsa = { version = "^0.8", features = ["sha2"] }
+sha256 = "^1"
 base64 = "^0.21"
 hex = "^0.4"
 
@@ -22,3 +23,8 @@ serde = "*"
 serde_json = "*"
 
 error = { path = "../error" }
+
+[dependencies.num-traits]
+version = "0.2.9"
+features = ["libm"]
+default-features = false

@@ -10,10 +10,11 @@ async fn test_registration_and_login() {
     let context = context::Context::mock_sqlite().await;
     let auth = Auth::new(&context);
 
-    let private = cryptfns::private::generate().unwrap();
-    let private_string = cryptfns::private::to_string(&private).unwrap();
-    let public = cryptfns::public::from_private(&private).unwrap();
-    let public_string = cryptfns::public::to_string(&public).unwrap();
+    let private = cryptfns::rsa::private::generate().unwrap();
+    let private_string = cryptfns::rsa::private::to_string(&private).unwrap();
+    let public = cryptfns::rsa::public::from_private(&private).unwrap();
+    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
+    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
 
     let encrypted_secret = "some-random-encrypted-secret".to_string();
 
@@ -26,6 +27,7 @@ async fn test_registration_and_login() {
             secret: None,
             token: None,
             pubkey: Some(public_string.clone()),
+            fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
         })
         .to_request();
@@ -85,13 +87,14 @@ async fn test_registration_and_login() {
     assert_eq!(resp.status(), StatusCode::OK);
 
     let message = (chrono::Utc::now().timestamp() / 60).to_string();
-    let signature = cryptfns::private::sign(&message, &private_string).unwrap();
+    let signature = cryptfns::rsa::private::sign(&message, &private_string).unwrap();
 
-    let value = format!("Signature {} {}", signature, public_string.to_string());
+    let value = format!("Signature {}", signature);
 
     let req = test::TestRequest::post()
         .uri("/api/auth/self")
         .append_header(("Authorization", value))
+        .append_header(("X-Key-Fingerprint", fingerprint.clone()))
         .to_request();
 
     let resp = test::call_service(&mut app, req).await;
@@ -99,13 +102,14 @@ async fn test_registration_and_login() {
     assert_eq!(resp.status(), StatusCode::OK);
 
     let message = ((chrono::Utc::now().timestamp() / 60) - 60).to_string();
-    let signature = cryptfns::private::sign(&message, &private_string).unwrap();
+    let signature = cryptfns::rsa::private::sign(&message, &private_string).unwrap();
 
-    let value = format!("Signature {} {}", signature, public_string.to_string());
+    let value = format!("Signature {}", signature);
 
     let req = test::TestRequest::post()
         .uri("/api/auth/self")
         .append_header(("Authorization", value))
+        .append_header(("X-Key-Fingerprint", fingerprint.clone()))
         .to_request();
 
     let resp = test::call_service(&mut app, req).await;

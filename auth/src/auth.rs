@@ -12,6 +12,12 @@ pub struct Auth<'ctx> {
 }
 
 impl<'ctx> Auth<'ctx> {
+    pub fn get_minutes_timestamp() -> String {
+        format!("{}", chrono::Utc::now().timestamp() / 60)
+    }
+}
+
+impl<'ctx> Auth<'ctx> {
     pub fn new(context: &'ctx Context) -> Auth<'ctx> {
         Auth { context }
     }
@@ -67,22 +73,21 @@ impl<'ctx> Auth<'ctx> {
         })
     }
 
-    /// Get Authenticated by signature and pubkey
-    pub async fn get_by_signature_and_pubkey(
+    /// Get Authenticated by signature and fingerprint
+    pub async fn get_by_signature_and_fingerprint(
         &self,
+        fingerprint: &str,
         signature: &str,
-        pubkey: &str,
+        verify_message: &str,
     ) -> AppResult<Authenticated> {
         let user = users::Entity::find()
-            .filter(users::Column::Pubkey.eq(pubkey))
+            .filter(users::Column::Fingerprint.eq(fingerprint))
             .one(&self.context.db)
             .await
             .map_err(Error::from)?
             .ok_or_else(|| Error::Unauthorized("invalid_signature".to_string()))?;
 
-        let message = (Utc::now().timestamp() / 60).to_string();
-
-        cryptfns::public::verify(&message, signature, &user.pubkey)?;
+        cryptfns::rsa::public::verify(verify_message, signature, &user.pubkey)?;
 
         Ok(Authenticated {
             user,

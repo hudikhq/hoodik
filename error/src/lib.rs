@@ -54,6 +54,12 @@ impl PartialEq for Error {
     }
 }
 
+impl From<Box<dyn std::any::Any + Send>> for Error {
+    fn from(source: Box<dyn std::any::Any + Send>) -> Error {
+        Error::InternalError(format!("{:?}", source))
+    }
+}
+
 impl From<DbErr> for Error {
     fn from(source: DbErr) -> Error {
         Error::DbErr(source)

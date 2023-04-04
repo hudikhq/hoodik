@@ -1,29 +1,40 @@
 use error::{AppResult, Error};
 use rsa::{
-    pkcs8::LineEnding,
+    pkcs1::LineEnding,
     pss::{Signature, SigningKey, VerifyingKey},
     sha2::Sha256,
     signature::{RandomizedSigner, Verifier},
     Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey,
 };
 
+pub use rsa::PublicKeyParts;
+
 /// RSA private key
 ///
+/// # Key description
 /// Format: PKCS#8
 /// Signing scheme: PSS
 /// Signing algo: Sha256
-/// Decryption scheme: PKCS#1 v1.5
+/// Encryption scheme: PKCS#1 v1.5
 /// Encryption scheme padding: RSA_PKCS1_PADDING
 pub type PrivateKey = RsaPrivateKey;
 
 /// RSA public key
 ///
+/// # Key description
 /// Format: PKCS#8
 /// Signing scheme: PSS
 /// Signing algo: Sha256
 /// Encryption scheme: PKCS#1 v1.5
 /// Encryption scheme padding: RSA_PKCS1_PADDING
 pub type PublicKey = RsaPublicKey;
+
+/// Generate fingerprint from private or public key
+pub fn fingerprint<T: PublicKeyParts>(key: T) -> AppResult<String> {
+    let n = key.n().to_bytes_be();
+
+    Ok(sha256::digest(n.as_slice()))
+}
 
 /// Operations performed with a private key
 pub mod private {
@@ -41,14 +52,15 @@ pub mod private {
 
     /// Convert a private key to string
     pub fn to_string(key: &PrivateKey) -> AppResult<String> {
-        key.to_pkcs1_pem(LineEnding::CRLF)
+        key.to_pkcs1_pem(LineEnding::LF)
             .map_err(Error::from)
             .map(|s| s.to_string())
     }
 
     /// Generate a new private key from string
     pub fn from_str(input: &str) -> AppResult<PrivateKey> {
-        RsaPrivateKey::from_pkcs1_pem(input).map_err(Error::from)
+        let input = input.replace("\r\n", "\n");
+        RsaPrivateKey::from_pkcs1_pem(&input).map_err(Error::from)
     }
 
     /// Sign a message with private key
@@ -68,14 +80,13 @@ pub mod private {
 
     /// Decrypt some data with private key
     pub fn decrypt_with(data: &[u8], key: PrivateKey) -> AppResult<Vec<u8>> {
-        let mut rng = rand::thread_rng();
-        key.decrypt_blinded(&mut rng, Pkcs1v15Encrypt, data)
-            .map_err(Error::from)
+        key.decrypt(Pkcs1v15Encrypt, data).map_err(Error::from)
     }
 
     /// Decrypt some data with private key (pkcs1_oaep)
     pub fn decrypt_oaep_with(data: &[u8], key: PrivateKey) -> AppResult<Vec<u8>> {
-        key.decrypt(Oaep::new::<Sha256>(), data)
+        let mut rng = rand::thread_rng();
+        key.decrypt_blinded(&mut rng, Oaep::new::<Sha256>(), data)
             .map_err(Error::from)
     }
 
@@ -122,7 +133,7 @@ pub mod public {
 
     /// Convert a public key to string
     pub fn to_string(key: &PublicKey) -> AppResult<String> {
-        key.to_pkcs1_pem(LineEnding::CRLF).map_err(Error::from)
+        key.to_pkcs1_pem(LineEnding::LF).map_err(Error::from)
     }
 
     /// Generate a public key from private key
@@ -132,7 +143,8 @@ pub mod public {
 
     /// Generate a public key from string
     pub fn from_str(input: &str) -> AppResult<PublicKey> {
-        RsaPublicKey::from_pkcs1_pem(input).map_err(Error::from)
+        let input = input.replace("\r\n", "\n");
+        RsaPublicKey::from_pkcs1_pem(&input).map_err(Error::from)
     }
 
     /// Verify message with public key
@@ -253,6 +265,8 @@ XcVx2TPOtG5A5qBeJ+vW8XJHZYfCcLwsDZnirTwUTWORWM2omNbquNATh+Lt3Vh2
 Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
 -----END RSA PUBLIC KEY-----";
 
+    const FINGERPRINT: &str = "87ae936e11ec8a34f9d1c62687271ae8cd4b89189533c21e1bb7ddce84d37f86";
+
     const TEST_SIGNATURE_MESSAGE: &str = "28004708";
 
     const TEST_SIGNATURE_HEX: &str = "a19de1ee7c2b78ca967a1218ffae941bbfae3974b76741b02d583f3b5ff34e57934405383de4e44a58be101b3dae3cc2add9aa1d84ad9e281fe3cc8fc37510360de9af9e3c76f0cf0f78d1236854d1db99f2c68f9a1d13c61a889830aa9fe52cb7fdb9d2a5d41521d40e23bfd2ebcfc7fc16b22fbdfcefa2f98e039b53780eb3168851b57823ec0c501e46f5ae11884e873f89fdea6cf5d9f16e237f4d12dd6171fcf21894e43847a3d3b03af16b0f8ddcbb4ffc747a5feda8121ebf1df92e34ac3764b00e2155cfddc60c1b7dd5c633ad5c5efac05abdaa18658dc4725687593ff73ed49b13e3848f870060dee46c327f3ed0f7d13dd3c16f43e4e80bae5138";
@@ -260,6 +274,36 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
     const _ENCRYPTED_BASE64: &str = "pucjs8dcxAXGww4mlG1XTcWxO7PsFEr7yJ4NFKNVyIiB6AHt9v0d2cSd72+7IkuZrxJHDBp3ixRFAWXWuzsp96bhdVKIR0k4coBWy2TgBhZc+a6nRdpGUDgBnjn+wZE7LRIR/L0pIVY32N0/94zNYdaiAVeaAIBsUq9IdiKfv6kWAshk57pGec0SHa8hESFpfwv7QCKmzY5l1QjBwtzbo5LtmOU2wo/JuMYNDKqjXYOOOyTaSMMxT+6Q6qkib+SpHA4MvUVOEMSbS4Y3TDBm1xShFCol80FbfOmDiAWqBatXT/WCvtqfeYMN/hzmX5PoZh3sBZLHbfle6ePnz05aTQ==";
 
     const _ENCRYPTED_BASE64_OAEP: &str = "FH07X7rxVqjo1w/XGyVCsaLDAO8B07M4WR5nHanBJdCOAKVFFGNpi5uX5NX9oj03iaueFDFnyZwatr68Wr/GZznjAtj7j08CIGCA73AALB5Gi0HMjpDG/BwZcTeRp92e5Qoa2gLee8wOT/NRBChniQ8vS7LqhlxxBHFMM2h/35yhwkfLQ+I6tHcOVjAKj40VWjtV6UvcOsT0ffZIpZNsUX3Fdxhvvf2DaEKRHEIF0j2aO4kaaxnPSoSUkeqj1CFQ+5BhGA2INrU77gnzO76sYdtDsS6Qcojj7y0trxtwhOIrfK2dm9OPCcL8lLiE8LHOCKkes18QQU2oK+zoOS2JMA==";
+
+    fn run_fingerprint_test() {
+        let private_key = private::from_str(TEST_PRIVATE_KEY).unwrap();
+
+        let public_key = public::from_private(&private_key).unwrap();
+        let public_key2 = public::from_str(TEST_PUBLIC_KEY).unwrap();
+
+        let fingerprint_private = fingerprint(private_key).unwrap();
+        let fingerprint_public = fingerprint(public_key).unwrap();
+        let fingerprint_public2 = fingerprint(public_key2).unwrap();
+
+        assert_eq!(fingerprint_private, fingerprint_public);
+        assert_eq!(fingerprint_public, fingerprint_public2);
+        assert_eq!(fingerprint_public2, FINGERPRINT);
+    }
+
+    #[test]
+    fn test_rsa_fingerprint() {
+        run_fingerprint_test();
+    }
+
+    #[test]
+    fn test_rsa_fingerprint_multi_thread() {
+        let t1 = std::thread::spawn(|| run_fingerprint_test());
+        let t2 = std::thread::spawn(|| run_fingerprint_test());
+        let t3 = std::thread::spawn(|| run_fingerprint_test());
+        t1.join().unwrap();
+        t2.join().unwrap();
+        t3.join().unwrap();
+    }
 
     #[test]
     fn test_rsa_key_generating() {
@@ -291,7 +335,7 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
 
     #[test]
     fn test_rsa_encrypt_and_decrypt() {
-        let private_key = private::generate().unwrap();
+        let private_key = private::from_str(TEST_PRIVATE_KEY).unwrap();
         let private_key_string = private::to_string(&private_key).unwrap();
 
         let public_key = public::from_private(&private_key).unwrap();
@@ -300,7 +344,8 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
         let message = "hello world";
         let encrypted = public::encrypt(message, &public_key_string).unwrap();
 
-        println!("encrypted: {}", &encrypted);
+        println!("encrypted");
+        println!("{}", &encrypted);
 
         assert_ne!(message, encrypted);
 
@@ -311,7 +356,7 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
 
     #[test]
     fn test_rsa_encrypt_and_decrypt_oaep() {
-        let private_key = private::generate().unwrap();
+        let private_key = private::from_str(TEST_PRIVATE_KEY).unwrap();
         let private_key_string = private::to_string(&private_key).unwrap();
 
         let public_key = public::from_private(&private_key).unwrap();
@@ -320,7 +365,8 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
         let message = "hello world";
         let encrypted = public::encrypt_oaep(message, &public_key_string).unwrap();
 
-        println!("encrypted oaep: {}", &encrypted);
+        println!("encrypted oaep");
+        println!("{}", &encrypted);
 
         assert_ne!(message, encrypted);
 

@@ -123,6 +123,52 @@ export function publicToRaw(publicKey: string): RawKeypair {
 }
 
 /**
+ * Generate key id from string
+ *
+ * @throws
+ */
+export async function getFingerprint(input: string): Promise<string> {
+	try {
+		const { key } = publicToRaw(input);
+
+		if (!key) {
+			throw new Error('Not public key, or not a public key');
+		}
+
+		return getFingerprintFromRaw(key);
+	} catch (e) {
+		const { publicKey } = inputToRaw(input);
+
+		if (!publicKey) {
+			throw new Error(`Not a public key or a private key, upstream error: ${e}`);
+		}
+
+		const { key } = publicToRaw(publicKey);
+
+		if (!key) {
+			throw new Error(`Not a public key or a private key, upstream error: ${e}`);
+		}
+
+		return getFingerprintFromRaw(key);
+	}
+}
+
+/**
+ * Generate a key id from given raw key
+ */
+export async function getFingerprintFromRaw(key: Raw): Promise<string> {
+	const { n } = key.exportKey('components-public');
+
+	const newN = Array.prototype.map.call(n, (byte) => byte as number) as number[];
+	newN.shift();
+	const buffer = Buffer.from(newN);
+
+	const ab = await crypto.subtle.digest('SHA-256', buffer);
+
+	return Buffer.from(ab).toString('hex');
+}
+
+/**
  * Generate a random input in a format of Keypair
  */
 export function generateKey(): Keypair {
@@ -233,6 +279,13 @@ export async function encryptMessage(message: string, inputPublicKey?: string): 
 		throw new Error('Key is not public, cannot encrypt message');
 	}
 
+	key.setOptions({
+		encryptionScheme: {
+			scheme: 'pkcs1',
+			padding: constants.RSA_PKCS1_PADDING
+		}
+	});
+
 	return key.encrypt(message, 'base64');
 }
 
@@ -255,7 +308,12 @@ export async function encryptOaepMessage(
 		throw new Error('No publicKey, cannot encrypt message');
 	}
 
-	key.setOptions({ encryptionScheme: 'pkcs1_oaep' });
+	key.setOptions({
+		encryptionScheme: {
+			scheme: 'pkcs1_oaep',
+			hash: 'sha256'
+		}
+	});
 
 	return key.encrypt(Buffer.from(message, 'utf8')).toString('base64');
 }
@@ -270,12 +328,12 @@ export async function decryptMessage(message: string): Promise<string> {
 		throw new Error('No privateKey, cannot decrypt message');
 	}
 
-	// key.setOptions({
-	// 	encryptionScheme: {
-	// 		scheme: 'pkcs1',
-	// 		padding: constants.RSA_PKCS1_PADDING
-	// 	}
-	// });
+	key.setOptions({
+		encryptionScheme: {
+			scheme: 'pkcs1',
+			padding: constants.RSA_PKCS1_PADDING
+		}
+	});
 
 	return key.decrypt(Buffer.from(message, 'base64'), 'utf8');
 }
@@ -284,37 +342,18 @@ export async function decryptMessage(message: string): Promise<string> {
  * Decrypt a message with stored private key (pkcs1_oaep)
  */
 export async function decryptOaepMessage(message: string): Promise<string> {
-	return testDecryptOaepMessage(message);
-	// const { key } = await _get();
-
-	// if (!key || !key.isPrivate()) {
-	// 	throw new Error('No privateKey, cannot decrypt message');
-	// }
-
-	// key.setOptions({
-	// 	encryptionScheme: 'pkcs1_oaep'
-	// });
-
-	// return key.decrypt(message, 'utf8');
-}
-
-async function testDecryptOaepMessage(message: string): Promise<string> {
 	const { key } = await _get();
 
-	if (!key || !key.isPrivate() || !key.input) {
+	if (!key || !key.isPrivate()) {
 		throw new Error('No privateKey, cannot decrypt message');
 	}
 
-	const buffer = Buffer.from(message, 'base64');
+	key.setOptions({
+		encryptionScheme: {
+			scheme: 'pkcs1_oaep',
+			hash: 'sha256'
+		}
+	});
 
-	const decrypted = crypto.privateDecrypt(
-		{
-			key: key.input,
-			padding: constants.RSA_PKCS1_OAEP_PADDING,
-			oaepHash: 'sha256'
-		},
-		buffer
-	);
-
-	return decrypted.toString('utf8');
+	return key.decrypt(Buffer.from(message, 'base64'), 'utf8');
 }

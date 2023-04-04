@@ -14,8 +14,9 @@ pub struct CreateUser {
     pub password: Option<String>,
     pub secret: Option<String>,
     pub token: Option<String>,
-    pub encrypted_private_key: Option<String>,
     pub pubkey: Option<String>,
+    pub fingerprint: Option<String>,
+    pub encrypted_private_key: Option<String>,
 }
 
 impl Validation for CreateUser {
@@ -25,6 +26,7 @@ impl Validation for CreateUser {
             rule_email!(email),
             rule_required!(password),
             rule_required!(pubkey),
+            rule_required!(fingerprint),
             Rule::new("password", |obj: &Self, error| {
                 if let Some(v) = &obj.password {
                     if !validate_password(v) {
@@ -46,6 +48,24 @@ impl Validation for CreateUser {
                     }
                 }
             }),
+            Rule::new("fingerprint", |obj: &Self, error| {
+                if let Some(v) = &obj.pubkey {
+                    match cryptfns::rsa::public::from_str(v) {
+                        Ok(pk) => {
+                            if let Some(fingerprint) = &obj.fingerprint {
+                                if let Ok(fp) = cryptfns::rsa::fingerprint(pk) {
+                                    if fingerprint != &fp {
+                                        error.add("invalid_pubkey_fingerprint");
+                                    }
+                                } else {
+                                    error.add("invalid_pubkey_not_pkcs8_pem");
+                                }
+                            }
+                        }
+                        Err(_) => error.add("invalid_pubkey_not_pkcs8_pem"),
+                    }
+                }
+            }),
         ]
     }
 
@@ -64,6 +84,7 @@ impl CreateUser {
             password: ActiveValue::Set(data.password.map(hash)),
             secret: ActiveValue::Set(data.secret),
             pubkey: ActiveValue::Set(data.pubkey.unwrap()),
+            fingerprint: ActiveValue::Set(data.fingerprint.unwrap()),
             encrypted_private_key: ActiveValue::Set(data.encrypted_private_key),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
