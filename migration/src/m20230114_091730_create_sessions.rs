@@ -27,6 +27,7 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(Sessions::UserId).integer().not_null())
+                    .col(ColumnDef::new(Sessions::DeviceId).string().not_null())
                     .col(ColumnDef::new(Sessions::Token).string().not_null())
                     .col(ColumnDef::new(Sessions::Csrf).string().not_null())
                     .col(ColumnDef::new(Sessions::CreatedAt).string().not_null())
@@ -51,6 +52,7 @@ enum Sessions {
     Table,
     Id,
     UserId,
+    DeviceId,
     Token,
     Csrf,
     CreatedAt,

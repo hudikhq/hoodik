@@ -24,6 +24,7 @@ pub mod cors;
 /// Create the web application and inject all the routes into it
 pub fn app(
     context: Context,
+    auth_load_middleware: middleware::Load,
 ) -> App<
     impl ServiceFactory<
         ServiceRequest,
@@ -33,16 +34,10 @@ pub fn app(
         InitError = (),
     >,
 > {
-    let cookie_name = context.config.get_cookie_name();
-
     App::new()
         .app_data(web::Data::new(context))
         // Authentication load middleware that only sets it up on the app
-        .wrap(
-            middleware::Load::new()
-                .token_cookie_name(cookie_name)
-                .add_ignore("/api/auth/register".to_string()),
-        )
+        .wrap(auth_load_middleware)
         .wrap(cors::setup())
         // PRETTY PLEASE: keep the routes in alphabetical order
         //  There is a VSCode extension "Alphabetical Sorter" that can help you with this
@@ -55,8 +50,13 @@ pub fn app(
 /// Start the server
 pub async fn engage(context: Context) -> std::io::Result<()> {
     let bind_address = context.config.get_full_bind_address();
+    let cookie_name = context.config.get_cookie_name();
 
-    HttpServer::new(move || app(context.clone()))
+    let auth_load_middleware = middleware::Load::new()
+        .token_cookie_name(cookie_name)
+        .add_ignore("/api/auth/register".to_string());
+
+    HttpServer::new(move || app(context.clone(), auth_load_middleware.clone()))
         .bind(&bind_address)?
         .run()
         .await

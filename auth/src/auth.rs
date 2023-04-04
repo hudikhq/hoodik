@@ -51,6 +51,22 @@ impl<'ctx> Auth<'ctx> {
             .ok_or_else(|| Error::NotFound(format!("user_not_found:{}", email)))
     }
 
+    /// Validate a session by its device id
+    pub async fn validate(&self, device_id: &str) -> AppResult<()> {
+        let session = sessions::Entity::find()
+            .filter(sessions::Column::DeviceId.eq(device_id))
+            .one(&self.context.db)
+            .await
+            .map_err(Error::from)?
+            .ok_or_else(|| Error::Unauthorized("session_not_found".to_string()))?;
+
+        if session.expires_at < Utc::now().naive_utc() {
+            return Err(Error::Unauthorized("session_expired".to_string()));
+        }
+
+        Ok(())
+    }
+
     /// Get user and session by token and csrf
     pub async fn get_by_token_and_csrf(&self, token: &str, csrf: &str) -> AppResult<Authenticated> {
         let result = sessions::Entity::find()
@@ -67,32 +83,33 @@ impl<'ctx> Auth<'ctx> {
         // always Some so we can unwrap it safely
         let (session, user) = (result.0, result.1.unwrap());
 
-        Ok(Authenticated {
-            user,
-            session: Some(session),
-        })
+        if session.expires_at < Utc::now().naive_utc() {
+            return Err(Error::Unauthorized("session_expired".to_string()));
+        }
+
+        Ok(Authenticated { user, session })
     }
 
-    /// Get Authenticated by signature and fingerprint
-    pub async fn get_by_signature_and_fingerprint(
-        &self,
-        fingerprint: &str,
-        signature: &str,
-        verify_message: &str,
-    ) -> AppResult<Authenticated> {
-        let user = users::Entity::find()
-            .filter(users::Column::Fingerprint.eq(fingerprint))
+    /// Get user and session by token
+    pub async fn get_by_device_id(&self, id: &str) -> AppResult<Authenticated> {
+        let result = sessions::Entity::find()
+            .filter(sessions::Column::DeviceId.eq(id))
+            .inner_join(users::Entity)
+            .select_also(users::Entity)
             .one(&self.context.db)
             .await
             .map_err(Error::from)?
-            .ok_or_else(|| Error::Unauthorized("invalid_signature".to_string()))?;
+            .ok_or_else(|| Error::Unauthorized("session_not_found".to_string()))?;
 
-        cryptfns::rsa::public::verify(verify_message, signature, &user.pubkey)?;
+        // inner_join makes sure the second parameter options is
+        // always Some so we can unwrap it safely
+        let (session, user) = (result.0, result.1.unwrap());
 
-        Ok(Authenticated {
-            user,
-            session: None,
-        })
+        if session.expires_at < Utc::now().naive_utc() {
+            return Err(Error::Unauthorized("session_expired".to_string()));
+        }
+
+        Ok(Authenticated { user, session })
     }
 
     /// Get user and session by token
@@ -110,10 +127,11 @@ impl<'ctx> Auth<'ctx> {
         // always Some so we can unwrap it safely
         let (session, user) = (result.0, result.1.unwrap());
 
-        Ok(Authenticated {
-            user,
-            session: Some(session),
-        })
+        if session.expires_at < Utc::now().naive_utc() {
+            return Err(Error::Unauthorized("session_expired".to_string()));
+        }
+
+        Ok(Authenticated { user, session })
     }
 
     /// Generate a new session for a user
@@ -130,6 +148,7 @@ impl<'ctx> Auth<'ctx> {
         let active_model = sessions::ActiveModel {
             id: ActiveValue::NotSet,
             user_id: ActiveValue::Set(user.id),
+            device_id: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
             token: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
             csrf: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
@@ -144,16 +163,18 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Refresh session, if it's not expired. Refreshing a session will extend the expiration date by 10 minutes.
-    pub async fn refresh_session(&self, session: &sessions::Model) -> AppResult<sessions::Model> {
+    pub async fn refresh_session(&self, session: &sessions::Model) -> AppResult<Authenticated> {
         if session.expires_at < Utc::now().naive_utc() {
             return Err(Error::Unauthorized("session_expired".to_string()));
         }
 
-        let expires_at = session.expires_at + Duration::minutes(10);
+        let duration = session.expires_at - session.updated_at;
+        let expires_at = session.expires_at + duration;
 
         let active_model = sessions::ActiveModel {
             id: ActiveValue::Set(session.id),
             user_id: ActiveValue::Set(session.user_id),
+            device_id: ActiveValue::Set(session.device_id.clone()),
             token: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
             csrf: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
             created_at: ActiveValue::Set(session.created_at),
@@ -161,12 +182,12 @@ impl<'ctx> Auth<'ctx> {
             expires_at: ActiveValue::Set(expires_at),
         };
 
-        active_model
-            .update(&self.context.db)
-            .await
-            .map_err(Error::from)
+        active_model.update(&self.context.db).await?;
+
+        self.get_by_device_id(&session.device_id).await
     }
 
+    /// Sets a cookie on the request
     pub async fn manage_cookie(
         &self,
         session: &sessions::Model,

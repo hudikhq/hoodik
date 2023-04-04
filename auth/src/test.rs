@@ -97,10 +97,7 @@ async fn test_credentials_valid() {
 
     let authenticated = response.unwrap();
 
-    assert!(
-        authenticated.session.unwrap().expires_at
-            > (Utc::now() + Duration::minutes(20)).naive_utc()
-    );
+    assert!(authenticated.session.expires_at > (Utc::now() + Duration::minutes(20)).naive_utc());
     assert_eq!(authenticated.user.id, user.id);
 }
 
@@ -189,7 +186,7 @@ async fn test_retrieve_authenticated_session_by_token_and_csrf() {
     }
 
     let authenticated = response.unwrap();
-    let session = authenticated.session.clone().unwrap();
+    let session = authenticated.session.clone();
 
     let response = auth
         .get_by_token_and_csrf(&session.token, &session.csrf)
@@ -202,4 +199,52 @@ async fn test_retrieve_authenticated_session_by_token_and_csrf() {
     let authenticated = response.unwrap();
 
     println!("{:#?}", authenticated);
+}
+
+#[async_std::test]
+async fn test_jwt_generate_and_claim() {
+    let context = Context::mock_sqlite().await;
+    let auth = create_lib(&context);
+    let (pubkey, fingerprint) = get_pubkey_and_fingerprint();
+
+    let create_user = CreateUser {
+        email: Some("john@doe.com".to_string()),
+        password: Some("very-strong-password".to_string()),
+        secret: None,
+        pubkey,
+        fingerprint,
+        encrypted_private_key: Some("encrypted-gibberish".to_string()),
+        token: None,
+    };
+
+    let credentials = Credentials {
+        email: Some("john@doe.com".to_string()),
+        password: Some("very-strong-password".to_string()),
+        token: None,
+        remember: Some(true),
+    };
+
+    let credentials_provider = CredentialsProvider::new(&auth, credentials);
+
+    let response = auth.register(create_user).await;
+
+    if let Err(e) = response {
+        panic!("Errored: {:#?}", e);
+    }
+
+    let response = credentials_provider.authenticate().await;
+
+    if let Err(e) = response {
+        panic!("Errored: {:#?}", e);
+    }
+
+    let authenticated = response.unwrap();
+
+    let jwt = crate::jwt::generate(&authenticated, "some-secret").unwrap();
+
+    let response = crate::jwt::extract(&jwt, "some-secret");
+
+    if let Err(e) = response {
+        panic!("Errored: {:#?}", e);
+    }
 }

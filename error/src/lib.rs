@@ -3,6 +3,7 @@ use std::string::FromUtf8Error;
 use actix_web::{HttpResponse, HttpResponseBuilder, ResponseError};
 use base64::DecodeError;
 use hex::FromHexError;
+use jsonwebtoken::errors::Error as JWTError;
 use rsa::{
     errors::Error as RSAError, pkcs1::Error as PKCS1Error, pkcs8::spki::Error as SpkiError,
     pkcs8::Error as PKCS8Error, signature::Error as SignatureError,
@@ -34,6 +35,7 @@ pub enum Error {
     HexDecodeError(FromHexError),
     FromUtf8Error(FromUtf8Error),
     PGPError(PGPError),
+    JWTError(JWTError),
 }
 
 impl Error {
@@ -137,6 +139,13 @@ impl From<PGPError> for Error {
         Error::PGPError(source)
     }
 }
+
+impl From<JWTError> for Error {
+    fn from(source: JWTError) -> Error {
+        Error::JWTError(source)
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
     #[serde(skip_serializing)]
@@ -230,6 +239,11 @@ impl From<&Error> for ErrorResponse {
             },
             Error::PGPError(message) => ErrorResponse {
                 status: 500,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::JWTError(message) => ErrorResponse {
+                status: 401,
                 message: message.to_string(),
                 context: None,
             },

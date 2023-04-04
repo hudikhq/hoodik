@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::auth::Auth;
+use crate::{auth::Auth, jwt};
 use actix_web::{
     body::BoxBody,
     dev::ServiceResponse,
@@ -18,6 +18,24 @@ pub enum TokenExtractor {
     Cookie(String),
 }
 
+#[derive(Clone, Debug)]
+enum ExtractionResult {
+    Token(String),
+    Claims(String),
+    None,
+}
+
+impl std::fmt::Display for ExtractionResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let w = match self {
+            ExtractionResult::Token(_) => "Token".to_string(),
+            ExtractionResult::Claims(_) => "Claims".to_string(),
+            ExtractionResult::None => "None".to_string(),
+        };
+        write!(f, "{}", w)
+    }
+}
+
 /// Middleware that will load the session and user from the database on each request
 /// and add them to the request extensions.
 ///
@@ -26,16 +44,12 @@ pub enum TokenExtractor {
 ///
 /// IMPORTANT: This middleware DOES NOT protect the route from unauthenticated users. It only loads the session on the request.
 ///
-/// This middleware works by extracting the session token from the header via `Authorization` header, or
-/// via extracting it from the cookie. The token is then used to find the session in the database.
-/// There are two possible ways to extract the token:
+/// This middleware works by extracting the session token from the header via `Authorization` header or by extracting it from the cookie.
 ///
-///  - `Bearer <token>`
-///     - the token is looked up in the database and the session is loaded (if its currently active)
-///  - `Signature <signature-base64>`
-///     - middleware will look into the database for the user with the given fingerprint and will verify the signature
-///     - in case you are using the signature the session doesn't exist so the csrf token is not used
-///     - **When using this method be sure to also provide a header with `X-Key-Fingerprint` with the HEX fingerprint of the key**
+///  - Via header: `Authorization: Bearer <JWT>`
+///     - JWT is the session token that contains everything important about the session and will be deserialized into the `Authenticated` struct.
+///  - Via cookie: `cookie_name=<session.token>`
+///    - Cookie name can be configured via .env variables
 #[derive(Clone)]
 pub struct Load {
     pub(crate) ignore: Vec<String>,
@@ -96,63 +110,39 @@ pub struct LoadMiddleware<S> {
 }
 
 impl<S> LoadMiddleware<S> {
-    /// Extracts the token from the request to try and find the active session
-    fn extract_token(&self, req: &ServiceRequest) -> Option<String> {
+    /// Extracts the method to acquire the authenticated session
+    fn extract(&self, req: &ServiceRequest) -> ExtractionResult {
         match &self.token_extractor {
-            TokenExtractor::Header(name) => {
-                let header = req.headers().get(name)?;
-                let mut header_value = header.to_str().ok()?.split(' ');
-                let header_type = header_value.next()?;
-
-                if header_type == "Bearer" {
-                    Some(header_value.next()?.to_string())
-                } else {
-                    None
-                }
-            }
-            TokenExtractor::Cookie(name) => {
-                let cookie = req.cookie(name)?;
-                let token = cookie.value();
-                Some(token.to_string())
-            }
+            TokenExtractor::Header(name) => self
+                .header_extractor(name, req.headers())
+                .map(ExtractionResult::Claims)
+                .unwrap_or(ExtractionResult::None),
+            TokenExtractor::Cookie(name) => self
+                .token_extractor(name, &req)
+                .map(ExtractionResult::Token)
+                .unwrap_or(ExtractionResult::None),
         }
     }
 
-    /// Extracts the signature and fingerprint from the request headers
-    fn extract_signature_and_fingerprint(&self, req: &ServiceRequest) -> Option<(String, String)> {
-        let signature = self.extract_signature_header(req.headers())?;
-        let fingerprint = self.extract_fingerprint_header(req.headers())?;
-
-        (signature, fingerprint).into()
-    }
-
-    /// Extract the header containing the signature
-    /// Header name: Authorization
-    /// Header format: Signature <signature-base64>
-    fn extract_signature_header(&self, headers: &HeaderMap) -> Option<String> {
-        let header = headers.get("authorization")?;
+    /// Runs the extraction through the Authorization header
+    fn header_extractor(&self, name: &str, headers: &HeaderMap) -> Option<String> {
+        let header = headers.get(name)?;
         let mut header_value = header.to_str().ok()?.split(' ');
         let header_type = header_value.next()?;
 
-        if header_type == "Signature" {
-            // Extract both the signature and fingerprint out of the header value
-            let signature = header_value.next()?;
-
-            Some(signature.to_string())
+        if header_type == "Bearer" {
+            Some(header_value.next()?.to_string())
         } else {
             None
         }
     }
 
-    /// Extract the header containing the key fingerprint
-    /// Header name: X-Key-Fingerprint
-    /// Header format: <fingerprint-hex>
-    fn extract_fingerprint_header(&self, headers: &HeaderMap) -> Option<String> {
-        headers
-            .get("X-Key-Fingerprint")?
-            .to_str()
-            .ok()
-            .map(|s| s.to_string())
+    /// Runs the extraction through the request cookie
+    fn token_extractor(&self, name: &str, req: &ServiceRequest) -> Option<String> {
+        let cookie = req.cookie(name)?;
+        let token = cookie.value();
+
+        Some(token.to_string())
     }
 }
 
@@ -177,8 +167,7 @@ where
         }
 
         let svc = self.service.clone();
-        let maybe_token = self.extract_token(&req);
-        let maybe_fingerprint_and_signature = self.extract_signature_and_fingerprint(&req);
+        let extraction = self.extract(&req);
 
         Box::pin(async move {
             let context = match req.app_data::<web::Data<Context>>() {
@@ -195,39 +184,58 @@ where
             };
 
             let mut have_session = false;
+            let auth = Auth::new(context);
 
-            if let Some(token) = &maybe_token {
-                match Auth::new(context).get_by_token(token).await {
+            if let ExtractionResult::Claims(claims) = &extraction {
+                match jwt::extract(claims, context.config.jwt_secret.as_str()) {
+                    Ok(authenticated) => {
+                        // We validate the session here to see if its still active
+                        match auth.validate(&authenticated.session.device_id).await {
+                            Ok(_) => {
+                                req.extensions_mut().insert(authenticated);
+                                have_session = true;
+                            }
+                            Err(e) => {
+                                log::debug!(
+                                    "auth::middleware::load|jwt|device-id-verify: {}, route: {}",
+                                    e,
+                                    &route
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        log::debug!(
+                            "auth::middleware::load|jwt|verify: {}, route: {}",
+                            e,
+                            &route
+                        );
+                    }
+                }
+            }
+
+            if let ExtractionResult::Token(token) = &extraction {
+                match auth.get_by_token(token).await {
                     Ok(authenticated) => {
                         req.extensions_mut().insert(authenticated);
                         have_session = true;
                     }
                     Err(e) => {
-                        log::debug!("auth::middleware::load|error: {}", e);
+                        log::debug!(
+                            "auth::middleware::load|token|error: {}, route: {}",
+                            e,
+                            &route
+                        );
                     }
                 }
             }
 
-            if !have_session {
-                if let Some((signature, fingerprint)) = &maybe_fingerprint_and_signature {
-                    let verify_message = Auth::get_minutes_timestamp();
-
-                    match Auth::new(context)
-                        .get_by_signature_and_fingerprint(fingerprint, signature, &verify_message)
-                        .await
-                    {
-                        Ok(authenticated) => {
-                            req.extensions_mut().insert(authenticated);
-                            have_session = true;
-                        }
-                        Err(e) => {
-                            log::debug!("auth::middleware::load|error: {}", e);
-                        }
-                    }
-                }
-            }
-
-            log::debug!("auth::middleware::load|have_session: {}", have_session);
+            log::debug!(
+                "auth::middleware::load|have_session: {} with extraction: {}; Route: {}",
+                have_session,
+                extraction,
+                &route,
+            );
 
             svc.call(req).await
         })

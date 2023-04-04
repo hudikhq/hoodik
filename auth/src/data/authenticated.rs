@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Authenticated {
     pub user: users::Model,
-    pub session: Option<sessions::Model>,
+    pub session: sessions::Model,
 }
 
 impl TryFrom<&HttpRequest> for Authenticated {
@@ -15,7 +15,17 @@ impl TryFrom<&HttpRequest> for Authenticated {
     fn try_from(req: &HttpRequest) -> Result<Self, AppError> {
         match req.extensions().get::<Authenticated>() {
             Some(authenticated) => Ok(authenticated.clone()),
-            None => Err(AppError::Unauthorized("no_session".to_string())),
+            None => {
+                log::debug!("auth::data::authenticated|no_session request extract attempt");
+
+                Err(AppError::Unauthorized("no_session".to_string()))
+            }
         }
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AuthenticatedJwt {
+    pub authenticated: Authenticated,
+    pub jwt: String,
 }

@@ -2,7 +2,7 @@ use actix_web::{
     body::BoxBody,
     dev::ServiceResponse,
     dev::{Service, ServiceRequest, Transform},
-    Error, HttpMessage, ResponseError,
+    Error, HttpMessage,
 };
 use error::Error as AppError;
 use futures_util::future::{ok, LocalBoxFuture, Ready};
@@ -13,6 +13,7 @@ use crate::data::authenticated::Authenticated;
 pub enum CsrfVerify {
     Header(String),
     Query(String),
+    Body(String),
 }
 
 /// Verify middleware
@@ -52,6 +53,14 @@ impl Verify {
 
     pub fn csrf_query_default() -> Self {
         Self::new_with(CsrfVerify::Query("__csrf".to_string()))
+    }
+
+    pub fn csrf_body_name(name: String) -> Self {
+        Self::new_with(CsrfVerify::Body(name))
+    }
+
+    pub fn csrf_body_default() -> Self {
+        Self::new_with(CsrfVerify::Body("__csrf".to_string()))
     }
 }
 impl<S> Transform<S, ServiceRequest> for Verify
@@ -101,6 +110,9 @@ impl<S> VerifyMiddleware<S> {
 
                     csrf.map(|i| i.to_string())
                 }
+                CsrfVerify::Body(_name) => {
+                    todo!("figure out a way to extract data from the request body")
+                }
             }
         } else {
             None
@@ -120,21 +132,36 @@ where
     actix_web::dev::forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        let csrf = req
-            .extensions()
-            .get::<Authenticated>()
-            .map(|a| a.session.as_ref().map(|s| s.csrf.clone()))
-            .unwrap_or(None);
+        let route = req.match_pattern().unwrap_or_default();
+        let mut error = None;
+        let mut csrf = None;
 
-        if self.should_verify_csrf() && self.extract_csrf(&req) != csrf {
-            return Box::pin(async move {
-                Ok(ServiceResponse::new(
-                    req.into_parts().0,
-                    AppError::Unauthorized("csrf_mismatch".to_string()).error_response(),
-                ))
-            });
+        // Validate there is an active session
+        match req.extensions().get::<Authenticated>() {
+            Some(authenticated) => {
+                if self.should_verify_csrf() {
+                    csrf = Some(authenticated.session.csrf.clone());
+                }
+            }
+            None => {
+                log::debug!("auth::middleware::verify|csrf_mismatch|route={}", route);
+
+                error = Some(AppError::Unauthorized("not_authenticated".to_string()));
+            }
+        };
+
+        // Validate the csrf token
+        if error.is_none() && self.should_verify_csrf() && self.extract_csrf(&req) != csrf {
+            log::debug!("auth::middleware::verify|csrf_mismatch|route={}", route);
+
+            error = Some(AppError::Unauthorized("csrf_mismatch".to_string()));
         }
 
+        if let Some(error) = error {
+            return Box::pin(async move { Err(error.into()) });
+        }
+
+        log::debug!("auth::middleware::verify|is_authenticated route={}", route);
         let fut = self.service.call(req);
         Box::pin(async move { fut.await })
     }
