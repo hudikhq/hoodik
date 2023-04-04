@@ -268,8 +268,11 @@ export default class Api {
 		}
 
 		try {
-			const { pubkey, signature } = await crypto.sign(getFlattenedTimestampMinutes());
-			headers['Authorization'] = `Signature ${signature} ${pubkey}`;
+			const { publicKey, signature } = await crypto.sign(getFlattenedTimestampMinutes());
+			const fingerprint = await crypto.getFingerprint(publicKey);
+
+			headers['Authorization'] = `Signature ${signature}`;
+			headers['X-Key-Fingerprint'] = `${fingerprint}`;
 		} catch (e) {
 			/**/
 		}

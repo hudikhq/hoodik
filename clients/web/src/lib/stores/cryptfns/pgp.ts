@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import * as PGP from 'openpgp';
-import { encryptSecret, decryptSecret } from './aes';
+import { encrypt as encryptSecret, decrypt as decryptSecret } from './aes';
 
 const encryptedMnemonicStorageName = 'encrypted-secret';
 

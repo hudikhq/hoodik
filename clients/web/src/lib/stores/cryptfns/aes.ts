@@ -5,8 +5,11 @@ const encryptedSecretLocation = 'encrypted-secret';
 /**
  * Encrypt the given input with the given pin
  */
-export function encryptSecret(secret: string, pin: string): string {
-	const encrypted = CryptoJS.AES.encrypt(secret, pin, { format: CryptoJS.format.OpenSSL });
+export function encrypt(secret: string, pin: string): string {
+	const encrypted = CryptoJS.AES.encrypt(secret, pin, {
+		format: CryptoJS.format.OpenSSL,
+		salt: 128
+	});
 	return encrypted.toString(CryptoJS.format.OpenSSL);
 }
 
@@ -14,10 +17,12 @@ export function encryptSecret(secret: string, pin: string): string {
  * Decrypt the given encrypted input with the given pin
  * @throws
  */
-export function decryptSecret(encrypted: string, pin: string): string {
-	const wordArray = CryptoJS.AES.decrypt(encrypted, pin);
-	const value = wordArray.toString(CryptoJS.enc.Utf8);
-	return value;
+export function decrypt(encrypted: string, pin: string): string {
+	const wordArray = CryptoJS.AES.decrypt(encrypted, pin, {
+		format: CryptoJS.format.OpenSSL,
+		salt: 128
+	});
+	return wordArray.toString(CryptoJS.enc.Utf8);
 }
 
 /**
@@ -37,6 +42,6 @@ export function hasEncryptedSecretKey(): boolean {
  * Take the given secret, encrypt it with a pin and store it in localStorage
  */
 export function encryptSecretAndStore(secret: string, pin: string) {
-	const encrypted = encryptSecret(secret, pin);
+	const encrypted = encrypt(secret, pin);
 	localStorage.setItem(encryptedSecretLocation, encrypted);
 }

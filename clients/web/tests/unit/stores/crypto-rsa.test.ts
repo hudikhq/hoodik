@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rsa as crypto } from '../../src/lib/stores/cryptfns';
+import { rsa as crypto } from '../../../src/lib/stores/cryptfns';
 
 const privatePem = `-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAsMvjT2NZNqJo/3AYHH3RIm5fwmOXabbYxduvtNp33JQQZSPu
@@ -39,7 +39,7 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
 -----END RSA PUBLIC KEY-----`;
 
 describe('Crypto test', () => {
-	it('RSA: can generate secret key from input', async () => {
+	it('UNIT: RSA: can generate secret key from input', async () => {
 		const keypair = crypto.generateKey();
 
 		const { input } = crypto.inputToKeypair(keypair.input as string);
@@ -52,7 +52,7 @@ describe('Crypto test', () => {
 		expect(input).toBe(keypair.input);
 	});
 
-	it('RSA: can sign messages and verify signatures', async () => {
+	it('UNIT: RSA: can sign messages and verify signatures', async () => {
 		const keypair = crypto.generateKey();
 		crypto.set(keypair);
 
@@ -63,7 +63,7 @@ describe('Crypto test', () => {
 		expect(await crypto.verify(signature, message)).toBe(true);
 	});
 
-	it('RSA: can sign messages and verify signatures with specific input', async () => {
+	it('UNIT: RSA: can sign messages and verify signatures with specific input', async () => {
 		const keypair = crypto.inputToKeypair(privatePem);
 
 		crypto.set(keypair);
@@ -95,7 +95,7 @@ describe('Crypto test', () => {
 		console.log(signature);
 	});
 
-	it('RSA: can encrypt and decrypt message with generated keys', async () => {
+	it('UNIT: RSA: can encrypt and decrypt message with generated keys', async () => {
 		const keypair = crypto.inputToKeypair(privatePem);
 		crypto.set(keypair);
 
@@ -108,7 +108,7 @@ describe('Crypto test', () => {
 		expect(message).toEqual(decrypted);
 	});
 
-	it('RSA: can encrypt and decrypt message with generated keys oaep', async () => {
+	it('UNIT: RSA: can encrypt and decrypt message with generated keys oaep', async () => {
 		const keypair = crypto.inputToKeypair(privatePem);
 		crypto.set(keypair);
 
@@ -121,7 +121,7 @@ describe('Crypto test', () => {
 		expect(message).toEqual(decrypted);
 	});
 
-	it('RSA: can decrypt message from rust backend', async () => {
+	it('UNIT: RSA: can decrypt message from rust backend', async () => {
 		const keypair = crypto.inputToKeypair(privatePem);
 		crypto.set(keypair);
 
@@ -149,7 +149,7 @@ describe('Crypto test', () => {
 		expect(decryptedJs).toEqual(message);
 	});
 
-	it('RSA: can decrypt oaep message from rust backend', async () => {
+	it('UNIT: RSA: can decrypt oaep message from rust backend', async () => {
 		const keypair = crypto.inputToKeypair(privatePem);
 		crypto.set(keypair);
 
