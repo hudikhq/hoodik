@@ -1,11 +1,11 @@
-import * as register from '$lib/stores/register';
-import * as crypto from '$lib/stores/cryptfns';
+import * as register from '../../src/stores/auth/register';
+import * as crypto from '../../src/stores/cryptfns';
 import { describe, it, expect } from 'vitest';
 
 const rng = () => `${Math.random() * 99999}`;
 
 async function getUser(sendKey = false) {
-	const keypair = crypto.rsa.generateKeyPair();
+	const keypair = await crypto.rsa.generateKeyPair();
 	const password = 'some-not-so-weak-password!!1';
 
 	const createUser: register.CreateUser = {
@@ -41,7 +41,10 @@ describe('Register test', () => {
 
 		expect(!!user).toBeTruthy();
 
-		const secret = crypto.rsa.decryptPrivateKey(user.encrypted_private_key as string, password);
+		const secret = await crypto.rsa.decryptPrivateKey(
+			user.encrypted_private_key as string,
+			password
+		);
 
 		const secretFingerprint = await crypto.rsa.getFingerprint(secret);
 		const privateKeyFingerprint = await crypto.rsa.getFingerprint(privateKey);

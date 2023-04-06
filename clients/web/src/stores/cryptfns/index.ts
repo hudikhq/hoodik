@@ -9,7 +9,8 @@ export { rsa, aes };
 export const { subscribe, set: _set } = writable<rsa.KeyPair>({
 	key: null,
 	publicKey: null,
-	input: null
+	input: null,
+	fingerprint: null
 });
 
 /**
@@ -22,16 +23,13 @@ export async function get(): Promise<rsa.KeyPair> {
 /**
  * Set the external keypair value into the internal one
  */
-export function set(keypair: rsa.KeyPair) {
+export async function set(keypair: rsa.KeyPair) {
 	if (keypair.input) {
-		const kp = rsa.inputToKeyPair(keypair.input);
+		const kp = await rsa.inputToKeyPair(keypair.input);
 		_set(kp);
 	} else if (keypair.publicKey) {
-		_set({
-			key: null,
-			publicKey: keypair.publicKey,
-			input: null
-		});
+		const kp = await rsa.publicToKeyPair(keypair.publicKey);
+		_set(kp);
 	} else {
 		clear();
 	}
@@ -40,8 +38,8 @@ export function set(keypair: rsa.KeyPair) {
 /**
  * Clear the keypair value
  */
-export function clear() {
-	_set({ key: null, publicKey: null, input: null });
+export async function clear() {
+	await _set({ key: null, publicKey: null, input: null, fingerprint: null });
 }
 
 /**

@@ -1,4 +1,4 @@
-import * as auth from './auth';
+import { getCsrf, getJwt } from './auth';
 
 export type Query = {
 	[key: string]: string | number | string[] | { [key: string]: string | number | string[] };
@@ -34,14 +34,14 @@ export interface Response<B = unknown, R = unknown> {
  *
  * @class
  */
-export class ErrorResponse<B, R> extends Error {
+export class ErrorResponse<B> extends Error {
 	request: Request<B>;
 	status: number;
 	headers: Headers;
 	rawBody: string | undefined;
-	body: R | undefined;
+	body: ApiError | undefined;
 
-	constructor(response: Response<B, R>) {
+	constructor(response: Response<B, ApiError>) {
 		super(
 			`Request '${response.request.method.toUpperCase()} ${
 				response.request.url
@@ -54,6 +54,21 @@ export class ErrorResponse<B, R> extends Error {
 		this.rawBody = response.rawBody;
 		this.body = response.body;
 	}
+}
+
+export interface ValidationErrorInnerObject {
+	field: string;
+	errors: string[];
+}
+
+export interface ValidationErrorObject {
+	errors: { [key: string]: ValidationErrorInnerObject };
+}
+
+export interface ApiError {
+	status: number;
+	message: string;
+	context?: string | ValidationErrorObject;
 }
 
 /**
@@ -74,7 +89,7 @@ export function getClientUrl(): string {
  * Return the API URL from environment variable or fallback to the client URL
  */
 export function getApiUrl(): string {
-	return ensureEndingSlash(import.meta.env.APP_API_URL || getClientUrl());
+	return ensureEndingSlash(import.meta.env.APP_URL || getClientUrl());
 }
 
 /**
@@ -193,7 +208,7 @@ export default class Api {
 
 		const fetchOptions: RequestInit = {
 			cache: 'no-cache',
-			credentials: 'include',
+			credentials: 'omit',
 			headers: request.headers,
 			method,
 			mode: 'cors',
@@ -230,7 +245,7 @@ export default class Api {
 		};
 
 		if (response.status >= 400) {
-			throw new ErrorResponse(response);
+			throw new ErrorResponse(response as Response<B, ApiError>);
 		}
 
 		return response;
@@ -243,12 +258,12 @@ export default class Api {
 		headers = headers || {};
 		headers['Content-Type'] = 'application/json';
 
-		if (auth.getCsrf()) {
-			headers['X-Csrf-Token'] = auth.getCsrf() || '';
+		if (getCsrf()) {
+			headers['X-Csrf-Token'] = getCsrf() || '';
 		}
 
-		if (auth.getJwt()) {
-			headers['Authorization'] = `Bearer ${auth.getJwt() || ''}`;
+		if (getJwt()) {
+			headers['Authorization'] = `Bearer ${getJwt() || ''}`;
 		}
 
 		return headers;

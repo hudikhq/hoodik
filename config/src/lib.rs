@@ -5,6 +5,8 @@ use std::{
     fs::{self, DirBuilder},
 };
 
+const APP_CLIENT_URL: &str = "http://localhost:4173";
+
 /// Config struct that holds all the loaded configuration
 /// from the env and arguments.
 ///
@@ -36,6 +38,14 @@ pub struct Config {
     ///
     /// default: uses sqlite instead of postgres
     pub database_url: Option<String>,
+
+    /// APP_CLIENT_URL this is the URL of the client application
+    /// this is used to redirect all traffic downstream to the client server
+    ///
+    /// *optional*
+    ///
+    /// default: const APP_CLIENT_URL (http://localhost:5137)
+    pub client_url: Option<String>,
 
     /// JWT_SECRET secret that will be used to sign the JWT tokens
     /// if you don't set this it will generate a random secret every time
@@ -110,6 +120,7 @@ impl Config {
             address: "127.0.0.1".to_string(),
             data_dir: "./data".to_string(),
             database_url: None,
+            client_url: None,
             jwt_secret: uuid::Uuid::new_v4().to_string(),
             use_cookies: false,
             cookie_domain: None,
@@ -137,6 +148,7 @@ impl Config {
         let address = Self::parse_address(matches.as_ref(), &mut errors);
         let data_dir = Self::parse_data_dir(matches.as_ref(), &mut errors);
         let database_url = Self::parse_database_url(matches.as_ref(), &mut errors);
+        let client_url = env_var("APP_CLIENT_URL").ok();
         let jwt_secret = env_var("JWT_SECRET").unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
         let use_cookies = env_var("USE_COOKIES")
             .ok()
@@ -171,6 +183,7 @@ impl Config {
             address,
             data_dir: parse_path(data_dir.unwrap()),
             database_url,
+            client_url,
             jwt_secret,
             use_cookies,
             cookie_domain,
@@ -196,6 +209,7 @@ impl Config {
         let address = Self::parse_address(matches.as_ref(), &mut errors);
         let data_dir = Self::parse_data_dir(matches.as_ref(), &mut errors);
         let database_url = Self::parse_database_url(matches.as_ref(), &mut errors);
+        let client_url = env_var("APP_CLIENT_URL").ok();
         let jwt_secret = env_var("JWT_SECRET").unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
         let use_cookies = env_var("USE_COOKIES")
             .ok()
@@ -230,6 +244,7 @@ impl Config {
             address,
             data_dir: parse_path(data_dir.unwrap()),
             database_url,
+            client_url,
             jwt_secret,
             use_cookies,
             cookie_domain,
@@ -376,6 +391,15 @@ impl Config {
     /// Get the cookie name
     pub fn get_cookie_name(&self) -> String {
         self.cookie_name.clone()
+    }
+
+    /// Get URL of the client application
+    pub fn get_client_url(&self) -> String {
+        parse_path(
+            self.client_url
+                .clone()
+                .unwrap_or_else(|| APP_CLIENT_URL.to_string()),
+        )
     }
 }
 

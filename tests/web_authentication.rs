@@ -11,7 +11,6 @@ use hoodik::server;
 #[actix_web::test]
 async fn test_registration_and_login() {
     let mut context = context::Context::mock_sqlite().await;
-    let auth_load_middleware = auth::middleware::load::Load::new();
 
     let private = cryptfns::rsa::private::generate().unwrap();
     let public = cryptfns::rsa::public::from_private(&private).unwrap();
@@ -21,8 +20,7 @@ async fn test_registration_and_login() {
 
     let encrypted_secret = "some-random-encrypted-secret".to_string();
 
-    let mut app =
-        test::init_service(server::app(context.clone(), auth_load_middleware.clone())).await;
+    let mut app = test::init_service(server::app(context.clone())).await;
 
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
@@ -100,11 +98,8 @@ async fn test_registration_and_login() {
     // Doing a quick check if the cookie will be placed onto the response
     // if we are using cookies for authentication.
     context.config.use_cookies = true;
-    let auth_load_middleware =
-        auth::middleware::load::Load::new().token_cookie_name(context.config.get_cookie_name());
 
-    let mut app =
-        test::init_service(server::app(context.clone(), auth_load_middleware.clone())).await;
+    let mut app = test::init_service(server::app(context.clone())).await;
 
     let req = test::TestRequest::post()
         .uri("/api/auth/login")

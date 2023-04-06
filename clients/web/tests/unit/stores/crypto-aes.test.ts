@@ -1,5 +1,5 @@
 import { describe, it, expect, assert } from 'vitest';
-import * as crypto from '../../../src/lib/stores/cryptfns';
+import * as crypto from '../../../src/stores/cryptfns';
 
 describe('Crypto test', () => {
 	it('UNIT: AES: can encrypt and decrypt string with provided pin using AES', () => {

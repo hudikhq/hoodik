@@ -1,11 +1,8 @@
 import { writable } from 'svelte/store';
-import Api from './api';
-import * as crypto from './cryptfns';
-import Cookies from 'js-cookie';
-import { local } from '$lib';
-
-const CSRF_COOKIE_NAME = 'X-CSRF-TOKEN';
-const JWT_TOKEN_COOKIE_NAME = 'JWT-TOKEN';
+import Api from '../api';
+import * as crypto from '../cryptfns';
+import { local } from '../';
+import { setJwt, setCsrf } from './';
 
 export interface Authenticated {
 	user: User;
@@ -61,19 +58,6 @@ interface PrivateKeyRequest {
 export const { subscribe, set: _set } = writable<Authenticated | null>();
 
 /**
- * Setup the authenticated object after successful authentication event
- */
-export function setupAuthenticated(body: AuthenticatedJwt) {
-	const { authenticated, jwt } = body;
-
-	const expires = local(authenticated.session.expires_at);
-
-	setJwt(jwt, expires);
-	setCsrf(authenticated.session.csrf, expires);
-	set(authenticated);
-}
-
-/**
  * Set Authenticated object
  */
 export function set(auth: Authenticated) {
@@ -84,45 +68,7 @@ export function set(auth: Authenticated) {
  * Gets the authenticated object if it exists
  */
 export function get(): Promise<Authenticated | null> {
-	return new Promise((resolve) => subscribe(resolve));
-}
-
-/**
- * Load the CSRF token from the cookie
- */
-export function getCsrf(): string | null {
-	return Cookies.get(CSRF_COOKIE_NAME) || null;
-}
-
-/**
- * Set the CSRF token into cookie
- */
-export function setCsrf(csrf: string, expires: Date) {
-	Cookies.set(CSRF_COOKIE_NAME, csrf, {
-		path: '/',
-		sameSite: 'strict',
-		domain: import.meta.env.APP_COOKIE_DOMAIN,
-		expires
-	});
-}
-
-/**
- * Load the JWT token from the cookie
- */
-export function getJwt(): string | null {
-	return Cookies.get(CSRF_COOKIE_NAME) || null;
-}
-
-/**
- * Set the JWT token into cookie
- */
-export function setJwt(jwt: string, expires: Date) {
-	Cookies.set(JWT_TOKEN_COOKIE_NAME, jwt, {
-		path: '/',
-		sameSite: 'strict',
-		domain: import.meta.env.APP_COOKIE_DOMAIN,
-		expires
-	});
+	return new Promise(subscribe);
 }
 
 /**
@@ -130,6 +76,19 @@ export function setJwt(jwt: string, expires: Date) {
  */
 export function clear() {
 	_set(null);
+}
+
+/**
+ * Setup the authenticated object after successful authentication event
+ */
+export function setupAuthenticated(body: AuthenticatedJwt) {
+	const { authenticated, jwt } = body;
+
+	const expires = local(authenticated.session.expires_at);
+
+	setJwt(jwt, expires);
+	setCsrf(authenticated.session.csrf, expires);
+	set(authenticated);
 }
 
 /**
@@ -164,7 +123,7 @@ export async function login(credentials: Credentials): Promise<Authenticated> {
 	const { authenticated } = response.body;
 
 	if (authenticated.user.encrypted_private_key) {
-		credentials.privateKey = crypto.rsa.decryptPrivateKey(
+		credentials.privateKey = await crypto.rsa.decryptPrivateKey(
 			authenticated.user.encrypted_private_key,
 			credentials.password
 		);
@@ -179,7 +138,7 @@ export async function login(credentials: Credentials): Promise<Authenticated> {
 		throw new Error('Private key does not match user');
 	}
 
-	crypto.set(crypto.rsa.inputToKeyPair(credentials.privateKey));
+	await crypto.set(await crypto.rsa.inputToKeyPair(credentials.privateKey));
 
 	return authenticated;
 }
@@ -194,10 +153,10 @@ export async function loginWithPrivateKey(input: PrivateKeyLogin): Promise<Authe
 	let pk = privateKey;
 
 	if (passphrase) {
-		pk = crypto.rsa.decryptPrivateKey(privateKey, passphrase);
+		pk = await crypto.rsa.decryptPrivateKey(privateKey, passphrase);
 	}
 
-	return _loginWithPrivateKey(crypto.rsa.inputToKeyPair(pk || ''), false);
+	return _loginWithPrivateKey(await crypto.rsa.inputToKeyPair(pk || ''), false);
 }
 
 /**
@@ -207,7 +166,7 @@ export async function loginWithPrivateKey(input: PrivateKeyLogin): Promise<Authe
 export async function loginWithPin(pin: string): Promise<Authenticated> {
 	const pk = crypto.getAndDecryptPrivateKey(pin);
 
-	return _loginWithPrivateKey(crypto.rsa.inputToKeyPair(pk), false);
+	return _loginWithPrivateKey(await crypto.rsa.inputToKeyPair(pk), false);
 }
 
 /**
@@ -220,7 +179,7 @@ export async function _loginWithPrivateKey(
 ): Promise<Authenticated> {
 	const fingerprint = await crypto.rsa.getFingerprint(kp.input as string);
 	const nonce = crypto.createFingerprintNonce(fingerprint);
-	const signature = crypto.rsa.sign(kp, nonce);
+	const signature = await crypto.rsa.sign(kp, nonce);
 
 	const response = await Api.post<PrivateKeyRequest, AuthenticatedJwt>(
 		'/api/auth/signature',
@@ -238,7 +197,7 @@ export async function _loginWithPrivateKey(
 
 	setupAuthenticated(response.body);
 
-	crypto.set(kp);
+	await crypto.set(kp);
 
 	return response.body.authenticated;
 }

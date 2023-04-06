@@ -4,6 +4,7 @@ use actix_web::{HttpResponse, HttpResponseBuilder, ResponseError};
 use base64::DecodeError;
 use hex::FromHexError;
 use jsonwebtoken::errors::Error as JWTError;
+use reqwest::Error as ReqwestError;
 use rsa::{
     errors::Error as RSAError, pkcs1::Error as PKCS1Error, pkcs8::spki::Error as SpkiError,
     pkcs8::Error as PKCS8Error, signature::Error as SignatureError,
@@ -36,6 +37,7 @@ pub enum Error {
     FromUtf8Error(FromUtf8Error),
     PGPError(PGPError),
     JWTError(JWTError),
+    ReqwestError(ReqwestError),
 }
 
 impl Error {
@@ -146,6 +148,12 @@ impl From<JWTError> for Error {
     }
 }
 
+impl From<ReqwestError> for Error {
+    fn from(source: ReqwestError) -> Error {
+        Error::ReqwestError(source)
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
     #[serde(skip_serializing)]
@@ -246,6 +254,11 @@ impl From<&Error> for ErrorResponse {
                 status: 401,
                 message: message.to_string(),
                 context: None,
+            },
+            Error::ReqwestError(error) => ErrorResponse {
+                status: error.status().map(|e| e.as_u16()).unwrap_or(500),
+                message: "ReqwestError: Downstream error".to_string(),
+                context: Some(serde_json::Value::String(error.to_string())),
             },
         }
     }

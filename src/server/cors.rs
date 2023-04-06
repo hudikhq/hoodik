@@ -3,10 +3,13 @@ use actix_web::http;
 use std::str::FromStr;
 
 pub fn setup() -> Cors {
+    let expose = vec!["content-type", "cache-control", "content-length"];
+
     Cors::default()
-        .supports_credentials()
         .allow_any_origin()
+        .allowed_origin_fn(move |_, _| true)
         .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+        .expose_headers(expose)
         .allowed_headers(vec![
             http::header::CONTENT_TYPE,
             http::header::ACCEPT,

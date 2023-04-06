@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getUserWithoutKey, getUserWithKey } from './register.test';
-import * as auth from '$lib/stores/auth';
-import * as crypto from '$lib/stores/cryptfns';
+import * as auth from '../../src/stores/auth/login';
+import * as crypto from '../../src/stores/cryptfns';
 
 describe('Auth test', () => {
 	it('API: Can login with credentials', async () => {
