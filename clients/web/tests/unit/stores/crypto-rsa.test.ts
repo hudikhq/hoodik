@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rsa as crypto } from '../../../src/lib/stores/cryptfns';
+import { rsa } from '../../../src/stores/cryptfns';
 
 const privatePem = `-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAsMvjT2NZNqJo/3AYHH3RIm5fwmOXabbYxduvtNp33JQQZSPu
@@ -40,9 +40,9 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
 
 describe('Crypto test', () => {
 	it('UNIT: RSA: can generate secret key from input', async () => {
-		const kp = crypto.generateKeyPair();
+		const kp = await rsa.generateKeyPair();
 
-		const { input } = crypto.inputToKeyPair(kp.input as string);
+		const { input } = await rsa.inputToKeyPair(kp.input as string);
 
 		console.log('PRIVATE:');
 		console.log(kp.input);
@@ -51,23 +51,23 @@ describe('Crypto test', () => {
 
 		expect(input).toBe(kp.input);
 
-		const encrypted = crypto.protectPrivateKey(kp.input as string, '123');
+		const encrypted = await rsa.protectPrivateKey(kp.input as string, '123');
 
 		console.log('ENCRYPTED PRIVATE KEY:');
 		console.log(encrypted);
 
-		const decrypted = crypto.decryptPrivateKey(encrypted, '123');
+		const decrypted = await rsa.decryptPrivateKey(encrypted, '123');
 
 		console.log('DECRYPTED PRIVATE KEY:');
 		console.log(decrypted);
 
-		const fingerprint = await crypto.getFingerprint(input as string);
-		const fingerprintDecrypted = await crypto.getFingerprint(decrypted as string);
+		const fingerprint = await rsa.getFingerprint(input as string);
+		const fingerprintDecrypted = await rsa.getFingerprint(decrypted as string);
 
 		expect(fingerprint).toBe(fingerprintDecrypted);
 
 		try {
-			crypto.inputToKeyPair(encrypted);
+			await rsa.inputToKeyPair(encrypted);
 			expect("shouldn't be here").toBeFalsy();
 		} catch (e) {
 			expect(
@@ -77,23 +77,23 @@ describe('Crypto test', () => {
 	});
 
 	it('UNIT: RSA: can sign messages and verify signatures', async () => {
-		const kp = crypto.generateKeyPair();
+		const kp = await rsa.generateKeyPair();
 
 		const message = 'hello world';
-		const signature = crypto.sign(kp, message);
+		const signature = await rsa.sign(kp, message);
 
-		expect(crypto.verify(signature, message, kp.publicKey as string)).toBe(true);
+		expect(await rsa.verify(signature, message, kp.publicKey as string)).toBe(true);
 	});
 
 	it('UNIT: RSA: can sign messages and verify signatures with specific input', async () => {
-		const kp = crypto.inputToKeyPair(privatePem);
+		const kp = await rsa.inputToKeyPair(privatePem);
 
-		const kp2 = crypto.inputToKeyPair(privatePem);
+		const kp2 = await rsa.inputToKeyPair(privatePem);
 
 		expect(kp2.publicKey).toBe(kp.publicKey);
 
-		const privateFingerprint = await crypto.getFingerprint(kp.input as string);
-		const publicFingerprint = await crypto.getFingerprint(kp.publicKey as string);
+		const privateFingerprint = await rsa.getFingerprint(kp.input as string);
+		const publicFingerprint = await rsa.getFingerprint(kp.publicKey as string);
 
 		const message = '28004708';
 
@@ -106,40 +106,40 @@ describe('Crypto test', () => {
 
 		expect(privateFingerprint).toBe(publicFingerprint);
 
-		const signature = crypto.sign(kp, message);
+		const signature = await rsa.sign(kp, message);
 
-		expect(crypto.verify(signature, message, publicPem)).toBe(true);
+		expect(await rsa.verify(signature, message, publicPem)).toBe(true);
 
 		console.log('SIGNATURE:');
 		console.log(signature);
 	});
 
 	it('UNIT: RSA: can encrypt and decrypt message with generated keys', async () => {
-		const kp = crypto.inputToKeyPair(privatePem);
+		const kp = await rsa.inputToKeyPair(privatePem);
 
 		const message = 'hello world';
 
-		const encrypted = crypto.encryptMessage(message, kp.publicKey as string);
-		const decrypted = crypto.decryptMessage(kp, encrypted);
+		const encrypted = await rsa.encryptMessage(message, kp.publicKey as string);
+		const decrypted = await rsa.decryptMessage(kp, encrypted);
 
 		expect(message !== encrypted).toBe(true);
 		expect(message).toEqual(decrypted);
 	});
 
 	it('UNIT: RSA: can encrypt and decrypt message with generated keys oaep', async () => {
-		const kp = crypto.inputToKeyPair(privatePem);
+		const kp = await rsa.inputToKeyPair(privatePem);
 
 		const message = 'hello world';
 
-		const encrypted = crypto.encryptOaepMessage(message, kp.publicKey as string);
-		const decrypted = crypto.decryptOaepMessage(kp, encrypted);
+		const encrypted = await rsa.encryptOaepMessage(message, kp.publicKey as string);
+		const decrypted = await rsa.decryptOaepMessage(kp, encrypted);
 
 		expect(message !== encrypted).toBe(true);
 		expect(message).toEqual(decrypted);
 	});
 
 	it('UNIT: RSA: can decrypt message from rust backend', async () => {
-		const kp = crypto.inputToKeyPair(privatePem);
+		const kp = await rsa.inputToKeyPair(privatePem);
 
 		console.log('KEYSIZE:', kp.key?.getKeySize());
 
@@ -149,16 +149,16 @@ describe('Crypto test', () => {
 
 		expect(message).toEqual(Buffer.from(messageBase64, 'base64').toString());
 
-		const encryptedJs = crypto.encryptMessage(message, kp.publicKey as string);
+		const encryptedJs = await rsa.encryptMessage(message, kp.publicKey as string);
 
 		console.log('ENCRYPTED:', encryptedJs);
 
-		const decryptedJs = crypto.decryptMessage(kp, encryptedJs);
+		const decryptedJs = await rsa.decryptMessage(kp, encryptedJs);
 
 		const encryptedRs =
 			'aOpNh8s7GnXMarGa7Ss8GMWp+KYf+yWubxNMpPAs2G7PaPdPxXcm90yX4ZBK++c8baa0qf/AI8efU6Bp9rD89/IJAC/9W4mMPUSgrUx9NALWaRw0JVRfhsCQ5gym4O4sS81Z+PAWQpHohmUgbWv1cNDuylOCBTNctyFBdZcbuwJC/cBFjyqXeaPW0mkOCdl7wOGY13v2L+RlJUBRAmSBGZoylEUuSwbobwbUj0FFcuL34yJauVCQ6kjJAYEejmVKh0IlRnbsdEhi3tSKHQtxH3ozlGlG8SlPq94uYL86FQi9NyWQEmMOSdnxlvQOt5qw5fngKToLbOGmwDqCAF4Niw==';
 
-		const decryptedRs = crypto.decryptMessage(kp, encryptedRs);
+		const decryptedRs = await rsa.decryptMessage(kp, encryptedRs);
 
 		console.log(decryptedRs);
 		expect(decryptedRs).toEqual(message);
@@ -166,22 +166,22 @@ describe('Crypto test', () => {
 	});
 
 	it('UNIT: RSA: can decrypt oaep message from rust backend', async () => {
-		const kp = crypto.inputToKeyPair(privatePem);
+		const kp = await rsa.inputToKeyPair(privatePem);
 
 		const message = 'hello world';
 
-		const encryptedJs = crypto.encryptOaepMessage(message, kp.publicKey as string);
+		const encryptedJs = await rsa.encryptOaepMessage(message, kp.publicKey as string);
 
 		console.log('ENCRYPTED OAEP:', encryptedJs);
 
-		const decryptedJs = crypto.decryptOaepMessage(kp, encryptedJs);
+		const decryptedJs = await rsa.decryptOaepMessage(kp, encryptedJs);
 		expect(message).toEqual(decryptedJs);
 
 		// Whatever we try, this is not working... THere are some differences in the padding I guess...
 		// const encryptedRs =
 		// 	'PD2RSA3XUPQTLV4uDn/0gRc3fnIxs65MGDzauVS0hPyZqMuJu9+nKSxno3RkX6gVsVTod8PXEd3WwTg5xrgnyIsRfTB+6JRayGn052vJLNbbGbpddHcalRJhRVpbroYEiwiwOJBNYBdQk82OdOx0uUx/mYiEDudP3XZLV/2cwHjVzWZM6vB5/ry02P2zzj3+G0U1H5+L2f5DDq3H0MGCKduwAX+j7pNoIKIxBzLY1bLFbQMe4qaxoW4hOCwCQ30YSgKOKDbd/sGvcPTuCw/9RtqN9YO0kuJhaGxP0MpLpzTGLpO8tU361HvwBEd7FpTQJm+dNPWabCAUGGntRV79lA==';
 
-		// const decryptedRs = crypto.decryptOaepMessage(kp, encryptedRs);
+		// const decryptedRs = await rsa.decryptOaepMessage(kp, encryptedRs);
 
 		// expect(message).toEqual(decryptedRs);
 	});

@@ -10,3 +10,8 @@ declare global {
 }
 
 export {};
+
+interface ImportMetaEnv {
+	APP_URL: string;
+	APP_CLIENT_URL?: string;
+}
