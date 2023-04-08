@@ -8,6 +8,7 @@ use actix_web::{
     http::header::HeaderMap,
     web, Error, HttpMessage, ResponseError,
 };
+use chrono::Utc;
 use context::Context;
 use error::Error as AppError;
 use futures_util::future::{ok, LocalBoxFuture, Ready};
@@ -53,6 +54,7 @@ impl std::fmt::Display for ExtractionResult {
 #[derive(Clone)]
 pub struct Load {
     pub(crate) ignore: Vec<String>,
+    pub(crate) ignore_methods: Vec<String>,
     pub(crate) token_extractor: TokenExtractor,
 }
 
@@ -61,6 +63,7 @@ impl Load {
     pub fn new() -> Load {
         Load {
             ignore: vec![],
+            ignore_methods: vec!["OPTIONS".to_string()],
             token_extractor: TokenExtractor::Header("Authorization".to_string()),
         }
     }
@@ -98,6 +101,7 @@ where
         ok(LoadMiddleware {
             service: Rc::new(RefCell::new(service)),
             ignore: self.ignore.clone(),
+            ignore_methods: self.ignore_methods.clone(),
             token_extractor: self.token_extractor.clone(),
         })
     }
@@ -106,6 +110,7 @@ where
 pub struct LoadMiddleware<S> {
     service: Rc<RefCell<S>>,
     ignore: Vec<String>,
+    ignore_methods: Vec<String>,
     token_extractor: TokenExtractor,
 }
 
@@ -159,8 +164,15 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let route = req.match_pattern().unwrap_or_default();
+        let method = req.method().to_string();
 
         if self.ignore.contains(&route) {
+            let fut = self.service.call(req);
+
+            return Box::pin(async move { fut.await });
+        }
+
+        if self.ignore_methods.contains(&method) {
             let fut = self.service.call(req);
 
             return Box::pin(async move { fut.await });
@@ -188,22 +200,19 @@ where
 
             if let ExtractionResult::Claims(claims) = &extraction {
                 match jwt::extract(claims, context.config.jwt_secret.as_str()) {
-                    Ok(authenticated) => {
-                        // We validate the session here to see if its still active
-                        match auth.validate(&authenticated.session.device_id).await {
-                            Ok(_) => {
-                                req.extensions_mut().insert(authenticated);
-                                have_session = true;
-                            }
-                            Err(e) => {
-                                log::debug!(
-                                    "auth::middleware::load|jwt|device-id-verify: {}, route: {}",
-                                    e,
-                                    &route
-                                );
-                            }
+                    Ok(authenticated) => match auth.validate(authenticated.session.id).await {
+                        Ok(_) => {
+                            req.extensions_mut().insert(authenticated);
+                            have_session = true;
                         }
-                    }
+                        Err(e) => {
+                            log::debug!(
+                                "auth::middleware::load|jwt|session-id-verify: {}, route: {}",
+                                e,
+                                &route
+                            );
+                        }
+                    },
                     Err(e) => {
                         log::debug!(
                             "auth::middleware::load|jwt|verify: {}, route: {}",
@@ -217,8 +226,15 @@ where
             if let ExtractionResult::Token(token) = &extraction {
                 match auth.get_by_token(token).await {
                     Ok(authenticated) => {
-                        req.extensions_mut().insert(authenticated);
-                        have_session = true;
+                        if authenticated.session.expires_at > Utc::now().naive_utc() {
+                            req.extensions_mut().insert(authenticated);
+                            have_session = true;
+                        } else {
+                            log::debug!(
+                                "auth::middleware::load|token|expires_at_verify: route: {}",
+                                &route
+                            );
+                        }
                     }
                     Err(e) => {
                         log::debug!(

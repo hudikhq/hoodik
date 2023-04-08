@@ -1,91 +1,101 @@
-import * as crypto from '../cryptfns';
-import * as login from './login';
-import * as register from './register';
-import { navigate } from 'svelte-routing';
-import Cookies from 'js-cookie';
-export { login, register };
+import * as crypto from '../cryptfns'
+import * as login from './login'
+import * as register from './register'
+import Cookies from 'js-cookie'
+import * as lscache from 'lscache'
+import type { NavigationFailure, Router } from 'vue-router'
 
-const CSRF_COOKIE_NAME = 'X-CSRF-TOKEN';
-const JWT_TOKEN_COOKIE_NAME = 'JWT-TOKEN';
+export { login, register }
+
+const CSRF_COOKIE_NAME = 'X-CSRF-TOKEN'
+const JWT_TOKEN_COOKIE_NAME = 'JWT-TOKEN'
+
+/**
+ * Shortcut to figure out if we can make requests
+ */
+export function maybeCouldMakeRequests(): boolean {
+  return !!getCsrf() && !!getJwt()
+}
 
 /**
  * Load the CSRF token from the cookie
  */
 export function getCsrf(): string | null {
-	return Cookies.get(CSRF_COOKIE_NAME) || null;
+  return Cookies.get(CSRF_COOKIE_NAME) || null
 }
 
 /**
  * Set the CSRF token into cookie
  */
 export function setCsrf(csrf: string, expires: Date) {
-	Cookies.set(CSRF_COOKIE_NAME, csrf, {
-		path: '/',
-		sameSite: 'strict',
-		domain: import.meta.env.APP_COOKIE_DOMAIN,
-		expires
-	});
+  Cookies.set(CSRF_COOKIE_NAME, csrf, {
+    path: '/',
+    sameSite: 'lax',
+    domain: import.meta.env.APP_COOKIE_DOMAIN,
+    expires
+  })
 }
 
 /**
- * Shortcut to figure out if we can make requests
+ * Remove csrf cookie
  */
-export function maybeCouldMakeRequests(): boolean {
-	return !!getCsrf() && !!getJwt();
+export function removeCsrf() {
+  Cookies.remove(CSRF_COOKIE_NAME)
 }
 
 /**
  * Load the JWT token from the cookie
  */
 export function getJwt(): string | null {
-	return Cookies.get(CSRF_COOKIE_NAME) || null;
+  return lscache.get(JWT_TOKEN_COOKIE_NAME) || null
 }
 
 /**
  * Set the JWT token into cookie
  */
 export function setJwt(jwt: string, expires: Date) {
-	Cookies.set(JWT_TOKEN_COOKIE_NAME, jwt, {
-		path: '/',
-		sameSite: 'strict',
-		domain: import.meta.env.APP_COOKIE_DOMAIN,
-		expires
-	});
+  const ex = expires.getTime() - new Date().getTime()
+  lscache.set(JWT_TOKEN_COOKIE_NAME, jwt, ex)
+}
+
+/**
+ * Remove the JWT token
+ */
+export function removeJwt(): void {
+  return lscache.remove(JWT_TOKEN_COOKIE_NAME)
 }
 
 /**
  * Do we have authentication currently loaded?
  */
-export async function hasAuthentication() {
-	return !!(await login.get());
-}
-
-/**
- * Lets us know should we even attempt at making the authentication getting request
- */
-export async function maybeShouldAttemptSelf(): Promise<boolean> {
-	if ((await hasAuthentication()) && maybeCouldMakeRequests()) {
-		return false;
-	}
-
-	return maybeCouldMakeRequests();
+export function hasAuthentication(store: ReturnType<typeof login.store>) {
+  return !!store.authenticated
 }
 
 /**
  * Ensure we have authentication and move user to appropriate pages if not
  */
-export async function ensureAuthenticated(): Promise<void> {
-	if (!(await maybeShouldAttemptSelf())) {
-		if (crypto.hasEncryptedPrivateKey()) {
-			return navigate('/auth/decrypt');
-		}
+export async function ensureAuthenticated(
+  router: Router,
+  store: ReturnType<typeof login.store>
+): Promise<void | NavigationFailure> {
+  if (!hasAuthentication(store)) {
+    if (maybeCouldMakeRequests()) {
+      try {
+        await store.self()
+        return
+      } catch (e) {
+        console.info(`Moving to login after failed attempt to get self: ${e}`)
+        router.push('/auth/login')
+      }
+    }
 
-		return navigate('/auth/login');
-	}
+    if (crypto.hasEncryptedPrivateKey()) {
+      console.info('Moving to decrypt private key')
+      return router.push('/auth/decrypt')
+    }
 
-	try {
-		await login.self();
-	} catch (e) {
-		navigate('/auth/login');
-	}
+    console.info('Moving to login')
+    return router.push('/auth/login')
+  }
 }

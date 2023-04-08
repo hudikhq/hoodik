@@ -13,7 +13,7 @@ use sea_orm::error::{ColumnFromStrErr, DbErr, RuntimeErr};
 use sequoia_openpgp::Error as PGPError;
 use serde::Serialize;
 use thiserror::Error as ThisError;
-use validr::error::ValidationErrors;
+use validr::error::{ValidationError, ValidationErrors};
 
 pub type AppResult<T> = Result<T, Error>;
 
@@ -43,6 +43,16 @@ pub enum Error {
 impl Error {
     pub fn is_not_found(&self) -> bool {
         matches!(self, Error::NotFound(_))
+    }
+
+    pub fn as_validation(field: &str, message: &str) -> Error {
+        let mut errors = ValidationErrors::new();
+        let mut error = ValidationError::new();
+        error.set_field_name(field);
+        error.add(message);
+        errors.add(error);
+
+        Error::Validation(errors)
     }
 }
 

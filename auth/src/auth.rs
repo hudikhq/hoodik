@@ -23,6 +23,10 @@ impl<'ctx> Auth<'ctx> {
     pub fn generate_fingerprint_nonce(fingerprint: &str) -> String {
         format!("{}-{}", fingerprint, Self::generate_nonce_minutes())
     }
+
+    pub fn generate_two_factor() -> String {
+        util::generate::generate_secret()
+    }
 }
 
 impl<'ctx> Auth<'ctx> {
@@ -32,7 +36,13 @@ impl<'ctx> Auth<'ctx> {
 
     /// Create a new user
     pub async fn register(&self, data: CreateUser) -> AppResult<users::Model> {
+        let email = data.email.clone();
         let active_model = data.into_active_model()?;
+
+        // We can unwrap here because it would fail validation before this
+        if self.get_by_email(email.unwrap().as_str()).await.is_ok() {
+            return Err(Error::as_validation("email", "invalid_email"));
+        }
 
         active_model
             .insert(&self.context.db)
@@ -70,9 +80,9 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Validate a session by its device id
-    pub async fn validate(&self, device_id: &str) -> AppResult<()> {
+    pub async fn validate(&self, id: i32) -> AppResult<()> {
         let session = sessions::Entity::find()
-            .filter(sessions::Column::DeviceId.eq(device_id))
+            .filter(sessions::Column::Id.eq(id))
             .one(&self.context.db)
             .await
             .map_err(Error::from)?
@@ -101,10 +111,6 @@ impl<'ctx> Auth<'ctx> {
         // always Some so we can unwrap it safely
         let (session, user) = (result.0, result.1.unwrap());
 
-        if session.expires_at < Utc::now().naive_utc() {
-            return Err(Error::Unauthorized("session_expired".to_string()));
-        }
-
         Ok(Authenticated { user, session })
     }
 
@@ -122,10 +128,6 @@ impl<'ctx> Auth<'ctx> {
         // inner_join makes sure the second parameter options is
         // always Some so we can unwrap it safely
         let (session, user) = (result.0, result.1.unwrap());
-
-        if session.expires_at < Utc::now().naive_utc() {
-            return Err(Error::Unauthorized("session_expired".to_string()));
-        }
 
         Ok(Authenticated { user, session })
     }
@@ -145,10 +147,6 @@ impl<'ctx> Auth<'ctx> {
         // always Some so we can unwrap it safely
         let (session, user) = (result.0, result.1.unwrap());
 
-        if session.expires_at < Utc::now().naive_utc() {
-            return Err(Error::Unauthorized("session_expired".to_string()));
-        }
-
         Ok(Authenticated { user, session })
     }
 
@@ -159,8 +157,13 @@ impl<'ctx> Auth<'ctx> {
         remember: bool,
     ) -> AppResult<sessions::Model> {
         let expires_at = match remember {
-            true => Utc::now() + Duration::days(365),
-            false => Utc::now() + Duration::minutes(10),
+            true => {
+                Utc::now() + Duration::days(self.context.config.long_term_session_duration_days)
+            }
+            false => {
+                Utc::now()
+                    + Duration::minutes(self.context.config.short_term_session_duration_minutes)
+            }
         };
 
         let active_model = sessions::ActiveModel {
@@ -182,12 +185,8 @@ impl<'ctx> Auth<'ctx> {
 
     /// Refresh session, if it's not expired. Refreshing a session will extend the expiration date by 10 minutes.
     pub async fn refresh_session(&self, session: &sessions::Model) -> AppResult<Authenticated> {
-        if session.expires_at < Utc::now().naive_utc() {
-            return Err(Error::Unauthorized("session_expired".to_string()));
-        }
-
         let duration = session.expires_at - session.updated_at;
-        let expires_at = session.expires_at + duration;
+        let expires_at = Utc::now().naive_utc() + duration;
 
         let active_model = sessions::ActiveModel {
             id: ActiveValue::Set(session.id),
@@ -198,6 +197,24 @@ impl<'ctx> Auth<'ctx> {
             created_at: ActiveValue::Set(session.created_at),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
             expires_at: ActiveValue::Set(expires_at),
+        };
+
+        active_model.update(&self.context.db).await?;
+
+        self.get_by_device_id(&session.device_id).await
+    }
+
+    /// Perform the logout action
+    pub async fn destroy_session(&self, session: &sessions::Model) -> AppResult<Authenticated> {
+        let active_model = sessions::ActiveModel {
+            id: ActiveValue::Set(session.id),
+            user_id: ActiveValue::Set(session.user_id),
+            device_id: ActiveValue::Set(session.device_id.clone()),
+            token: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
+            csrf: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
+            created_at: ActiveValue::Set(session.created_at),
+            updated_at: ActiveValue::Set(Utc::now().naive_utc()),
+            expires_at: ActiveValue::Set(Utc::now().naive_utc()),
         };
 
         active_model.update(&self.context.db).await?;

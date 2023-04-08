@@ -3,7 +3,14 @@ use actix_web::http;
 use std::str::FromStr;
 
 pub fn setup() -> Cors {
-    let expose = vec!["content-type", "cache-control", "content-length"];
+    let expose = vec![
+        "content-type",
+        "cache-control",
+        "content-length",
+        "x-csrf-token",
+        "authorization",
+        "access-control-allow-origin",
+    ];
 
     Cors::default()
         .allow_any_origin()
@@ -15,7 +22,7 @@ pub fn setup() -> Cors {
             http::header::ACCEPT,
             http::header::ORIGIN,
             http::header::AUTHORIZATION,
-            http::header::HeaderName::from_str("X-Key-Fingerprint").unwrap(),
+            http::header::HeaderName::from_str("X-Csrf-Token").unwrap(),
         ])
         .max_age(3600)
 }

@@ -53,7 +53,9 @@ pub fn app(
         // PRETTY PLEASE: keep the routes in alphabetical order
         //  There is a VSCode extension "Alphabetical Sorter" that can help you with this
         .service(api::auth::authenticated_self)
+        .service(api::auth::generate_two_factor)
         .service(api::auth::login)
+        .service(api::auth::logout)
         .service(api::auth::refresh)
         .service(api::auth::register)
         .service(api::auth::signature)

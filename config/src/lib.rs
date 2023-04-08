@@ -5,7 +5,7 @@ use std::{
     fs::{self, DirBuilder},
 };
 
-const APP_CLIENT_URL: &str = "http://localhost:4173";
+const APP_CLIENT_URL: &str = "http://localhost:5173";
 
 /// Config struct that holds all the loaded configuration
 /// from the env and arguments.
@@ -24,7 +24,7 @@ pub struct Config {
     ///
     /// *optional*
     ///
-    /// default: 127.0.0.1
+    /// default: localhost
     pub address: String,
 
     /// DATA_DIR where all the uploaded data will be stored
@@ -110,6 +110,23 @@ pub struct Config {
     ///
     /// *possible values: Lax, Strict, None*
     pub cookie_same_site: String,
+
+    /// LONG_TERM_SESSION_DURATION_DAYS: This tells us how long the long term session should last
+    /// in days if the user chooses the option to be remembered by the system.
+    ///
+    /// *optional*
+    ///
+    /// default: 30
+    pub long_term_session_duration_days: i64,
+
+    /// SHORT_TERM_SESSION_DURATION_MINUTES: This is the period of time that the user will be logged in
+    /// if he leaves the application (web client).
+    /// While the user is browsing the application the session will keep extending for this period of time.
+    ///
+    /// *optional*
+    ///
+    /// default: 5
+    pub short_term_session_duration_minutes: i64,
 }
 
 impl Config {
@@ -117,7 +134,7 @@ impl Config {
     pub fn mock() -> Config {
         Config {
             port: 4554,
-            address: "127.0.0.1".to_string(),
+            address: "localhost".to_string(),
             data_dir: "./data".to_string(),
             database_url: None,
             client_url: None,
@@ -128,6 +145,8 @@ impl Config {
             cookie_http_only: false,
             cookie_secure: false,
             cookie_same_site: "None".to_string(),
+            long_term_session_duration_days: 30,
+            short_term_session_duration_minutes: 5,
         }
     }
 
@@ -173,6 +192,14 @@ impl Config {
             .as_str()
             == "true";
         let cookie_same_site = Self::parse_cookie_same_site();
+        let long_term_session_duration_days = env_var("LONG_TERM_SESSION_DURATION_DAYS")
+            .unwrap_or_else(|_| "30".to_string())
+            .parse()
+            .unwrap_or(30);
+        let short_term_session_duration_minutes = env_var("SHORT_TERM_SESSION_DURATION_MINUTES")
+            .unwrap_or_else(|_| "5".to_string())
+            .parse()
+            .unwrap_or(5);
 
         if !errors.is_empty() {
             panic!("Failed loading configuration:\n{:#?}", errors);
@@ -191,6 +218,8 @@ impl Config {
             cookie_http_only,
             cookie_secure,
             cookie_same_site,
+            long_term_session_duration_days,
+            short_term_session_duration_minutes,
         }
         .set_env()
         .ensure_data_dir()
@@ -234,6 +263,14 @@ impl Config {
             .as_str()
             == "true";
         let cookie_same_site = Self::parse_cookie_same_site();
+        let long_term_session_duration_days = env_var("LONG_TERM_SESSION_DURATION_DAYS")
+            .unwrap_or_else(|_| "30".to_string())
+            .parse()
+            .unwrap_or(30);
+        let short_term_session_duration_minutes = env_var("SHORT_TERM_SESSION_DURATION_MINUTES")
+            .unwrap_or_else(|_| "5".to_string())
+            .parse()
+            .unwrap_or(5);
 
         if !errors.is_empty() {
             panic!("Failed loading configuration:\n{:#?}", errors);
@@ -252,6 +289,8 @@ impl Config {
             cookie_http_only,
             cookie_secure,
             cookie_same_site,
+            long_term_session_duration_days,
+            short_term_session_duration_minutes,
         }
         .set_env()
         .ensure_data_dir()
@@ -329,7 +368,7 @@ impl Config {
             },
         };
 
-        value.unwrap_or_else(|| "127.0.0.1".to_string())
+        value.unwrap_or_else(|| "localhost".to_string())
     }
 
     /// Try loading the data_dir from env or arguments

@@ -33,7 +33,7 @@ pub type PublicKey = RsaPublicKey;
 pub fn fingerprint<T: PublicKeyParts>(key: T) -> AppResult<String> {
     let n = key.n().to_bytes_be();
 
-    Ok(sha256::digest(n.as_slice()))
+    Ok(sha256::digest(hex::encode(n.as_slice())))
 }
 
 /// Operations performed with a private key
@@ -266,7 +266,8 @@ XcVx2TPOtG5A5qBeJ+vW8XJHZYfCcLwsDZnirTwUTWORWM2omNbquNATh+Lt3Vh2
 Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
 -----END RSA PUBLIC KEY-----";
 
-    const FINGERPRINT: &str = "87ae936e11ec8a34f9d1c62687271ae8cd4b89189533c21e1bb7ddce84d37f86";
+    // const FINGERPRINT: &str = "87ae936e11ec8a34f9d1c62687271ae8cd4b89189533c21e1bb7ddce84d37f86";
+    const FINGERPRINT: &str = "2faedc21407fe722acb05ff8474417833337675d5e331249fdb09391377b346b";
 
     const TEST_SIGNATURE_MESSAGE: &str = "28004708";
 

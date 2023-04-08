@@ -95,6 +95,26 @@ async fn test_registration_and_login() {
 
     assert_eq!(resp.status(), StatusCode::OK);
 
+    let req = test::TestRequest::post()
+        .uri("/api/auth/logout")
+        .append_header(("Authorization", jwt.clone()))
+        .append_header(("X-CSRF-Token", response.authenticated.session.csrf.clone()))
+        .to_request();
+
+    let resp = test::call_service(&mut app, req).await;
+
+    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+
+    let req = test::TestRequest::post()
+        .uri("/api/auth/self")
+        .append_header(("Authorization", jwt.clone()))
+        .append_header(("X-CSRF-Token", response.authenticated.session.csrf.clone()))
+        .to_request();
+
+    let resp = test::try_call_service(&mut app, req).await;
+
+    assert!(resp.is_err());
+
     // Doing a quick check if the cookie will be placed onto the response
     // if we are using cookies for authentication.
     context.config.use_cookies = true;
