@@ -1,5 +1,5 @@
 use actix_web::{
-    body::BoxBody,
+    body::{BoxBody, EitherBody},
     dev::ServiceResponse,
     dev::{Service, ServiceRequest, Transform},
     Error, HttpMessage,
@@ -65,10 +65,10 @@ impl Verify {
 }
 impl<S> Transform<S, ServiceRequest> for Verify
 where
-    S: Service<ServiceRequest, Response = ServiceResponse<BoxBody>, Error = Error>,
+    S: Service<ServiceRequest, Response = ServiceResponse<BoxBody>, Error = Error> + 'static,
     S::Future: 'static,
 {
-    type Response = ServiceResponse<BoxBody>;
+    type Response = ServiceResponse<EitherBody<BoxBody>>;
     type Error = Error;
     type InitError = ();
     type Transform = VerifyMiddleware<S>;
@@ -120,12 +120,12 @@ impl<S> VerifyMiddleware<S> {
     }
 }
 
-impl<S> Service<ServiceRequest> for VerifyMiddleware<S>
+impl<S, B> Service<ServiceRequest> for VerifyMiddleware<S>
 where
-    S: Service<ServiceRequest, Response = ServiceResponse<BoxBody>, Error = Error>,
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
     S::Future: 'static,
 {
-    type Response = ServiceResponse<BoxBody>;
+    type Response = ServiceResponse<EitherBody<B>>;
     type Error = Error;
     type Future = LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
 
@@ -163,6 +163,6 @@ where
 
         log::debug!("auth::middleware::verify|is_authenticated route={}", route);
         let fut = self.service.call(req);
-        Box::pin(async move { fut.await })
+        Box::pin(async move { fut.await.map(|res| res.map_into_left_body()) })
     }
 }

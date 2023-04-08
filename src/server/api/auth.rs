@@ -110,6 +110,28 @@ pub async fn refresh(req: HttpRequest, context: web::Data<Context>) -> AppResult
     Ok(response.json(AuthenticatedJwt { authenticated, jwt }))
 }
 
+/// Logout user and perform session destroy
+#[route(
+    "/api/auth/logout",
+    method = "POST",
+    wrap = "Verify::csrf_header_default()"
+)]
+pub async fn logout(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
+    let authenticated = Authenticated::try_from(&req)?;
+    let auth = Auth::new(&context);
+
+    let authenticated = auth.destroy_session(&authenticated.session).await?;
+
+    let mut response = HttpResponse::NoContent();
+
+    if context.config.use_cookies {
+        let cookie = auth.manage_cookie(&authenticated.session, true).await?;
+        response.cookie(cookie);
+    }
+
+    Ok(response.finish())
+}
+
 /// Register a new user
 ///
 /// Request: [auth::data::create_user::CreateUser]
@@ -135,4 +157,12 @@ pub async fn register(
     }
 
     Ok(response.json(AuthenticatedJwt { authenticated, jwt }))
+}
+
+/// Generate a two factor secret for the user
+///
+/// Response [String]
+#[route("/api/auth/two-factor-secret", method = "GET")]
+pub async fn generate_two_factor() -> AppResult<HttpResponse> {
+    Ok(HttpResponse::Ok().json(serde_json::json!({ "secret": Auth::generate_two_factor() })))
 }

@@ -1,41 +1,53 @@
-import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vitest/config';
-import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill';
-import { resolve } from 'path';
-import basicSsl from '@vitejs/plugin-basic-ssl';
+import path from 'path'
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import vueJsx from '@vitejs/plugin-vue-jsx'
+import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill'
 
+// https://vitejs.dev/config/
 export default defineConfig({
-	plugins: [basicSsl(), sveltekit()],
-	test: {
-		environment: 'jsdom',
-		include: ['tests/**/*.{test,spec}.{js,ts}']
-	},
-	envDir: '../../',
-	envPrefix: 'APP_',
-
-	optimizeDeps: {
-		esbuildOptions: {
-			define: {
-				global: 'globalThis'
-			},
-			plugins: [
-				NodeGlobalsPolyfillPlugin({
-					process: true,
-					buffer: true
-				})
-			]
-		}
-	},
-	resolve: {
-		alias: {
-			$stores: resolve('./src/stores'),
-			constants: 'constants-browserify',
-			process: 'process/browser',
-			stream: 'stream-browserify',
-			zlib: 'browserify-zlib',
-			util: 'util',
-			crypto: 'crypto-browserify',
-			assert: 'assert'
-		}
-	}
-});
+  base: '/',
+  envDir: '../../',
+  envPrefix: 'APP_',
+  plugins: [
+    vue(),
+    vueJsx(),
+    NodeGlobalsPolyfillPlugin({
+      process: true,
+      buffer: true
+    })
+  ],
+  optimizeDeps: {
+    esbuildOptions: {
+      // Node.js global to browser globalThis
+      define: {
+        global: 'globalThis'
+      },
+      // Enable esbuild polyfill plugins
+      plugins: [
+        NodeGlobalsPolyfillPlugin({
+          buffer: true
+        })
+      ]
+    }
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src'),
+      constants: 'constants-browserify',
+      process: 'process/browser',
+      stream: 'stream-browserify',
+      zlib: 'browserify-zlib',
+      util: 'util',
+      crypto: 'crypto-browserify',
+      assert: 'assert',
+      buffer: 'buffer',
+      Buffer: 'buffer/Buffer'
+    }
+  },
+  css: {
+    postcss: {
+      plugins: [require('tailwindcss'), require('autoprefixer')]
+    }
+  }
+})
