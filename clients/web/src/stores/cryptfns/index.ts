@@ -1,7 +1,8 @@
 import * as rsa from './rsa'
 import * as aes from './aes'
+import * as sha256 from './sha256'
 import * as lscache from 'lscache'
-export { rsa, aes }
+export { rsa, aes, sha256 }
 
 const ENCRYPTED_PRIVATE_KEY_LOCAL_STORAGE = 'encrypted-secret'
 

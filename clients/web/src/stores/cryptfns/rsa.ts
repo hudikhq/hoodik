@@ -1,7 +1,6 @@
 import RSA from 'node-rsa'
 import { Buffer } from 'buffer'
-import * as forge from 'node-forge'
-import { aes } from '.'
+import { aes, sha256 } from '.'
 
 const RSA_BYTES = 1024
 const ENVIRONMENT = 'browser'
@@ -153,9 +152,10 @@ export async function getFingerprintFromRaw(key: Raw): Promise<string> {
 
   const newN = Array.prototype.map.call(n, (byte) => byte as number) as number[]
   newN.shift()
+
   const buffer = Buffer.from(newN)
 
-  return forge.md.sha256.create().update(buffer.toString('hex'), 'raw').digest().toHex()
+  return sha256.digest(buffer)
 }
 
 /**

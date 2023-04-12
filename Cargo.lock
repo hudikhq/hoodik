@@ -90,6 +90,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "actix-multipart"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dee489e3c01eae4d1c35b03c4493f71cb40d93f66b14558feb1b1a807671cc4e"
+dependencies = [
+ "actix-multipart-derive",
+ "actix-utils",
+ "actix-web",
+ "bytes",
+ "derive_more",
+ "futures-core",
+ "futures-util",
+ "httparse",
+ "local-waker",
+ "log",
+ "memchr",
+ "mime",
+ "serde",
+ "serde_json",
+ "serde_plain",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "actix-multipart-derive"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ec592f234db8a253cf80531246a4407c8a70530423eea80688a6c5a44a110e7"
+dependencies = [
+ "darling",
+ "parse-size",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.107",
+]
+
+[[package]]
 name = "actix-router"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1415,9 +1453,11 @@ name = "entity"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "error",
  "sea-orm",
  "serde",
  "serde_json",
+ "util",
 ]
 
 [[package]]
@@ -1469,6 +1509,7 @@ dependencies = [
 name = "error"
 version = "0.1.0"
 dependencies = [
+ "actix-multipart",
  "actix-web",
  "base64 0.21.0",
  "hex",
@@ -1904,6 +1945,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "storage",
 ]
 
 [[package]]
@@ -2706,6 +2748,12 @@ dependencies = [
  "smallvec 1.10.0",
  "windows-sys 0.42.0",
 ]
+
+[[package]]
+name = "parse-size"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "944553dd59c802559559161f9816429058b869003836120e262e8caec061b7ae"
 
 [[package]]
 name = "paste"
@@ -3738,6 +3786,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_plain"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6018081315db179d0ce57b1fe4b62a12a0028c9cf9bbef868c9cf477b3c34ae"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4050,6 +4107,29 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "storage"
+version = "0.1.0"
+dependencies = [
+ "actix-multipart",
+ "actix-web",
+ "async-std",
+ "auth",
+ "chrono",
+ "config",
+ "context",
+ "cryptfns",
+ "entity",
+ "error",
+ "futures-util",
+ "log",
+ "mime",
+ "serde",
+ "serde_json",
+ "util",
+ "validr",
+]
 
 [[package]]
 name = "string_cache"
@@ -4481,7 +4561,10 @@ dependencies = [
 name = "util"
 version = "0.1.0"
 dependencies = [
+ "actix-web",
  "bcrypt",
+ "chrono",
+ "error",
  "google-authenticator",
  "zxcvbn",
 ]

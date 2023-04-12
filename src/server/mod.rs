@@ -19,9 +19,23 @@ pub mod middleware {
     pub use ::auth::middleware::{load::Load, verify::Verify};
 }
 
-pub mod api;
+pub mod routes {
+    //! # Routes
+    //!
+    //! Collection of all the routes used in the application pulled
+    //! from various packages we depend on.
+    pub use auth::routes as auth_routes;
+    pub use storage::routes as storage_routes;
+}
+
 pub mod cors;
 pub mod proxy;
+
+/// Inject the application features into the server
+fn configure(cfg: &mut web::ServiceConfig) {
+    auth::routes::configure(cfg);
+    storage::routes::configure(cfg);
+}
 
 /// Create the web application and inject all the routes into it
 pub fn app(
@@ -46,19 +60,18 @@ pub fn app(
     }
 
     App::new()
+        // Set the maximum payload size to 1.2x of a single file chunk
+        // we are expecting to be uploaded
+        .app_data(web::PayloadConfig::new(
+            (storage::CHUNK_SIZE_BYTES as f32 * 1.2) as usize,
+        ))
         .app_data(web::Data::new(context))
         // Authentication load middleware that only sets it up on the app
         .wrap(auth_load_middleware)
         .wrap(cors::setup())
         // PRETTY PLEASE: keep the routes in alphabetical order
         //  There is a VSCode extension "Alphabetical Sorter" that can help you with this
-        .service(api::auth::authenticated_self)
-        .service(api::auth::generate_two_factor)
-        .service(api::auth::login)
-        .service(api::auth::logout)
-        .service(api::auth::refresh)
-        .service(api::auth::register)
-        .service(api::auth::signature)
+        .configure(configure)
         // Proxy HTTP requests to frontend
         .route("/{tail:.*}", web::to(proxy::http))
 }
