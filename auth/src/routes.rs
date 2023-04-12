@@ -1,8 +1,7 @@
 //! # Authentication routes
 //!
 //! This module is authentication controller for the application
-use actix_web::{route, web, HttpRequest, HttpResponse};
-use auth::{
+use crate::{
     auth::Auth,
     contract::AuthProviderContract,
     data::{
@@ -11,15 +10,26 @@ use auth::{
         credentials::Credentials,
         signature::Signature,
     },
+    jwt,
     middleware::verify::Verify,
     providers::{credentials::CredentialsProvider, signature::SignatureProvider},
 };
+use actix_web::{route, web, HttpRequest, HttpResponse};
 use context::Context;
 use error::AppResult;
 
+/// Register the authentication routes
+/// on to the application server
+pub fn configure(cfg: &mut web::ServiceConfig) {
+    cfg.service(register);
+    cfg.service(authenticated_self);
+    cfg.service(login);
+    cfg.service(signature);
+}
+
 /// If the user is authenticated, return the user data, this is used once the frontend refreshes
 ///
-/// Response: [auth::data::authenticated::Authenticated]
+/// Response: [crate::data::authenticated::Authenticated]
 #[route(
     "/api/auth/self",
     method = "POST",
@@ -33,9 +43,9 @@ pub async fn authenticated_self(req: HttpRequest) -> AppResult<HttpResponse> {
 
 /// Perform user login with basic credentials
 ///
-/// Request: [auth::data::credentials::Credentials]
+/// Request: [crate::data::credentials::Credentials]
 ///
-/// Response: [auth::data::authenticated::AuthenticatedJwt]
+/// Response: [crate::data::authenticated::AuthenticatedJwt]
 #[route("/api/auth/login", method = "POST")]
 pub async fn login(
     context: web::Data<Context>,
@@ -46,7 +56,7 @@ pub async fn login(
     let provider = CredentialsProvider::new(&auth, data.into_inner());
 
     let authenticated = provider.authenticate().await?;
-    let jwt = auth::jwt::generate(&authenticated, &context.config.jwt_secret)?;
+    let jwt = jwt::generate(&authenticated, &context.config.jwt_secret)?;
 
     let mut response = HttpResponse::Ok();
 
@@ -60,9 +70,9 @@ pub async fn login(
 
 /// Perform user authentication with a key fingerprint and signature
 ///
-/// Request: [auth::data::signature::Signature]
+/// Request: [crate::data::signature::Signature]
 ///
-/// Response: [auth::data::authenticated::AuthenticatedJwt]
+/// Response: [crate::data::authenticated::AuthenticatedJwt]
 #[route("/api/auth/signature", method = "POST")]
 pub async fn signature(
     context: web::Data<Context>,
@@ -73,7 +83,7 @@ pub async fn signature(
     let provider = SignatureProvider::new(&auth, data.into_inner());
 
     let authenticated = provider.authenticate().await?;
-    let jwt = auth::jwt::generate(&authenticated, &context.config.jwt_secret)?;
+    let jwt = jwt::generate(&authenticated, &context.config.jwt_secret)?;
 
     let mut response = HttpResponse::Ok();
 
@@ -87,7 +97,7 @@ pub async fn signature(
 
 /// Refresh a session to authenticated user
 ///
-/// Response: [auth::data::authenticated::AuthenticatedJwt]
+/// Response: [crate::data::authenticated::AuthenticatedJwt]
 #[route(
     "/api/auth/refresh",
     method = "POST",
@@ -98,7 +108,7 @@ pub async fn refresh(req: HttpRequest, context: web::Data<Context>) -> AppResult
     let auth = Auth::new(&context);
 
     let authenticated = auth.refresh_session(&authenticated.session).await?;
-    let jwt = auth::jwt::generate(&authenticated, &context.config.jwt_secret)?;
+    let jwt = jwt::generate(&authenticated, &context.config.jwt_secret)?;
 
     let mut response = HttpResponse::Ok();
 
@@ -134,7 +144,7 @@ pub async fn logout(req: HttpRequest, context: web::Data<Context>) -> AppResult<
 
 /// Register a new user
 ///
-/// Request: [auth::data::create_user::CreateUser]
+/// Request: [crate::data::create_user::CreateUser]
 ///
 /// Response: [AuthenticatedJwt]
 #[route("/api/auth/register", method = "POST")]
@@ -147,7 +157,7 @@ pub async fn register(
     let user = auth.register(data.into_inner()).await?;
     let session = auth.generate_session(&user, true).await?;
     let authenticated = Authenticated { user, session };
-    let jwt = auth::jwt::generate(&authenticated, &context.config.jwt_secret)?;
+    let jwt = jwt::generate(&authenticated, &context.config.jwt_secret)?;
 
     let mut response = HttpResponse::Created();
 

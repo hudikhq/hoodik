@@ -1,38 +1,30 @@
 [package]
-name = "auth"
+name = "storage"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[lib]
-name = "auth"
-path = "src/lib.rs"
-
-[features]
-mock = []
-
 [dependencies]
-async-trait = "0.1.57"
-validr = "^0.3"
-chrono = { version = "0.4.23", features = ["serde"] }
-uuid = { version = "1.2.2", features = ["serde", "v4"] }
 log = "^0.4"
 actix-web = "^4"
+actix-multipart = "^0.6"
 futures-util = "^0.3"
-jsonwebtoken = "^8"
+validr = "^0.3"
 serde = "^1"
 serde_json = "^1"
+chrono = "^0.4"
+mime = { version = "^0.3" }
 
+auth = { path = "../auth" }
+config = { path = "../config" }
 context = { path = "../context" }
-error = { path = "../error" }
-entity = { path = "../entity" }
-util = { path = "../util" }
 cryptfns = { path = "../cryptfns" }
+entity = { path = "../entity" }
+error = { path = "../error" }
+util = { path = "../util" }
 
 [dev-dependencies]
-async-std = { version = "^1", features = ["attributes", "tokio1"] }
-
 context = { path = "../context", features = ["mock"] }
 entity = { path = "../entity", features = ["mock"] }
-cryptfns = { path = "../cryptfns", features = ["mock"] }
+async-std = { version = "^1", features = ["attributes", "tokio1"] }

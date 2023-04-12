@@ -22,7 +22,7 @@ config.value = {
     logout: false
   },
   validationSchema: yup.object().shape({
-    password: yup.string().required('Password is required'),
+    password: yup.string().required('Password is required').min(4),
     confirm_password: yup
       .string()
       .required('Please confirm your password')

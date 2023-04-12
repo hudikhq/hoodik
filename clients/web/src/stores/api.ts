@@ -142,26 +142,6 @@ export function getApiUrl(): string {
 }
 
 /**
- * Format URL with the query, take in consideration that there could already
- * be a query present in the path, so try to take that into account also
- */
-export function getUrlWithQuery(path: string, query?: Query) {
-  const url = new URL(`${getApiUrl()}${path}`)
-
-  if (query && typeof query === 'object') {
-    for (const name in query) {
-      const value = toQueryValue(query[name])
-
-      if (value) {
-        url.searchParams.append(name, encodeURIComponent(value))
-      }
-    }
-  }
-
-  return `${url}`
-}
-
-/**
  * Convert values into string to be placed into an url query
  */
 export function toQueryValue(
@@ -245,14 +225,19 @@ export default class Api {
     body?: B,
     headers?: Headers
   ): Promise<Response<B, R>> {
-    const url = getUrlWithQuery(path, query)
+    const url = Api.getUrlWithQuery(path, query)
+    const _headers = Api.getHeaders(headers)
+
+    if (body && typeof body === 'object' && !_headers['Content-Type']) {
+      _headers['Content-Type'] = 'application/json'
+    }
 
     const request: Request<B> = {
       method,
       url,
       body,
       query,
-      headers: await this.getHeaders(headers)
+      headers: _headers
     }
 
     const fetchOptions: RequestInit = {
@@ -264,7 +249,9 @@ export default class Api {
       redirect: 'follow'
     }
 
-    if (request.body && typeof request.body === 'object') {
+    if (request.body instanceof Buffer) {
+      fetchOptions.body = request.body
+    } else if (request.body && typeof request.body === 'object') {
       fetchOptions.body = JSON.stringify(request.body)
     } else if (request.body && typeof request.body === 'string') {
       fetchOptions.body = request.body
@@ -303,9 +290,8 @@ export default class Api {
   /**
    * Prepare headers before sending the request
    */
-  async getHeaders(headers?: Headers): Promise<Headers> {
+  static getHeaders(headers?: Headers): Headers {
     headers = headers || {}
-    headers['Content-Type'] = 'application/json'
 
     if (getCsrf()) {
       headers['X-Csrf-Token'] = getCsrf() || ''
@@ -316,5 +302,25 @@ export default class Api {
     }
 
     return headers
+  }
+
+  /**
+   * Format URL with the query, take in consideration that there could already
+   * be a query present in the path, so try to take that into account also
+   */
+  static getUrlWithQuery(path: string, query?: Query) {
+    const url = new URL(`${getApiUrl()}${path}`)
+
+    if (query && typeof query === 'object') {
+      for (const name in query) {
+        const value = toQueryValue(query[name])
+
+        if (value) {
+          url.searchParams.append(name, encodeURIComponent(value))
+        }
+      }
+    }
+
+    return `${url}`
   }
 }

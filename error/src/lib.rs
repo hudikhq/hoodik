@@ -1,5 +1,6 @@
 use std::string::FromUtf8Error;
 
+use actix_multipart::MultipartError;
 use actix_web::{HttpResponse, HttpResponseBuilder, ResponseError};
 use base64::DecodeError;
 use hex::FromHexError;
@@ -9,9 +10,14 @@ use rsa::{
     errors::Error as RSAError, pkcs1::Error as PKCS1Error, pkcs8::spki::Error as SpkiError,
     pkcs8::Error as PKCS8Error, signature::Error as SignatureError,
 };
-use sea_orm::error::{ColumnFromStrErr, DbErr, RuntimeErr};
+use sea_orm::{
+    error::{ColumnFromStrErr, DbErr, RuntimeErr},
+    TransactionError,
+};
 use sequoia_openpgp::Error as PGPError;
 use serde::Serialize;
+use serde_json::Error as SerdeJsonError;
+use std::io::Error as IoError;
 use thiserror::Error as ThisError;
 use validr::error::{ValidationError, ValidationErrors};
 
@@ -26,6 +32,7 @@ pub enum Error {
     BadRequest(String),
     Validation(ValidationErrors),
     Unauthorized(String),
+    Forbidden(String),
     InternalError(String),
     RSAError(RSAError),
     PKCS1Error(PKCS1Error),
@@ -38,6 +45,9 @@ pub enum Error {
     PGPError(PGPError),
     JWTError(JWTError),
     ReqwestError(ReqwestError),
+    StorageError(String),
+    MultipartError(MultipartError),
+    SerdeJsonError(SerdeJsonError),
 }
 
 impl Error {
@@ -53,6 +63,10 @@ impl Error {
         errors.add(error);
 
         Error::Validation(errors)
+    }
+
+    pub fn todo() -> Error {
+        Error::InternalError("todo".to_string())
     }
 }
 
@@ -77,6 +91,15 @@ impl From<Box<dyn std::any::Any + Send>> for Error {
 impl From<DbErr> for Error {
     fn from(source: DbErr) -> Error {
         Error::DbErr(source)
+    }
+}
+
+impl From<TransactionError<Error>> for Error {
+    fn from(source: TransactionError<Error>) -> Error {
+        match source {
+            TransactionError::Connection(err) => Error::DbErr(err),
+            TransactionError::Transaction(err) => err,
+        }
     }
 }
 
@@ -164,6 +187,24 @@ impl From<ReqwestError> for Error {
     }
 }
 
+impl From<IoError> for Error {
+    fn from(source: IoError) -> Error {
+        Error::StorageError(source.to_string())
+    }
+}
+
+impl From<MultipartError> for Error {
+    fn from(source: MultipartError) -> Error {
+        Error::MultipartError(source)
+    }
+}
+
+impl From<SerdeJsonError> for Error {
+    fn from(source: SerdeJsonError) -> Error {
+        Error::SerdeJsonError(source)
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
     #[serde(skip_serializing)]
@@ -204,6 +245,11 @@ impl From<&Error> for ErrorResponse {
                 status: 422,
                 message: "Validation error".to_string(),
                 context: Some(serde_json::to_value(err).unwrap()),
+            },
+            Error::Forbidden(message) => ErrorResponse {
+                status: 401,
+                message: message.clone(),
+                context: None,
             },
             Error::Unauthorized(message) => ErrorResponse {
                 status: 401,
@@ -265,10 +311,25 @@ impl From<&Error> for ErrorResponse {
                 message: message.to_string(),
                 context: None,
             },
+            Error::StorageError(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
+                context: None,
+            },
             Error::ReqwestError(error) => ErrorResponse {
                 status: error.status().map(|e| e.as_u16()).unwrap_or(500),
                 message: "ReqwestError: Downstream error".to_string(),
                 context: Some(serde_json::Value::String(error.to_string())),
+            },
+            Error::MultipartError(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::SerdeJsonError(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
+                context: None,
             },
         }
     }
