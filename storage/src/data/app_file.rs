@@ -7,9 +7,8 @@ pub struct AppFile {
     pub id: i32,
     pub user_id: i32,
     pub is_owner: bool,
-    pub name_enc: String,
-    pub checksum: String,
-    pub encrypted_key: String,
+    pub encrypted_metadata: String,
+    pub name_hash: String,
     pub mime: String,
     pub size: Option<i64>,
     pub chunks: Option<i32>,
@@ -19,6 +18,7 @@ pub struct AppFile {
     pub created_at: NaiveDateTime,
     pub finished_upload_at: Option<NaiveDateTime>,
     pub is_new: bool,
+    pub uploaded_chunks: Option<Vec<i32>>,
 }
 
 impl AppFile {
@@ -53,9 +53,8 @@ impl From<(files::Model, user_files::Model)> for AppFile {
             id: file.id,
             user_id: user_file.user_id,
             is_owner: user_file.is_owner,
-            name_enc: file.name_enc,
-            checksum: file.checksum,
-            encrypted_key: user_file.encrypted_key,
+            encrypted_metadata: user_file.encrypted_metadata,
+            name_hash: file.name_hash,
             mime: file.mime,
             size: file.size,
             chunks: file.chunks,
@@ -65,6 +64,7 @@ impl From<(files::Model, user_files::Model)> for AppFile {
             created_at: file.created_at,
             finished_upload_at: file.finished_upload_at,
             is_new: false,
+            uploaded_chunks: None,
         }
     }
 }

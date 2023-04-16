@@ -1,8 +1,10 @@
 import RSA from 'node-rsa'
-import { Buffer } from 'buffer'
 import { aes, sha256 } from '.'
+import * as JSE from 'jsencrypt'
+const JSEncrypt = JSE.default
+import { Buffer } from 'buffer'
 
-const RSA_BYTES = 1024
+const RSA_BYTES = 2048
 const ENVIRONMENT = 'browser'
 const PRIVATE_KEY_FORMAT: RSA.FormatPem = 'pkcs1'
 const PUBLIC_KEY_FORMAT: RSA.FormatPem = 'pkcs1-public-pem'
@@ -11,10 +13,12 @@ const RSA_OPTIONS: RSA.Options = {
   environment: ENVIRONMENT,
   signingScheme: SIGNING_SCHEME
 }
-const ENCRYPTION_SCHEME_PKCS1: RSA.AdvancedEncryptionSchemePKCS1 = {
-  scheme: 'pkcs1',
-  padding: 1
-}
+// const ENCRYPTION_SCHEME_PKCS1: RSA.AdvancedEncryptionSchemePKCS1 = {
+//   scheme: 'pkcs1',
+//   padding: 1
+// }
+
+const JSE_ENCRYPT_OPTIONS = { default_key_size: RSA_BYTES.toString() }
 
 export interface Raw extends RSA {
   input?: string
@@ -55,17 +59,7 @@ export interface KeyPair {
  * @throws
  */
 export async function decryptPrivateKey(encrypted: string, passphrase: string): Promise<string> {
-  // Unfortunately this doesn't work in the browser :(
-  // return crypto
-  //   .createPrivateKey({
-  //     encrypted,
-  //     type: 'pkcs1',
-  //     format: 'pem',
-  //     passphrase
-  //   })
-  //   .export({ type: 'pkcs1', format: 'pem' }) as string
-
-  return aes.decrypt(encrypted, passphrase)
+  return aes.decryptString(encrypted, passphrase)
 }
 
 /**
@@ -73,15 +67,7 @@ export async function decryptPrivateKey(encrypted: string, passphrase: string): 
  * @throws
  */
 export async function protectPrivateKey(unencrypted: string, passphrase: string): Promise<string> {
-  // Unfortunately this doesn't work in the browser :(
-  // return crypto
-  //   .createPrivateKey({
-  //     unencrypted,
-  //     passphrase
-  //   })
-  //   .export({ type: 'pkcs1', format: 'pem', cipher: 'aes128', passphrase }) as string
-
-  return aes.encrypt(unencrypted, passphrase)
+  return aes.encryptString(unencrypted, passphrase)
 }
 
 /**
@@ -94,7 +80,7 @@ export async function inputToKeyPair(input: string): Promise<KeyPair> {
   key.input = input
 
   const publicKey = key.exportKey(PUBLIC_KEY_FORMAT)
-  const fingerprint = await getFingerprintFromRaw(key)
+  const fingerprint = await getFingerprint(input)
 
   return {
     key,
@@ -110,7 +96,7 @@ export async function inputToKeyPair(input: string): Promise<KeyPair> {
 export async function publicToKeyPair(publicKey: string): Promise<KeyPair> {
   const key = new RSA(publicKey, PUBLIC_KEY_FORMAT, RSA_OPTIONS)
 
-  return { key, publicKey, input: null, fingerprint: await getFingerprintFromRaw(key) }
+  return { key, publicKey, input: null, fingerprint: await getFingerprint(publicKey) }
 }
 
 /**
@@ -119,43 +105,12 @@ export async function publicToKeyPair(publicKey: string): Promise<KeyPair> {
  * @throws
  */
 export async function getFingerprint(input: string): Promise<string> {
-  try {
-    const { key } = await publicToKeyPair(input)
+  const operator = new JSEncrypt(JSE_ENCRYPT_OPTIONS)
+  operator.setKey(input)
+  // @ts-ignore
+  const n = operator.getKey().n.toString(16)
 
-    if (!key) {
-      throw new Error('Not public key, or not a public key')
-    }
-
-    return getFingerprintFromRaw(key)
-  } catch (e) {
-    const { publicKey } = await inputToKeyPair(input)
-
-    if (!publicKey) {
-      throw new Error(`Not a public key or a private key, upstream error: ${e}`)
-    }
-
-    const { key } = await publicToKeyPair(publicKey)
-
-    if (!key) {
-      throw new Error(`Not a public key or a private key, upstream error: ${e}`)
-    }
-
-    return getFingerprintFromRaw(key)
-  }
-}
-
-/**
- * Generate a key id from given raw key
- */
-export async function getFingerprintFromRaw(key: Raw): Promise<string> {
-  const { n } = key.exportKey('components-public')
-
-  const newN = Array.prototype.map.call(n, (byte) => byte as number) as number[]
-  newN.shift()
-
-  const buffer = Buffer.from(newN)
-
-  return sha256.digest(buffer)
+  return sha256.digest(n)
 }
 
 /**
@@ -195,7 +150,7 @@ export async function sign(kp: KeyPair, message: string): Promise<string> {
     throw new Error('No privateKey, cannot sign message')
   }
 
-  return key.sign(message, 'hex')
+  return key.sign(message, 'base64')
 }
 
 /**
@@ -212,43 +167,46 @@ export async function verify(
     throw new Error('No publicKey, cannot verify message')
   }
 
-  return key.verify(message, Buffer.from(signature, 'hex'))
+  return key.verify(message, Buffer.from(signature, 'base64'))
 }
 
 /**
  * Encrypt a message with given public key
  */
+// export async function encryptMessage(message: string, publicKey: string): Promise<string> {
+//   const { key } = await publicToKeyPair(publicKey as string)
+
+//   if (!key) {
+//     throw new Error('No publicKey, cannot encrypt message')
+//   }
+
+//   if (!key.isPublic()) {
+//     throw new Error('Key is not public, cannot encrypt message')
+//   }
+
+//   key.setOptions({
+//     encryptionScheme: ENCRYPTION_SCHEME_PKCS1
+//   })
+
+//   return key.encrypt(message, 'base64')
+// }
+
+/**
+ * Encrypt a message with given public key
+ */
 export async function encryptMessage(message: string, publicKey: string): Promise<string> {
-  const { key } = await publicToKeyPair(publicKey as string)
+  const operator = new JSEncrypt(JSE_ENCRYPT_OPTIONS)
+  operator.setPublicKey(publicKey as string)
 
-  if (!key) {
-    throw new Error('No publicKey, cannot encrypt message')
-  }
-
-  if (!key.isPublic()) {
-    throw new Error('Key is not public, cannot encrypt message')
-  }
-
-  key.setOptions({
-    encryptionScheme: ENCRYPTION_SCHEME_PKCS1
-  })
-
-  return key.encrypt(message, 'base64')
+  return operator.encrypt(message) as string
 }
 
 /**
  * Decrypt a message with stored private key
  */
 export async function decryptMessage(kp: KeyPair, message: string): Promise<string> {
-  const { key } = kp
+  const operator = new JSEncrypt(JSE_ENCRYPT_OPTIONS)
+  operator.setPrivateKey(kp.input as string)
 
-  if (!key || !key.isPrivate()) {
-    throw new Error('No privateKey, cannot decrypt message')
-  }
-
-  key.setOptions({
-    encryptionScheme: ENCRYPTION_SCHEME_PKCS1
-  })
-
-  return key.decrypt(Buffer.from(message, 'base64'), 'utf8')
+  return operator.decrypt(message) as string
 }

@@ -29,6 +29,13 @@ pub trait StorageProvider {
     /// Remove a file in storage provider
     fn remove(&self, filename: &str) -> AppResult<()>;
 
+    /// Purge a file or any of its uncompleted parts
+    fn purge(&self, filename: &str) -> AppResult<()>;
+
     /// Concatenate all the part files into a single file
     fn concat_files(&self, filename: &str, chunks: u64) -> AppResult<()>;
+
+    /// Get a vector of chunk indexes that were already uploaded so we can resume
+    /// the upload process on the frontend without doing the double work.
+    fn get_uploaded_chunks(&self, filename: &str) -> AppResult<Vec<i32>>;
 }

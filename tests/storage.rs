@@ -1,5 +1,3 @@
-use std::io::Read;
-
 use actix_web::{http::StatusCode, test};
 use auth::data::{authenticated::AuthenticatedJwt, create_user::CreateUser};
 use hoodik::server;
@@ -83,10 +81,9 @@ async fn test_creating_file_and_uploading_chunks() {
     );
 
     let random_file = storage::data::create_file::CreateFile {
-        name_enc: Some("encrypted-gibberish".to_string()),
+        encrypted_metadata: Some("encrypted-gibberish".to_string()),
         search_tokens_hashed: None,
-        encrypted_key: Some("pretending this is an encrypted key".to_string()),
-        checksum: Some(checksum.clone()),
+        name_hash: Some(checksum.clone()),
         mime: Some("text/plain".to_string()),
         size: Some(size),
         chunks: Some(data.len() as i32),
@@ -110,6 +107,7 @@ async fn test_creating_file_and_uploading_chunks() {
 
     // println!("file: {:#?}", file);
 
+    let mut uploaded = vec![];
     for (i, chunk) in data.into_iter().enumerate() {
         let checksum = cryptfns::sha256::digest(chunk.as_slice());
         let req = test::TestRequest::post()
@@ -130,8 +128,9 @@ async fn test_creating_file_and_uploading_chunks() {
         // let string_body = String::from_utf8(body.to_vec()).unwrap();
         // println!("string_body: {}", string_body);
         file = serde_json::from_slice(&body).unwrap();
-        // println!("file: {:#?}", file);
+        uploaded.push(i as i32);
 
+        assert_eq!(file.uploaded_chunks.clone().unwrap(), uploaded);
         assert_eq!(file.chunks_stored.unwrap(), i as i32 + 1);
     }
 
@@ -139,21 +138,13 @@ async fn test_creating_file_and_uploading_chunks() {
 
     let filename = file.get_filename().unwrap();
 
-    let data_file = match std::fs::File::open(format!("{}/{}", context.config.data_dir, filename)) {
-        Ok(file) => file,
-        Err(e) => {
-            println!("Error opening file: {:?}", e);
-            return;
-        }
-    };
-    let mut reader = std::io::BufReader::new(&data_file);
+    let req = test::TestRequest::get()
+        .uri(format!("/api/storage/{}", &file.id).as_str())
+        .append_header(("Authorization", jwt.clone()))
+        .append_header(("X-CSRF-Token", csrf.clone()))
+        .to_request();
 
-    // Read the contents of the file into a vector of bytes (Vec<u8>)
-    let mut contents = Vec::new();
-    match reader.read_to_end(&mut contents) {
-        Ok(_) => (),
-        Err(e) => println!("Error reading file: {:?}", e),
-    }
+    let contents = test::call_and_read_body(&mut app, req).await.to_vec();
 
     let content_len = contents.len();
     let file_checksum = cryptfns::sha256::digest(contents.as_slice());

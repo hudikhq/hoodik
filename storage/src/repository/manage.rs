@@ -1,8 +1,13 @@
 //! Repository module for manipulating with files in the database
 //! this module should only be used by the owner of the file
 
+use std::fmt::Display;
+
 use chrono::Utc;
-use entity::{files, user_files, users, ActiveModelTrait, ActiveValue, ConnectionTrait};
+use entity::{
+    files, user_files, users, ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait,
+    EntityTrait, QueryFilter, Value,
+};
 use error::{AppResult, Error};
 
 use crate::data::app_file::AppFile;
@@ -58,12 +63,56 @@ where
         Ok(file)
     }
 
+    /// Load the file from the database by its name hash and by its parent id
+    /// this method can be used to verify if you already have a file with the same name
+    /// in the directory. In case the file already exist we can check if we could resume its upload
+    pub async fn by_name<V>(&self, hash: V, parent_id: Option<i32>) -> AppResult<AppFile>
+    where
+        V: Into<Value> + Display + Clone,
+    {
+        let user_id = self.owner.id;
+
+        let mut query = files::Entity::find().filter(files::Column::NameHash.eq(hash.clone()));
+
+        if let Some(parent_id) = parent_id {
+            query = query.filter(files::Column::FileId.eq(parent_id));
+        } else {
+            query = query.filter(files::Column::FileId.is_null());
+        }
+
+        let result = query
+            .inner_join(user_files::Entity)
+            .select_also(user_files::Entity)
+            .filter(user_files::Column::UserId.eq(user_id))
+            .filter(user_files::Column::IsOwner.eq(true))
+            .one(self.repository.connection())
+            .await
+            .map_err(Error::from)?
+            .ok_or_else(|| Error::NotFound("file_not_found".to_string()))?;
+
+        let (file, user_file) = (result.0, result.1.unwrap());
+
+        Ok(AppFile::from((file, user_file)))
+    }
+
+    /// Delete a file or directory for the owner
+    /// TODO: Add recursive delete for all the files and directories in a directory...
+    pub async fn delete(&self, id: i32) -> AppResult<AppFile> {
+        let file = self.get(id).await?;
+
+        files::Entity::delete_by_id(id)
+            .exec(self.repository.connection())
+            .await?;
+
+        Ok(file)
+    }
+
     /// Create a file entry in the database and set the owner with the
     /// sent encrypted_key.
     pub async fn create(
         &self,
         create_file: files::ActiveModel,
-        encrypted_key: &str,
+        encrypted_metadata: &str,
     ) -> AppResult<AppFile> {
         // Check if the file_id is set, if it is, check if the parent is directory
         // and if the current user is the owner of that directory.
@@ -83,7 +132,7 @@ where
             file_id: ActiveValue::Set(file.id),
             user_id: ActiveValue::Set(self.owner.id),
             is_owner: ActiveValue::Set(true),
-            encrypted_key: ActiveValue::Set(encrypted_key.to_string()),
+            encrypted_metadata: ActiveValue::Set(encrypted_metadata.to_string()),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
             expires_at: ActiveValue::NotSet,
         }

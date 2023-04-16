@@ -10,6 +10,11 @@ const router = createRouter({
       component: HomeView
     },
     {
+      path: '/files',
+      name: 'Files',
+      component: () => import('../views/FilesView.vue')
+    },
+    {
       path: '/auth/setup-lock-screen',
       name: 'Setup Lock Screen',
       component: () => import('../views/auth/SetupLockScreenView.vue')

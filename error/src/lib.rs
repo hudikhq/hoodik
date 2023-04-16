@@ -3,6 +3,7 @@ use std::string::FromUtf8Error;
 use actix_multipart::MultipartError;
 use actix_web::{HttpResponse, HttpResponseBuilder, ResponseError};
 use base64::DecodeError;
+use glob::{GlobError, PatternError};
 use hex::FromHexError;
 use jsonwebtoken::errors::Error as JWTError;
 use reqwest::Error as ReqwestError;
@@ -189,6 +190,18 @@ impl From<ReqwestError> for Error {
 
 impl From<IoError> for Error {
     fn from(source: IoError) -> Error {
+        Error::StorageError(source.to_string())
+    }
+}
+
+impl From<PatternError> for Error {
+    fn from(source: PatternError) -> Error {
+        Error::StorageError(source.to_string())
+    }
+}
+
+impl From<GlobError> for Error {
+    fn from(source: GlobError) -> Error {
         Error::StorageError(source.to_string())
     }
 }

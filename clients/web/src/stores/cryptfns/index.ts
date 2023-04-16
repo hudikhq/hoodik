@@ -2,9 +2,28 @@ import * as rsa from './rsa'
 import * as aes from './aes'
 import * as sha256 from './sha256'
 import * as lscache from 'lscache'
+
 export { rsa, aes, sha256 }
 
 const ENCRYPTED_PRIVATE_KEY_LOCAL_STORAGE = 'encrypted-secret'
+
+/**
+ * Convert all sorts of arrays into a regular Buffer
+ */
+export function typedarrayToBuffer(
+  array: Uint8Array | Uint16Array | Uint32Array | ArrayBuffer | Buffer
+) {
+  if (array instanceof Buffer) {
+    return array
+  }
+
+  return ArrayBuffer.isView(array)
+    ? // To avoid a copy, use the typed array's underlying ArrayBuffer to back
+      // new Buffer, respecting the "view", i.e. byteOffset and byteLength
+      Buffer.from(array.buffer, array.byteOffset, array.byteLength)
+    : // Pass through all other types to `Buffer.from`
+      Buffer.from(array)
+}
 
 /**
  * Get the encrypted private key from the localStorage
@@ -24,7 +43,7 @@ export function hasEncryptedPrivateKey(): boolean {
  * Take the given private key, encrypt it with a pin and store it in localStorage
  */
 export function encryptPrivateKeyAndStore(pk: string, pin: string) {
-  const encrypted = aes.encrypt(pk, pin)
+  const encrypted = aes.encryptString(pk, pin)
 
   lscache.set(ENCRYPTED_PRIVATE_KEY_LOCAL_STORAGE, encrypted)
 }
@@ -48,7 +67,7 @@ export function getAndDecryptPrivateKey(pin: string) {
     throw new Error('No encrypted private key found')
   }
 
-  return aes.decrypt(pk, pin)
+  return aes.decryptString(pk, pin)
 }
 
 /**

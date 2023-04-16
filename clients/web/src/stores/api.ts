@@ -1,10 +1,24 @@
 import { getCsrf, getJwt } from './auth'
 
 export type Query = {
-  [key: string]: string | number | string[] | { [key: string]: string | number | string[] }
+  [key: string]: string | number | string[] | undefined | null | Query
 }
 
 export type Headers = { [key: string]: string }
+
+/**
+ * Convert string representation of headers into an object
+ */
+function stringHeaders(headers: string): Headers {
+  return headers
+    .split('\r\n')
+    .map((header) => header.split(':'))
+    .filter((header) => header.length === 2)
+    .reduce((acc, header) => {
+      acc[header[0]] = header[1].trim()
+      return acc
+    }, {} as Headers)
+}
 
 /**
  * Interface to represent all the request data we will be doing
@@ -37,6 +51,8 @@ export type InnerValidationErrors = { [key: string]: string | InnerValidationErr
  * @class
  */
 export class ErrorResponse<B> extends Error {
+  static kind: string = 'ErrorResponse'
+
   validation: InnerValidationErrors | null
   description: string
 
@@ -145,7 +161,7 @@ export function getApiUrl(): string {
  * Convert values into string to be placed into an url query
  */
 export function toQueryValue(
-  value: string | number | boolean | string[] | number[] | object
+  value: string | number | boolean | string[] | number[] | undefined | null | Query
 ): string | void {
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return `${value}`
@@ -165,6 +181,69 @@ export function toQueryValue(
  * @class
  */
 export default class Api {
+  /**
+   * Make get request
+   */
+  static async download(path: string, query?: Query): Promise<globalThis.Response> {
+    const { request, fetchOptions } = Api.buildRequest('get', path, query)
+
+    return fetch(decodeURIComponent(request.url), fetchOptions)
+  }
+
+  static upload<R>(path: string, data: Uint8Array, query?: Query, headers?: Headers): Promise<R> {
+    const { request } = Api.buildRequest<undefined>('get', path, query, undefined, headers)
+
+    return new Promise((resolve, reject) => {
+      const req = new XMLHttpRequest()
+      req.open('POST', request.url, true)
+
+      for (const key in request.headers) {
+        req.setRequestHeader(key, request.headers[key])
+      }
+
+      req.responseType = 'arraybuffer'
+
+      req.addEventListener('load', () => {
+        const contentType = req.getResponseHeader('Content-Type')
+        const status = req.status
+        let body: R | undefined
+
+        if (contentType?.includes('application/json')) {
+          const decoder = new TextDecoder()
+          const textBody = decoder.decode(req.response)
+
+          try {
+            body = JSON.parse(textBody)
+          } catch (e) {
+            // do nothing
+          }
+        }
+
+        if (!`${status}`.startsWith('2')) {
+          return reject(
+            new ErrorResponse<undefined>({
+              request,
+              status,
+              headers: stringHeaders(req.getAllResponseHeaders()),
+              rawBody: undefined,
+              body: body as ApiError
+            })
+          )
+        }
+
+        if (body) {
+          resolve(body)
+        } else {
+          resolve(req.response)
+        }
+      })
+
+      req.onerror = (e) => reject(e)
+
+      req.send(data)
+    })
+  }
+
   /**
    * Make get request
    */
@@ -211,7 +290,7 @@ export default class Api {
     query?: Query,
     headers?: Headers
   ): Promise<Response<undefined, R>> {
-    return new Api().make('get', path, query, undefined, headers)
+    return new Api().make('delete', path, query, undefined, headers)
   }
 
   /**
@@ -225,31 +304,11 @@ export default class Api {
     body?: B,
     headers?: Headers
   ): Promise<Response<B, R>> {
-    const url = Api.getUrlWithQuery(path, query)
-    const _headers = Api.getHeaders(headers)
-
-    if (body && typeof body === 'object' && !_headers['Content-Type']) {
-      _headers['Content-Type'] = 'application/json'
-    }
-
-    const request: Request<B> = {
-      method,
-      url,
-      body,
-      query,
-      headers: _headers
-    }
-
-    const fetchOptions: RequestInit = {
-      cache: 'no-cache',
-      credentials: 'omit',
-      headers: request.headers,
-      method,
-      mode: 'cors',
-      redirect: 'follow'
-    }
+    const { request, fetchOptions } = Api.buildRequest(method, path, query, body, headers)
 
     if (request.body instanceof Buffer) {
+      fetchOptions.body = request.body
+    } else if (request.body instanceof Uint8Array) {
       fetchOptions.body = request.body
     } else if (request.body && typeof request.body === 'object') {
       fetchOptions.body = JSON.stringify(request.body)
@@ -257,7 +316,7 @@ export default class Api {
       fetchOptions.body = request.body
     }
 
-    const res = await fetch(decodeURIComponent(url), fetchOptions)
+    const res = await fetch(decodeURIComponent(request.url), fetchOptions)
 
     const rawBody = await res.text()
 
@@ -287,6 +346,48 @@ export default class Api {
     return response
   }
 
+  static buildRequest<B>(
+    method: 'get' | 'post' | 'put' | 'delete',
+    path: string,
+    query?: Query,
+    body?: B,
+    headers?: Headers
+  ) {
+    const url = Api.getUrlWithQuery(path, query)
+    const _headers = Api.getHeaders(headers)
+
+    if (query) {
+      for (const key in query) {
+        if (query[key] === undefined || query[key] === null) {
+          delete query[key]
+        }
+      }
+    }
+
+    if (body && typeof body === 'object' && !_headers['Content-Type']) {
+      _headers['Content-Type'] = 'application/json'
+    }
+
+    const request: Request<B> = {
+      method,
+      url,
+      body,
+      query,
+      headers: _headers
+    }
+
+    const fetchOptions: RequestInit = {
+      cache: 'no-cache',
+      credentials: 'omit',
+      headers: request.headers,
+      method,
+      mode: 'cors',
+      redirect: 'follow'
+    }
+
+    return { request, fetchOptions }
+  }
+
   /**
    * Prepare headers before sending the request
    */
@@ -311,7 +412,7 @@ export default class Api {
   static getUrlWithQuery(path: string, query?: Query) {
     const url = new URL(`${getApiUrl()}${path}`)
 
-    if (query && typeof query === 'object') {
+    if (query !== null && query !== undefined && typeof query === 'object') {
       for (const name in query) {
         const value = toQueryValue(query[name])
 

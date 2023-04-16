@@ -26,6 +26,11 @@ export default [
     label: 'Home'
   },
   {
+    to: '/files',
+    icon: mdiMonitor,
+    label: 'Files'
+  },
+  {
     to: '/auth/login',
     icon: mdiMonitor,
     label: 'Login'

@@ -33,6 +33,7 @@ const init = () => {
         await login.withCredentials(crypto, values)
         router.push('/')
       } catch (err) {
+        console.error(err)
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
         authenticationError.value = error.description
@@ -49,7 +50,13 @@ init()
       <CardBox :class="cardClass">
         <h1 class="text-2xl text-white">Access Your Files</h1>
         <AppForm v-if="config" :config="config" class="mt-8 space-y-6" v-slot="{ form }">
-          <AppField :form="form" label="Your email" name="email" placeholder="your@email.com" />
+          <AppField
+            :form="form"
+            label="Your email"
+            name="email"
+            placeholder="your@email.com"
+            autofocus
+          />
           <AppField
             type="password"
             :form="form"

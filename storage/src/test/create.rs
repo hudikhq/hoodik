@@ -23,11 +23,10 @@ pub async fn create_file<'ctx, T: ConnectionTrait>(
     }
 
     let file = CreateFile {
-        name_enc: Some(name.to_string()),
+        encrypted_metadata: Some(name.to_string()),
         search_tokens_hashed: None,
-        encrypted_key: Some("pretending this is an encrypted key".to_string()),
-        checksum: Some("dir1".to_string()),
         mime: mime.map(|m| m.to_string()),
+        name_hash: Some(cryptfns::sha256::digest(name.as_bytes())),
         size,
         chunks,
         file_id,

@@ -25,8 +25,7 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Files::NameEnc).string().not_null())
-                    .col(ColumnDef::new(Files::Checksum).string().not_null())
+                    .col(ColumnDef::new(Files::NameHash).string().not_null())
                     .col(ColumnDef::new(Files::Mime).string().not_null())
                     .col(ColumnDef::new(Files::Size).big_integer())
                     .col(ColumnDef::new(Files::Chunks).integer())
@@ -53,8 +52,7 @@ impl MigrationTrait for Migration {
 pub enum Files {
     Table,
     Id,
-    NameEnc,
-    Checksum,
+    NameHash,
     Mime,
     Size,
     Chunks,

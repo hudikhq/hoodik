@@ -14,6 +14,7 @@ zxcvbn = "2.2.1"
 google-authenticator = "0.3.0" # new version requires building libs so we'll stay on this one
 bcrypt = "^0.14"
 chrono = "^0.4"
+qstring = "^0.7"
 actix-web = "^4"
 
 error = { path = "../error" }

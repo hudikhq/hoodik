@@ -69,8 +69,6 @@ pub fn app(
         // Authentication load middleware that only sets it up on the app
         .wrap(auth_load_middleware)
         .wrap(cors::setup())
-        // PRETTY PLEASE: keep the routes in alphabetical order
-        //  There is a VSCode extension "Alphabetical Sorter" that can help you with this
         .configure(configure)
         // Proxy HTTP requests to frontend
         .route("/{tail:.*}", web::to(proxy::http))
