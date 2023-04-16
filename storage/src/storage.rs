@@ -55,7 +55,15 @@ impl<'ctx> StorageProvider for Storage<'ctx> {
         self.provider().remove(filename)
     }
 
+    fn purge(&self, filename: &str) -> AppResult<()> {
+        self.provider().purge(filename)
+    }
+
     fn concat_files(&self, filename: &str, chunks: u64) -> AppResult<()> {
         self.provider().concat_files(filename, chunks)
+    }
+
+    fn get_uploaded_chunks(&self, filename: &str) -> AppResult<Vec<i32>> {
+        self.provider().get_uploaded_chunks(filename)
     }
 }

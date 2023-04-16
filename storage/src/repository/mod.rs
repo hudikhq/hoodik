@@ -82,32 +82,4 @@ where
 
         Ok(AppFile::from((file, user_file)))
     }
-
-    /// Load the file from the database by its checksum
-    pub async fn by_checksum<V>(&self, checksum: V, user_id: i32) -> AppResult<AppFile>
-    where
-        V: Into<Value> + Display + Clone,
-    {
-        let result = files::Entity::find()
-            .filter(files::Column::Checksum.eq(checksum.clone()))
-            .join(
-                JoinType::InnerJoin,
-                user_files::Relation::Files
-                    .def()
-                    .on_condition(move |_left, right| {
-                        Expr::col((right, user_files::Column::UserId))
-                            .eq(user_id)
-                            .into_condition()
-                    }),
-            )
-            .select_also(user_files::Entity)
-            .one(self.connection)
-            .await
-            .map_err(Error::from)?
-            .ok_or_else(|| Error::NotFound(format!("file_not_found:{}", checksum)))?;
-
-        let (file, user_file) = (result.0, result.1.unwrap());
-
-        Ok(AppFile::from((file, user_file)))
-    }
 }

@@ -35,7 +35,11 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(UserFiles::FileId).integer().not_null())
                     .col(ColumnDef::new(UserFiles::UserId).integer().not_null())
-                    .col(ColumnDef::new(UserFiles::EncryptedKey).text().not_null())
+                    .col(
+                        ColumnDef::new(UserFiles::EncryptedMetadata)
+                            .text()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(UserFiles::IsOwner).boolean().not_null())
                     .col(ColumnDef::new(UserFiles::CreatedAt).date_time().not_null())
                     .col(ColumnDef::new(UserFiles::ExpiresAt).date_time())
@@ -59,7 +63,7 @@ pub enum UserFiles {
     Id,
     FileId,
     UserId,
-    EncryptedKey,
+    EncryptedMetadata,
     IsOwner,
     CreatedAt,
     ExpiresAt,

@@ -3,7 +3,7 @@ use error::{AppResult, Error};
 
 /// Parse string date '%Y-%m-%d' into NaiveDate.
 pub fn parse_into_naive_date(raw: &str, err_attribute_name: Option<&str>) -> AppResult<NaiveDate> {
-    return parse_into_naive_date_format(raw, "%Y-%m-%d", err_attribute_name);
+    parse_into_naive_date_format(raw, "%Y-%m-%d", err_attribute_name)
 }
 
 /// Parse string date from given format into NaiveDate.

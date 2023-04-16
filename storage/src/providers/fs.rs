@@ -2,6 +2,7 @@ use error::{AppResult, Error};
 use std::{
     fs::{remove_file, File, OpenOptions},
     io::{Read, Seek, SeekFrom, Write},
+    path::Path,
 };
 
 use crate::contract::StorageProvider;
@@ -80,6 +81,25 @@ impl<'provider> FsProvider<'provider> {
 
         Ok(())
     }
+
+    /// Recursively search for files matching the pattern
+    fn search_dir(dir: &Path, pattern: &str) -> AppResult<Vec<String>> {
+        let mut results = Vec::new();
+
+        for entry in std::fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                results.extend(Self::search_dir(&path, pattern)?);
+            } else if let Some(filename) = path.file_name() {
+                if filename.to_string_lossy().contains(pattern) {
+                    results.push(path.display().to_string())
+                }
+            }
+        }
+
+        Ok(results)
+    }
 }
 
 impl<'ctx> StorageProvider for FsProvider<'ctx> {
@@ -149,6 +169,19 @@ impl<'ctx> StorageProvider for FsProvider<'ctx> {
         remove_file(self.full_path(filename)).map_err(Error::from)
     }
 
+    fn purge(&self, filename: &str) -> AppResult<()> {
+        let path = self.full_path("/");
+        let path = Path::new(path.as_str());
+        let pattern = format!("{}*", filename);
+        let paths = Self::search_dir(path, &pattern)?;
+
+        for path in paths {
+            self.remove(&path)?;
+        }
+
+        Ok(())
+    }
+
     fn concat_files(&self, filename: &str, chunks: u64) -> AppResult<()> {
         match self.inner_concat_parts(filename, chunks) {
             Ok(_) => (),
@@ -170,5 +203,29 @@ impl<'ctx> StorageProvider for FsProvider<'ctx> {
         self.inner_remove_chunks(filename, chunks)?;
 
         Ok(())
+    }
+
+    fn get_uploaded_chunks(&self, filename: &str) -> AppResult<Vec<i32>> {
+        let pattern = format!("{}.*.part", filename);
+        let paths = glob::glob(self.full_path(pattern.as_str()).as_str())?;
+
+        let mut chunks = Vec::new();
+
+        for path in paths {
+            let path = path?.to_str().unwrap().replace(".part", "");
+
+            let chunk = path
+                .split('.')
+                .last()
+                .unwrap()
+                .parse::<i32>()
+                .map_err(|_| Error::InternalError("Failed to parse chunk number".to_string()))?;
+
+            chunks.push(chunk);
+        }
+
+        chunks.sort();
+
+        Ok(chunks)
     }
 }

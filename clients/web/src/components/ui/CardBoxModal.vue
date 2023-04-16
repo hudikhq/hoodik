@@ -1,53 +1,42 @@
-<script setup>
-import { computed } from "vue";
-import { mdiClose } from "@mdi/js";
-import BaseButton from "@/components/BaseButton.vue";
-import BaseButtons from "@/components/BaseButtons.vue";
-import CardBox from "@/components/CardBox.vue";
-import OverlayLayer from "@/components/OverlayLayer.vue";
-import CardBoxComponentTitle from "@/components/CardBoxComponentTitle.vue";
+<script setup lang="ts">
+import { computed } from 'vue'
+import { mdiClose } from '@mdi/js'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseButtons from '@/components/ui/BaseButtons.vue'
+import CardBox from '@/components/ui/CardBox.vue'
+import OverlayLayer from '@/components/ui/OverlayLayer.vue'
+import CardBoxComponentTitle from '@/components/ui/CardBoxComponentTitle.vue'
+import type { ColorType } from '@/colors'
 
-const props = defineProps({
-  title: {
-    type: String,
-    required: true,
-  },
-  button: {
-    type: String,
-    default: "info",
-  },
-  buttonLabel: {
-    type: String,
-    default: "Done",
-  },
-  hasCancel: Boolean,
-  modelValue: {
-    type: [String, Number, Boolean],
-    default: null,
-  },
-});
+const props = defineProps<{
+  title: string
+  button?: ColorType
+  buttonLabel?: string
+  hasCancel?: boolean
+  modelValue: string | number | boolean
+}>()
 
-const emit = defineEmits(["update:modelValue", "cancel", "confirm"]);
+const emit = defineEmits(['update:modelValue', 'cancel', 'confirm'])
 
 const value = computed({
   get: () => props.modelValue,
-  set: (value) => emit("update:modelValue", value),
-});
+  set: (value) => emit('update:modelValue', value)
+})
 
-const confirmCancel = (mode) => {
-  value.value = false;
-  emit(mode);
-};
+const confirmCancel = (mode: any) => {
+  value.value = false
+  emit(mode)
+}
 
-const confirm = () => confirmCancel("confirm");
+const confirm = () => confirmCancel('confirm')
 
-const cancel = () => confirmCancel("cancel");
+const cancel = () => confirmCancel('cancel')
 
-window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && value.value) {
-    cancel();
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && value.value) {
+    cancel()
   }
-});
+})
 </script>
 
 <template>
@@ -74,11 +63,11 @@ window.addEventListener("keydown", (e) => {
 
       <template #footer>
         <BaseButtons>
-          <BaseButton :label="buttonLabel" :color="button" @click="confirm" />
+          <BaseButton :label="buttonLabel" :color="button || 'info'" @click="confirm" />
           <BaseButton
             v-if="hasCancel"
             label="Cancel"
-            :color="button"
+            :color="button || 'info'"
             outline
             @click="cancel"
           />

@@ -6,6 +6,7 @@ import menuAside from '@/menuAside'
 import menuNavBar, { type NavBarItem } from '@/menuNavBar'
 import { store as style } from '@/stores/style'
 import { store as login } from '@/stores/auth/login'
+import { store as crypto } from '@/stores/crypto'
 import { ensureAuthenticated } from '@/stores/auth'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 // import FormControl from '@/components/ui/FormControl.vue'
@@ -13,12 +14,14 @@ import NavBar from '@/components/ui/NavBar.vue'
 import NavBarItemPlain from '@/components/ui/NavBarItemPlain.vue'
 import AsideMenu from '@/components/ui/AsideMenu.vue'
 import FooterBar from '@/components/ui/FooterBar.vue'
+import UploadAction from '@/components/actions/UploadAction.vue'
 
 const styleStore = style()
 const router = useRouter()
 const loginStore = login()
+const cryptoStore = crypto()
 
-await ensureAuthenticated(router, loginStore)
+ensureAuthenticated(router, loginStore, cryptoStore)
 
 const layoutAsidePadding = 'xl:pl-60'
 
@@ -79,6 +82,7 @@ const menuClick = (event: Event, item: NavBarItem) => {
       />
       <slot />
       <FooterBar> </FooterBar>
+      <UploadAction />
     </div>
   </div>
 </template>

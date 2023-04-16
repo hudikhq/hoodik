@@ -69,7 +69,7 @@ pub mod private {
         let mut rng = rand::thread_rng();
         let signature = signing_key.try_sign_with_rng(&mut rng, message.as_bytes())?;
 
-        Ok(hex::encode(signature))
+        Ok(crate::base64::encode(signature))
     }
 
     /// Sign a message with private key input string
@@ -150,7 +150,7 @@ pub mod public {
 
     /// Verify message with public key
     pub fn verify_with(message: &str, signature: &str, key: PublicKey) -> AppResult<()> {
-        let signature_decoded = hex::decode(signature)?;
+        let signature_decoded = crate::base64::decode(signature)?;
         let message_as_bytes = message.as_bytes();
 
         let signature = Signature::try_from(signature_decoded.as_slice())?;
@@ -271,9 +271,11 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
 
     const TEST_SIGNATURE_MESSAGE: &str = "28004708";
 
-    const TEST_SIGNATURE_HEX: &str = "2ce2f99cbb6ca040aa5372384e23f637e500a42fe9ba18b82069b018740e0569943232e2caa411b0bc1084efcd9a205612b8fe0417d0324ef938515e01d1d63c6cb7acc5ceafb392223e75321cb50fbbd6a23294c854bdb6baf2df303b7c09845e22f29ed38f0cd84fdc16620c8b7211c6637ee35de1a2fcca7e90fc00ab28f0f90728749af80666d73d3fbf12fc9e656d3eb84cfceefc59f54160ec446ed4c22690460c9de34fc296351ae8ae0df6253d0b6e69de5d913eef2f556e107a3451a9fc3812173c25b5d90050ac4912a5464b0f1fad23582fcbf8dbc0634c9b535a6d5720b5fe808de21bd6785dd4ceb02604094a6e8cbddbf9feff4ee0b72f4554";
+    const TEST_ENCRYPTION_MESSAGE: &str = "hello world";
 
-    const _ENCRYPTED_BASE64: &str = "pucjs8dcxAXGww4mlG1XTcWxO7PsFEr7yJ4NFKNVyIiB6AHt9v0d2cSd72+7IkuZrxJHDBp3ixRFAWXWuzsp96bhdVKIR0k4coBWy2TgBhZc+a6nRdpGUDgBnjn+wZE7LRIR/L0pIVY32N0/94zNYdaiAVeaAIBsUq9IdiKfv6kWAshk57pGec0SHa8hESFpfwv7QCKmzY5l1QjBwtzbo5LtmOU2wo/JuMYNDKqjXYOOOyTaSMMxT+6Q6qkib+SpHA4MvUVOEMSbS4Y3TDBm1xShFCol80FbfOmDiAWqBatXT/WCvtqfeYMN/hzmX5PoZh3sBZLHbfle6ePnz05aTQ==";
+    const TEST_SIGNATURE_BASE64: &str = "obSJu3pSjrnWyHvzM4L2aWRR8qT66qPHkAmOdNRuekxOHwjjXNp8zxUhnxgiZEKakBFOup6PEFqUD4526cKYVDc+/dRfiRW+asmQYAa1rga9slPtKU4RFpWl68DzL2HlEiKOnxW89dQsW007GZ7OyOF4B5KqSZUDC3lcH62Vs8/zx7fkbh3lGtLJ0iKHs8zz9aIxkNIesAwY1TH/YJTA+bARBaKEUJggZpLI7iQtTGbFtPsnsaeO9WgxK+zdp47tcO0kyKXmgMfEKXuSuDmEndQLzaSCYJvCXyUwONi/ujlii6LIqbObQGHXencbM8kUNY5tEWJVI4iQsWHtOFExsA==";
+
+    const _ENCRYPTED_BASE64: &str = "ADtuM6Ns6XIs0Xxw7PWDyZQCMQ/2xYYBtUueh/9LAskhQdGAI1AlhQ07VE78rzfMXWetg+oYm2Vus91UGrauJLgzXFyZqEKSLZ9ei6rxdS6ktxjMwBSlcrQtwiohnLpFhuy9H2FEoC8NxM+UhRqRqjCP7cRUsUpKT6fte4OsJ+UzCOUbaeZoMDRydRZvlfq8Zgk45M1SUnobpJfJ5bYNfwHZQ724NlwxnZIBgmA+XXpVM4nt9lb7Q4/796nKvKFu2/sEWaOsnOj09CE5EQE8vo19CugDTv95r1LcsKN1SjgIKHtLFXdJY0Gtp62F2zR1VjNLN/qT//1DMu/em/m/TA==";
 
     const _ENCRYPTED_BASE64_OAEP: &str = "FH07X7rxVqjo1w/XGyVCsaLDAO8B07M4WR5nHanBJdCOAKVFFGNpi5uX5NX9oj03iaueFDFnyZwatr68Wr/GZznjAtj7j08CIGCA73AALB5Gi0HMjpDG/BwZcTeRp92e5Qoa2gLee8wOT/NRBChniQ8vS7LqhlxxBHFMM2h/35yhwkfLQ+I6tHcOVjAKj40VWjtV6UvcOsT0ffZIpZNsUX3Fdxhvvf2DaEKRHEIF0j2aO4kaaxnPSoSUkeqj1CFQ+5BhGA2INrU77gnzO76sYdtDsS6Qcojj7y0trxtwhOIrfK2dm9OPCcL8lLiE8LHOCKkes18QQU2oK+zoOS2JMA==";
 
@@ -323,16 +325,21 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
         let private_key = private::generate().unwrap();
         let public_key = public::from_private(&private_key).unwrap();
 
-        let message = "Hello world";
+        let signature = private::sign_with(TEST_SIGNATURE_MESSAGE, private_key).unwrap();
 
-        let signature = private::sign_with(message, private_key).unwrap();
+        println!("signature\n{}", &signature);
 
-        public::verify_with(message, &signature, public_key).unwrap()
+        public::verify_with(TEST_SIGNATURE_MESSAGE, &signature, public_key).unwrap()
     }
 
     #[test]
     fn test_rsa_signature_verification_from_javascript() {
-        public::verify(TEST_SIGNATURE_MESSAGE, TEST_SIGNATURE_HEX, TEST_PUBLIC_KEY).unwrap();
+        public::verify(
+            TEST_SIGNATURE_MESSAGE,
+            TEST_SIGNATURE_BASE64,
+            TEST_PUBLIC_KEY,
+        )
+        .unwrap();
     }
 
     #[test]
@@ -343,17 +350,16 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
         let public_key = public::from_private(&private_key).unwrap();
         let public_key_string = public::to_string(&public_key).unwrap();
 
-        let message = "hello world";
-        let encrypted = public::encrypt(message, &public_key_string).unwrap();
+        let encrypted = public::encrypt(TEST_ENCRYPTION_MESSAGE, &public_key_string).unwrap();
 
         println!("encrypted");
         println!("{}", &encrypted);
 
-        assert_ne!(message, encrypted);
+        assert_ne!(TEST_ENCRYPTION_MESSAGE, encrypted);
 
         let decrypted = private::decrypt(&encrypted, &private_key_string).unwrap();
 
-        assert_eq!(message, decrypted);
+        assert_eq!(TEST_ENCRYPTION_MESSAGE, decrypted);
     }
 
     #[test]

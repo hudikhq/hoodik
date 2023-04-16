@@ -16,15 +16,22 @@ use crate::CHUNK_SIZE_BYTES;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CreateFile {
-    /// Name of the file, encrypted with the user's public key
-    pub name_enc: Option<String>,
+    /// Encrypted metadata of the file, this data should contain
+    /// the file key, name, any form of additional data for
+    /// displaying more information about the file and is
+    /// only accessible in the client apps once the file
+    /// meta is decrypted.
+    ///
+    /// Metadata is encrypted with the users public key,
+    /// and should also contain the unlocking key for the
+    /// file data.
+    pub encrypted_metadata: Option<String>,
     /// Tokens by which this file will be searchable broken down
     /// into tokens using the tokenizing methods
     pub search_tokens_hashed: Option<Vec<String>>,
-    /// Stringified JSON of the: { "salt": string; "iv": string; "passphrase": string; }
-    pub encrypted_key: Option<String>,
-    /// Original file MD5 checksum
-    pub checksum: Option<String>,
+    /// Name of the file hashed so we can guard
+    /// against duplicate files in directories
+    pub name_hash: Option<String>,
     /// Mime type of the file or "dir" for directory
     pub mime: Option<String>,
     /// Total size of the file
@@ -40,9 +47,8 @@ pub struct CreateFile {
 impl Validation for CreateFile {
     fn rules(&self) -> Vec<Rule<Self>> {
         vec![
-            rule_required!(name_enc),
-            rule_required!(encrypted_key),
-            rule_required!(checksum),
+            rule_required!(encrypted_metadata),
+            rule_required!(name_hash),
             rule_required!(mime),
             Rule::new("size", |obj: &CreateFile, error| {
                 let dir_mime = Some("dir".to_string());
@@ -57,8 +63,10 @@ impl Validation for CreateFile {
 
                 if let Some(v) = obj.size {
                     if v <= 0 {
-                        return error.add("min:1");
+                        error.add("min:1")
                     }
+                } else {
+                    error.add("required")
                 }
             }),
             // We do this validation to make sure the frontend knows exactly
@@ -90,10 +98,12 @@ impl Validation for CreateFile {
                     }
 
                     if v as u64 != expected_chunks_u64 {
-                        return error.add(
+                        error.add(
                             format!("invalid_chunks_expected:{}", expected_chunks_u64).as_str(),
-                        );
+                        )
                     }
+                } else {
+                    error.add("required")
                 }
             }),
             Rule::new("file_created_at", |obj: &CreateFile, error| {
@@ -101,7 +111,7 @@ impl Validation for CreateFile {
                     if util::datetime::parse_into_naive_datetime(v, Some("file_created_at"))
                         .is_err()
                     {
-                        return error.add("invalid_date");
+                        error.add("invalid_date")
                     }
                 }
             }),
@@ -127,8 +137,7 @@ impl CreateFile {
         Ok((
             ActiveModelFile {
                 id: ActiveValue::NotSet,
-                name_enc: ActiveValue::Set(data.name_enc.unwrap()),
-                checksum: ActiveValue::Set(data.checksum.clone().unwrap()),
+                name_hash: ActiveValue::Set(data.name_hash.unwrap()),
                 mime: ActiveValue::Set(data.mime.unwrap()),
                 size: ActiveValue::Set(data.size),
                 chunks: ActiveValue::Set(data.chunks),
@@ -145,7 +154,7 @@ impl CreateFile {
                 created_at: ActiveValue::Set(now),
                 finished_upload_at: ActiveValue::Set(None),
             },
-            data.encrypted_key.unwrap(),
+            data.encrypted_metadata.unwrap(),
         ))
     }
 }

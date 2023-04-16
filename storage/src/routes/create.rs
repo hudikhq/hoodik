@@ -27,11 +27,11 @@ pub async fn create(
     let context = context.into_inner();
     let authenticated = Authenticated::try_from(&req)?;
     let connection = context.db.begin().await?;
-    let (create_file, encrypted_key) = data.into_inner().into_active_model()?;
+    let (create_file, encrypted_metadata) = data.into_inner().into_active_model()?;
 
     let file = Repository::new(&connection)
         .manage(&authenticated.user)
-        .create(create_file, &encrypted_key)
+        .create(create_file, &encrypted_metadata)
         .await?;
 
     let filename = file

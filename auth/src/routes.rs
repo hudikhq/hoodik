@@ -24,7 +24,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(register);
     cfg.service(authenticated_self);
     cfg.service(login);
+    cfg.service(logout);
     cfg.service(signature);
+    cfg.service(refresh);
 }
 
 /// If the user is authenticated, return the user data, this is used once the frontend refreshes

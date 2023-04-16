@@ -39,7 +39,9 @@ export const colorsText = {
 
 export const colorsOutline = {
   white: [colorsText.white, 'border-gray-100'],
+  whiteDark: [colorsText.white, 'border-gray-700'],
   light: [colorsText.light, 'border-gray-100'],
+  lightDark: [colorsText.light, 'border-gray-400'],
   contrast: [colorsText.contrast, 'border-gray-900 dark:border-slate-100'],
   success: [colorsText.success, 'border-emerald-500'],
   danger: [colorsText.danger, 'border-red-500'],

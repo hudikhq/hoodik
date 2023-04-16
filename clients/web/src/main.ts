@@ -5,6 +5,11 @@ import App from './App.vue'
 import router from './router'
 import { store as style } from '@/stores/style'
 import { lightModeKey, styleKey } from '@/config'
+import { Buffer } from 'buffer'
+
+window.Buffer = window.Buffer || Buffer
+
+import './mt.ts'
 
 import './css/main.css'
 
@@ -29,7 +34,7 @@ if (
 }
 
 /* Default title tag */
-const defaultDocumentTitle = 'Admin One Vue 3 Tailwind'
+const defaultDocumentTitle = 'Hoodik - End 2 End Encrypted File Storage'
 
 /* Set document title from route meta */
 router.afterEach((to) => {

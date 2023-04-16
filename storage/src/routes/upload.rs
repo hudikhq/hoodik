@@ -13,14 +13,14 @@ use crate::{
 /// Query: [crate::data::meta::Meta]
 ///
 /// Request:
-///  - Content-Type: multipart/form-data
-///  - Field name: file
-///  - File Content-Type: application/octet-stream [chunk content bytes]
+///  - Content-Type: application/octet-stream [chunk content bytes]
+///  - Body: [chunk content bytes]
 ///
 /// Response: [crate::data::app_file::AppFile]
 ///
 /// **Note**: Chunk data is trusted as is, no validation is done on the content
 /// because the content is encrypted and we cannot ensure it is the correct chunk or data.
+/// Only thing we will do is compare the checksum the uploader gave us for the uploaded chunk
 #[route(
     "/api/storage/{file_id}",
     method = "POST",
@@ -40,7 +40,7 @@ async fn upload(
     let body_checksum = cryptfns::sha256::digest(request_body.as_ref());
 
     if checksum != body_checksum {
-        let error = format!("checksum_mismatch: {} != {}", checksum, body_checksum);
+        let error = format!("checksum_mismatch: {checksum} != {body_checksum}");
         return Err(Error::as_validation("checksum", &error));
     }
 
@@ -70,7 +70,7 @@ async fn upload(
         return Err(Error::as_validation("chunk", "chunk_already_exists"));
     }
 
-    let file = repository
+    let mut file = repository
         .manage(&authenticated.user)
         .increment(&file)
         .await?;
@@ -80,6 +80,11 @@ async fn upload(
     }
 
     storage.push_part(&filename, chunk, &request_body)?;
+
+    if file.is_file() {
+        let filename = file.get_filename().unwrap();
+        file.uploaded_chunks = Some(Storage::new(&context.config).get_uploaded_chunks(&filename)?);
+    }
 
     if chunks == chunks_stored + 1 {
         storage.concat_files(&filename, chunks as u64)?;

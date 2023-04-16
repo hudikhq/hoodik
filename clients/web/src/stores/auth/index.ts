@@ -1,4 +1,5 @@
-import * as crypto from '../cryptfns'
+import * as cryptfns from '../cryptfns'
+import type { store as cryptoStore } from '../crypto'
 import * as login from './login'
 import * as register from './register'
 import Cookies from 'js-cookie'
@@ -77,20 +78,24 @@ export function hasAuthentication(store: ReturnType<typeof login.store>) {
  */
 export async function ensureAuthenticated(
   router: Router,
-  store: ReturnType<typeof login.store>
+  store: ReturnType<typeof login.store>,
+  crypto: ReturnType<typeof cryptoStore>
 ): Promise<void | NavigationFailure> {
   if (!hasAuthentication(store)) {
     if (maybeCouldMakeRequests()) {
       try {
         await store.self()
-        return
+
+        if (crypto.keypair.input) {
+          return
+        }
       } catch (e) {
         console.info(`Moving to login after failed attempt to get self: ${e}`)
         router.push('/auth/login')
       }
     }
 
-    if (crypto.hasEncryptedPrivateKey()) {
+    if (cryptfns.hasEncryptedPrivateKey()) {
       console.info('Moving to decrypt private key')
       return router.push('/auth/decrypt')
     }

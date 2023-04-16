@@ -83,7 +83,8 @@ init()
             :form="form"
             label="Your password"
             name="password"
-            placeholder="***************************"
+            placeholder="********"
+            :autofocus="true"
           />
           <AppCheckbox label="Remember me" :form="form" name="remember" />
 

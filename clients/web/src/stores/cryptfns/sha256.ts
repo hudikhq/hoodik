@@ -1,13 +1,12 @@
-import { Buffer } from 'buffer'
-import * as forge from 'node-forge'
+import { Sha256 } from '@openpgp/asmcrypto.js'
 
 /**
  * Digest a string or buffer using SHA256 and return the checksum as a hex string
  */
-export function digest(data: Buffer | string): string {
-  if (data instanceof Buffer) {
-    data = data.toString('hex')
+export function digest(data: string | Uint8Array): string {
+  if (typeof data === 'string') {
+    data = Buffer.from(data)
   }
 
-  return forge.md.sha256.create().update(data, 'raw').digest().toHex()
+  return Buffer.from(Sha256.bytes(data) as Uint8Array).toString('hex')
 }

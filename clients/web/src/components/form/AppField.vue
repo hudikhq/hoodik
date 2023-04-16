@@ -26,6 +26,7 @@ const props = defineProps<{
   classAdd?: string
   wrapperClass?: string
   help?: string
+  autofocus?: boolean
 }>()
 
 const emit = defineEmits(['update:modelValue', 'change'])
@@ -96,6 +97,7 @@ const copy = () => {
           :type="type || 'text'"
           :placeholder="placeholder || ''"
           :disabled="disabled || form.isSubmitting.value"
+          :autofocus="!!props.autofocus"
         ></textarea>
         <input
           v-else
@@ -109,6 +111,7 @@ const copy = () => {
           :type="type || 'text'"
           :placeholder="placeholder || ''"
           :disabled="disabled || form.isSubmitting.value"
+          :autofocus="!!props.autofocus"
         />
       </Field>
     </div>
