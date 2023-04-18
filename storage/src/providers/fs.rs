@@ -170,13 +170,17 @@ impl<'ctx> StorageProvider for FsProvider<'ctx> {
     }
 
     fn purge(&self, filename: &str) -> AppResult<()> {
-        let path = self.full_path("/");
-        let path = Path::new(path.as_str());
-        let pattern = format!("{}*", filename);
-        let paths = Self::search_dir(path, &pattern)?;
+        let string_path = self.full_path("");
+        let path = Path::new(string_path.as_str());
 
-        for path in paths {
-            self.remove(&path)?;
+        let pattern = format!("{}{}*", string_path, filename);
+        let mut found_part_files = Self::search_dir(path, &pattern)?;
+
+        let file = format!("{}{}", string_path, filename);
+        found_part_files.push(file);
+
+        for path in found_part_files {
+            remove_file(path)?;
         }
 
         Ok(())

@@ -39,7 +39,7 @@ config.value = {
 
     cryptfns.encryptPrivateKeyAndStore(privateKey, values.password)
 
-    if (values.logout) {
+    if (values.logout === true) {
       login.logout(crypto)
 
       return router.push('/auth/lock')

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiChevronUp, mdiChevronDown } from '@mdi/js'
+import { mdiMinus, mdiPlus } from '@mdi/js'
 import { RouterLink } from 'vue-router'
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { store } from '@/stores/style'
@@ -119,7 +119,7 @@ onBeforeUnmount(() => {
       >
       <BaseIcon
         v-if="item.menu"
-        :path="isDropdownActive ? mdiChevronUp : mdiChevronDown"
+        :path="isDropdownActive ? mdiMinus : mdiPlus"
         class="hidden lg:inline-flex transition-colors"
       />
     </div>

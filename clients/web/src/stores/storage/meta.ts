@@ -250,14 +250,13 @@ export interface EncryptedAppFile {
 }
 
 export interface Parameters extends Query {
-  dir_id?: number
+  dir_id?: number | null
   order?: 'asc' | 'desc'
   order_by?: 'created_at' | 'size'
 }
 
 export interface FileResponse {
-  parent?: AppFile
-  dir?: AppFile
+  parents?: AppFile[]
   children: AppFile[]
 }
 
@@ -343,9 +342,15 @@ export async function getByName(
  * Get file or directory metadata
  */
 export async function find(parameters: Parameters): Promise<FileResponse> {
+  // @ts-ignore
+  if (isNaN(parameters.dir_id)) {
+    delete parameters.dir_id
+  }
+
+  console.log(parameters)
   const response = await Api.get<FileResponse>(`/api/storage`, parameters)
 
-  return response.body || { children: [] }
+  return response.body || { children: [], parents: [] }
 }
 
 /**

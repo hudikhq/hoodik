@@ -34,7 +34,7 @@ export function keyFromStringJson(key: string): Key {
  * When creating a new file generate a random key for it
  * that will be used for actual data encryption
  */
-export function generateKey(blocksize: number = 1024): Key {
+export function generateKey(blocksize: number = 1024 * 1024): Key {
   const password = generateRandomUint8Array(32)
   const counter = generateRandomUint8Array(16)
 

@@ -1,18 +1,16 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
+import FilesView from '../views/FilesView.vue'
 
 const router = createRouter({
   history: createWebHistory(`/`),
   routes: [
     {
-      path: '/',
+      path: '/:file_id?',
       name: 'Dashboard',
-      component: HomeView
-    },
-    {
-      path: '/files',
-      name: 'Files',
-      component: () => import('../views/FilesView.vue')
+      meta: {
+        files: true
+      },
+      component: FilesView
     },
     {
       path: '/auth/setup-lock-screen',

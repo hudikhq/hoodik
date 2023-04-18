@@ -1,15 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
 import { mdiTrashCan } from '@mdi/js'
 import BaseButtons from '@/components/ui/BaseButtons.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 // import UserAvatar from '@/components/ui/UserAvatar.vue'
 import { format as formatDate } from '@/stores'
 import { format as formatSize, type ListAppFile } from '@/stores/storage'
-import { store as cryptoStore } from '@/stores/crypto'
-import * as cryptfns from '@/stores/cryptfns'
-
-const crypto = cryptoStore()
 
 const props = defineProps<{
   file: ListAppFile
@@ -32,15 +27,13 @@ const removeFIle = (file: ListAppFile) => {
       <UserAvatar :username="name" class="w-24 h-24 mx-auto lg:w-6 lg:h-6" />
     </td> -->
     <td data-label="Name">
-      <span v-if="props.file.parent"> ../{{ file.metadata?.name }} </span>
+      <component :is="file.mime === 'dir' ? 'router-link' : 'span'" :to="`/${file.id}`">
+        <span v-if="file.metadata?.name">
+          {{ file.metadata?.name }}
+        </span>
 
-      <span v-else-if="props.file.current"> ./{{ file.metadata?.name }} </span>
-
-      <span v-else-if="file.metadata?.name">
-        {{ file.metadata?.name }}
-      </span>
-
-      <span v-else> ... </span>
+        <span v-else> ... </span>
+      </component>
     </td>
     <td data-label="Size">
       {{ props.file.size ? formatSize(props.file.size) : '' }}

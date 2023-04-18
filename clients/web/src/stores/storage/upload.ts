@@ -2,12 +2,13 @@ import type { AppFile, CreateFile } from './meta'
 import * as meta from './meta'
 import Api, { ErrorResponse, type Query } from '../api'
 import * as cryptfns from '../cryptfns'
-import { utcStringFromLocal } from '..'
+import { localDateFromUtcString, utcStringFromLocal } from '..'
 import type { KeyPair } from '../cryptfns/rsa'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import type { store as storageStore } from './'
 
-export const CHUNK_SIZE_BYTES = 1024 * 1024
+export const CHUNK_SIZE_BYTES = 1024 * 1024 * 10
 export const MAX_RETRIES = 3
 export const UPLOAD_BATCH = 1
 
@@ -16,7 +17,7 @@ export interface SingleChunk {
   chunk: number
 }
 
-export type ProgressFunction = (file: UploadAppFile, done: boolean) => void
+export type ProgressFunction = (file: UploadAppFile, done: boolean) => Promise<void>
 
 export interface UploadAppFile extends AppFile {
   /**
@@ -69,16 +70,16 @@ export const store = defineStore('storage-upload', () => {
   /**
    * Is the queue currently being processed
    */
-  const queueWorking = ref(false)
+  const active = ref(false)
 
   /**
    * Start processing queue while its not stopped
    */
-  async function start() {
-    queueWorking.value = true
+  async function start(storage?: ReturnType<typeof storageStore>, keypair?: KeyPair) {
+    active.value = true
 
     // Tracker is called each time a file chunk has been uploaded
-    const tracker = function (file: UploadAppFile) {
+    const tracker = async function (file: UploadAppFile) {
       console.log(
         `File ${file.metadata?.name} ${file.chunks_stored} / ${file.chunks} has been uploaded`
       )
@@ -91,8 +92,6 @@ export const store = defineStore('storage-upload', () => {
 
         // File hasn't been found in the uploading list so we add it
         uploading.value.push(file)
-
-        return
       }
 
       let item = uploading.value.splice(index, 1)[0]
@@ -116,6 +115,16 @@ export const store = defineStore('storage-upload', () => {
         )
 
         done.value.push(file)
+
+        if (
+          storage &&
+          keypair &&
+          storage.dir &&
+          (storage.dir.id === file.file_id || (!storage.dir && !file.file_id))
+        ) {
+          await storage.find(keypair)
+        }
+
         return
       }
 
@@ -125,7 +134,7 @@ export const store = defineStore('storage-upload', () => {
 
     console.log('Starting upload queue')
 
-    while (queueWorking.value) {
+    while (active.value) {
       await _tick(tracker)
     }
   }
@@ -162,8 +171,17 @@ export const store = defineStore('storage-upload', () => {
       // Wait for 5 seconds before resolving to not spam the
       // application with multiple checks.
       setTimeout(() => {
+        done.value = done.value.filter((file) => {
+          if (file.finished_upload_at) {
+            const date = localDateFromUtcString(file.finished_upload_at).valueOf() + 120 * 1000
+
+            return date < new Date().valueOf()
+          }
+
+          return false
+        })
         resolve(undefined)
-      }, 5000)
+      }, 1000)
     })
   }
 
@@ -237,6 +255,7 @@ export const store = defineStore('storage-upload', () => {
     uploading,
     failed,
     done,
+    active,
     start,
     retry,
     push,
@@ -251,24 +270,28 @@ export async function upload(file: UploadAppFile, progress?: ProgressFunction) {
   if (!file.started_upload_at) {
     file.started_upload_at = new Date()
   }
+  if (progress) {
+    await progress(file, false)
+  }
 
   for (let chunk = 0; chunk < file.chunks; chunk++) {
     // Skip already uploaded chunks
     if (file.uploaded_chunks?.includes(chunk)) {
       if (progress) {
-        progress(file, chunk === file.chunks - 1)
+        await progress(file, chunk === file.chunks - 1)
       }
 
       continue
     }
 
     const data = await sliceChunk(file.file, chunk)
-    file = await uploadChunk(file, data, chunk, 0)
+
+    file = await uploadChunk(file, data, chunk)
 
     console.log(`Uploaded chunk ${chunk} / ${file.chunks} of ${file.file.name}`)
 
     if (progress) {
-      progress(file, chunk === file.chunks - 1)
+      await progress(file, chunk === file.chunks - 1)
     }
   }
 
@@ -292,7 +315,7 @@ async function uploadChunk(
   const checksum = cryptfns.sha256.digest(encrypted)
 
   const query: Query = {
-    chunk: chunk || file.chunks_stored,
+    chunk,
     checksum
   }
 

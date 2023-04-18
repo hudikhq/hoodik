@@ -97,12 +97,19 @@ export const store = defineStore('login', () => {
    * Logout and the current user and delete everything stored about him
    * @throws
    */
-  async function logout(store: ReturnType<typeof cryptoStore>): Promise<Authenticated> {
+  async function logout(
+    store: ReturnType<typeof cryptoStore>,
+    full?: boolean
+  ): Promise<Authenticated> {
     const response = await Api.post<undefined, Authenticated>('/api/auth/logout')
 
     clear()
     store.clear()
     clearInterval(_refresher.value)
+
+    if (full) {
+      crypto.clear()
+    }
 
     return response.body as Authenticated
   }
