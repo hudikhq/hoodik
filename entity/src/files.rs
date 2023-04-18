@@ -34,6 +34,18 @@ pub enum Relation {
     UserFiles,
 }
 
+pub struct ChildFilesLink;
+
+impl Linked for ChildFilesLink {
+    type FromEntity = Entity;
+
+    type ToEntity = Entity;
+
+    fn link(&self) -> Vec<RelationDef> {
+        vec![Relation::Files.def()]
+    }
+}
+
 impl Related<Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Files.def()

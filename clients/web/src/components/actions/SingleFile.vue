@@ -37,16 +37,16 @@ const speed = computed(() => {
 </script>
 
 <template>
-  <span class="block text-xs text-green-900 dark:text-green-400" v-if="props.type === 'upload'">
+  <p class="block text-xs text-green-900 dark:text-green-400" v-if="props.type === 'upload'">
     {{ file.metadata?.name }} {{ uploaded }} of {{ total }} ({{ speed }})
-  </span>
-  <span class="block text-xs text-gray-900 dark:text-gray-400" v-else-if="props.type === 'waiting'">
+  </p>
+  <p class="block text-xs text-gray-900 dark:text-gray-400" v-else-if="props.type === 'waiting'">
     Waiting to start uploading: {{ file.metadata?.name }}
-  </span>
-  <span class="block text-xs text-red-900 dark:text-red-400" v-else-if="props.type === 'failed'">
+  </p>
+  <p class="block text-xs text-red-900 dark:text-red-400" v-else-if="props.type === 'failed'">
     Failed uploading {{ file.metadata?.name }} at {{ uploaded }} of {{ total }}
-  </span>
-  <span class="block text-xs text-gray-900 dark:text-gray-400" v-else-if="props.type === 'done'">
+  </p>
+  <p class="block text-xs text-gray-900 dark:text-gray-400" v-else-if="props.type === 'done'">
     Done uploading {{ file.metadata?.name }}
-  </span>
+  </p>
 </template>

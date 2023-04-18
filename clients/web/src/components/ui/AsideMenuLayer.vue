@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiLock, mdiClose } from '@mdi/js'
+import { mdiClose, mdiLogout } from '@mdi/js'
 import { computed } from 'vue'
 import { store as style } from '@/stores/style'
 import { store as login } from '@/stores/auth/login'
@@ -23,8 +23,8 @@ const emit = defineEmits(['menu-click', 'aside-lg-close-click'])
 const styleStore = style()
 
 const lockAccountItem = computed(() => ({
-  label: 'Lock Account',
-  icon: mdiLock,
+  label: 'Logout',
+  icon: mdiLogout,
   color: 'info',
   isLogout: true
 }))
@@ -38,8 +38,8 @@ const asideLgCloseClick = (event: Event) => {
 }
 
 const logoutAction = async () => {
-  await loginStore.logout(cryptoStore)
-  router.push('/auth/lock')
+  await loginStore.logout(cryptoStore, true)
+  router.push('/auth/login')
 }
 </script>
 

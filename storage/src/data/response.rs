@@ -4,7 +4,9 @@ use super::app_file::AppFile;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Response {
-    pub parent: Option<AppFile>,
-    pub dir: Option<AppFile>,
+    /// List of directory we are in and all of the ones before up until root
+    pub parents: Vec<AppFile>,
+
+    /// List of files in the current (last) directory in the list above
     pub children: Vec<AppFile>,
 }

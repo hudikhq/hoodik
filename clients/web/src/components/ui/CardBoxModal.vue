@@ -13,6 +13,7 @@ const props = defineProps<{
   button?: ColorType
   buttonLabel?: string
   hasCancel?: boolean
+  hideSubmit?: boolean
   modelValue: string | number | boolean
 }>()
 
@@ -63,7 +64,12 @@ window.addEventListener('keydown', (e) => {
 
       <template #footer>
         <BaseButtons>
-          <BaseButton :label="buttonLabel" :color="button || 'info'" @click="confirm" />
+          <BaseButton
+            v-if="!hideSubmit"
+            :label="buttonLabel"
+            :color="button || 'info'"
+            @click="confirm"
+          />
           <BaseButton
             v-if="hasCancel"
             label="Cancel"

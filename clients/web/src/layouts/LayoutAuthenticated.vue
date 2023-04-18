@@ -6,7 +6,6 @@ import menuAside from '@/menuAside'
 import menuNavBar, { type NavBarItem } from '@/menuNavBar'
 import { store as style } from '@/stores/style'
 import { store as login } from '@/stores/auth/login'
-import { store as crypto } from '@/stores/crypto'
 import { ensureAuthenticated } from '@/stores/auth'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 // import FormControl from '@/components/ui/FormControl.vue'
@@ -15,18 +14,39 @@ import NavBarItemPlain from '@/components/ui/NavBarItemPlain.vue'
 import AsideMenu from '@/components/ui/AsideMenu.vue'
 import FooterBar from '@/components/ui/FooterBar.vue'
 import UploadAction from '@/components/actions/UploadAction.vue'
+import CreateDirectoryModal from '@/components/actions/CreateDirectoryModal.vue'
+import { store as storageStore } from '@/stores/storage'
+import { store as cryptoStore } from '@/stores/crypto'
+import { store as uploadStore } from '@/stores/storage/upload'
+
+const upload = uploadStore()
+const crypto = cryptoStore()
+const storage = storageStore()
 
 const styleStore = style()
 const router = useRouter()
 const loginStore = login()
-const cryptoStore = crypto()
 
-ensureAuthenticated(router, loginStore, cryptoStore)
+ensureAuthenticated(router, loginStore, crypto)
 
 const layoutAsidePadding = 'xl:pl-60'
 
+const isModalCreateDirectory = ref(false)
 const isAsideMobileExpanded = ref(false)
 const isAsideLgActive = ref(false)
+const fileInput = ref<HTMLInputElement>()
+
+const add = async () => {
+  if (fileInput.value && fileInput.value?.files?.length) {
+    for (let i = 0; i < fileInput.value?.files?.length; i++) {
+      await upload.push(crypto.keypair, fileInput.value?.files?.[i], storage.dir?.id || undefined)
+    }
+  }
+
+  if (!upload.active) {
+    await upload.start(storage, crypto.keypair)
+  }
+}
 
 router.beforeEach(() => {
   isAsideMobileExpanded.value = false
@@ -38,13 +58,24 @@ const menuClick = (event: Event, item: NavBarItem) => {
     styleStore.setDarkMode()
   }
 
-  if (item.isLogout) {
-    //
+  if (item.isUpload && fileInput.value) {
+    fileInput.value.click()
   }
+
+  if (item.isCreateDirectory) {
+    isModalCreateDirectory.value = true
+  }
+}
+
+const cancel = () => {
+  isModalCreateDirectory.value = false
 }
 </script>
 
 <template>
+  <input style="display: none" type="file" ref="fileInput" multiple @change="add" />
+  <UploadAction />
+
   <div
     :class="{
       dark: styleStore.darkMode,
@@ -55,6 +86,7 @@ const menuClick = (event: Event, item: NavBarItem) => {
       :class="[layoutAsidePadding, { 'ml-60 lg:ml-0': isAsideMobileExpanded }]"
       class="pt-14 min-h-screen w-screen transition-position lg:w-auto bg-gray-50 dark:bg-slate-800 dark:text-slate-100"
     >
+      <CreateDirectoryModal v-model="isModalCreateDirectory" @cancel="cancel" />
       <NavBar
         :menu="menuNavBar"
         :class="[layoutAsidePadding, { 'ml-60 lg:ml-0': isAsideMobileExpanded }]"
@@ -82,7 +114,6 @@ const menuClick = (event: Event, item: NavBarItem) => {
       />
       <slot />
       <FooterBar> </FooterBar>
-      <UploadAction />
     </div>
   </div>
 </template>

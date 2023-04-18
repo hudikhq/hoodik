@@ -1,12 +1,4 @@
-import {
-  mdiMenu,
-  mdiClockOutline,
-  mdiCloud,
-  mdiCrop,
-  mdiCogOutline,
-  mdiLock,
-  mdiThemeLightDark
-} from '@mdi/js'
+import { mdiLock, mdiThemeLightDark, mdiFile, mdiFileCabinet } from '@mdi/js'
 
 export interface NavBarItem {
   icon?: string
@@ -17,39 +9,32 @@ export interface NavBarItem {
   isDivider?: boolean
   to?: string
   isLogout?: boolean
+  isUpload?: boolean
+  isCreateDirectory?: boolean
   menu?: NavBarItem[]
 }
 
 export default [
   {
-    icon: mdiMenu,
-    label: 'Sample menu',
+    label: '',
     menu: [
       {
-        icon: mdiClockOutline,
-        label: 'Item One'
-      },
-      {
-        icon: mdiCloud,
-        label: 'Item Two'
+        icon: mdiFileCabinet,
+        label: 'Directory',
+        isCreateDirectory: true
       },
       {
         isDivider: true
       },
       {
-        icon: mdiCrop,
-        label: 'Item Last'
+        icon: mdiFile,
+        label: 'Upload',
+        isUpload: true
       }
-    ]
-  },
-  {
-    isCurrentUser: true,
-    menu: [
-      {
-        icon: mdiCogOutline,
-        label: 'Settings',
-        to: '/settings'
-      }
+      // {
+      //   icon: mdiCrop,
+      //   label: 'Upload Folder'
+      // }
     ]
   },
   {

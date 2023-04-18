@@ -50,7 +50,9 @@ const viewFile = async () => {}
     @cancel="cancelRemove"
     @confirm="confirmRemove"
   >
-    <p>You are about to delete <b>adipiscing elit</b></p>
+    <p>
+      You are about to delete <b>{{ fileToRemove?.metadata?.name }}</b>
+    </p>
     <p>This is sample modal</p>
   </CardBoxModal>
 

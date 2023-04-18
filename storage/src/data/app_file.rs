@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use entity::{files, user_files};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AppFile {
     pub id: i32,
     pub user_id: i32,
@@ -19,6 +19,12 @@ pub struct AppFile {
     pub finished_upload_at: Option<NaiveDateTime>,
     pub is_new: bool,
     pub uploaded_chunks: Option<Vec<i32>>,
+}
+
+impl PartialEq for AppFile {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
 }
 
 impl AppFile {

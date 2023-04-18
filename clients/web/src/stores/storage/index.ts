@@ -5,13 +5,17 @@ import * as download from './download'
 import type { KeyPair } from '../cryptfns/rsa'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import type { UploadAppFile } from './upload'
+import { utcStringFromLocal } from '..'
+import type { CreateFile } from './meta'
 
 export { meta, upload, download, queue }
 
-export interface ListAppFile extends Partial<meta.AppFile> {
+export interface ListAppFile extends meta.AppFile {
   current?: boolean
   parent?: boolean
   encrypted?: boolean
+  name?: string
 }
 
 /**
@@ -49,7 +53,7 @@ export function format(b?: number | string): string {
   const kb = b / 1024
 
   if (kb < 2048) {
-    return `${kb.toFixed(2)} MB`
+    return `${kb.toFixed(2)} KB`
   }
 
   const mb = b / 1024 / 1024
@@ -70,9 +74,9 @@ export const store = defineStore('storage', () => {
   const loading = ref(false)
 
   /**
-   * Parent directory of the currently selected one
+   * All the parent directories
    */
-  const parent = ref<meta.AppFile | null>(null)
+  const parents = ref<meta.AppFile[]>([])
 
   /**
    * Currently selected directory
@@ -93,7 +97,7 @@ export const store = defineStore('storage', () => {
     const parameters: meta.Parameters = {}
 
     if (dir.value) {
-      parameters['file_id'] = dir.value.id
+      parameters['dir_id'] = dir.value.id
     }
 
     return parameters
@@ -104,29 +108,73 @@ export const store = defineStore('storage', () => {
    */
   const items = ref<ListAppFile[]>([])
 
+  const _order = ref<{
+    key: keyof ListAppFile
+    direction: 'asc' | 'desc'
+  }>({ key: 'finished_upload_at', direction: 'desc' })
+
+  /**
+   * Order the list of files
+   */
+  function order(key?: keyof ListAppFile, direction?: 'asc' | 'desc') {
+    _order.value = { key: key || _order.value.key, direction: direction || _order.value.direction }
+
+    items.value.sort((a, b) => {
+      if (a.mime === 'dir') {
+        return -1
+      }
+
+      // @ts-ignore
+      if (key === 'name') {
+        const aName = a.metadata?.name || ''
+        const bName = b.metadata?.name || ''
+        if (_order.value.direction === 'asc') {
+          return aName < bName ? -1 : 1
+        } else {
+          return aName > bName ? -1 : 1
+        }
+      }
+
+      if (a[_order.value.key] === undefined) {
+        return -1
+      }
+      if (b[_order.value.key] === undefined) {
+        return 0
+      }
+
+      if (a[_order.value.key] === b[_order.value.key]) {
+        return 0
+      }
+
+      if (_order.value.direction === 'asc') {
+        // @ts-ignore
+        return a[_order.value.key] < b[_order.value.key] ? -1 : 1
+      } else {
+        // @ts-ignore
+        return a[_order.value.key] > b[_order.value.key] ? -1 : 1
+      }
+    })
+  }
+
   /**
    * Head over to backend and do a lookup for the current directory
    */
-  async function find(kp: KeyPair): Promise<void> {
+  async function find(kp: KeyPair, dir_id?: number | null): Promise<void> {
     loading.value = true
 
-    const response = await meta.find(parameters.value)
+    let query = parameters.value
+
+    if (dir_id !== undefined && dir_id !== null) {
+      query = { ...parameters.value, dir_id }
+    }
+
+    const response = await meta.find(query)
 
     let results: ListAppFile[] = response.children.map((item) => ({ ...item, encrypted: true }))
 
-    if (response.dir) {
-      dir.value = response.dir
-      results.unshift({ ...response.dir, current: true, encrypted: true, mime: 'dir' })
-    } else {
-      dir.value = null
-    }
-
-    if (response.parent) {
-      parent.value = response.parent
-      results.unshift({ ...response.parent, parent: true, encrypted: true, mime: 'dir' })
-    } else {
-      parent.value = null
-    }
+    response.parents?.forEach((item) => {
+      results.push({ ...item, parent: true })
+    })
 
     // Decrypt all the files names and keys
     results = await Promise.all(
@@ -139,8 +187,27 @@ export const store = defineStore('storage', () => {
       })
     )
 
-    items.value = results
+    parents.value = results.slice(response.children.length)
+    items.value = results.slice(0, response.children.length)
+    dir.value = parents.value[parents.value.length - 1] || null
+
+    order()
+
     loading.value = false
+  }
+
+  /**
+   * Push file to the storage (used for uploads)
+   */
+  async function push(file: UploadAppFile): Promise<void> {
+    const index = items.value.findIndex((item) => item.id === file.id)
+
+    if (index !== -1) {
+      items.value.splice(index, 1)
+    }
+
+    items.value.push(file)
+    order()
   }
 
   /**
@@ -155,14 +222,33 @@ export const store = defineStore('storage', () => {
     await find(kp)
   }
 
+  /**
+   * Create a directory in the storage
+   */
+  async function createDir(keypair: KeyPair, name: string, dir_id?: number): Promise<meta.AppFile> {
+    const createFile: CreateFile = {
+      name,
+      mime: 'dir',
+      file_id: dir_id,
+      file_created_at: utcStringFromLocal(new Date())
+    }
+
+    const created = await meta.create(keypair, createFile)
+
+    return { ...created }
+  }
+
   return {
     dir,
-    parent,
+    parents,
     loading,
     title,
     items,
     parameters,
     find,
-    remove
+    remove,
+    order,
+    push,
+    createDir
   }
 })

@@ -20,7 +20,7 @@ pub async fn index(
     let authenticated = Authenticated::try_from(&req)?;
 
     let file = Repository::new(&context.db)
-        .query(&authenticated.user)
+        .manage(&authenticated.user)
         .find(data.into_inner())
         .await?;
 

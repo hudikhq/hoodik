@@ -1,16 +1,17 @@
 //! Repository module for manipulating with files in the database
 //! this module should only be used by the owner of the file
 
-use std::fmt::Display;
+use std::{cmp::Ordering, fmt::Display};
 
 use chrono::Utc;
 use entity::{
     files, user_files, users, ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait,
-    EntityTrait, QueryFilter, Value,
+    EntityTrait, Expr, IntoCondition, JoinType, Order, QueryFilter, QueryOrder, QuerySelect,
+    RelationTrait, Statement, Value,
 };
 use error::{AppResult, Error};
 
-use crate::data::app_file::AppFile;
+use crate::data::{app_file::AppFile, query::Query as RequestQuery, response::Response};
 
 use super::Repository;
 
@@ -63,6 +64,195 @@ where
         Ok(file)
     }
 
+    /// Find all files that are shared with the user
+    pub async fn find(&self, request_query: RequestQuery) -> AppResult<Response> {
+        let mut parents = vec![];
+
+        let mut query = files::Entity::find();
+
+        if let Some(dir_id) = request_query.dir_id {
+            parents = self.dir_tree(dir_id).await?;
+
+            query = query.filter(files::Column::FileId.eq(dir_id));
+        } else {
+            query = query.filter(files::Column::FileId.is_null());
+        }
+
+        let mut order = Order::Asc;
+        if let Some(ord) = &request_query.order {
+            if ord == "desc" {
+                order = Order::Desc;
+            }
+        }
+
+        if let Some(order_by) = request_query.order_by.as_ref() {
+            let column = match order_by.as_str() {
+                "created_at" => files::Column::FileCreatedAt,
+                "size" => files::Column::Size,
+                _ => return Err(Error::BadRequest("invalid_order_by".to_string())),
+            };
+
+            query = query.order_by(column, order);
+        }
+
+        let user_id = self.owner.id;
+
+        query
+            .join(
+                JoinType::InnerJoin,
+                files::Relation::UserFiles
+                    .def()
+                    .on_condition(move |_left, right| {
+                        Expr::col((right, user_files::Column::UserId))
+                            .eq(user_id)
+                            .into_condition()
+                    }),
+            )
+            .select_also(user_files::Entity)
+            .all(self.repository.connection())
+            .await
+            .map(|files| Response {
+                parents,
+                children: files
+                    .into_iter()
+                    .map(|(file, uf)| {
+                        // And again, we are good to unwrap here due to the inner_join
+                        AppFile::from((file, uf.unwrap()))
+                    })
+                    .collect::<Vec<AppFile>>(),
+            })
+            .map_err(Error::from)
+    }
+
+    /// Get the directory tree for the owner,
+    /// tree is starting with the oldest parent leading all the way up to
+    /// the given directory id
+    pub async fn dir_tree(&self, id: i32) -> AppResult<Vec<AppFile>> {
+        let sql = r#"
+            WITH RECURSIVE file_tree(id, file_id) AS (
+                SELECT id, file_id FROM files WHERE id = ?
+                UNION ALL
+                SELECT f.id, f.file_id FROM files f
+                JOIN file_tree a ON a.file_id = f.id
+            )
+            SELECT * FROM file_tree;
+        "#;
+
+        let ids: Vec<i32> = files::Entity::find()
+            .from_raw_sql(Statement::from_sql_and_values(
+                self.repository.connection().get_database_backend(),
+                sql,
+                [id.into()],
+            ))
+            .into_json()
+            .all(self.repository.connection())
+            .await?
+            .into_iter()
+            .map(|json| json.get("id").unwrap().as_i64().unwrap() as i32)
+            .collect();
+
+        let user_id = self.owner.id;
+        let mut results = files::Entity::find()
+            .filter(files::Column::Id.is_in(ids))
+            .join(
+                JoinType::InnerJoin,
+                files::Relation::UserFiles
+                    .def()
+                    .on_condition(move |_left, right| {
+                        Expr::col((right, user_files::Column::UserId))
+                            .eq(user_id)
+                            .into_condition()
+                    }),
+            )
+            .select_also(user_files::Entity)
+            .all(self.repository.connection())
+            .await?
+            .into_iter()
+            .filter(|(_, user_file)| user_file.is_some())
+            .map(|(file, user_file)| AppFile::from((file, user_file.unwrap())))
+            .collect::<Vec<_>>();
+
+        results.sort_by(|a, b| {
+            if a.file_id.is_none() {
+                Ordering::Greater
+            } else if a.file_id == Some(b.id) {
+                Ordering::Greater
+            } else {
+                Ordering::Less
+            }
+        });
+
+        if results.is_empty() {
+            return Err(Error::NotFound("directory_not_found".to_string()));
+        }
+
+        Ok(results)
+    }
+
+    /// Get the file or a directory, if we get a directory we will also
+    /// recursively get all the files and directories inside it
+    pub async fn file_tree(&self, id: i32) -> AppResult<Vec<AppFile>> {
+        let sql = r#"
+            WITH RECURSIVE file_tree(id, file_id) AS (
+            SELECT id, file_id FROM files WHERE id = ?
+            UNION ALL
+            SELECT child.id, child.file_id FROM files child
+            JOIN file_tree parent ON parent.id = child.file_id
+            )
+            SELECT id, file_id FROM file_tree;
+        "#;
+
+        let ids: Vec<i32> = files::Entity::find()
+            .from_raw_sql(Statement::from_sql_and_values(
+                self.repository.connection().get_database_backend(),
+                sql,
+                [id.into()],
+            ))
+            .into_json()
+            .all(self.repository.connection())
+            .await?
+            .into_iter()
+            .map(|json| json.get("id").unwrap().as_i64().unwrap() as i32)
+            .collect();
+
+        let user_id = self.owner.id;
+        let mut results = files::Entity::find()
+            .filter(files::Column::Id.is_in(ids))
+            .join(
+                JoinType::InnerJoin,
+                files::Relation::UserFiles
+                    .def()
+                    .on_condition(move |_left, right| {
+                        Expr::col((right, user_files::Column::UserId))
+                            .eq(user_id)
+                            .into_condition()
+                    }),
+            )
+            .select_also(user_files::Entity)
+            .all(self.repository.connection())
+            .await?
+            .into_iter()
+            .filter(|(_, user_file)| user_file.is_some())
+            .map(|(file, user_file)| AppFile::from((file, user_file.unwrap())))
+            .collect::<Vec<_>>();
+
+        results.sort_by(|a, b| {
+            if a.file_id.is_none() {
+                Ordering::Greater
+            } else if a.file_id == Some(b.id) {
+                Ordering::Greater
+            } else {
+                Ordering::Less
+            }
+        });
+
+        if results.is_empty() {
+            return Err(Error::NotFound("directory_not_found".to_string()));
+        }
+
+        Ok(results)
+    }
+
     /// Load the file from the database by its name hash and by its parent id
     /// this method can be used to verify if you already have a file with the same name
     /// in the directory. In case the file already exist we can check if we could resume its upload
@@ -96,7 +286,6 @@ where
     }
 
     /// Delete a file or directory for the owner
-    /// TODO: Add recursive delete for all the files and directories in a directory...
     pub async fn delete(&self, id: i32) -> AppResult<AppFile> {
         let file = self.get(id).await?;
 
@@ -105,6 +294,16 @@ where
             .await?;
 
         Ok(file)
+    }
+
+    /// Delete many files or directories for the owner
+    pub async fn delete_many(&self, ids: Vec<i32>) -> AppResult<u64> {
+        let results = files::Entity::delete_many()
+            .filter(files::Column::Id.is_in(ids))
+            .exec(self.repository.connection())
+            .await?;
+
+        Ok(results.rows_affected)
     }
 
     /// Create a file entry in the database and set the owner with the

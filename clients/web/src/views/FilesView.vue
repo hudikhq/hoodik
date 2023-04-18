@@ -1,21 +1,35 @@
 <script setup lang="ts">
-import { mdiTableBorder } from '@mdi/js'
 import SectionMain from '@/components/ui/SectionMain.vue'
 import TableFiles from '@/components/ui/TableFiles.vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
 import SectionTitleLineWithButton from '@/components/ui/SectionTitleLineWithButton.vue'
-import CardBoxComponentEmpty from '@/components/ui/CardBoxComponentEmpty.vue'
-
+import BreadCrumbs from '@/components/ui/BreadCrumbs.vue'
 import { store as storageStore } from '@/stores/storage'
 import { store as cryptoStore } from '@/stores/crypto'
+import { useRoute } from 'vue-router'
+import { watch } from 'vue'
 
 const storage = storageStore()
 const crypto = cryptoStore()
+const route = useRoute()
 
 const load = async () => {
-  await storage.find(crypto.keypair)
+  let file_id = undefined
+
+  if (route.params.file_id !== undefined) {
+    file_id = parseInt(route.params.file_id as string)
+  }
+
+  await storage.find(crypto.keypair, file_id)
 }
+
+watch(
+  () => route.params.file_id,
+  () => {
+    load()
+  }
+)
 
 load()
 </script>
@@ -23,14 +37,14 @@ load()
 <template>
   <LayoutAuthenticated>
     <SectionMain>
-      <SectionTitleLineWithButton :icon="mdiTableBorder" :title="storage.title" main />
+      <SectionTitleLineWithButton title="" main />
 
-      <CardBox class="mb-6" has-table v-if="!storage.loading">
-        <TableFiles />
+      <CardBox rounded="rounded-md" class="mb-2 px-3 py-1" has-table>
+        <BreadCrumbs />
       </CardBox>
 
-      <CardBox v-else>
-        <CardBoxComponentEmpty />
+      <CardBox rounded="rounded-md" class="mb-6" has-table>
+        <TableFiles />
       </CardBox>
     </SectionMain>
   </LayoutAuthenticated>

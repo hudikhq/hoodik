@@ -8,10 +8,13 @@ pub use prelude::*;
 
 pub use sea_orm::{
     entity::{ActiveModelTrait, ColumnTrait, EntityTrait, RelationTrait},
-    sea_query::{Alias, Expr, IntoCondition, Query},
-    ActiveValue, ConnectionTrait, DbBackend, DbConn, FromQueryResult, JoinType, JsonValue,
-    ModelTrait, Order, QueryFilter, QueryOrder, QuerySelect, SelectTwo, Statement,
-    TransactionTrait, TryGetableMany, Value,
+    sea_query::{
+        Alias, Expr, IntoCondition, Query, SelectStatement, SimpleExpr, SubQueryOper,
+        SubQueryStatement, UnionType,
+    },
+    ActiveValue, Condition, ConnectionTrait, DbBackend, DbConn, EntityOrSelect, FromQueryResult,
+    JoinType, JsonValue, ModelTrait, Order, QueryFilter, QueryOrder, QuerySelect, QueryTrait,
+    SelectTwo, Statement, TransactionTrait, TryGetableMany, Value,
 };
 
 #[cfg(feature = "mock")]

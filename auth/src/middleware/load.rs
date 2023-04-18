@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{auth::Auth, jwt};
+use crate::{auth::Auth, data::authenticated::Authenticated, jwt};
 use actix_web::{
     body::BoxBody,
     dev::ServiceResponse,
@@ -29,8 +29,12 @@ enum ExtractionResult {
 impl std::fmt::Display for ExtractionResult {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let w = match self {
-            ExtractionResult::Token(_) => "Token".to_string(),
-            ExtractionResult::Claims(_) => "Claims".to_string(),
+            ExtractionResult::Token(t) => {
+                format!("Token({})", cryptfns::sha256::digest(t.as_bytes()))
+            }
+            ExtractionResult::Claims(c) => {
+                format!("Claims({})", cryptfns::sha256::digest(c.as_bytes()))
+            }
             ExtractionResult::None => "None".to_string(),
         };
         write!(f, "{}", w)
@@ -195,65 +199,66 @@ where
                 }
             };
 
-            let mut have_session = false;
-            let auth = Auth::new(context);
-
-            if let ExtractionResult::Claims(claims) = &extraction {
-                match jwt::extract(claims, context.config.jwt_secret.as_str()) {
-                    Ok(authenticated) => match auth.validate(authenticated.session.id).await {
-                        Ok(_) => {
-                            req.extensions_mut().insert(authenticated);
-                            have_session = true;
-                        }
-                        Err(e) => {
-                            log::debug!(
-                                "auth::middleware::load|jwt|session-id-verify: {}, route: {}",
-                                e,
-                                &route
-                            );
-                        }
-                    },
-                    Err(e) => {
-                        log::debug!(
-                            "auth::middleware::load|jwt|verify: {}, route: {}",
-                            e,
-                            &route
-                        );
-                    }
-                }
-            }
-
-            if let ExtractionResult::Token(token) = &extraction {
-                match auth.get_by_token(token).await {
-                    Ok(authenticated) => {
-                        if authenticated.session.expires_at > Utc::now().naive_utc() {
-                            req.extensions_mut().insert(authenticated);
-                            have_session = true;
-                        } else {
-                            log::debug!(
-                                "auth::middleware::load|token|expires_at_verify: route: {}",
-                                &route
-                            );
-                        }
-                    }
-                    Err(e) => {
-                        log::debug!(
-                            "auth::middleware::load|token|error: {}, route: {}",
-                            e,
-                            &route
-                        );
-                    }
-                }
-            }
+            let authenticated = extract_session(&extraction, &context).await;
 
             log::debug!(
                 "auth::middleware::load|have_session: {} with extraction: {}; Route: {}",
-                have_session,
+                authenticated.is_some(),
                 extraction,
                 &route,
             );
 
+            if let Some(a) = authenticated {
+                req.extensions_mut().insert(a);
+            }
+
             svc.call(req).await
         })
     }
+}
+
+use cached::proc_macro::cached;
+use cached::SizedCache;
+
+#[cached(
+    type = "SizedCache<String, Option<Authenticated>>",
+    create = "{ SizedCache::with_size(100) }",
+    convert = r#"{ format!("{}", &extraction) }"#
+)]
+async fn extract_session(
+    extraction: &ExtractionResult,
+    context: &Context,
+) -> Option<Authenticated> {
+    let auth = Auth::new(context);
+
+    if let ExtractionResult::Claims(claims) = &extraction {
+        match jwt::extract(claims, context.config.jwt_secret.as_str()) {
+            Ok(authenticated) => match auth.validate(authenticated.session.id).await {
+                Ok(_) => return Some(authenticated),
+                Err(e) => {
+                    log::debug!("auth::middleware::load|jwt|session-id-verify: {}", e);
+                }
+            },
+            Err(e) => {
+                log::debug!("auth::middleware::load|jwt|verify: {}", e);
+            }
+        }
+    }
+
+    if let ExtractionResult::Token(token) = &extraction {
+        match auth.get_by_token(token).await {
+            Ok(authenticated) => {
+                if authenticated.session.expires_at > Utc::now().naive_utc() {
+                    return Some(authenticated);
+                } else {
+                    log::debug!("auth::middleware::load|token|expires_at_verify");
+                }
+            }
+            Err(e) => {
+                log::debug!("auth::middleware::load|token|error: {}", e);
+            }
+        };
+    }
+
+    None
 }
