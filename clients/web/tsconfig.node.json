@@ -4,7 +4,8 @@
     "vite.config.*",
     "vitest.config.*",
     "cypress.config.*",
-    "playwright.config.*"
+    "playwright.config.*",
+    "wasm-pack.*"
   ],
   "compilerOptions": {
     "ignoreDeprecations": "5.0",

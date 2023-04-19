@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "name": "hoodik",
+  "workspaces": [
+    "clients/api",
+    "clients/web",
+    "cryptfns"
+  ],
+  "packageManager": "yarn@1.22.19"
+}

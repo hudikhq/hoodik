@@ -4,6 +4,9 @@ import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill'
 import { comlink } from 'vite-plugin-comlink'
+import wasm from 'vite-plugin-wasm'
+import topLevelAwait from 'vite-plugin-top-level-await'
+import wasmPack from './wasm-pack'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -17,6 +20,9 @@ export default defineConfig({
       process: true,
       buffer: true
     }),
+    wasm(),
+    topLevelAwait(),
+    wasmPack('../../cryptfns'),
     comlink()
   ],
   optimizeDeps: {

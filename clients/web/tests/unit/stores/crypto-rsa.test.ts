@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { rsa } from '../../../src/stores/cryptfns'
+import { rsa_generate_private } from 'cryptfns/cryptfns.js'
 
 const privatePem = `-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAsMvjT2NZNqJo/3AYHH3RIm5fwmOXabbYxduvtNp33JQQZSPu
@@ -43,18 +44,16 @@ const backendFingerprint = '2faedc21407fe722acb05ff8474417833337675d5e331249fdb0
 const encryptedRs =
   'L0/md7W+RFTChUJYV3YfGIwdjWWiPKWe3+98Hk6Z4Yb7zTHY2KzT++RiV1N2nwZyli/w3SjvoXiLpKAk6WTHkMhW8c+fl8A7cZS2Das/bATNsGAFUak2npLCBqqQ49O+EPbrSYjpmlzuEyztyHQ0I/oFWlP0DXkGWyD4QZ8V4fd5JwdSp8KmeM9GJLKREgBA67MHxqHx8sKy6qMByBUmy90chQG1QqrOj5ISl6gkp5t1yr4Cv9SY41mMkS/UPZ5QNaEHM4VO9wQvePA2iLq83whbezuKycrd3teiEojjjUP/qdYe5p4xDcyhYCpT9nPL2Zj9SBv/uMC7T1PHIz+KvA=='
 
-// const signatureRs =
-//   'GLL09zdAkmN9V7Q0auhRWNxDfZHI7k4BdnlUdgU+Fl3Hig/YTX+Y3O1nxuXtpRLgCQi68tH/bCzOyiYWdOyw6lIRRNzagtGiHdr9ggscZNm1r7Js8KT22xX+3gH2DPJPnycjoy/tvPjFuG++6rflf4SlJ7VP3JLADL8WLjaTzEOHD/G1AITj9Q9Dtzn79irybyI3U5H9U8MOnVkum19dccmVlVid/RhkIpbNV+9XvkMpzZMZ9DW9R+czJWnZ/Usq6uIx0IyQejCXIvTzU4CPcorXF/Z+eIutS72dG2XWKW7/ZU++x92nqp/c4+4VhtakxqYTGEmlaEFMjTbQs3TdsA=='
+const signatureRs =
+  'WHdUZj+VknwKs3A3I9QctDV+ogJ4CToGrC5TRvswzA77xJajhsyEDGxiJJcFtjLnLABdiLBBCnHm6VJY9zx/YH265tFAIofldFQDIwyuF8MVpJHk9ljolm8yrFNhAhRoSrx/6l/7VffEYjIYx9ayD9Db5co5D7Xdk6zpirYJli009jVPt+qWuCdibzgre8QIw8uu3jgGkwdXb2nxfW+lZtXWSOUfaxbk94RYnBu36ojP8oZnNr+SEehhVwX2bOcpiTthtYYsUh/In1+Nlz7H2fZGbDViVHyTvYclw3jXxOksAzRr7t9OJy2/kc4lBMh27SvE8smzapjpTExOv9Is1g=='
 
 const signatureMessage = '28004708'
 
 const encryptionMessage = 'hello world'
 describe('Crypto test', () => {
-  // it('UNIT: WASM: can generate key pair', async () => {
-  //   initSync()
-
-  //   console.log(rsa_generate_private())
-  // })
+  it('UNIT: WASM: can generate private key from wasm package', async () => {
+    expect(rsa_generate_private()).toBeTruthy()
+  })
   it('UNIT: RSA: can generate secret key from input', async () => {
     const kp = await rsa.generateKeyPair()
 
@@ -128,9 +127,9 @@ describe('Crypto test', () => {
     expect(await rsa.verify(signature, signatureMessage, publicPem)).toBe(true)
   })
 
-  // it('UNIT: RSA: verify signature from the backend', async () => {
-  //   expect(await rsa.verify(signatureRs, signatureMessage, publicPem)).toBe(true)
-  // })
+  it('UNIT: RSA: verify signature from the backend', async () => {
+    expect(await rsa.verify(signatureRs, signatureMessage, publicPem)).toBe(true)
+  })
 
   it('UNIT: RSA: can encrypt and decrypt message with generated keys', async () => {
     const kp = await rsa.inputToKeyPair(privatePem)
@@ -145,7 +144,7 @@ describe('Crypto test', () => {
   it('UNIT: RSA: can decrypt message from rust backend', async () => {
     const kp = await rsa.inputToKeyPair(privatePem)
 
-    console.log('KEYSIZE:', kp.key?.getKeySize())
+    console.log('KEYSIZE:', kp.keySize)
 
     const messageBase64 = Buffer.from(encryptionMessage).toString('base64')
     console.log('MESSAGE IN BASE64:', messageBase64)

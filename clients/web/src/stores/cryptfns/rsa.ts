@@ -1,47 +1,24 @@
-import RSA from 'node-rsa'
-import { aes, sha256 } from '.'
-import * as JSE from 'jsencrypt'
-const JSEncrypt = JSE.default
-import { Buffer } from 'buffer'
+import { aes } from '.'
 
-const RSA_BYTES = 2048
-const ENVIRONMENT = 'browser'
-const PRIVATE_KEY_FORMAT: RSA.FormatPem = 'pkcs1'
-const PUBLIC_KEY_FORMAT: RSA.FormatPem = 'pkcs1-public-pem'
-const SIGNING_SCHEME = 'pss-sha256'
-const RSA_OPTIONS: RSA.Options = {
-  environment: ENVIRONMENT,
-  signingScheme: SIGNING_SCHEME
-}
-// const ENCRYPTION_SCHEME_PKCS1: RSA.AdvancedEncryptionSchemePKCS1 = {
-//   scheme: 'pkcs1',
-//   padding: 1
-// }
-
-const JSE_ENCRYPT_OPTIONS = { default_key_size: RSA_BYTES.toString() }
-
-export interface Raw extends RSA {
-  input?: string
-}
-
-export type Encoding = RSA.Encoding
-export type Data = RSA.Data
-
-export interface EncryptionData {
-  message: Data
-  encoding?: Encoding
-}
+/// <reference path="cryptfns/cryptfns.d.ts" />
+import {
+  rsa_generate_private,
+  rsa_public_from_private,
+  rsa_decrypt,
+  rsa_encrypt,
+  rsa_fingerprint_public,
+  rsa_fingerprint_private,
+  rsa_sign,
+  rsa_verify,
+  rsa_public_key_size,
+  rsa_private_key_size
+} from 'cryptfns/cryptfns.js'
 
 export interface KeyPair {
   /**
    * Private RSA key string
    */
   input: string | null
-
-  /**
-   * The RSA key
-   */
-  key: Raw | null
 
   /**
    * Public RSA key string
@@ -52,6 +29,11 @@ export interface KeyPair {
    * Fingerprint of the public key
    */
   fingerprint: string | null
+
+  /**
+   * Size of the key in bits
+   */
+  keySize: number
 }
 
 /**
@@ -74,19 +56,29 @@ export async function protectPrivateKey(unencrypted: string, passphrase: string)
  * Convert input to raw
  */
 export async function inputToKeyPair(input: string): Promise<KeyPair> {
-  const key: Raw = new RSA({ b: RSA_BYTES }).importKey(input, PRIVATE_KEY_FORMAT)
-  key.setOptions(RSA_OPTIONS)
+  const publicKey = rsa_public_from_private(input)
 
-  key.input = input
+  if (!publicKey) {
+    throw new Error('Invalid private key')
+  }
 
-  const publicKey = key.exportKey(PUBLIC_KEY_FORMAT)
-  const fingerprint = await getFingerprint(input)
+  const fingerprint = rsa_fingerprint_public(publicKey)
+
+  if (!fingerprint) {
+    throw new Error('Invalid private key')
+  }
+
+  const keySize = rsa_private_key_size(input)
+
+  if (!keySize) {
+    throw new Error('Invalid private key')
+  }
 
   return {
-    key,
     publicKey,
     input,
-    fingerprint
+    fingerprint,
+    keySize
   }
 }
 
@@ -94,9 +86,20 @@ export async function inputToKeyPair(input: string): Promise<KeyPair> {
  * Generate KeyPair from public key, this can only be used to verify signatures
  */
 export async function publicToKeyPair(publicKey: string): Promise<KeyPair> {
-  const key = new RSA(publicKey, PUBLIC_KEY_FORMAT, RSA_OPTIONS)
+  console.log(publicKey)
+  const fingerprint = rsa_fingerprint_public(publicKey)
 
-  return { key, publicKey, input: null, fingerprint: await getFingerprint(publicKey) }
+  if (!fingerprint) {
+    throw new Error('Invalid public key')
+  }
+
+  const keySize = rsa_public_key_size(publicKey)
+
+  if (!keySize) {
+    throw new Error('Invalid public key')
+  }
+
+  return { publicKey, input: null, fingerprint, keySize }
 }
 
 /**
@@ -105,52 +108,49 @@ export async function publicToKeyPair(publicKey: string): Promise<KeyPair> {
  * @throws
  */
 export async function getFingerprint(input: string): Promise<string> {
-  const operator = new JSEncrypt(JSE_ENCRYPT_OPTIONS)
-  operator.setKey(input)
-  // @ts-ignore
-  const n = operator.getKey().n.toString(16)
+  let fingerprint = rsa_fingerprint_public(input)
 
-  return sha256.digest(n)
+  if (!fingerprint) {
+    fingerprint = rsa_fingerprint_private(input)
+  }
+
+  if (!fingerprint) {
+    throw new Error('Invalid key')
+  }
+
+  return fingerprint
 }
 
 /**
  * Generate a random input in a format of KeyPair
  */
 export async function generateKeyPair(): Promise<KeyPair> {
-  return inputToKeyPair(new RSA({ b: RSA_BYTES }).generateKeyPair().exportKey(PRIVATE_KEY_FORMAT))
-}
+  const privateKey = rsa_generate_private()
 
-/**
- * Generate a KeyPair from input
- */
-export async function keypairFromRaw(internal: KeyPair): Promise<KeyPair> {
-  const { key, publicKey } = internal
-
-  let fingerprint = null
-
-  if (publicKey) {
-    fingerprint = await getFingerprint(publicKey)
+  if (!privateKey) {
+    throw new Error('Could not generate private key')
   }
 
-  return {
-    input: key?.input || null,
-    key,
-    publicKey,
-    fingerprint
-  }
+  return inputToKeyPair(privateKey)
 }
 
 /**
  * Sign the given message with current secret key and return an object with signature and publicKey
  */
 export async function sign(kp: KeyPair, message: string): Promise<string> {
-  const { key } = kp
+  const { input } = kp
 
-  if (!key || !key.isPrivate()) {
+  if (!input) {
     throw new Error('No privateKey, cannot sign message')
   }
 
-  return key.sign(message, 'base64')
+  const signature = rsa_sign(message, input)
+
+  if (!signature) {
+    throw new Error('Could not sign message')
+  }
+
+  return signature
 }
 
 /**
@@ -161,52 +161,49 @@ export async function verify(
   message: string,
   publicKey: string
 ): Promise<boolean> {
-  const { key } = await publicToKeyPair(publicKey)
+  const { publicKey: pk } = await publicToKeyPair(publicKey)
 
-  if (!key) {
+  if (!pk) {
     throw new Error('No publicKey, cannot verify message')
   }
 
-  return key.verify(message, Buffer.from(signature, 'base64'))
+  return rsa_verify(message, signature, pk)
 }
 
 /**
  * Encrypt a message with given public key
  */
-// export async function encryptMessage(message: string, publicKey: string): Promise<string> {
-//   const { key } = await publicToKeyPair(publicKey as string)
-
-//   if (!key) {
-//     throw new Error('No publicKey, cannot encrypt message')
-//   }
-
-//   if (!key.isPublic()) {
-//     throw new Error('Key is not public, cannot encrypt message')
-//   }
-
-//   key.setOptions({
-//     encryptionScheme: ENCRYPTION_SCHEME_PKCS1
-//   })
-
-//   return key.encrypt(message, 'base64')
-// }
-
-/**
- * Encrypt a message with given public key
- */
 export async function encryptMessage(message: string, publicKey: string): Promise<string> {
-  const operator = new JSEncrypt(JSE_ENCRYPT_OPTIONS)
-  operator.setPublicKey(publicKey as string)
+  const fingerprint = await getFingerprint(publicKey)
 
-  return operator.encrypt(message) as string
+  if (!fingerprint) {
+    throw new Error('Invalid public key')
+  }
+
+  const encrypted = rsa_encrypt(message, publicKey)
+
+  if (!encrypted) {
+    throw new Error('Could not encrypt message')
+  }
+
+  return encrypted
 }
 
 /**
  * Decrypt a message with stored private key
  */
 export async function decryptMessage(kp: KeyPair, message: string): Promise<string> {
-  const operator = new JSEncrypt(JSE_ENCRYPT_OPTIONS)
-  operator.setPrivateKey(kp.input as string)
+  const { input } = kp
 
-  return operator.decrypt(message) as string
+  if (!input) {
+    throw new Error('Invalid private key')
+  }
+
+  const decrypted = rsa_decrypt(message, input)
+
+  if (!decrypted) {
+    throw new Error('Could not decrypt message')
+  }
+
+  return decrypted
 }

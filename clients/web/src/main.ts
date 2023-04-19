@@ -5,11 +5,6 @@ import App from './App.vue'
 import router from './router'
 import { store as style } from '@/stores/style'
 import { lightModeKey, styleKey } from '@/config'
-import { Buffer } from 'buffer'
-
-window.Buffer = window.Buffer || Buffer
-
-import './mt.ts'
 
 import './css/main.css'
 

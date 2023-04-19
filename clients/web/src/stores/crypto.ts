@@ -4,10 +4,10 @@ import * as rsa from './cryptfns/rsa'
 
 export const store = defineStore('crypto', () => {
   const KeyPair = ref<rsa.KeyPair>({
-    key: null,
     publicKey: null,
     input: null,
-    fingerprint: null
+    fingerprint: null,
+    keySize: 2048
   })
 
   const keypair = computed<rsa.KeyPair>(() => KeyPair.value)
@@ -31,7 +31,7 @@ export const store = defineStore('crypto', () => {
    * Clear the keypair value
    */
   async function clear() {
-    KeyPair.value = { key: null, publicKey: null, input: null, fingerprint: null }
+    KeyPair.value = { keySize: 2048, publicKey: null, input: null, fingerprint: null }
   }
 
   return {

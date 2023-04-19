@@ -70,6 +70,10 @@ pub fn app(
         .wrap(auth_load_middleware)
         .wrap(cors::setup())
         .configure(configure)
+        .route(
+            "/api/liveness",
+            web::get().to(|| async { actix_web::HttpResponse::Ok().body("I am alive") }),
+        )
         // Proxy HTTP requests to frontend
         .route("/{tail:.*}", web::to(proxy::http))
 }

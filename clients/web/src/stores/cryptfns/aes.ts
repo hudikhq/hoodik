@@ -1,4 +1,5 @@
 import { AES_CTR } from '@openpgp/asmcrypto.js'
+import { uint8 } from '.'
 
 export type Key = {
   password: Uint8Array
@@ -11,8 +12,8 @@ export type Key = {
  */
 export function keyToStringJson(key: Key): string {
   return JSON.stringify({
-    password: Buffer.from(key.password).toString('base64'),
-    counter: Buffer.from(key.counter).toString('base64'),
+    password: uint8.toBase64(key.password),
+    counter: uint8.toBase64(key.counter),
     blocksize: key.blocksize
   })
 }
@@ -24,8 +25,8 @@ export function keyFromStringJson(key: string): Key {
   const raw = JSON.parse(key)
 
   return {
-    password: Buffer.from(raw.password, 'base64'),
-    counter: Buffer.from(raw.counter, 'base64'),
+    password: uint8.fromBase64(raw.password),
+    counter: uint8.fromBase64(raw.counter),
     blocksize: raw.blocksize
   }
 }
@@ -139,9 +140,9 @@ export function concatUint8Array(...arrays: Uint8Array[]): Uint8Array {
 export function encryptString(secret: string, key: string | Key): string {
   key = typeof key === 'string' ? keyFromString(key) : key
 
-  const secretBuffer = Buffer.from(secret, 'utf8')
+  const secretBuffer = uint8.fromUtf8(secret)
   const result = encrypt(secretBuffer, key)
-  return Buffer.from(result).toString('hex')
+  return uint8.toHex(result)
 }
 
 /**
@@ -150,7 +151,7 @@ export function encryptString(secret: string, key: string | Key): string {
 export function decryptString(secret: string, key: string | Key): string {
   key = typeof key === 'string' ? keyFromString(key) : key
 
-  const secretBuffer = Buffer.from(secret, 'hex')
+  const secretBuffer = uint8.fromHex(secret)
   const result = decrypt(secretBuffer, key)
-  return Buffer.from(result).toString('utf8')
+  return uint8.toUtf8(result)
 }

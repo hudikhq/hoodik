@@ -1,12 +1,13 @@
 import { Sha256 } from '@openpgp/asmcrypto.js'
+import { uint8 } from '.'
 
 /**
  * Digest a string or buffer using SHA256 and return the checksum as a hex string
  */
 export function digest(data: string | Uint8Array): string {
   if (typeof data === 'string') {
-    data = Buffer.from(data)
+    data = uint8.fromUtf8(data)
   }
 
-  return Buffer.from(Sha256.bytes(data) as Uint8Array).toString('hex')
+  return uint8.toHex(Sha256.bytes(data) as Uint8Array)
 }
