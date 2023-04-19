@@ -72,7 +72,7 @@
     "sass-loader": "^13.2.2",
     "tailwind": "^4.0.0",
     "typescript": "~4.8.4",
-    "vite": "^4.2.1",
+    "vite": "^4.2.2",
     "vite-plugin-comlink": "^3.0.5",
     "vite-plugin-native-sw": "^1.2.1",
     "vitest": "^0.29.1",

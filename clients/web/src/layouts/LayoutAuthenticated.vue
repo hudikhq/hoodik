@@ -13,7 +13,7 @@ import NavBar from '@/components/ui/NavBar.vue'
 import NavBarItemPlain from '@/components/ui/NavBarItemPlain.vue'
 import AsideMenu from '@/components/ui/AsideMenu.vue'
 import FooterBar from '@/components/ui/FooterBar.vue'
-import UploadAction from '@/components/actions/UploadAction.vue'
+import UploadAction from '@/components/files/UploadStatus.vue'
 import CreateDirectoryModal from '@/components/actions/CreateDirectoryModal.vue'
 import { store as storageStore } from '@/stores/storage'
 import { store as cryptoStore } from '@/stores/crypto'
@@ -27,7 +27,7 @@ const styleStore = style()
 const router = useRouter()
 const loginStore = login()
 
-ensureAuthenticated(router, loginStore, crypto)
+await ensureAuthenticated(router, loginStore, crypto)
 
 const layoutAsidePadding = 'xl:pl-60'
 
@@ -74,7 +74,6 @@ const cancel = () => {
 
 <template>
   <input style="display: none" type="file" ref="fileInput" multiple @change="add" />
-  <UploadAction />
 
   <div
     :class="{
@@ -84,8 +83,9 @@ const cancel = () => {
   >
     <div
       :class="[layoutAsidePadding, { 'ml-60 lg:ml-0': isAsideMobileExpanded }]"
-      class="pt-14 min-h-screen w-screen transition-position lg:w-auto bg-gray-50 dark:bg-slate-800 dark:text-slate-100"
+      class="pt-5 min-h-screen w-screen transition-position lg:w-auto bg-gray-50 dark:bg-slate-800 dark:text-slate-100"
     >
+      <UploadAction />
       <CreateDirectoryModal v-model="isModalCreateDirectory" @cancel="cancel" />
       <NavBar
         :menu="menuNavBar"
@@ -112,7 +112,7 @@ const cancel = () => {
         @menu-click="menuClick"
         @aside-lg-close-click="isAsideLgActive = false"
       />
-      <slot />
+      <slot :authenticated="loginStore.authenticated" :keypair="crypto.keypair" />
       <FooterBar> </FooterBar>
     </div>
   </div>

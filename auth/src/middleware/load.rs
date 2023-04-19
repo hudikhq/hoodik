@@ -199,7 +199,7 @@ where
                 }
             };
 
-            let authenticated = extract_session(&extraction, &context).await;
+            let authenticated = extract_session(&extraction, context).await;
 
             log::debug!(
                 "auth::middleware::load|have_session: {} with extraction: {}; Route: {}",

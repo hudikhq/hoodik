@@ -2,38 +2,42 @@
 import { mdiTrashCan } from '@mdi/js'
 import BaseButtons from '@/components/ui/BaseButtons.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-// import UserAvatar from '@/components/ui/UserAvatar.vue'
+import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import { format as formatDate } from '@/stores'
 import { format as formatSize, type ListAppFile } from '@/stores/storage'
+import { computed } from 'vue'
 
 const props = defineProps<{
   file: ListAppFile
+  checkable?: boolean | undefined
 }>()
 
 const emits = defineEmits<{
   (event: 'remove', file: ListAppFile): void
   (event: 'view', file: ListAppFile): void
+  (event: 'checked', file: ListAppFile): void
+  (event: 'download', file: ListAppFile): void
 }>()
 
 const removeFIle = (file: ListAppFile) => {
   emits('remove', file)
 }
+
+const fileName = computed(() => {
+  return props.file.metadata?.name || '...'
+})
 </script>
 
 <template>
   <tr>
-    <!-- <TableCheckboxCell v-if="checkable" @checked="checked($event, file)" /> -->
-    <!-- <td class="border-b-0 lg:w-6 before:hidden">
-      <UserAvatar :username="name" class="w-24 h-24 mx-auto lg:w-6 lg:h-6" />
-    </td> -->
+    <TableCheckboxCell type="td" v-if="checkable" @checked="$emit('checked', file)" />
     <td data-label="Name">
-      <component :is="file.mime === 'dir' ? 'router-link' : 'span'" :to="`/${file.id}`">
-        <span v-if="file.metadata?.name">
-          {{ file.metadata?.name }}
-        </span>
-
-        <span v-else> ... </span>
-      </component>
+      <router-link :to="`/${file.id}`" v-if="file.mime === 'dir'">
+        {{ fileName }}
+      </router-link>
+      <a href="#" @click="emits('download', file)" v-else>
+        {{ fileName }}
+      </a>
     </td>
     <td data-label="Size">
       {{ props.file.size ? formatSize(props.file.size) : '' }}

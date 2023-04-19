@@ -65,7 +65,11 @@ const menuClick = (event: Event) => {
 }
 
 const menuClickDropdown = (event: Event, item: NavBarItem) => {
-  emit('menu-click', event, item)
+  isDropdownActive.value = false
+
+  setTimeout(() => {
+    emit('menu-click', event, item)
+  }, 1)
 }
 
 const root = ref(null)

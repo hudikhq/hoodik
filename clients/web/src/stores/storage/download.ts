@@ -2,17 +2,12 @@ import type { KeyPair } from '../cryptfns/rsa'
 import type { AppFile } from './meta'
 import * as cryptfns from '../cryptfns'
 import { meta } from '.'
-import type { Ref } from 'vue'
 import Api from '../api'
 
 /**
  * Get the file and the files content decrypt the file and its content
  */
-export async function get(
-  file: AppFile | number,
-  kp: KeyPair,
-  progress?: Ref<{ size: number; downloaded: number } | null>
-): Promise<AppFile> {
+export async function get(file: AppFile | number, kp: KeyPair): Promise<AppFile> {
   if (typeof file === 'number') {
     file = await meta.get(kp, file)
   }
@@ -25,7 +20,7 @@ export async function get(
     throw new Error("File doesn't have a key, cannot decrypt the data, file is unrecoverable")
   }
 
-  file.data = cryptfns.aes.decrypt(await download(file, progress), file.metadata.key)
+  file.data = cryptfns.aes.decrypt(await download(file), file.metadata.key)
 
   return file
 }
@@ -33,15 +28,8 @@ export async function get(
 /**
  * Download the file content
  */
-export async function download(
-  file: AppFile,
-  progress?: Ref<{ size: number; downloaded: number } | null>
-): Promise<Uint8Array> {
-  const response = await Api.download(`/api/storage/${file.id}`)
-
-  if (progress && progress.value) {
-    progress.value.size = file.size || 0
-  }
+export async function download(file: AppFile): Promise<Uint8Array> {
+  const response = await getResponse(file)
 
   if (!response.body) {
     throw new Error("Couldn't download file")
@@ -60,11 +48,6 @@ export async function download(
       tg4.set(data, 0)
       tg4.set(value, data.length)
       data = tg4
-
-      if (progress && progress.value) {
-        progress.value.downloaded =
-          (progress.value.downloaded || 0) + (value.length || value.byteLength)
-      }
     }
 
     if (!value && !done) {
@@ -78,4 +61,13 @@ export async function download(
   }
 
   throw new Error("Couldn't download file")
+}
+
+/**
+ * Get the file download response
+ */
+export async function getResponse(file: AppFile | number): Promise<Response> {
+  const id = typeof file === 'number' ? file : file.id
+
+  return await Api.download(`/api/storage/${id}`)
 }

@@ -130,7 +130,7 @@ where
     pub async fn dir_tree(&self, id: i32) -> AppResult<Vec<AppFile>> {
         let sql = r#"
             WITH RECURSIVE file_tree(id, file_id) AS (
-                SELECT id, file_id FROM files WHERE id = ?
+                SELECT id, file_id FROM files WHERE id = ? AND mime = 'dir'
                 UNION ALL
                 SELECT f.id, f.file_id FROM files f
                 JOIN file_tree a ON a.file_id = f.id
@@ -152,8 +152,10 @@ where
             .collect();
 
         let user_id = self.owner.id;
+
         let mut results = files::Entity::find()
             .filter(files::Column::Id.is_in(ids))
+            .filter(files::Column::Mime.eq("dir"))
             .join(
                 JoinType::InnerJoin,
                 files::Relation::UserFiles
@@ -173,9 +175,7 @@ where
             .collect::<Vec<_>>();
 
         results.sort_by(|a, b| {
-            if a.file_id.is_none() {
-                Ordering::Greater
-            } else if a.file_id == Some(b.id) {
+            if a.file_id.is_none() || a.file_id == Some(b.id) {
                 Ordering::Greater
             } else {
                 Ordering::Less
@@ -237,9 +237,7 @@ where
             .collect::<Vec<_>>();
 
         results.sort_by(|a, b| {
-            if a.file_id.is_none() {
-                Ordering::Greater
-            } else if a.file_id == Some(b.id) {
+            if a.file_id.is_none() || a.file_id == Some(b.id) {
                 Ordering::Greater
             } else {
                 Ordering::Less

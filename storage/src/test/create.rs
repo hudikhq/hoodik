@@ -41,7 +41,7 @@ pub async fn create_file<'ctx, T: ConnectionTrait>(
     };
 
     let (am, _) = file.into_active_model()?;
-    repository.manage(&user).create(am, "file").await
+    repository.manage(&user).create(am, name).await
 }
 
 #[async_std::test]
@@ -228,21 +228,15 @@ async fn get_file_tree_with_right_ordering() {
 
     let response = repository.manage(&user).file_tree(dir_id).await.unwrap();
 
-    println!("{:?}", response.iter().map(|f| f.id).collect::<Vec<_>>());
-
     for file in response.iter() {
         assert!(ids.contains(&file.id));
     }
 
     let response = repository.manage(&user).file_tree(file1_id).await.unwrap();
 
-    println!("{:?}", response.iter().map(|f| f.id).collect::<Vec<_>>());
-
     assert_eq!(response.iter().next().unwrap().id, file1_id);
 
     let response = repository.manage(&user).file_tree(dir3_id).await.unwrap();
-
-    println!("{:?}", response.iter().map(|f| f.id).collect::<Vec<_>>());
 
     assert_eq!(response.iter().next().unwrap().id, dir3_id);
 }

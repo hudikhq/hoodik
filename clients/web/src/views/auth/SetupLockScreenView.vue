@@ -15,6 +15,10 @@ const router = useRouter()
 const crypto = cryptoStore()
 const config = ref()
 
+if (cryptfns.hasEncryptedPrivateKey()) {
+  router.push('/auth/decrypt')
+}
+
 config.value = {
   initialValues: {
     password: '',

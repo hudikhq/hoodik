@@ -347,7 +347,6 @@ export async function find(parameters: Parameters): Promise<FileResponse> {
     delete parameters.dir_id
   }
 
-  console.log(parameters)
   const response = await Api.get<FileResponse>(`/api/storage`, parameters)
 
   return response.body || { children: [], parents: [] }

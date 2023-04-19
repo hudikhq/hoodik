@@ -1,16 +1,11 @@
-use std::string::FromUtf8Error;
-
 use actix_multipart::MultipartError;
 use actix_web::{HttpResponse, HttpResponseBuilder, ResponseError};
 use base64::DecodeError;
+use cryptfns::error::Error as CryptoError;
 use glob::{GlobError, PatternError};
 use hex::FromHexError;
 use jsonwebtoken::errors::Error as JWTError;
 use reqwest::Error as ReqwestError;
-use rsa::{
-    errors::Error as RSAError, pkcs1::Error as PKCS1Error, pkcs8::spki::Error as SpkiError,
-    pkcs8::Error as PKCS8Error, signature::Error as SignatureError,
-};
 use sea_orm::{
     error::{ColumnFromStrErr, DbErr, RuntimeErr},
     TransactionError,
@@ -19,6 +14,7 @@ use sequoia_openpgp::Error as PGPError;
 use serde::Serialize;
 use serde_json::Error as SerdeJsonError;
 use std::io::Error as IoError;
+use std::string::FromUtf8Error;
 use thiserror::Error as ThisError;
 use validr::error::{ValidationError, ValidationErrors};
 
@@ -35,11 +31,7 @@ pub enum Error {
     Unauthorized(String),
     Forbidden(String),
     InternalError(String),
-    RSAError(RSAError),
-    PKCS1Error(PKCS1Error),
-    PKCS8Error(PKCS8Error),
-    PKCS8SpkiError(SpkiError),
-    SignatureError(SignatureError),
+    CryptoError(CryptoError),
     Base64DecodeError(DecodeError),
     HexDecodeError(FromHexError),
     FromUtf8Error(FromUtf8Error),
@@ -122,33 +114,9 @@ impl From<ValidationErrors> for Error {
     }
 }
 
-impl From<RSAError> for Error {
-    fn from(source: RSAError) -> Error {
-        Error::RSAError(source)
-    }
-}
-
-impl From<SignatureError> for Error {
-    fn from(source: SignatureError) -> Error {
-        Error::SignatureError(source)
-    }
-}
-
-impl From<PKCS1Error> for Error {
-    fn from(source: PKCS1Error) -> Error {
-        Error::PKCS1Error(source)
-    }
-}
-
-impl From<PKCS8Error> for Error {
-    fn from(source: PKCS8Error) -> Error {
-        Error::PKCS8Error(source)
-    }
-}
-
-impl From<SpkiError> for Error {
-    fn from(source: SpkiError) -> Error {
-        Error::PKCS8SpkiError(source)
+impl From<CryptoError> for Error {
+    fn from(source: CryptoError) -> Error {
+        Error::CryptoError(source)
     }
 }
 
@@ -274,27 +242,7 @@ impl From<&Error> for ErrorResponse {
                 message: message.clone(),
                 context: None,
             },
-            Error::RSAError(message) => ErrorResponse {
-                status: 500,
-                message: message.to_string(),
-                context: None,
-            },
-            Error::SignatureError(message) => ErrorResponse {
-                status: 500,
-                message: message.to_string(),
-                context: None,
-            },
-            Error::PKCS1Error(message) => ErrorResponse {
-                status: 500,
-                message: message.to_string(),
-                context: None,
-            },
-            Error::PKCS8Error(message) => ErrorResponse {
-                status: 500,
-                message: message.to_string(),
-                context: None,
-            },
-            Error::PKCS8SpkiError(message) => ErrorResponse {
+            Error::CryptoError(message) => ErrorResponse {
                 status: 500,
                 message: message.to_string(),
                 context: None,
