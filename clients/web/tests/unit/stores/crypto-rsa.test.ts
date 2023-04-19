@@ -50,6 +50,11 @@ const signatureMessage = '28004708'
 
 const encryptionMessage = 'hello world'
 describe('Crypto test', () => {
+  // it('UNIT: WASM: can generate key pair', async () => {
+  //   initSync()
+
+  //   console.log(rsa_generate_private())
+  // })
   it('UNIT: RSA: can generate secret key from input', async () => {
     const kp = await rsa.generateKeyPair()
 

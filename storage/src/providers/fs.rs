@@ -2,7 +2,6 @@ use error::{AppResult, Error};
 use std::{
     fs::{remove_file, File, OpenOptions},
     io::{Read, Seek, SeekFrom, Write},
-    path::Path,
 };
 
 use crate::contract::StorageProvider;
@@ -81,25 +80,6 @@ impl<'provider> FsProvider<'provider> {
 
         Ok(())
     }
-
-    /// Recursively search for files matching the pattern
-    fn search_dir(dir: &Path, pattern: &str) -> AppResult<Vec<String>> {
-        let mut results = Vec::new();
-
-        for entry in std::fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                results.extend(Self::search_dir(&path, pattern)?);
-            } else if let Some(filename) = path.file_name() {
-                if filename.to_string_lossy().contains(pattern) {
-                    results.push(path.display().to_string())
-                }
-            }
-        }
-
-        Ok(results)
-    }
 }
 
 impl<'ctx> StorageProvider for FsProvider<'ctx> {
@@ -170,18 +150,13 @@ impl<'ctx> StorageProvider for FsProvider<'ctx> {
     }
 
     fn purge(&self, filename: &str) -> AppResult<()> {
-        let string_path = self.full_path("");
-        let path = Path::new(string_path.as_str());
+        for chunks in self.get_uploaded_chunks(filename)? {
+            let chunk_path = format!("{}.{}.part", filename, chunks);
 
-        let pattern = format!("{}{}*", string_path, filename);
-        let mut found_part_files = Self::search_dir(path, &pattern)?;
-
-        let file = format!("{}{}", string_path, filename);
-        found_part_files.push(file);
-
-        for path in found_part_files {
-            remove_file(path)?;
+            self.remove(chunk_path.as_str())?;
         }
+
+        self.remove(filename)?;
 
         Ok(())
     }

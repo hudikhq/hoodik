@@ -2,7 +2,8 @@ import * as meta from './meta'
 import * as queue from './queue'
 import * as upload from './upload'
 import * as download from './download'
-import type { KeyPair } from '../cryptfns/rsa'
+
+import * as cryptfns from '../cryptfns'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { UploadAppFile } from './upload'
@@ -23,7 +24,7 @@ export interface ListAppFile extends meta.AppFile {
  */
 export async function decrypt(
   file: meta.AppFile,
-  kp: KeyPair,
+  kp: cryptfns.rsa.KeyPair,
   progress?: (id?: number) => void
 ): Promise<meta.AppFile> {
   file = {
@@ -48,6 +49,10 @@ export function format(b?: number | string): string {
 
   if (typeof b === 'string') {
     b = parseInt(b)
+  }
+
+  if (b < 2048) {
+    return `${b.toFixed(2)} B`
   }
 
   const kb = b / 1024
@@ -159,7 +164,7 @@ export const store = defineStore('storage', () => {
   /**
    * Head over to backend and do a lookup for the current directory
    */
-  async function find(kp: KeyPair, dir_id?: number | null): Promise<void> {
+  async function find(kp: cryptfns.rsa.KeyPair, dir_id?: number | null): Promise<void> {
     loading.value = true
 
     let query = parameters.value
@@ -197,6 +202,69 @@ export const store = defineStore('storage', () => {
   }
 
   /**
+   * Download and decrypt file to the local machine
+   */
+  async function get(kp: cryptfns.rsa.KeyPair, file: ListAppFile): Promise<void> {
+    if (!file.id) {
+      throw new Error('Cannot download file without ID')
+    }
+
+    if (file.mime === 'dir') {
+      throw new Error('Cannot download directory')
+    }
+
+    if (!file.metadata?.key) {
+      throw new Error('Cannot download file without key')
+    }
+
+    const { body } = await download.getResponse(file.id)
+
+    if (!body) {
+      throw new Error('File cannot be downloaded, missing body from response')
+    }
+
+    let i = 0
+    const transformStream = new TransformStream({
+      transform(chunk, controller) {
+        const decryptedChunk = cryptfns.aes.decrypt(chunk, file.metadata?.key as cryptfns.aes.Key)
+
+        i += decryptedChunk.length
+
+        console.log(
+          'chunk size',
+          format(chunk.byteLength),
+          'Total decrypted',
+          format(i),
+          'Key size',
+          file.metadata?.key?.blocksize
+        )
+
+        controller.enqueue(decryptedChunk)
+      }
+    })
+
+    const decryptedStream = body.pipeThrough(transformStream)
+
+    const filename = file.metadata?.name || file.id.toString()
+
+    const init = {
+      headers: new Headers({
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Type': file.mime
+      })
+    }
+    const response = new Response(decryptedStream, init)
+
+    // Trigger the download using the Download API
+    const anchor = document.createElement('a')
+    anchor.href = URL.createObjectURL(await response.blob())
+    anchor.download = filename
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+  }
+
+  /**
    * Push file to the storage (used for uploads)
    */
   async function push(file: UploadAppFile): Promise<void> {
@@ -213,7 +281,7 @@ export const store = defineStore('storage', () => {
   /**
    * Remove a single file from the storage
    */
-  async function remove(kp: KeyPair, file: Partial<ListAppFile>): Promise<void> {
+  async function remove(kp: cryptfns.rsa.KeyPair, file: Partial<ListAppFile>): Promise<void> {
     if (!file.id) {
       throw new Error('Cannot remove file without ID')
     }
@@ -225,7 +293,11 @@ export const store = defineStore('storage', () => {
   /**
    * Create a directory in the storage
    */
-  async function createDir(keypair: KeyPair, name: string, dir_id?: number): Promise<meta.AppFile> {
+  async function createDir(
+    keypair: cryptfns.rsa.KeyPair,
+    name: string,
+    dir_id?: number
+  ): Promise<meta.AppFile> {
     const createFile: CreateFile = {
       name,
       mime: 'dir',
@@ -245,6 +317,7 @@ export const store = defineStore('storage', () => {
     title,
     items,
     parameters,
+    get,
     find,
     remove,
     order,

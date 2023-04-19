@@ -1,4 +1,4 @@
-use error::{AppResult, Error};
+use crate::error::{CryptoResult, Error};
 use rsa::{
     pkcs1::LineEnding,
     pss::{Signature, SigningKey, VerifyingKey},
@@ -30,7 +30,7 @@ pub type PrivateKey = RsaPrivateKey;
 pub type PublicKey = RsaPublicKey;
 
 /// Generate fingerprint from private or public key
-pub fn fingerprint<T: PublicKeyParts>(key: T) -> AppResult<String> {
+pub fn fingerprint<T: PublicKeyParts>(key: T) -> CryptoResult<String> {
     let n = key.n().to_bytes_be();
 
     Ok(sha256::digest(hex::encode(n.as_slice())))
@@ -46,25 +46,25 @@ pub mod private {
     use super::*;
 
     /// Generate a new private key.
-    pub fn generate() -> AppResult<PrivateKey> {
+    pub fn generate() -> CryptoResult<PrivateKey> {
         RsaPrivateKey::new(&mut rand::thread_rng(), 2048).map_err(Error::from)
     }
 
     /// Convert a private key to string
-    pub fn to_string(key: &PrivateKey) -> AppResult<String> {
+    pub fn to_string(key: &PrivateKey) -> CryptoResult<String> {
         key.to_pkcs1_pem(LineEnding::LF)
             .map_err(Error::from)
             .map(|s| s.to_string())
     }
 
     /// Generate a new private key from string
-    pub fn from_str(input: &str) -> AppResult<PrivateKey> {
+    pub fn from_str(input: &str) -> CryptoResult<PrivateKey> {
         let input = input.replace("\r\n", "\n");
         RsaPrivateKey::from_pkcs1_pem(&input).map_err(Error::from)
     }
 
     /// Sign a message with private key
-    pub fn sign_with(message: &str, key: PrivateKey) -> AppResult<String> {
+    pub fn sign_with(message: &str, key: PrivateKey) -> CryptoResult<String> {
         let signing_key = SigningKey::<Sha256>::from(key);
         let mut rng = rand::thread_rng();
         let signature = signing_key.try_sign_with_rng(&mut rng, message.as_bytes())?;
@@ -73,25 +73,25 @@ pub mod private {
     }
 
     /// Sign a message with private key input string
-    pub fn sign(message: &str, key: &str) -> AppResult<String> {
+    pub fn sign(message: &str, key: &str) -> CryptoResult<String> {
         let key = from_str(key)?;
         sign_with(message, key)
     }
 
     /// Decrypt some data with private key
-    pub fn decrypt_with(data: &[u8], key: PrivateKey) -> AppResult<Vec<u8>> {
+    pub fn decrypt_with(data: &[u8], key: PrivateKey) -> CryptoResult<Vec<u8>> {
         key.decrypt(Pkcs1v15Encrypt, data).map_err(Error::from)
     }
 
     /// Decrypt some data with private key (pkcs1_oaep)
-    pub fn decrypt_oaep_with(data: &[u8], key: PrivateKey) -> AppResult<Vec<u8>> {
+    pub fn decrypt_oaep_with(data: &[u8], key: PrivateKey) -> CryptoResult<Vec<u8>> {
         let mut rng = rand::thread_rng();
         key.decrypt_blinded(&mut rng, Oaep::new::<Sha256>(), data)
             .map_err(Error::from)
     }
 
     /// Decrypt a base64 message with private key input string and output UTF8 string
-    pub fn decrypt(message: &str, key: &str) -> AppResult<String> {
+    pub fn decrypt(message: &str, key: &str) -> CryptoResult<String> {
         let key = from_str(key)?;
         let decrypted = decrypt_with(crate::base64::decode(message)?.as_slice(), key)?;
 
@@ -99,7 +99,7 @@ pub mod private {
     }
 
     /// Decrypt a base64 message with private key input string and output UTF8 string
-    pub fn decrypt_hex(message: &str, key: &str) -> AppResult<String> {
+    pub fn decrypt_hex(message: &str, key: &str) -> CryptoResult<String> {
         let key = from_str(key)?;
         let decrypted = decrypt_with(hex::decode(message)?.as_slice(), key)?;
 
@@ -107,7 +107,7 @@ pub mod private {
     }
 
     /// Decrypt a base64 message with private key input string and output UTF8 string (pkcs1_oaep)
-    pub fn decrypt_oaep(message: &str, key: &str) -> AppResult<String> {
+    pub fn decrypt_oaep(message: &str, key: &str) -> CryptoResult<String> {
         let key = from_str(key)?;
         let decrypted = decrypt_oaep_with(crate::base64::decode(message)?.as_slice(), key)?;
 
@@ -115,7 +115,7 @@ pub mod private {
     }
 
     /// Decrypt a base64 message with private key input string and output UTF8 string (pkcs1_oaep)
-    pub fn decrypt_oaep_hex(message: &str, key: &str) -> AppResult<String> {
+    pub fn decrypt_oaep_hex(message: &str, key: &str) -> CryptoResult<String> {
         let key = from_str(key)?;
         let decrypted = decrypt_oaep_with(hex::decode(message)?.as_slice(), key)?;
 
@@ -125,6 +125,8 @@ pub mod private {
 
 /// Operations performed with a public key
 pub mod public {
+    use std::convert::TryFrom;
+
     use rsa::{
         pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey},
         Oaep, PublicKey as _,
@@ -133,23 +135,23 @@ pub mod public {
     use super::*;
 
     /// Convert a public key to string
-    pub fn to_string(key: &PublicKey) -> AppResult<String> {
+    pub fn to_string(key: &PublicKey) -> CryptoResult<String> {
         key.to_pkcs1_pem(LineEnding::LF).map_err(Error::from)
     }
 
     /// Generate a public key from private key
-    pub fn from_private(private_key: &PrivateKey) -> AppResult<PublicKey> {
+    pub fn from_private(private_key: &PrivateKey) -> CryptoResult<PublicKey> {
         Ok(private_key.to_public_key())
     }
 
     /// Generate a public key from string
-    pub fn from_str(input: &str) -> AppResult<PublicKey> {
+    pub fn from_str(input: &str) -> CryptoResult<PublicKey> {
         let input = input.replace("\r\n", "\n");
         RsaPublicKey::from_pkcs1_pem(&input).map_err(Error::from)
     }
 
     /// Verify message with public key
-    pub fn verify_with(message: &str, signature: &str, key: PublicKey) -> AppResult<()> {
+    pub fn verify_with(message: &str, signature: &str, key: PublicKey) -> CryptoResult<()> {
         let signature_decoded = crate::base64::decode(signature)?;
         let message_as_bytes = message.as_bytes();
 
@@ -162,26 +164,26 @@ pub mod public {
     }
 
     /// Sign a message with public key input string
-    pub fn verify(message: &str, signature: &str, key: &str) -> AppResult<()> {
+    pub fn verify(message: &str, signature: &str, key: &str) -> CryptoResult<()> {
         let key = from_str(key)?;
         verify_with(message, signature, key)
     }
 
-    pub fn encrypt_with(data: &[u8], key: PublicKey) -> AppResult<Vec<u8>> {
+    pub fn encrypt_with(data: &[u8], key: PublicKey) -> CryptoResult<Vec<u8>> {
         let mut rng = rand::thread_rng();
         key.encrypt(&mut rng, Pkcs1v15Encrypt, data)
             .map_err(Error::from)
     }
 
     /// Encrypt a message with public key (pksc1_oaep)
-    pub fn encrypt_oaep_with(data: &[u8], key: PublicKey) -> AppResult<Vec<u8>> {
+    pub fn encrypt_oaep_with(data: &[u8], key: PublicKey) -> CryptoResult<Vec<u8>> {
         let mut rng = rand::thread_rng();
         key.encrypt(&mut rng, Oaep::new::<Sha256>(), data)
             .map_err(Error::from)
     }
 
     /// Encrypt a message with public key
-    pub fn encrypt(message: &str, key: &str) -> AppResult<String> {
+    pub fn encrypt(message: &str, key: &str) -> CryptoResult<String> {
         let key = from_str(key)?;
         let encrypted = encrypt_with(message.as_bytes(), key)?;
 
@@ -189,7 +191,7 @@ pub mod public {
     }
 
     /// Encrypt a message with public key hex
-    pub fn encrypt_hex(message: &str, key: &str) -> AppResult<String> {
+    pub fn encrypt_hex(message: &str, key: &str) -> CryptoResult<String> {
         let key = from_str(key)?;
         let encrypted = encrypt_with(message.as_bytes(), key)?;
 
@@ -197,7 +199,7 @@ pub mod public {
     }
 
     /// Encrypt a message with public key (pksc1_oaep)
-    pub fn encrypt_oaep(message: &str, key: &str) -> AppResult<String> {
+    pub fn encrypt_oaep(message: &str, key: &str) -> CryptoResult<String> {
         let key = from_str(key)?;
         let encrypted = encrypt_oaep_with(message.as_bytes(), key)?;
 
@@ -205,7 +207,7 @@ pub mod public {
     }
 
     /// Encrypt a message with public key (pksc1_oaep) hex
-    pub fn encrypt_oaep_hex(message: &str, key: &str) -> AppResult<String> {
+    pub fn encrypt_oaep_hex(message: &str, key: &str) -> CryptoResult<String> {
         let key = from_str(key)?;
         let encrypted = encrypt_oaep_with(message.as_bytes(), key)?;
 
@@ -214,7 +216,7 @@ pub mod public {
 }
 
 #[cfg(feature = "mock")]
-pub fn get_string_pubkey() -> AppResult<String> {
+pub fn get_string_pubkey() -> CryptoResult<String> {
     public::to_string(&public::from_private(&private::generate().unwrap()).unwrap())
 }
 

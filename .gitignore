@@ -5,3 +5,4 @@ sqlite.db
 !/data/.gitkeep
 .node_modules
 .DS_Store
+.turbo

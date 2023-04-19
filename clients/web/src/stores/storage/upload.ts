@@ -92,6 +92,10 @@ export const store = defineStore('storage-upload', () => {
 
         // File hasn't been found in the uploading list so we add it
         uploading.value.push(file)
+
+        if (storage && keypair && storage.dir) {
+          await storage.find(keypair, file.file_id || undefined)
+        }
       }
 
       let item = uploading.value.splice(index, 1)[0]
@@ -116,13 +120,8 @@ export const store = defineStore('storage-upload', () => {
 
         done.value.push(file)
 
-        if (
-          storage &&
-          keypair &&
-          storage.dir &&
-          (storage.dir.id === file.file_id || (!storage.dir && !file.file_id))
-        ) {
-          await storage.find(keypair)
+        if (storage && keypair && storage.dir) {
+          await storage.find(keypair, file.file_id || undefined)
         }
 
         return

@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { store as storageStore } from '@/stores/storage'
+import type { ListAppFile } from '@/stores/storage'
 
-const storage = storageStore()
+const props = defineProps<{
+  parents: ListAppFile[]
+}>()
 </script>
 
 <template>
@@ -9,14 +11,14 @@ const storage = storageStore()
     <ol class="flex items-center space-x-2">
       <li>
         <component
-          :is="storage.parents.length ? 'router-link' : 'span'"
+          :is="props.parents.length ? 'router-link' : 'span'"
           to="/"
           class="text-gray-500 hover:text-gray-700"
           >root</component
         >
       </li>
 
-      <template v-for="(parent, name, index) in storage.parents" v-bind:key="index">
+      <template v-for="(parent, name, index) in props.parents" v-bind:key="index">
         <li v-if="index !== 0">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -33,7 +35,7 @@ const storage = storageStore()
         </li>
 
         <li>
-          <a href="#" class="text-gray-500 hover:text-gray-700">{{ parent.metadata?.name }}</a>
+          <span class="text-gray-500 hover:text-gray-700">{{ parent.metadata?.name }}</span>
         </li>
       </template>
     </ol>

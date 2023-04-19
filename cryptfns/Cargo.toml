@@ -8,6 +8,7 @@ edition = "2021"
 [lib]
 name = "cryptfns"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [features]
 mock = []
@@ -18,13 +19,30 @@ rsa = { version = "^0.8", features = ["sha2"] }
 sha256 = "^1"
 base64 = "^0.21"
 hex = "^0.4"
-
 serde = "^1"
 serde_json = "^1"
+wasm-bindgen = "0.2.63"
+getrandom = { version = "^0.2", features = ["js"] }
 
-error = { path = "../error" }
+# The `console_error_panic_hook` crate provides better debugging of panics by
+# logging them with `console.error`. This is great for development, but requires
+# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
+# code size when deploying.
+console_error_panic_hook = { version = "0.1.6", optional = true }
+
+# `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
+# compared to the default allocator's ~10K. It is slower than the default
+# allocator, however.
+wee_alloc = { version = "0.4.5", optional = true }
 
 [dependencies.num-traits]
 version = "0.2.9"
 features = ["libm"]
 default-features = false
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.13"
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
