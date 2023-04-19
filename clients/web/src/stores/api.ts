@@ -306,9 +306,7 @@ export default class Api {
   ): Promise<Response<B, R>> {
     const { request, fetchOptions } = Api.buildRequest(method, path, query, body, headers)
 
-    if (request.body instanceof Buffer) {
-      fetchOptions.body = request.body
-    } else if (request.body instanceof Uint8Array) {
+    if (request.body instanceof Uint8Array) {
       fetchOptions.body = request.body
     } else if (request.body && typeof request.body === 'object') {
       fetchOptions.body = JSON.stringify(request.body)

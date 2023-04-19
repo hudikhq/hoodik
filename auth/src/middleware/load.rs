@@ -167,6 +167,12 @@ where
     actix_web::dev::forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
+        log::info!(
+            "{}: {:?}: Accessing route {}",
+            Utc::now(),
+            req.connection_info().peer_addr(),
+            req.path()
+        );
         let route = req.match_pattern().unwrap_or_default();
         let method = req.method().to_string();
 

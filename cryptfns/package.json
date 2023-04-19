@@ -1,0 +1,7 @@
+{
+  "name": "cryptfns",
+  "version": "0.1.0",
+  "scripts": {
+    "wasm-pack": "wasm-pack build --out-name cryptfns"
+  }
+}

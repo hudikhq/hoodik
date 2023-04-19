@@ -297,6 +297,18 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
     }
 
     #[test]
+    fn get_rsa_key_size() {
+        let private = private::generate().unwrap();
+
+        println!("KeySize from generated: {}", private.size() * 8);
+
+        println!(
+            "KeySize from test private key: {}",
+            private::from_str(TEST_PRIVATE_KEY).unwrap().size() * 8
+        );
+    }
+
+    #[test]
     fn test_rsa_fingerprint() {
         run_fingerprint_test();
     }
@@ -329,9 +341,13 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
 
         let signature = private::sign_with(TEST_SIGNATURE_MESSAGE, private_key).unwrap();
 
+        public::verify_with(TEST_SIGNATURE_MESSAGE, &signature, public_key).unwrap();
+
+        let signature = private::sign(TEST_SIGNATURE_MESSAGE, TEST_PRIVATE_KEY).unwrap();
+
         println!("signature\n{}", &signature);
 
-        public::verify_with(TEST_SIGNATURE_MESSAGE, &signature, public_key).unwrap()
+        public::verify(TEST_SIGNATURE_MESSAGE, &signature, TEST_PUBLIC_KEY).unwrap();
     }
 
     #[test]

@@ -1,29 +1,12 @@
 import * as rsa from './rsa'
 import * as aes from './aes'
+import * as uint8 from './uint8'
 import * as sha256 from './sha256'
 import * as lscache from 'lscache'
 
-export { rsa, aes, sha256 }
+export { rsa, aes, sha256, uint8 }
 
 const ENCRYPTED_PRIVATE_KEY_LOCAL_STORAGE = 'encrypted-secret'
-
-/**
- * Convert all sorts of arrays into a regular Buffer
- */
-export function typedarrayToBuffer(
-  array: Uint8Array | Uint16Array | Uint32Array | ArrayBuffer | Buffer
-) {
-  if (array instanceof Buffer) {
-    return array
-  }
-
-  return ArrayBuffer.isView(array)
-    ? // To avoid a copy, use the typed array's underlying ArrayBuffer to back
-      // new Buffer, respecting the "view", i.e. byteOffset and byteLength
-      Buffer.from(array.buffer, array.byteOffset, array.byteLength)
-    : // Pass through all other types to `Buffer.from`
-      Buffer.from(array)
-}
 
 /**
  * Get the encrypted private key from the localStorage

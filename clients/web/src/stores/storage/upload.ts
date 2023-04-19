@@ -80,6 +80,8 @@ export const store = defineStore('storage-upload', () => {
 
     // Tracker is called each time a file chunk has been uploaded
     const tracker = async function (file: UploadAppFile) {
+      const currentFileId = storage?.dir?.id || null
+
       console.log(
         `File ${file.metadata?.name} ${file.chunks_stored} / ${file.chunks} has been uploaded`
       )
@@ -93,7 +95,7 @@ export const store = defineStore('storage-upload', () => {
         // File hasn't been found in the uploading list so we add it
         uploading.value.push(file)
 
-        if (storage && keypair && storage.dir) {
+        if (storage && keypair && currentFileId === file.file_id) {
           await storage.find(keypair, file.file_id || undefined)
         }
       }
@@ -120,7 +122,7 @@ export const store = defineStore('storage-upload', () => {
 
         done.value.push(file)
 
-        if (storage && keypair && storage.dir) {
+        if (storage && keypair && currentFileId === file.file_id) {
           await storage.find(keypair, file.file_id || undefined)
         }
 

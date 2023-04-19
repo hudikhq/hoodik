@@ -1,0 +1,54 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [
+    "**/.env.*local"
+  ],
+  "pipeline": {
+    "server": {},
+    "wasm-pack": {
+      "outputs": [
+        "pkg/**"
+      ]
+    },
+    "test:unit": {
+      "dependsOn": [
+        "wasm-pack"
+      ],
+      "cache": false,
+      "persistent": true
+    },
+    "test:api": {
+      "dependsOn": [
+        "server",
+        "wasm-pack"
+      ],
+      "cache": false,
+      "persistent": true
+    },
+    "test:dev": {
+      "dependsOn": [
+        "server",
+        "wasm-pack"
+      ],
+      "cache": false,
+      "persistent": true
+    },
+    "build": {
+      "dependsOn": [
+        "wasm-pack"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    "dev": {
+      "dependsOn": [
+        "wasm-pack",
+        "server"
+      ],
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {}
+  }
+}
