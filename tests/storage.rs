@@ -3,12 +3,14 @@ use auth::data::{authenticated::AuthenticatedJwt, create_user::CreateUser};
 use hoodik::server;
 use storage::data::app_file::AppFile;
 
-fn create_byte_chunks() -> (Vec<Vec<u8>>, i64, String) {
+const CHUNKS: usize = 5;
+
+fn create_byte_chunks() -> (Vec<Vec<u8>>, i32, String) {
     let one_chunk_size = storage::CHUNK_SIZE_BYTES as usize;
     let mut byte_chunks = vec![];
     let mut body = vec![];
 
-    while body.len() < (one_chunk_size * 5) {
+    while body.len() < (one_chunk_size * CHUNKS) {
         body.extend(b"a");
     }
 
@@ -19,7 +21,7 @@ fn create_byte_chunks() -> (Vec<Vec<u8>>, i64, String) {
         byte_chunks.push(chunk.to_vec());
     }
 
-    let total_len = byte_chunks.iter().map(|chunk| chunk.len()).sum::<usize>() as i64;
+    let total_len = byte_chunks.iter().map(|chunk| chunk.len()).sum::<usize>() as i32;
 
     (byte_chunks, total_len, checksum)
 }
@@ -109,15 +111,15 @@ async fn test_creating_file_and_uploading_chunks() {
 
     let mut uploaded = vec![];
     for (i, chunk) in data.into_iter().enumerate() {
+        println!("chunk: {}", i);
         let checksum = cryptfns::sha256::digest(chunk.as_slice());
+        let uri = format!(
+            "/api/storage/{}?checksum={}&chunk={}",
+            &file.id, checksum, i
+        );
+
         let req = test::TestRequest::post()
-            .uri(
-                format!(
-                    "/api/storage/{}?chunk={}&checksum={}",
-                    &file.id, i, checksum
-                )
-                .as_str(),
-            )
+            .uri(uri.as_str())
             .append_header(("Content-Type", "application/octet-stream"))
             .append_header(("Authorization", jwt.clone()))
             .append_header(("X-CSRF-Token", csrf.clone()))
@@ -149,23 +151,13 @@ async fn test_creating_file_and_uploading_chunks() {
     let content_len = contents.len();
     let file_checksum = cryptfns::sha256::digest(contents.as_slice());
 
-    assert!(std::fs::remove_file(format!("{}/{}", context.config.data_dir, filename)).is_ok());
-
-    assert!(
-        std::fs::remove_file(format!("{}/{}.0.part", context.config.data_dir, filename)).is_err()
-    );
-    assert!(
-        std::fs::remove_file(format!("{}/{}.1.part", context.config.data_dir, filename)).is_err()
-    );
-    assert!(
-        std::fs::remove_file(format!("{}/{}.2.part", context.config.data_dir, filename)).is_err()
-    );
-    assert!(
-        std::fs::remove_file(format!("{}/{}.3.part", context.config.data_dir, filename)).is_err()
-    );
-    assert!(
-        std::fs::remove_file(format!("{}/{}.4.part", context.config.data_dir, filename)).is_err()
-    );
+    for i in 0..CHUNKS {
+        assert!(std::fs::remove_file(format!(
+            "{}/{}.{}.part",
+            context.config.data_dir, filename, i
+        ))
+        .is_ok());
+    }
 
     assert_eq!(content_len, size as usize);
     assert_eq!(file_checksum, checksum);

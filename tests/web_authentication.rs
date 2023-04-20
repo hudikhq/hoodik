@@ -111,6 +111,10 @@ async fn test_registration_and_login() {
         .append_header(("X-CSRF-Token", response.authenticated.session.csrf.clone()))
         .to_request();
 
+    // let resp = test::call_service(&mut app, req).await;
+    // let body = test::read_body(resp).await;
+    // let body_str = String::from_utf8_lossy(&body).to_string();
+
     let resp = test::try_call_service(&mut app, req).await;
 
     assert!(resp.is_err());

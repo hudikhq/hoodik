@@ -1,10 +1,12 @@
+use actix_web::web::Bytes;
+use async_trait::async_trait;
 use error::{AppResult, Error};
-use std::{
+use tokio::{
     fs::{remove_file, File, OpenOptions},
-    io::{Read, Seek, SeekFrom, Write},
+    io::{AsyncReadExt, AsyncWriteExt},
 };
 
-use crate::contract::StorageProvider;
+use crate::{contract::StorageProvider, streamer::Streamer};
 
 pub struct FsProvider<'provider> {
     data_dir: &'provider str,
@@ -15,190 +17,132 @@ impl<'provider> FsProvider<'provider> {
         Self { data_dir }
     }
 
-    pub fn full_path(&self, path: &str) -> String {
-        format!("{}/{}", self.data_dir, path)
+    /// Get full path of a file for the chunk
+    pub fn full_path<F: ToString, C: ToString>(&self, filename: F, chunk: C) -> String {
+        format!(
+            "{}/{}.{}.part",
+            self.data_dir,
+            filename.to_string(),
+            chunk.to_string()
+        )
     }
 
-    fn inner_concat_parts(&self, path: &str, chunks: u64) -> AppResult<()> {
-        let mut file = OpenOptions::new()
-            .append(true)
-            .open(self.full_path(path))
-            .map_err(Error::from)?;
-
-        for chunk in 0..chunks {
-            let chunk_path = format!("{}.{}.part", path, chunk);
-
-            log::debug!("Reading part: {}", &chunk_path);
-
-            let mut part = match self.get(&chunk_path) {
-                Ok(part) => part,
-                Err(err) => {
-                    log::error!(
-                        "Error while reading part: {}, upstream error: {}",
-                        chunk_path,
-                        err
-                    );
-                    return Err(err);
+    /// Create the inner streaming method that is then passed into the streamer for
+    /// better readeability of the code.
+    pub async fn inner_stream(
+        &self,
+        filename: &str,
+        chunk: Option<i32>,
+    ) -> impl futures_util::Stream<Item = AppResult<actix_web::web::Bytes>> {
+        let files: Vec<File> = match chunk {
+            Some(chunk) => match self.get(filename, chunk).await {
+                Ok(file) => vec![file],
+                Err(e) => {
+                    log::error!("Got error when trying to create inner stream: {:#?}", e);
+                    vec![]
                 }
-            };
+            },
+            None => match self.all(filename).await {
+                Ok(files) => files,
+                Err(e) => {
+                    log::error!("Got error when trying to create inner stream: {:#?}", e);
+                    vec![]
+                }
+            },
+        };
 
-            let mut buffer = Vec::new();
+        // We are passing the Vec<File> here because those files are not read yet..
+        // but in the future if we want to create another FsProvider, for example S3, this would
+        // would only have the chunk number and file name passed, or construct of both and then the
+        // file getting would be happening inside the closure itself and not before.
+        futures_util::stream::unfold(files as Vec<File>, |mut files: Vec<File>| async move {
+            let mut file = files.pop()?;
 
-            part.read_to_end(&mut buffer)?;
+            let mut data = vec![];
 
-            log::debug!("Writing part: {}", &chunk_path);
-
-            let n = file.write(&buffer)?;
-
-            if n != buffer.len() {
-                return Err(Error::InternalError(format!(
-                    "Failed to write all bytes for a chunk {}",
-                    chunk_path
-                )));
-            }
-        }
-
-        Ok(())
-    }
-
-    fn inner_remove_chunks(&self, path: &str, chunks: u64) -> AppResult<()> {
-        for chunk in 0..chunks {
-            let chunk_path = format!("{}.{}.part", path, chunk);
-
-            match self.remove(&chunk_path) {
+            match file.read_to_end(&mut data).await {
                 Ok(_) => (),
-                Err(err) => {
-                    log::error!(
-                        "Error while removing part: {}, upstream error: {}",
-                        chunk_path,
-                        err
-                    );
-                    return Err(err);
-                }
+                Err(e) => return Some((Err(Error::from(e)), files)),
             };
-        }
 
-        Ok(())
+            Some((Ok(Bytes::from(data)), files))
+        })
     }
 }
 
+#[async_trait]
 impl<'ctx> StorageProvider for FsProvider<'ctx> {
-    fn part_exists(&self, filename: &str, chunk: i32) -> AppResult<bool> {
-        Ok(std::path::Path::new(
-            self.full_path(format!("{}.{}.part", filename, chunk).as_str())
-                .as_str(),
-        )
-        .exists())
+    async fn exists(&self, filename: &str, chunk: i32) -> AppResult<bool> {
+        Ok(std::path::Path::new(self.full_path(filename, chunk).as_str()).exists())
     }
 
-    fn get(&self, filename: &str) -> AppResult<File> {
-        File::open(self.full_path(filename)).map_err(Error::from)
+    async fn get(&self, filename: &str, chunk: i32) -> AppResult<File> {
+        OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(self.full_path(filename, chunk))
+            .await
+            .map_err(Error::from)
     }
 
-    fn create(&self, filename: &str) -> AppResult<File> {
-        File::create(self.full_path(filename)).map_err(Error::from)
-    }
+    async fn all(&self, filename: &str) -> AppResult<Vec<File>> {
+        let chunks = self.get_uploaded_chunks(filename).await?;
+        let mut files: Vec<File> = vec![];
 
-    fn get_or_create(&self, filename: &str) -> AppResult<File> {
-        if let Ok(file) = self.get(filename) {
-            return Ok(file);
+        for chunk in chunks {
+            files.push(self.get(filename, chunk).await?);
         }
 
-        self.create(filename)
+        Ok(files)
     }
 
-    fn push(&self, filename: &str, data: &[u8]) -> AppResult<()> {
-        let mut file = OpenOptions::new()
-            .append(true)
-            .open(self.full_path(filename))
-            .map_err(Error::from)?;
+    async fn push(&self, filename: &str, chunk: i32, data: &[u8]) -> AppResult<()> {
+        let file = File::create(self.full_path(filename, chunk)).await?;
 
-        file.write_all(data).map_err(Error::from)
-    }
-
-    fn push_part(&self, filename: &str, chunk: i32, data: &[u8]) -> AppResult<()> {
-        let chunk_path = format!("{}.{}.part", filename, chunk);
-        log::debug!("Writing part: {}", &chunk_path);
-
-        let mut file = self.get_or_create(&chunk_path)?;
-
-        file.write_all(data).map_err(Error::from)
-    }
-
-    fn pull(&self, filename: &str, chunk: u64) -> AppResult<Vec<u8>> {
-        let mut file = self.get(filename)?;
-        let file_size = file.seek(SeekFrom::End(0))?;
-        let start = chunk * crate::CHUNK_SIZE_BYTES;
-        let mut buffer = vec![0; crate::CHUNK_SIZE_BYTES as usize];
-
-        if start >= file_size {
-            return Err(Error::BadRequest("chunk_after_eof".to_string()));
-        }
-
-        // Ensure that we don't read past the end of the file
-        let bytes_to_read = std::cmp::min(crate::CHUNK_SIZE_BYTES, file_size - start) as usize;
-        buffer.resize(bytes_to_read, 0);
-
-        file.seek(SeekFrom::Start(start))?;
-        file.read_exact(&mut buffer)?;
-
-        Ok(buffer)
-    }
-
-    fn remove(&self, filename: &str) -> AppResult<()> {
-        remove_file(self.full_path(filename)).map_err(Error::from)
-    }
-
-    fn purge(&self, filename: &str) -> AppResult<()> {
-        for chunks in self.get_uploaded_chunks(filename)? {
-            let chunk_path = format!("{}.{}.part", filename, chunks);
-
-            self.remove(chunk_path.as_str())?;
-        }
-
-        self.remove(filename)?;
+        let mut writer = tokio::io::BufWriter::new(file);
+        writer.write_all(data).await?;
 
         Ok(())
     }
 
-    fn concat_files(&self, filename: &str, chunks: u64) -> AppResult<()> {
-        match self.inner_concat_parts(filename, chunks) {
-            Ok(_) => (),
-            Err(e) => {
-                log::error!(
-                    "Error while concatenating parts of a file: {}, upstream error: {}",
-                    filename,
-                    e
-                );
+    async fn pull(&self, filename: &str, chunk: i32) -> AppResult<Vec<u8>> {
+        let mut file = File::open(self.full_path(filename, chunk)).await?;
 
-                self.inner_remove_chunks(filename, chunks)?;
+        let mut data = Vec::new();
+        file.read_to_end(&mut data).await?;
 
-                self.remove(filename)?;
+        Ok(data)
+    }
 
-                return Err(e);
-            }
+    async fn purge(&self, filename: &str) -> AppResult<()> {
+        let chunks = self.get_uploaded_chunks(filename).await?;
+
+        for chunk in chunks {
+            remove_file(self.full_path(filename, chunk)).await?;
         }
-
-        self.inner_remove_chunks(filename, chunks)?;
 
         Ok(())
     }
 
-    fn get_uploaded_chunks(&self, filename: &str) -> AppResult<Vec<i32>> {
-        let pattern = format!("{}.*.part", filename);
-        let paths = glob::glob(self.full_path(pattern.as_str()).as_str())?;
+    async fn get_uploaded_chunks(&self, filename: &str) -> AppResult<Vec<i32>> {
+        let pattern = self.full_path(filename, "*");
+        let paths = glob::glob(&pattern)?;
 
         let mut chunks = Vec::new();
 
         for path in paths {
-            let path = path?.to_str().unwrap().replace(".part", "");
+            let path_str = path?.to_str().unwrap_or_default().replace(".part", "");
 
-            let chunk = path
+            let chunk = path_str
                 .split('.')
                 .last()
-                .unwrap()
+                .unwrap_or_default()
                 .parse::<i32>()
-                .map_err(|_| Error::InternalError("Failed to parse chunk number".to_string()))?;
+                .map_err(|_| {
+                    Error::InternalError(
+                        "Failed to parse chunk number while getting uploaded chunks".to_string(),
+                    )
+                })?;
 
             chunks.push(chunk);
         }
@@ -206,5 +150,11 @@ impl<'ctx> StorageProvider for FsProvider<'ctx> {
         chunks.sort();
 
         Ok(chunks)
+    }
+
+    async fn stream(&self, filename: &str, chunk: Option<i32>) -> Streamer {
+        let stream = self.inner_stream(filename, chunk).await;
+
+        Streamer::new(stream)
     }
 }

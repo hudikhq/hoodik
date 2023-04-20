@@ -34,7 +34,9 @@ pub async fn delete(req: HttpRequest, context: web::Data<Context>) -> AppResult<
         }
 
         if file.is_file() {
-            Storage::new(&context.config).purge(&file.get_filename().unwrap())?;
+            Storage::new(&context.config)
+                .purge(&file.get_filename().unwrap())
+                .await?;
         }
 
         ids.push(file.id);

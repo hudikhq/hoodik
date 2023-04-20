@@ -26,8 +26,10 @@ impl Validation for Meta {
             Rule::new("chunk", |obj: &Self, error| {
                 if let Some(v) = obj.chunk {
                     if v < 0 {
-                        error.add("min:0");
+                        error.add("min:0")
                     }
+                } else {
+                    error.add("required")
                 }
             }),
         ]

@@ -1,3 +1,12 @@
+//! RSA cryptography functions
+//! # Key description
+//! Format: PKCS#1
+//! Signing scheme: PSS
+//! Signing algo: Sha256
+//! Encryption scheme: PKCS#1 v1.5
+//! Encryption scheme padding: RSA_PKCS1_PADDING
+//!
+//! Abstraction around [rsa](https://docs.rs/rsa) crate for use within this library.
 use crate::error::{CryptoResult, Error};
 use rsa::{
     pkcs1::LineEnding,
@@ -8,25 +17,7 @@ use rsa::{
 };
 
 pub use rsa::PublicKeyParts;
-
-/// RSA private key
-///
-/// # Key description
-/// Format: PKCS#8
-/// Signing scheme: PSS
-/// Signing algo: Sha256
-/// Encryption scheme: PKCS#1 v1.5
-/// Encryption scheme padding: RSA_PKCS1_PADDING
 pub type PrivateKey = RsaPrivateKey;
-
-/// RSA public key
-///
-/// # Key description
-/// Format: PKCS#8
-/// Signing scheme: PSS
-/// Signing algo: Sha256
-/// Encryption scheme: PKCS#1 v1.5
-/// Encryption scheme padding: RSA_PKCS1_PADDING
 pub type PublicKey = RsaPublicKey;
 
 /// Generate fingerprint from private or public key
@@ -98,7 +89,7 @@ pub mod private {
         String::from_utf8(decrypted).map_err(Error::from)
     }
 
-    /// Decrypt a base64 message with private key input string and output UTF8 string
+    /// Decrypt a hex message with private key input string and output UTF8 string
     pub fn decrypt_hex(message: &str, key: &str) -> CryptoResult<String> {
         let key = from_str(key)?;
         let decrypted = decrypt_with(hex::decode(message)?.as_slice(), key)?;
@@ -169,6 +160,7 @@ pub mod public {
         verify_with(message, signature, key)
     }
 
+    /// Encrypt a message with public key
     pub fn encrypt_with(data: &[u8], key: PublicKey) -> CryptoResult<Vec<u8>> {
         let mut rng = rand::thread_rng();
         key.encrypt(&mut rng, Pkcs1v15Encrypt, data)

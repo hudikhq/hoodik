@@ -1,4 +1,6 @@
+use ascon_aead::Error as AsconError;
 use base64::DecodeError;
+use getrandom::Error as RandomError;
 use hex::FromHexError;
 use rsa::{
     errors::Error as RSAError, pkcs1::Error as PKCS1Error, pkcs8::spki::Error as SpkiError,
@@ -18,6 +20,8 @@ pub enum Error {
     FromUtf8Error(FromUtf8Error),
     FromHexError(FromHexError),
     DecodeError(DecodeError),
+    AsconError(AsconError),
+    RandomError(RandomError),
 }
 
 impl std::fmt::Display for Error {
@@ -71,5 +75,17 @@ impl From<FromHexError> for Error {
 impl From<DecodeError> for Error {
     fn from(error: DecodeError) -> Self {
         Error::DecodeError(error)
+    }
+}
+
+impl From<AsconError> for Error {
+    fn from(error: AsconError) -> Self {
+        Error::AsconError(error)
+    }
+}
+
+impl From<RandomError> for Error {
+    fn from(error: RandomError) -> Self {
+        Error::RandomError(error)
     }
 }

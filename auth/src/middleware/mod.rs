@@ -1,3 +1,4 @@
+pub(crate) mod extractor;
 pub mod load;
 pub mod verify;
 

@@ -4,10 +4,7 @@ use context::Context;
 use entity::{TransactionTrait, Value};
 use error::{AppResult, Error};
 
-use crate::{
-    contract::StorageProvider, data::create_file::CreateFile, repository::Repository,
-    storage::Storage,
-};
+use crate::{data::create_file::CreateFile, repository::Repository};
 
 /// Create a file or get the file context to resume the upload
 ///
@@ -47,10 +44,6 @@ pub async fn create(
     }
 
     let file = manage.create(create_file, &encrypted_metadata).await?;
-
-    if let Some(filename) = file.get_filename() {
-        Storage::new(&context.config).get_or_create(&filename)?;
-    }
 
     connection.commit().await?;
 

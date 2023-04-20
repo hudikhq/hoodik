@@ -109,6 +109,8 @@ pub async fn refresh(req: HttpRequest, context: web::Data<Context>) -> AppResult
     let authenticated = Authenticated::try_from(&req)?;
     let auth = Auth::new(&context);
 
+    crate::middleware::extractor::remove_authenticated_session(&authenticated.session.token).await;
+
     let authenticated = auth.refresh_session(&authenticated.session).await?;
     let jwt = jwt::generate(&authenticated, &context.config.jwt_secret)?;
 
@@ -131,6 +133,8 @@ pub async fn refresh(req: HttpRequest, context: web::Data<Context>) -> AppResult
 pub async fn logout(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
     let authenticated = Authenticated::try_from(&req)?;
     let auth = Auth::new(&context);
+
+    crate::middleware::extractor::remove_authenticated_session(&authenticated.session.token).await;
 
     let authenticated = auth.destroy_session(&authenticated.session).await?;
 

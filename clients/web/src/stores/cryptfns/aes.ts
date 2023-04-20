@@ -1,68 +1,52 @@
-import { AES_CTR } from '@openpgp/asmcrypto.js'
 import { uint8 } from '.'
 
-export type Key = {
-  password: Uint8Array
-  counter: Uint8Array
-  blocksize?: number
-}
+/// <reference path="cryptfns/cryptfns.d.ts" />
+import { aes_generate_key, aes_encrypt, aes_decrypt } from 'cryptfns/cryptfns.js'
+
+export type Key = Uint8Array
 
 /**
  * Convert a key into a string json
  */
 export function keyToStringJson(key: Key): string {
-  return JSON.stringify({
-    password: uint8.toBase64(key.password),
-    counter: uint8.toBase64(key.counter),
-    blocksize: key.blocksize
-  })
+  return uint8.toHex(key)
 }
 
 /**
  * Get a key from a string json
  */
 export function keyFromStringJson(key: string): Key {
-  const raw = JSON.parse(key)
+  return uint8.fromHex(key)
+}
 
-  return {
-    password: uint8.fromBase64(raw.password),
-    counter: uint8.fromBase64(raw.counter),
-    blocksize: raw.blocksize
+/**
+ * Take a regular string and convert it into a key
+ */
+export function keyFromSimpleString(input: string): Key {
+  const targetLength = 32
+  const lengthDifference = targetLength - input.length
+
+  if (lengthDifference > 0) {
+    input = input.padEnd(targetLength, '0')
+  } else if (lengthDifference < 0) {
+    input = input.substring(0, targetLength)
   }
+
+  return uint8.fromUtf8(input)
 }
 
 /**
  * When creating a new file generate a random key for it
  * that will be used for actual data encryption
  */
-export function generateKey(blocksize: number = 128): Key {
-  const password = generateRandomUint8Array(32)
-  const counter = generateRandomUint8Array(16)
+export function generateKey(): Key {
+  const key = aes_generate_key()
 
-  return {
-    password,
-    counter,
-    blocksize
-  }
-}
-
-/**
- * Turn a normal string into a key
- */
-export function keyFromString(key: string): Key {
-  const encoder = new TextEncoder()
-
-  while (key.length < 32) {
-    key += '0'
+  if (!key) {
+    throw new Error('Failed to generate key')
   }
 
-  const password = encoder.encode(key.slice(0, 32))
-  const counter = encoder.encode(key.slice(0, 16))
-
-  return {
-    password,
-    counter
-  }
+  return key
 }
 
 /**
@@ -76,43 +60,6 @@ export function generateRandomUint8Array(length: number): Uint8Array {
   }
 
   return key
-}
-
-/**
- * Create an aes operator for encrypting and decrypting
- */
-function getOperator(key: Key) {
-  return new AES_CTR(key.password, key.counter)
-}
-
-/**
- * Encrypt raw data with the selected key
- */
-export function encrypt(data: Uint8Array, key: Key): Uint8Array {
-  const blocksize = key.blocksize || 128
-
-  for (let i = 0; i < data.length; i += blocksize) {
-    const encrypted = getOperator(key).encrypt(data.slice(i, i + blocksize))
-
-    data.set(encrypted, i)
-  }
-
-  return data
-}
-
-/**
- * Encrypt raw data with the selected key
- */
-export function decrypt(data: Uint8Array, key: Key, blocksize?: number): Uint8Array {
-  blocksize = blocksize || key.blocksize || 128
-
-  for (let i = 0; i < data.length; i += blocksize) {
-    const decrypted = getOperator(key).decrypt(data.slice(i, i + blocksize))
-
-    data.set(decrypted, i)
-  }
-
-  return data
 }
 
 /**
@@ -135,13 +82,39 @@ export function concatUint8Array(...arrays: Uint8Array[]): Uint8Array {
 }
 
 /**
+ * Encrypt raw data with the selected key
+ */
+export function encrypt(data: Uint8Array, key: Key): Uint8Array {
+  const ciphertext = aes_encrypt(key, data)
+
+  if (!ciphertext) {
+    throw new Error('Failed to encrypt data')
+  }
+
+  return ciphertext
+}
+
+/**
+ * Encrypt raw data with the selected key
+ */
+export function decrypt(ciphertext: Uint8Array, key: Key): Uint8Array {
+  const plaintext = aes_decrypt(key, ciphertext)
+
+  if (!plaintext) {
+    throw new Error('Failed to decrypt ciphertext')
+  }
+
+  return plaintext
+}
+
+/**
  * Encrypt a string and return a string
  */
 export function encryptString(secret: string, key: string | Key): string {
-  key = typeof key === 'string' ? keyFromString(key) : key
+  key = typeof key === 'string' ? keyFromSimpleString(key) : key
 
-  const secretBuffer = uint8.fromUtf8(secret)
-  const result = encrypt(secretBuffer, key)
+  const plaintext = uint8.fromUtf8(secret)
+  const result = encrypt(plaintext, key)
   return uint8.toHex(result)
 }
 
@@ -149,9 +122,9 @@ export function encryptString(secret: string, key: string | Key): string {
  * Decrypt a string and return a string
  */
 export function decryptString(secret: string, key: string | Key): string {
-  key = typeof key === 'string' ? keyFromString(key) : key
+  key = typeof key === 'string' ? keyFromSimpleString(key) : key
 
-  const secretBuffer = uint8.fromHex(secret)
-  const result = decrypt(secretBuffer, key)
+  const ciphertext = uint8.fromHex(secret)
+  const result = decrypt(ciphertext, key)
   return uint8.toUtf8(result)
 }

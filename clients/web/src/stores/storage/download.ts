@@ -29,10 +29,24 @@ export async function get(file: AppFile | number, kp: KeyPair): Promise<AppFile>
  * Download the file content
  */
 export async function download(file: AppFile): Promise<Uint8Array> {
-  const response = await getResponse(file)
+  let data = new Uint8Array(0)
+
+  for (let i = 0; i < file.chunks; i++) {
+    const chunk = await downloadChunk(file, i)
+    const tg4 = new Uint8Array(data.length + chunk.length)
+    tg4.set(data, 0)
+    tg4.set(chunk, data.length)
+    data = tg4
+  }
+
+  return data
+}
+
+export async function downloadChunk(file: AppFile, chunk: number): Promise<Uint8Array> {
+  const response = await getResponse(file, chunk)
 
   if (!response.body) {
-    throw new Error("Couldn't download file")
+    throw new Error(`Couldn't download file ${file.id}, chunk: ${chunk}`)
   }
 
   const reader = response.body.getReader()
@@ -60,14 +74,14 @@ export async function download(file: AppFile): Promise<Uint8Array> {
     }
   }
 
-  throw new Error("Couldn't download file")
+  throw new Error(`Couldn't download file ${file.id}, chunk: ${chunk}`)
 }
 
 /**
  * Get the file download response
  */
-export async function getResponse(file: AppFile | number): Promise<Response> {
+export async function getResponse(file: AppFile | number, chunk: number): Promise<Response> {
   const id = typeof file === 'number' ? file : file.id
 
-  return await Api.download(`/api/storage/${id}`)
+  return await Api.download(`/api/storage/${id}?chunk=${chunk}`)
 }
