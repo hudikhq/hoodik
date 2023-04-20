@@ -29,7 +29,11 @@ pub async fn metadata(req: HttpRequest, context: web::Data<Context>) -> AppResul
 
     if file.is_file() && file.finished_upload_at.is_none() {
         let filename = file.get_filename().unwrap();
-        file.uploaded_chunks = Some(Storage::new(&context.config).get_uploaded_chunks(&filename)?);
+        file.uploaded_chunks = Some(
+            Storage::new(&context.config)
+                .get_uploaded_chunks(&filename)
+                .await?,
+        );
     }
 
     Ok(HttpResponse::Ok().json(file))

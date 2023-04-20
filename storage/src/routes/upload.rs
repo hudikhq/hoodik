@@ -54,10 +54,6 @@ async fn upload(
         .chunks
         .ok_or(Error::BadRequest("file_has_no_chunks".to_string()))?;
 
-    let chunks_stored = file
-        .chunks_stored
-        .ok_or(Error::BadRequest("file_has_no_chunks_stored".to_string()))?;
-
     let filename = file
         .get_filename()
         .ok_or(Error::BadRequest("file_is_dir".to_string()))?;
@@ -66,7 +62,7 @@ async fn upload(
         return Err(Error::as_validation("chunk", "chunk_out_of_range"));
     }
 
-    if storage.part_exists(&filename, chunk)? {
+    if storage.exists(&filename, chunk).await? {
         return Err(Error::as_validation("chunk", "chunk_already_exists"));
     }
 
@@ -79,15 +75,15 @@ async fn upload(
         return Err(Error::BadRequest("no_file_data_received".to_string()));
     }
 
-    storage.push_part(&filename, chunk, &request_body)?;
+    storage.push(&filename, chunk, &request_body).await?;
 
     if file.is_file() {
         let filename = file.get_filename().unwrap();
-        file.uploaded_chunks = Some(Storage::new(&context.config).get_uploaded_chunks(&filename)?);
-    }
-
-    if chunks == chunks_stored + 1 {
-        storage.concat_files(&filename, chunks as u64)?;
+        file.uploaded_chunks = Some(
+            Storage::new(&context.config)
+                .get_uploaded_chunks(&filename)
+                .await?,
+        );
     }
 
     connection.commit().await?;

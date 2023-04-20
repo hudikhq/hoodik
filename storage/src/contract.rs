@@ -1,41 +1,33 @@
-use std::fs::File;
-
+use async_trait::async_trait;
 use error::AppResult;
+use tokio::fs::File;
 
+use crate::streamer::Streamer;
+
+#[async_trait]
 pub trait StorageProvider {
     /// Check if the chunk already exists in the storage provider
-    fn part_exists(&self, filename: &str, chunk: i32) -> AppResult<bool>;
+    async fn exists(&self, filename: &str, chunk: i32) -> AppResult<bool>;
 
-    /// Get a representation of a file from the storage provider.
-    fn get(&self, filename: &str) -> AppResult<File>;
+    /// Get a file representation from the storage provider
+    async fn get(&self, filename: &str, chunk: i32) -> AppResult<File>;
 
-    /// Create a new file in the storage provider.
-    fn create(&self, filename: &str) -> AppResult<File>;
+    /// Get a file representation from the storage provider
+    async fn all(&self, filename: &str) -> AppResult<Vec<File>>;
 
-    /// Get or create a file in the storage provider.
-    fn get_or_create(&self, filename: &str) -> AppResult<File>;
+    /// Push specific data chunk into a part file
+    async fn push(&self, filename: &str, chunk: i32, data: &[u8]) -> AppResult<()>;
 
-    /// Push data to a file in the storage provider.
-    fn push(&self, filename: &str, data: &[u8]) -> AppResult<()>;
+    /// Pull data chunk of a file from the storage provider.
+    async fn pull(&self, filename: &str, chunk: i32) -> AppResult<Vec<u8>>;
 
-    /// Push specific data chunk into a part file for uploading file
-    fn push_part(&self, filename: &str, chunk: i32, data: &[u8]) -> AppResult<()>;
-
-    /// Pull data chunk from a file in the storage provider.
-    /// Chunk is calculated by dividing the original file size by the
-    /// CHUNK_SIZE_BYTES constant.
-    fn pull(&self, filename: &str, chunk: u64) -> AppResult<Vec<u8>>;
-
-    /// Remove a file in storage provider
-    fn remove(&self, filename: &str) -> AppResult<()>;
-
-    /// Purge a file or any of its uncompleted parts
-    fn purge(&self, filename: &str) -> AppResult<()>;
-
-    /// Concatenate all the part files into a single file
-    fn concat_files(&self, filename: &str, chunks: u64) -> AppResult<()>;
+    /// Purge all the parts for a file from the storage provider.
+    async fn purge(&self, filename: &str) -> AppResult<()>;
 
     /// Get a vector of chunk indexes that were already uploaded so we can resume
     /// the upload process on the frontend without doing the double work.
-    fn get_uploaded_chunks(&self, filename: &str) -> AppResult<Vec<i32>>;
+    async fn get_uploaded_chunks(&self, filename: &str) -> AppResult<Vec<i32>>;
+
+    /// Return stream of either one file chunk, or all chunks if no file chunk is specified.
+    async fn stream(&self, filename: &str, chunk: Option<i32>) -> Streamer;
 }

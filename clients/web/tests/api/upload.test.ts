@@ -36,7 +36,7 @@ describe('Upload a file', () => {
 
     let file = await storage.meta.create(KeyPair, createFile)
 
-    await storage.upload.upload({ ...file, file: mockFile }, (f, done) => {
+    await storage.upload.upload({ ...file, file: mockFile }, async (f, done) => {
       console.log(
         `Running progress for a file: ${f.metadata?.name || 'unknown - no metadata'} done: ${done}`
       )
