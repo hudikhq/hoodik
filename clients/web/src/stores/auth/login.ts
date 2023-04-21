@@ -1,5 +1,5 @@
 import Api from '../api'
-import * as crypto from '../cryptfns'
+import * as cryptfns from '../cryptfns'
 import { localDateFromUtcString } from '..'
 import { setJwt, setCsrf, removeJwt, removeCsrf } from '.'
 import type { store as cryptoStore } from '../crypto'
@@ -81,8 +81,12 @@ export const store = defineStore('login', () => {
   /**
    * Setup the authenticated object after successful authentication event
    */
-  function setupAuthenticated(body: AuthenticatedJwt) {
+  function setupAuthenticated(body: AuthenticatedJwt, privateKey?: string | null) {
     const { authenticated, jwt } = body
+
+    if (privateKey) {
+      sessionStorage.setItem('privateKey', privateKey)
+    }
 
     const expires = localDateFromUtcString(authenticated.session.expires_at)
 
@@ -98,13 +102,14 @@ export const store = defineStore('login', () => {
    * @throws
    */
   async function logout(
-    store: ReturnType<typeof cryptoStore>,
+    crypto: ReturnType<typeof cryptoStore>,
     full?: boolean
   ): Promise<Authenticated> {
     const response = await Api.post<undefined, Authenticated>('/api/auth/logout')
 
     clear()
-    store.clear()
+    crypto.clear()
+    sessionStorage.clear()
     clearInterval(_refresher.value)
 
     if (full) {
@@ -118,14 +123,22 @@ export const store = defineStore('login', () => {
    * Try to get the current user
    * @throws
    */
-  async function self(): Promise<Authenticated> {
+  async function self(store: ReturnType<typeof cryptoStore>): Promise<Authenticated> {
     const response = await Api.post<undefined, Authenticated>('/api/auth/self')
+    const authenticated = response.body as Authenticated
 
-    set(response.body as Authenticated)
+    const privateKey = sessionStorage.getItem('privateKey')
 
-    _refresher.value = setInterval(() => setupRefresh(), 1000)
+    if (privateKey) {
+      const fingerprint = await cryptfns.rsa.getFingerprint(privateKey)
+      if (fingerprint === authenticated.user.fingerprint) {
+        const keypair = await cryptfns.rsa.inputToKeyPair(privateKey)
 
-    return response.body as Authenticated
+        return _withPrivateKey(store, keypair, false)
+      }
+    }
+
+    throw new Error(`No private key found for user ${authenticated.user.email}`)
   }
 
   /**
@@ -167,7 +180,8 @@ export const store = defineStore('login', () => {
       throw new Error("No authenticated object found after refresh, can't refresh session")
     }
 
-    setupAuthenticated(response.body as AuthenticatedJwt)
+    const privateKey = sessionStorage.getItem('privateKey')
+    setupAuthenticated(response.body as AuthenticatedJwt, privateKey)
 
     return response.body?.authenticated as Authenticated
   }
@@ -190,12 +204,10 @@ export const store = defineStore('login', () => {
       throw new Error('No authenticated object found after login')
     }
 
-    setupAuthenticated(response.body)
-
     const { authenticated } = response.body
 
     if (authenticated.user.encrypted_private_key) {
-      credentials.privateKey = await crypto.rsa.decryptPrivateKey(
+      credentials.privateKey = await cryptfns.rsa.decryptPrivateKey(
         authenticated.user.encrypted_private_key,
         credentials.password
       )
@@ -205,12 +217,16 @@ export const store = defineStore('login', () => {
       throw new Error('No private key found, please provide your private key when authenticating')
     }
 
-    const fingerprint = await crypto.rsa.getFingerprint(credentials.privateKey)
+    const fingerprint = await cryptfns.rsa.getFingerprint(credentials.privateKey)
     if (fingerprint !== authenticated.user.fingerprint) {
       throw new Error('Private key does not match user')
     }
 
-    await store.set(await crypto.rsa.inputToKeyPair(credentials.privateKey))
+    const keypair = await cryptfns.rsa.inputToKeyPair(credentials.privateKey)
+
+    setupAuthenticated(response.body, keypair.input)
+
+    await store.set(keypair)
 
     return authenticated
   }
@@ -227,7 +243,7 @@ export const store = defineStore('login', () => {
 
     const pk = privateKey
 
-    return _withPrivateKey(store, await crypto.rsa.inputToKeyPair(pk || ''), false)
+    return _withPrivateKey(store, await cryptfns.rsa.inputToKeyPair(pk || ''), false)
   }
 
   /**
@@ -238,9 +254,9 @@ export const store = defineStore('login', () => {
     store: ReturnType<typeof cryptoStore>,
     pin: string
   ): Promise<Authenticated> {
-    const pk = crypto.getAndDecryptPrivateKey(pin)
+    const pk = cryptfns.getAndDecryptPrivateKey(pin)
 
-    return _withPrivateKey(store, await crypto.rsa.inputToKeyPair(pk), false)
+    return _withPrivateKey(store, await cryptfns.rsa.inputToKeyPair(pk), false)
   }
 
   /**
@@ -249,12 +265,12 @@ export const store = defineStore('login', () => {
    */
   async function _withPrivateKey(
     store: ReturnType<typeof cryptoStore>,
-    kp: crypto.rsa.KeyPair,
+    kp: cryptfns.rsa.KeyPair,
     remember: boolean
   ): Promise<Authenticated> {
-    const fingerprint = await crypto.rsa.getFingerprint(kp.input as string)
-    const nonce = crypto.createFingerprintNonce(fingerprint)
-    const signature = await crypto.rsa.sign(kp, nonce)
+    const fingerprint = await cryptfns.rsa.getFingerprint(kp.input as string)
+    const nonce = cryptfns.createFingerprintNonce(fingerprint)
+    const signature = await cryptfns.rsa.sign(kp, nonce)
 
     const response = await Api.post<PrivateKeyRequest, AuthenticatedJwt>(
       '/api/auth/signature',
@@ -270,7 +286,7 @@ export const store = defineStore('login', () => {
       throw new Error('No authenticated object found after private key or pin login')
     }
 
-    setupAuthenticated(response.body)
+    setupAuthenticated(response.body as AuthenticatedJwt, kp.input)
 
     await store.set(kp)
 

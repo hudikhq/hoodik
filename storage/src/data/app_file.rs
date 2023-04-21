@@ -10,7 +10,7 @@ pub struct AppFile {
     pub encrypted_metadata: String,
     pub name_hash: String,
     pub mime: String,
-    pub size: Option<i32>,
+    pub size: Option<i64>,
     pub chunks: Option<i32>,
     pub chunks_stored: Option<i32>,
     pub file_id: Option<i32>,

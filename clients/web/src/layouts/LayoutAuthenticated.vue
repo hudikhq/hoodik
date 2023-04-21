@@ -13,7 +13,7 @@ import NavBar from '@/components/ui/NavBar.vue'
 import NavBarItemPlain from '@/components/ui/NavBarItemPlain.vue'
 import AsideMenu from '@/components/ui/AsideMenu.vue'
 import FooterBar from '@/components/ui/FooterBar.vue'
-import UploadAction from '@/components/files/UploadStatus.vue'
+import IOStatus from '@/components/files/IOStatus.vue'
 import CreateDirectoryModal from '@/components/actions/CreateDirectoryModal.vue'
 import { store as storageStore } from '@/stores/storage'
 import { store as cryptoStore } from '@/stores/crypto'
@@ -85,7 +85,7 @@ const cancel = () => {
       :class="[layoutAsidePadding, { 'ml-60 lg:ml-0': isAsideMobileExpanded }]"
       class="pt-5 min-h-screen w-screen transition-position lg:w-auto bg-gray-50 dark:bg-slate-800 dark:text-slate-100"
     >
-      <UploadAction />
+      <IOStatus />
       <CreateDirectoryModal v-model="isModalCreateDirectory" @cancel="cancel" />
       <NavBar
         :menu="menuNavBar"

@@ -5,7 +5,7 @@ use storage::data::app_file::AppFile;
 
 const CHUNKS: usize = 5;
 
-fn create_byte_chunks() -> (Vec<Vec<u8>>, i32, String) {
+fn create_byte_chunks() -> (Vec<Vec<u8>>, i64, String) {
     let one_chunk_size = storage::CHUNK_SIZE_BYTES as usize;
     let mut byte_chunks = vec![];
     let mut body = vec![];
@@ -21,7 +21,7 @@ fn create_byte_chunks() -> (Vec<Vec<u8>>, i32, String) {
         byte_chunks.push(chunk.to_vec());
     }
 
-    let total_len = byte_chunks.iter().map(|chunk| chunk.len()).sum::<usize>() as i32;
+    let total_len = byte_chunks.iter().map(|chunk| chunk.len()).sum::<usize>() as i64;
 
     (byte_chunks, total_len, checksum)
 }

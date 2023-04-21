@@ -84,7 +84,7 @@ export async function ensureAuthenticated(
   if (!hasAuthentication(store)) {
     if (maybeCouldMakeRequests()) {
       try {
-        await store.self()
+        await store.self(crypto)
 
         if (crypto.keypair.input) {
           return

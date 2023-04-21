@@ -9,7 +9,12 @@ const props = defineProps<{
 }>()
 
 const uploaded = computed(() => {
-  const stored = props.file.chunks_stored || 1
+  const stored = props.file.uploaded_chunks?.length || 0
+
+  if (!stored) {
+    return '0 B'
+  }
+
   const percentage = stored / props.file.chunks
   const size = props.file.size || props.file.file.size || 0
 
@@ -27,7 +32,12 @@ const speed = computed(() => {
 
   const seconds = (Date.now().valueOf() - props.file.started_upload_at.valueOf()) / 1000
 
-  const stored = props.file.chunks_stored || 1
+  const stored = props.file.uploaded_chunks?.length || 0
+
+  if (!stored) {
+    return '0 B/s'
+  }
+
   const percentage = stored / props.file.chunks
   const size = props.file.size || props.file.file.size || 0
   const uploaded = percentage * size

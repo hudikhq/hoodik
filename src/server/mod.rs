@@ -49,15 +49,10 @@ pub fn app(
         InitError = (),
     >,
 > {
-    let mut auth_load_middleware = middleware::Load::new()
+    let auth_middleware = middleware::Load::new_with(&context)
         .add_ignore("/api/auth/register".to_string())
         .add_ignore("/api/auth/login".to_string())
         .add_ignore("/api/auth/signature".to_string());
-
-    if context.config.use_cookies {
-        let cookie_name = context.config.get_cookie_name();
-        auth_load_middleware = auth_load_middleware.token_cookie_name(cookie_name);
-    }
 
     App::new()
         // Set the maximum payload size to 1.2x of a single file chunk
@@ -67,7 +62,7 @@ pub fn app(
         ))
         .app_data(web::Data::new(context))
         // Authentication load middleware that only sets it up on the app
-        .wrap(auth_load_middleware)
+        .wrap(auth_middleware)
         .wrap(cors::setup())
         .configure(configure)
         .route(

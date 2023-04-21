@@ -9,9 +9,14 @@ import { store as cryptoStore } from '@/stores/crypto'
 const storage = storageStore()
 const crypto = cryptoStore()
 
-defineProps<{
+const props = defineProps<{
+  items: ListAppFile[]
   checkable?: boolean
   file_id?: number
+}>()
+
+const emits = defineEmits<{
+  (event: 'download', file: ListAppFile): void
 }>()
 
 const isModalRemoveActive = ref(false)
@@ -35,10 +40,6 @@ const cancelRemove = async () => {
 const removeFile = (file: Partial<ListAppFile>) => {
   fileToRemove.value = file
   isModalRemoveActive.value = true
-}
-
-const downloadFile = async (file: ListAppFile) => {
-  storage.get(crypto.keypair, file)
 }
 
 const viewFile = async () => {}
@@ -83,13 +84,13 @@ const checkAll = async () => {
       </tr>
     </thead>
     <tbody>
-      <template v-for="file in storage.items" :key="file.id">
+      <template v-for="file in props.items" :key="file.id">
         <TableFilesRow
           :file="file"
           :checkable="checkable"
           @remove="removeFile"
           @view="viewFile"
-          @download="downloadFile"
+          @download="emits('download', file)"
         />
       </template>
     </tbody>
