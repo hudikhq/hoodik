@@ -101,6 +101,7 @@ impl<'ctx> StorageProvider for FsProvider<'ctx> {
 
         let mut writer = tokio::io::BufWriter::new(file);
         writer.write_all(data).await?;
+        writer.flush().await?;
 
         Ok(())
     }
@@ -108,10 +109,10 @@ impl<'ctx> StorageProvider for FsProvider<'ctx> {
     async fn pull(&self, filename: &str, chunk: i32) -> AppResult<Vec<u8>> {
         let mut file = File::open(self.full_path(filename, chunk)).await?;
 
-        let mut data = Vec::new();
-        file.read_to_end(&mut data).await?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).await?;
 
-        Ok(data)
+        Ok(buffer)
     }
 
     async fn purge(&self, filename: &str) -> AppResult<()> {

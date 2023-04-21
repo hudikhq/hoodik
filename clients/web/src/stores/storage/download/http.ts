@@ -1,38 +1,16 @@
-import type { KeyPair } from '../cryptfns/rsa'
-import type { AppFile } from './meta'
-import * as cryptfns from '../cryptfns'
-import { meta } from '.'
-import Api from '../api'
-
-/**
- * Get the file and the files content decrypt the file and its content
- */
-export async function get(file: AppFile | number, kp: KeyPair): Promise<AppFile> {
-  if (typeof file === 'number') {
-    file = await meta.get(kp, file)
-  }
-
-  if (!file.metadata) {
-    file.metadata = await meta.FileMetadata.decrypt(file.encrypted_metadata, kp)
-  }
-
-  if (!file.metadata.key) {
-    throw new Error("File doesn't have a key, cannot decrypt the data, file is unrecoverable")
-  }
-
-  file.data = cryptfns.aes.decrypt(await download(file), file.metadata.key)
-
-  return file
-}
+import * as cryptfns from '../../cryptfns'
+import type { ListAppFile } from '../'
+import Api from '../../api'
 
 /**
  * Download the file content
  */
-export async function download(file: AppFile): Promise<Uint8Array> {
+export async function downloadAndDecrypt(file: ListAppFile): Promise<Uint8Array> {
   let data = new Uint8Array(0)
 
   for (let i = 0; i < file.chunks; i++) {
-    const chunk = await downloadChunk(file, i)
+    const encrypted = await downloadEncryptedChunk(file, i)
+    const chunk = cryptfns.aes.decrypt(encrypted, file?.metadata?.key as Uint8Array)
     const tg4 = new Uint8Array(data.length + chunk.length)
     tg4.set(data, 0)
     tg4.set(chunk, data.length)
@@ -42,7 +20,21 @@ export async function download(file: AppFile): Promise<Uint8Array> {
   return data
 }
 
-export async function downloadChunk(file: AppFile, chunk: number): Promise<Uint8Array> {
+/**
+ * Download single file chunk and decrypt it
+ */
+export async function downloadChunk(file: ListAppFile, chunk: number): Promise<Uint8Array> {
+  const data = await downloadEncryptedChunk(file, chunk)
+  return cryptfns.aes.decrypt(data, file?.metadata?.key as Uint8Array)
+}
+
+/**
+ * Download a single chunk of the file and return it without decrypting it
+ */
+export async function downloadEncryptedChunk(
+  file: ListAppFile,
+  chunk: number
+): Promise<Uint8Array> {
   const response = await getResponse(file, chunk)
 
   if (!response.body) {
@@ -70,6 +62,8 @@ export async function downloadChunk(file: AppFile, chunk: number): Promise<Uint8
 
     if (done) {
       downloaded = true
+      const checksum = cryptfns.sha256.digest(data)
+      console.log(`Downloaded chunk (${data.length} B) ${chunk} of ${file.chunks} - ${checksum}`)
       return data
     }
   }
@@ -80,7 +74,7 @@ export async function downloadChunk(file: AppFile, chunk: number): Promise<Uint8
 /**
  * Get the file download response
  */
-export async function getResponse(file: AppFile | number, chunk: number): Promise<Response> {
+async function getResponse(file: ListAppFile | number, chunk: number): Promise<Response> {
   const id = typeof file === 'number' ? file : file.id
 
   return await Api.download(`/api/storage/${id}?chunk=${chunk}`)

@@ -44,6 +44,16 @@ impl Load {
             token_extractor: TokenExtractor::Header("Authorization".to_string()),
         }
     }
+    pub fn new_with(context: &Context) -> Load {
+        let mut load = Load::new();
+
+        if context.config.use_cookies {
+            let cookie_name = context.config.get_cookie_name();
+            load = load.token_cookie_name(cookie_name);
+        }
+
+        load
+    }
     pub fn token_cookie_name(mut self, name: String) -> Self {
         self.token_extractor = TokenExtractor::Cookie(name);
 

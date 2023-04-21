@@ -30,14 +30,20 @@ async fn upload(
     req: HttpRequest,
     context: web::Data<Context>,
     meta: web::Query<Meta>,
-    request_body: web::Bytes,
+    mut request_body: web::Bytes,
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let authenticated = Authenticated::try_from(&req)?;
     let file_id: i32 = util::actix::path_var(&req, "file_id")?;
-    let (chunk, checksum) = meta.into_inner().into_tuple()?;
-
+    let (chunk, checksum, key_hex) = meta.into_inner().into_tuple()?;
     let body_checksum = cryptfns::sha256::digest(request_body.as_ref());
+
+    // Encrypting the payload if the encryption key is provided
+    if let Some(key) = key_hex {
+        let key = cryptfns::hex::decode(key)?;
+        let encrypted = cryptfns::aes::encrypt(key, request_body.to_vec())?;
+        request_body = web::Bytes::from(encrypted);
+    }
 
     if checksum != body_checksum {
         let error = format!("checksum_mismatch: {checksum} != {body_checksum}");

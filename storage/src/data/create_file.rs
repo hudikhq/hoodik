@@ -35,7 +35,7 @@ pub struct CreateFile {
     /// Mime type of the file or "dir" for directory
     pub mime: Option<String>,
     /// Total size of the file
-    pub size: Option<i32>,
+    pub size: Option<i64>,
     /// Total number of chunks, no limitations, frontend can decide
     pub chunks: Option<i32>,
     /// ID of the directory the file is located in (directories are files too)

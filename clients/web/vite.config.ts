@@ -6,7 +6,7 @@ import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfil
 import { comlink } from 'vite-plugin-comlink'
 import wasm from 'vite-plugin-wasm'
 import topLevelAwait from 'vite-plugin-top-level-await'
-import wasmPack from './wasm-pack'
+import wasmPack from 'vite-plugin-wasm-pack'
 
 // https://vitejs.dev/config/
 export default defineConfig({

@@ -11,7 +11,7 @@ pub struct Model {
     pub id: i32,
     pub name_hash: String,
     pub mime: String,
-    pub size: Option<i32>,
+    pub size: Option<i64>,
     pub chunks: Option<i32>,
     pub chunks_stored: Option<i32>,
     pub file_id: Option<i32>,

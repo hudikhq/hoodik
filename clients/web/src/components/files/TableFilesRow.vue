@@ -19,12 +19,34 @@ const emits = defineEmits<{
   (event: 'download', file: ListAppFile): void
 }>()
 
-const removeFIle = (file: ListAppFile) => {
-  emits('remove', file)
-}
-
 const fileName = computed(() => {
   return props.file.metadata?.name || '...'
+})
+
+const fileSize = computed(() => {
+  return props.file.size ? formatSize(props.file.size) : ''
+})
+
+const fileCreatedAt = computed(() => {
+  return props.file.file_created_at ? formatDate(props.file.file_created_at, 'yyyy-MM-dd') : ''
+})
+
+const progressValue = computed(() => {
+  const total = props.file.chunks
+
+  if (!total || props.file.finished_upload_at) {
+    return 100
+  }
+
+  const uploaded = props.file.chunks_stored || 0
+  const progress = uploaded / total
+  return progress * 100
+})
+
+const fileFinishedUploadAt = computed(() => {
+  return props.file.finished_upload_at
+    ? formatDate(props.file.finished_upload_at, 'yyyy-MM-dd')
+    : ''
 })
 </script>
 
@@ -40,14 +62,14 @@ const fileName = computed(() => {
       </a>
     </td>
     <td data-label="Size">
-      {{ props.file.size ? formatSize(props.file.size) : '' }}
+      {{ fileSize }}
     </td>
     <td data-label="City">
       {{ props.file.mime || '' }}
     </td>
     <td data-label="Created" class="lg:w-1 whitespace-nowrap">
       <small class="text-gray-500 dark:text-slate-400" :title="props.file.file_created_at">
-        {{ props.file.file_created_at ? formatDate(props.file.file_created_at, 'yyyy-MM-dd') : '' }}
+        {{ fileCreatedAt }}
       </small>
     </td>
     <td data-label="Uploaded" class="lg:w-1 whitespace-nowrap">
@@ -56,16 +78,14 @@ const fileName = computed(() => {
         :title="props.file.file_created_at"
         v-if="!props.file.current && !props.file.parent && props.file.finished_upload_at"
       >
-        {{ formatDate(props.file.finished_upload_at, 'yyyy-MM-dd') }}
+        {{ fileFinishedUploadAt }}
       </small>
       <progress
         class="flex w-2/5 self-center lg:w-full"
-        max="100"
-        :value="(props.file.chunks_stored || 0) / (props.file.chunks || 1)"
+        :max="100"
+        :value="progressValue"
         v-else-if="props.file.mime !== 'dir'"
-      >
-        {{ `${props.file.chunks_stored} / ${props.file.chunks}` }}
-      </progress>
+      />
     </td>
     <td class="before:hidden lg:w-1 whitespace-nowrap">
       <BaseButtons type="justify-start lg:justify-end" no-wrap>
@@ -74,7 +94,7 @@ const fileName = computed(() => {
           color="danger"
           :icon="mdiTrashCan"
           small
-          @click="() => removeFIle(file)"
+          @click="emits('remove', file)"
           :disabled="!props.file.id"
         />
       </BaseButtons>
