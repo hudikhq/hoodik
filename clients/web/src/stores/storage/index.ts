@@ -15,6 +15,7 @@ export interface ListAppFile extends meta.AppFile {
   parent?: boolean
   encrypted?: boolean
   name?: string
+  checked?: boolean
 }
 
 /**
@@ -77,16 +78,6 @@ export const store = defineStore('storage', () => {
   const loading = ref(false)
 
   /**
-   * All the parent directories
-   */
-  const parents = ref<meta.AppFile[]>([])
-
-  /**
-   * Currently selected directory
-   */
-  const dir = ref<meta.AppFile | null>(null)
-
-  /**
    * Title of the currently selected directory (or root)
    */
   const title = computed<string>((): string => {
@@ -100,7 +91,7 @@ export const store = defineStore('storage', () => {
     const parameters: meta.Parameters = {}
 
     if (dir.value) {
-      parameters['dir_id'] = dir.value.id
+      parameters['dir_id'] = dir.value?.id
     }
 
     return parameters
@@ -111,92 +102,139 @@ export const store = defineStore('storage', () => {
    */
   const items = ref<ListAppFile[]>([])
 
-  const _order = ref<{
-    key: keyof ListAppFile
-    direction: 'asc' | 'desc'
-  }>({ key: 'finished_upload_at', direction: 'desc' })
+  /**
+   * Currently selected directory id
+   */
+  const fileId = ref<number | null>(null)
 
   /**
-   * Order the list of files
+   * Last error message that happened when trying to
+   * fetch the files from the backend.
    */
-  function order(key?: keyof ListAppFile, direction?: 'asc' | 'desc') {
-    _order.value = { key: key || _order.value.key, direction: direction || _order.value.direction }
+  const error = ref<string | null>(null)
 
-    items.value.sort((a, b) => {
-      if (a.mime === 'dir') {
-        return -1
-      }
+  /**
+   * Currently selected directory
+   */
+  const dir = computed<ListAppFile | null>(() => {
+    return items.value.find((item) => item.mime === 'dir' && item.id === fileId.value) || null
+  })
 
-      // @ts-ignore
-      if (key === 'name') {
-        const aName = a.metadata?.name || ''
-        const bName = b.metadata?.name || ''
-        if (_order.value.direction === 'asc') {
-          return aName < bName ? -1 : 1
-        } else {
-          return aName > bName ? -1 : 1
-        }
-      }
+  /**
+   * All the parent directories
+   */
+  const parents = computed<ListAppFile[]>(() => {
+    const p: ListAppFile[] = []
 
-      if (a[_order.value.key] === undefined) {
-        return -1
-      }
-      if (b[_order.value.key] === undefined) {
-        return 0
+    const find = (id: number | null) => {
+      const i = items.value.find((item) => item.id === id)
+
+      if (i) {
+        p.push(i)
       }
 
-      if (a[_order.value.key] === b[_order.value.key]) {
-        return 0
+      if (i?.file_id) {
+        find(i.file_id)
       }
+    }
 
-      if (_order.value.direction === 'asc') {
-        // @ts-ignore
-        return a[_order.value.key] < b[_order.value.key] ? -1 : 1
-      } else {
-        // @ts-ignore
-        return a[_order.value.key] > b[_order.value.key] ? -1 : 1
-      }
-    })
-  }
+    find(fileId.value)
+
+    return p.reverse()
+  })
 
   /**
    * Head over to backend and do a lookup for the current directory
    */
-  async function find(kp: KeyPair, dir_id?: number | null): Promise<void> {
+  async function find(kp: KeyPair, parentId: number | null): Promise<void> {
     loading.value = true
+    error.value = null
+    fileId.value = parentId
 
     let query = parameters.value
-
-    if (dir_id !== undefined && dir_id !== null) {
-      query = { ...parameters.value, dir_id }
+    if (fileId.value !== undefined && fileId.value !== null) {
+      query = { ...parameters.value, dir_id: fileId.value }
     }
 
-    const response = await meta.find(query)
+    let response: meta.FileResponse = { children: [], parents: [] }
 
-    let results: ListAppFile[] = response.children.map((item) => ({ ...item, encrypted: true }))
+    // We wrap this here so we can somewhat support failing network
+    // connection and use the files we have in the store.
+    try {
+      response = await meta.find(query)
+    } catch (e) {
+      error.value = `Seems like we are having some kind of problem with getting the files: ${
+        (e as Error).message
+      }`
 
-    response.parents?.forEach((item) => {
-      results.push({ ...item, parent: true })
+      console.warn(error.value)
+    }
+
+    response.parents?.forEach(async (item) => {
+      upsertItem(await decryptItem({ ...item, parent: true }, kp))
     })
 
-    // Decrypt all the files names and keys
-    results = await Promise.all(
-      results.map(async (item): Promise<ListAppFile> => {
-        if (!item.id || !item.encrypted_metadata) {
-          return item
-        }
-
-        return decrypt(item as meta.AppFile, kp)
-      })
-    )
-
-    parents.value = results.slice(response.children.length)
-    items.value = results.slice(0, response.children.length)
-    dir.value = parents.value[parents.value.length - 1] || null
-
-    order()
+    response.children?.forEach(async (item) => {
+      upsertItem(await decryptItem({ ...item, parent: false }, kp))
+    })
 
     loading.value = false
+  }
+
+  /**
+   * Decrypt each item
+   */
+  async function decryptItem(item: ListAppFile, kp: KeyPair): Promise<ListAppFile> {
+    return {
+      ...item,
+      metadata: await meta.FileMetadata.decrypt(item.encrypted_metadata, kp),
+      encrypted: false
+    }
+  }
+
+  /**
+   * Add or update a new item in the list
+   */
+  function upsertItem(item: ListAppFile): void {
+    if (hasItem(item.id, item.file_id || null)) {
+      updateItem(item)
+    } else {
+      addItem(item)
+    }
+  }
+
+  /**
+   * Remove item from the list
+   */
+  function hasItem(id: number, file_id: number | null): boolean {
+    return items.value.findIndex((item) => item.id === id && item.file_id === file_id) !== -1
+  }
+
+  /**
+   * Update existing item in the list
+   */
+  function updateItem(file: ListAppFile) {
+    const index = items.value.findIndex((item) => item.id === file.id)
+
+    if (index === -1) {
+      return
+    }
+
+    items.value[index] = file
+  }
+
+  /**
+   * Add new item to the list
+   */
+  function addItem(item: ListAppFile): void {
+    items.value.push(item)
+  }
+
+  /**
+   * Remove item from the list
+   */
+  function removeItem(id: number): void {
+    items.value = items.value.filter((item) => item.id !== id)
   }
 
   /**
@@ -227,7 +265,9 @@ export const store = defineStore('storage', () => {
     }
 
     await meta.remove(file.id)
-    await find(kp)
+    removeItem(file.id)
+
+    await find(kp, fileId.value)
   }
 
   /**
@@ -256,7 +296,10 @@ export const store = defineStore('storage', () => {
     get,
     find,
     remove,
-    order,
-    createDir
+    createDir,
+    hasItem,
+    updateItem,
+    addItem,
+    removeItem
   }
 })

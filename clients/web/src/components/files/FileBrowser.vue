@@ -9,7 +9,7 @@ const crypto = cryptoStore()
 const route = useRoute()
 
 const load = async () => {
-  let file_id = undefined
+  let file_id = null
 
   if (route.params.file_id !== undefined) {
     file_id = parseInt(route.params.file_id as string)
@@ -17,12 +17,13 @@ const load = async () => {
 
   await storage.find(crypto.keypair, file_id)
 }
-await load()
 
 watch(
   () => route.params.file_id,
   () => load()
 )
+
+await load()
 </script>
 <template>
   <slot :storage="storage"></slot>

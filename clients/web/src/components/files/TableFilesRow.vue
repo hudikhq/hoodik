@@ -9,18 +9,28 @@ import { computed } from 'vue'
 
 const props = defineProps<{
   file: ListAppFile
-  checkable?: boolean | undefined
+  checkedRows: Partial<ListAppFile>[]
 }>()
 
 const emits = defineEmits<{
   (event: 'remove', file: ListAppFile): void
   (event: 'view', file: ListAppFile): void
-  (event: 'checked', file: ListAppFile): void
+  (event: 'checked', value: boolean, file: ListAppFile): void
   (event: 'download', file: ListAppFile): void
 }>()
 
+const check = (value: boolean) => {
+  emits('checked', value, props.file)
+}
+
+const checked = computed(() => {
+  return !!props.checkedRows.find((item) => item.id === props.file.id)
+})
+
 const fileName = computed(() => {
-  return props.file.metadata?.name || '...'
+  const name = props.file.metadata?.name || '...'
+
+  return props.file.mime === 'dir' ? `${name}/` : name
 })
 
 const fileSize = computed(() => {
@@ -52,7 +62,7 @@ const fileFinishedUploadAt = computed(() => {
 
 <template>
   <tr>
-    <TableCheckboxCell type="td" v-if="checkable" @checked="$emit('checked', file)" />
+    <TableCheckboxCell type="td" v-model="checked" @update:modelValue="check" />
     <td data-label="Name">
       <router-link :to="`/${file.id}`" v-if="file.mime === 'dir'">
         {{ fileName }}
