@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import TableFilesRow from '@/components/files/TableFilesRow.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import CardBoxModal from '../ui/CardBoxModal.vue'
@@ -11,7 +11,7 @@ const crypto = cryptoStore()
 
 const props = defineProps<{
   items: ListAppFile[]
-  checkable?: boolean
+  parent: ListAppFile | null
   file_id?: number
 }>()
 
@@ -19,10 +19,66 @@ const emits = defineEmits<{
   (event: 'download', file: ListAppFile): void
 }>()
 
+const download = (file: ListAppFile) => {
+  emits('download', file)
+}
+
 const isModalRemoveActive = ref(false)
 const fileToRemove = ref<Partial<ListAppFile> | null>(null)
+const _checkedRows = ref<ListAppFile[]>([])
 
-const checkedRows = ref<Partial<ListAppFile>[]>([])
+const parentId = computed<number | null>(() => {
+  if (props.parent) {
+    return props.parent.id
+  }
+
+  return null
+})
+
+const checkedRows = computed<ListAppFile[]>(() => {
+  return _checkedRows.value?.filter((item) => item.file_id === parentId.value) || []
+})
+
+const items = computed(() => {
+  const directories = props.items.filter((item) => {
+    if (item.mime !== 'dir') {
+      return false
+    }
+
+    if (props.parent) {
+      return item.file_id === props.parent.id
+    }
+
+    return item.file_id === null
+  })
+
+  const files = props.items.filter((item) => {
+    if (item.mime === 'dir') {
+      return false
+    }
+
+    if (props.parent) {
+      return item.file_id === props.parent.id
+    }
+
+    return item.file_id === null
+  })
+
+  return [...directories, ...files]
+})
+
+const selectOne = (value: boolean, file: ListAppFile) => {
+  if (value && file) {
+    _checkedRows.value.push(file)
+  } else {
+    _checkedRows.value = _checkedRows.value.filter((item) => item.id !== file.id)
+  }
+}
+
+const selectAll = (value: boolean) => {
+  console.log(value)
+  _checkedRows.value = value ? items.value.filter((item) => item.file_id === parentId.value) : []
+}
 
 const confirmRemove = async () => {
   if (fileToRemove.value) {
@@ -43,14 +99,6 @@ const removeFile = (file: Partial<ListAppFile>) => {
 }
 
 const viewFile = async () => {}
-
-const checkAll = async () => {
-  if (checkedRows.value.length === storage.items.length) {
-    checkedRows.value = []
-  } else {
-    checkedRows.value = storage.items
-  }
-}
 </script>
 
 <template>
@@ -72,8 +120,13 @@ const checkAll = async () => {
   <table>
     <thead>
       <tr>
-        <th v-if="checkable">
-          <TableCheckboxCell type="td" v-if="checkable" @checked="checkAll" class="py-0 px-0" />
+        <th>
+          <TableCheckboxCell
+            type="td"
+            class="py-0 px-0"
+            :model-value="false"
+            @update:model-value="selectAll"
+          />
         </th>
         <th>Name</th>
         <th>Size</th>
@@ -84,13 +137,14 @@ const checkAll = async () => {
       </tr>
     </thead>
     <tbody>
-      <template v-for="file in props.items" :key="file.id">
+      <template v-for="file in items" :key="file.id">
         <TableFilesRow
           :file="file"
-          :checkable="checkable"
+          :checkedRows="checkedRows"
           @remove="removeFile"
           @view="viewFile"
-          @download="emits('download', file)"
+          @checked="selectOne"
+          @download="download"
         />
       </template>
     </tbody>

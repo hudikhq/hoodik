@@ -27,7 +27,7 @@ const download = (storage: ReturnType<typeof store>, file: ListAppFile) => {
           <CardBox rounded="rounded-md" class="mb-6" has-table>
             <TableFiles
               :items="storage.items"
-              :checkable="true"
+              :parent="storage.dir || null"
               @download="(file) => download(storage, file)"
             />
           </CardBox>

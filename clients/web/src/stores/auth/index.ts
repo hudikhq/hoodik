@@ -9,7 +9,8 @@ import type { NavigationFailure, Router } from 'vue-router'
 export { login, register }
 
 const CSRF_COOKIE_NAME = 'X-CSRF-TOKEN'
-const JWT_TOKEN_COOKIE_NAME = 'JWT-TOKEN'
+const JWT_TOKEN_STORE_NAME = 'JWT-TOKEN'
+const PRIVATE_KEY_STORE_NAME = 'PRIVATE-KEY'
 
 /**
  * Shortcut to figure out if we can make requests
@@ -48,7 +49,7 @@ export function removeCsrf() {
  * Load the JWT token from the cookie
  */
 export function getJwt(): string | null {
-  return lscache.get(JWT_TOKEN_COOKIE_NAME) || null
+  return lscache.get(JWT_TOKEN_STORE_NAME) || null
 }
 
 /**
@@ -56,14 +57,42 @@ export function getJwt(): string | null {
  */
 export function setJwt(jwt: string, expires: Date) {
   const ex = expires.getTime() - new Date().getTime()
-  lscache.set(JWT_TOKEN_COOKIE_NAME, jwt, ex)
+  lscache.set(JWT_TOKEN_STORE_NAME, jwt, ex)
 }
 
 /**
  * Remove the JWT token
  */
 export function removeJwt(): void {
-  return lscache.remove(JWT_TOKEN_COOKIE_NAME)
+  return lscache.remove(JWT_TOKEN_STORE_NAME)
+}
+
+/**
+ * Get the private key from storage and decrypt it
+ */
+export function getPrivateKey(deviceId: string): string | null {
+  const privateKey = lscache.get(PRIVATE_KEY_STORE_NAME) || null
+
+  if (!privateKey) {
+    return null
+  }
+
+  return cryptfns.aes.decryptString(privateKey, deviceId)
+}
+
+/**
+ * Set the private key in storage and encrypt it
+ */
+export function setPrivateKey(privateKey: string, deviceId: string, expires: Date) {
+  const ex = expires.getTime() - new Date().getTime()
+  lscache.set(PRIVATE_KEY_STORE_NAME, cryptfns.aes.encryptString(privateKey, deviceId), ex)
+}
+
+/**
+ * Remove the private key
+ */
+export function removePrivateKey(): void {
+  return lscache.remove(PRIVATE_KEY_STORE_NAME)
 }
 
 /**
@@ -84,6 +113,7 @@ export async function ensureAuthenticated(
   if (!hasAuthentication(store)) {
     if (maybeCouldMakeRequests()) {
       try {
+        console.info('Trying to call self')
         await store.self(crypto)
 
         if (crypto.keypair.input) {

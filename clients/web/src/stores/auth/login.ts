@@ -1,7 +1,15 @@
 import Api from '../api'
 import * as cryptfns from '../cryptfns'
 import { localDateFromUtcString } from '..'
-import { setJwt, setCsrf, removeJwt, removeCsrf } from '.'
+import {
+  setJwt,
+  setCsrf,
+  removeJwt,
+  removeCsrf,
+  setPrivateKey,
+  getPrivateKey,
+  removePrivateKey
+} from '.'
 import type { store as cryptoStore } from '../crypto'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
@@ -31,6 +39,7 @@ export interface Session {
   id: number
   user_id: number
   token: string
+  device_id?: string
   csrf: string
   created_at: string
   updated_at: string
@@ -66,6 +75,10 @@ export const store = defineStore('login', () => {
    * Set Authenticated object
    */
   function set(auth: Authenticated) {
+    if (auth.session.device_id) {
+      delete auth.session.device_id
+    }
+
     _authenticated.value = auth
   }
 
@@ -76,20 +89,17 @@ export const store = defineStore('login', () => {
     _authenticated.value = null
     removeJwt()
     removeCsrf()
+    removePrivateKey()
   }
 
   /**
    * Setup the authenticated object after successful authentication event
    */
-  function setupAuthenticated(body: AuthenticatedJwt, privateKey?: string | null) {
+  function setupAuthenticated(body: AuthenticatedJwt, privateKey: string) {
     const { authenticated, jwt } = body
-
-    if (privateKey) {
-      sessionStorage.setItem('privateKey', privateKey)
-    }
-
     const expires = localDateFromUtcString(authenticated.session.expires_at)
 
+    setPrivateKey(privateKey, authenticated.session.device_id as string, expires)
     setCsrf(authenticated.session.csrf, expires)
     setJwt(jwt, expires)
     set(authenticated)
@@ -127,7 +137,7 @@ export const store = defineStore('login', () => {
     const response = await Api.post<undefined, Authenticated>('/api/auth/self')
     const authenticated = response.body as Authenticated
 
-    const privateKey = sessionStorage.getItem('privateKey')
+    const privateKey = getPrivateKey(authenticated.session.device_id as string)
 
     if (privateKey) {
       const fingerprint = await cryptfns.rsa.getFingerprint(privateKey)
@@ -180,7 +190,14 @@ export const store = defineStore('login', () => {
       throw new Error("No authenticated object found after refresh, can't refresh session")
     }
 
-    const privateKey = sessionStorage.getItem('privateKey')
+    const privateKey = getPrivateKey(response.body?.authenticated?.session?.device_id as string)
+
+    if (!privateKey) {
+      throw new Error(
+        'No private key found, please provide your private key when authenticating again'
+      )
+    }
+
     setupAuthenticated(response.body as AuthenticatedJwt, privateKey)
 
     return response.body?.authenticated as Authenticated
@@ -224,7 +241,7 @@ export const store = defineStore('login', () => {
 
     const keypair = await cryptfns.rsa.inputToKeyPair(credentials.privateKey)
 
-    setupAuthenticated(response.body, keypair.input)
+    setupAuthenticated(response.body, keypair.input as string)
 
     await store.set(keypair)
 
@@ -286,7 +303,7 @@ export const store = defineStore('login', () => {
       throw new Error('No authenticated object found after private key or pin login')
     }
 
-    setupAuthenticated(response.body as AuthenticatedJwt, kp.input)
+    setupAuthenticated(response.body as AuthenticatedJwt, kp.input as string)
 
     await store.set(kp)
 
