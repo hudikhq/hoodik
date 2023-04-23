@@ -6,19 +6,7 @@ export type Query = {
 
 export type Headers = { [key: string]: string }
 
-/**
- * Convert string representation of headers into an object
- */
-function stringHeaders(headers: string): Headers {
-  return headers
-    .split('\r\n')
-    .map((header) => header.split(':'))
-    .filter((header) => header.length === 2)
-    .reduce((acc, header) => {
-      acc[header[0]] = header[1].trim()
-      return acc
-    }, {} as Headers)
-}
+export type ApiTransfer = { jwt?: string | null; csrf?: string | null }
 
 /**
  * Interface to represent all the request data we will be doing
@@ -181,67 +169,20 @@ export function toQueryValue(
  * @class
  */
 export default class Api {
-  /**
-   * Make get request
-   */
-  static async download(path: string, query?: Query): Promise<globalThis.Response> {
-    const { request, fetchOptions } = Api.buildRequest('get', path, query)
+  private jwt: string | null
+  private csrf: string | null
 
-    return fetch(decodeURIComponent(request.url), fetchOptions)
+  constructor({ jwt, csrf }: ApiTransfer = {}) {
+    this.jwt = jwt || getJwt()
+    this.csrf = csrf || getCsrf()
   }
 
-  static upload<R>(path: string, data: Uint8Array, query?: Query, headers?: Headers): Promise<R> {
-    const { request } = Api.buildRequest<undefined>('get', path, query, undefined, headers)
-
-    return new Promise((resolve, reject) => {
-      const req = new XMLHttpRequest()
-      req.open('POST', request.url, true)
-
-      for (const key in request.headers) {
-        req.setRequestHeader(key, request.headers[key])
-      }
-
-      req.responseType = 'arraybuffer'
-
-      req.addEventListener('load', () => {
-        const contentType = req.getResponseHeader('Content-Type')
-        const status = req.status
-        let body: R | undefined
-
-        if (contentType?.includes('application/json')) {
-          const decoder = new TextDecoder()
-          const textBody = decoder.decode(req.response)
-
-          try {
-            body = JSON.parse(textBody)
-          } catch (e) {
-            // do nothing
-          }
-        }
-
-        if (!`${status}`.startsWith('2')) {
-          return reject(
-            new ErrorResponse<undefined>({
-              request,
-              status,
-              headers: stringHeaders(req.getAllResponseHeaders()),
-              rawBody: undefined,
-              body: body as ApiError
-            })
-          )
-        }
-
-        if (body) {
-          resolve(body)
-        } else {
-          resolve(req.response)
-        }
-      })
-
-      req.onerror = (e) => reject(e)
-
-      req.send(data)
-    })
+  /**
+   * Convert the inner data to json
+   * to pass into the service worker.
+   */
+  toJson(): ApiTransfer {
+    return { jwt: this.jwt, csrf: this.csrf }
   }
 
   /**
@@ -294,6 +235,15 @@ export default class Api {
   }
 
   /**
+   * Make get request
+   */
+  async download(path: string, query?: Query): Promise<globalThis.Response> {
+    const { request, fetchOptions } = Api.buildRequest('get', path, query)
+
+    return fetch(decodeURIComponent(request.url), fetchOptions)
+  }
+
+  /**
    * Main method to run the requests
    * @throws
    */
@@ -304,7 +254,7 @@ export default class Api {
     body?: B,
     headers?: Headers
   ): Promise<Response<B, R>> {
-    const { request, fetchOptions } = Api.buildRequest(method, path, query, body, headers)
+    const { request, fetchOptions } = Api.buildRequest(method, path, query, body, headers, this)
 
     if (request.body instanceof Uint8Array) {
       fetchOptions.body = request.body
@@ -349,10 +299,13 @@ export default class Api {
     path: string,
     query?: Query,
     body?: B,
-    headers?: Headers
+    headers?: Headers,
+    api?: Api
   ) {
+    api = api || new Api()
+
     const url = Api.getUrlWithQuery(path, query)
-    const _headers = Api.getHeaders(headers)
+    const _headers = api.getHeaders(headers)
 
     if (query) {
       for (const key in query) {
@@ -389,15 +342,15 @@ export default class Api {
   /**
    * Prepare headers before sending the request
    */
-  static getHeaders(headers?: Headers): Headers {
+  getHeaders(headers?: Headers): Headers {
     headers = headers || {}
 
-    if (getCsrf()) {
-      headers['X-Csrf-Token'] = getCsrf() || ''
+    if (this.csrf) {
+      headers['X-Csrf-Token'] = this.csrf || ''
     }
 
-    if (getJwt()) {
-      headers['Authorization'] = `Bearer ${getJwt() || ''}`
+    if (this.jwt) {
+      headers['Authorization'] = `Bearer ${this.jwt || ''}`
     }
 
     return headers

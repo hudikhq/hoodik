@@ -82,15 +82,20 @@ export const store = defineStore('register', () => {
    * Make post request to create new user
    * @throws
    */
-  async function postRegistration(data: CreateUser): Promise<AuthenticatedJwt> {
+  async function postRegistration(
+    data: CreateUser,
+    privateKey?: string
+  ): Promise<AuthenticatedJwt> {
     const response = await Api.post<CreateUser, AuthenticatedJwt>(
       '/api/auth/register',
       undefined,
       data
     )
 
-    const login = loginStore()
-    login.setupAuthenticated(response.body as AuthenticatedJwt)
+    if (privateKey) {
+      const login = loginStore()
+      login.setupAuthenticated(response.body as AuthenticatedJwt, privateKey)
+    }
 
     return response.body as AuthenticatedJwt
   }
@@ -100,6 +105,8 @@ export const store = defineStore('register', () => {
    * @throws
    */
   async function register(data: CreateUser): Promise<AuthenticatedJwt> {
+    const privateKey = data.unencrypted_private_key
+
     if (data.unencrypted_private_key && data.store_private_key) {
       data.encrypted_private_key = await crypto.rsa.protectPrivateKey(
         data.unencrypted_private_key as string,
@@ -110,7 +117,7 @@ export const store = defineStore('register', () => {
       delete data.unencrypted_private_key
     }
 
-    return postRegistration(data)
+    return postRegistration(data, privateKey)
   }
 
   /**

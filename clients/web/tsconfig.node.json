@@ -5,7 +5,8 @@
     "vitest.config.*",
     "cypress.config.*",
     "playwright.config.*",
-    "wasm-pack.*"
+    "wasm-pack.*",
+    "plugins/**/*"
   ],
   "compilerOptions": {
     "ignoreDeprecations": "5.0",

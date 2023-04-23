@@ -1,6 +1,7 @@
 import * as cryptfns from '../../cryptfns'
-import type { ListAppFile } from '../'
 import Api from '../../api'
+
+import type { DownloadProgressFunction, ListAppFile } from '../types'
 
 /**
  * Download the file content
@@ -18,6 +19,53 @@ export async function downloadAndDecrypt(file: ListAppFile): Promise<Uint8Array>
   }
 
   return data
+}
+
+/**
+ * Create readable stream from downloading chunks and stream them
+ * to download of the browser
+ */
+export async function downloadAndDecryptStream(
+  file: ListAppFile,
+  progress?: DownloadProgressFunction
+) {
+  console.log('File with chunks', file.chunks)
+  const chunks = [...new Array(file.chunks)].map((_, i) => i)
+
+  const stream = new ReadableStream({
+    start: async () => {
+      if (progress) {
+        await progress(file, 0)
+      }
+    },
+    pull: async (controller) => {
+      const chunk = chunks.shift()
+
+      if (!chunk && chunk !== 0) {
+        controller.close()
+        return
+      }
+
+      const data = await downloadChunk(file, chunk as number)
+      if (data) {
+        if (progress) {
+          await progress(file, data.length)
+        }
+
+        return controller.enqueue(data)
+      } else {
+        controller.close()
+      }
+    }
+  })
+
+  const response = new Response(stream)
+  const url = window.URL.createObjectURL(await response.blob())
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = file.metadata?.name as string
+  anchor.click()
+  window.URL.revokeObjectURL(url)
 }
 
 /**
@@ -77,5 +125,5 @@ export async function downloadEncryptedChunk(
 async function getResponse(file: ListAppFile | number, chunk: number): Promise<Response> {
   const id = typeof file === 'number' ? file : file.id
 
-  return await Api.download(`/api/storage/${id}?chunk=${chunk}`)
+  return await new Api().download(`/api/storage/${id}?chunk=${chunk}`)
 }

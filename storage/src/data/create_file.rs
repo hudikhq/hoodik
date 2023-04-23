@@ -12,8 +12,6 @@ use entity::{files::ActiveModel as ActiveModelFile, ActiveValue};
 use serde::{Deserialize, Serialize};
 use validr::*;
 
-use crate::CHUNK_SIZE_BYTES;
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CreateFile {
     /// Encrypted metadata of the file, this data should contain
@@ -89,19 +87,21 @@ impl Validation for CreateFile {
                         return error.add("min:1");
                     }
 
-                    let size = obj.size.unwrap_or(1);
-                    let expected_chunks: f64 = size as f64 / CHUNK_SIZE_BYTES as f64;
-                    let mut expected_chunks_u64 = size as u64 / CHUNK_SIZE_BYTES;
+                    // We won't validate the size of each chunk because we won't allow that
+                    // flexibility from the backend
+                    // let size = obj.size.unwrap_or(1);
+                    // let expected_chunks: f64 = size as f64 / crate::CHUNK_SIZE_BYTES as f64;
+                    // let mut expected_chunks_u64 = size as u64 / crate::CHUNK_SIZE_BYTES;
 
-                    if (expected_chunks - expected_chunks_u64 as f64) > 0.0 {
-                        expected_chunks_u64 += 1;
-                    }
+                    // if (expected_chunks - expected_chunks_u64 as f64) > 0.0 {
+                    //     expected_chunks_u64 += 1;
+                    // }
 
-                    if v as u64 != expected_chunks_u64 {
-                        error.add(
-                            format!("invalid_chunks_expected:{}", expected_chunks_u64).as_str(),
-                        )
-                    }
+                    // if v as u64 != expected_chunks_u64 {
+                    //     error.add(
+                    //         format!("invalid_chunks_expected:{}", expected_chunks_u64).as_str(),
+                    //     )
+                    // }
                 } else {
                     error.add("required")
                 }

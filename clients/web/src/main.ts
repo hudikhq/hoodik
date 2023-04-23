@@ -1,10 +1,26 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-
 import App from './App.vue'
 import router from './router'
 import { store as style } from '@/stores/style'
 import { lightModeKey, styleKey } from '@/config'
+
+declare global {
+  interface Window {
+    SW: Worker
+  }
+}
+
+// @ts-ignore
+import { serviceWorkerFile } from 'virtual:vite-plugin-service-worker'
+
+try {
+  if ('Worker' in window) {
+    window.SW = new Worker(serviceWorkerFile, { type: 'module', name: 'Hoodik Worker' })
+  }
+} catch (error) {
+  console.error('Registration failed', error)
+}
 
 import './css/main.css'
 

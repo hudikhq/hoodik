@@ -6,17 +6,17 @@ import FileBrowser from '@/components/files/FileBrowser.vue'
 import SectionMain from '@/components/ui/SectionMain.vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import SectionTitleLineWithButton from '@/components/ui/SectionTitleLineWithButton.vue'
-import type { store, ListAppFile } from '@/stores/storage'
+import type { DownloadStore, ListAppFile } from '@/stores/storage/types'
 
-const download = (storage: ReturnType<typeof store>, file: ListAppFile) => {
-  return storage.get(file)
+const downloadAction = (download: DownloadStore, file: ListAppFile) => {
+  return download.push(file)
 }
 </script>
 
 <template>
   <Suspense>
     <LayoutAuthenticated>
-      <FileBrowser v-slot="{ storage }">
+      <FileBrowser v-slot="{ storage, download }">
         <SectionMain>
           <SectionTitleLineWithButton title="" main />
 
@@ -28,7 +28,7 @@ const download = (storage: ReturnType<typeof store>, file: ListAppFile) => {
             <TableFiles
               :items="storage.items"
               :parent="storage.dir || null"
-              @download="(file) => download(storage, file)"
+              @download="(file) => downloadAction(download, file)"
             />
           </CardBox>
         </SectionMain>

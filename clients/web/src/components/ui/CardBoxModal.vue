@@ -69,6 +69,8 @@ window.addEventListener('keydown', (e) => {
             :label="buttonLabel"
             :color="button || 'info'"
             @click="confirm"
+            tabindex="1"
+            @keyup.enter="confirm()"
           />
           <BaseButton
             v-if="hasCancel"

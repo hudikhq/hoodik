@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { store as downloadStore } from '@/stores/storage/download'
 import { store as storageStore } from '@/stores/storage'
 import { store as cryptoStore } from '@/stores/crypto'
 import { useRoute } from 'vue-router'
 import { watch } from 'vue'
 
+const download = downloadStore()
 const storage = storageStore()
 const crypto = cryptoStore()
 const route = useRoute()
@@ -22,9 +24,8 @@ watch(
   () => route.params.file_id,
   () => load()
 )
-
 await load()
 </script>
 <template>
-  <slot :storage="storage"></slot>
+  <slot :storage="storage" :download="download"></slot>
 </template>
