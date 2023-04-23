@@ -27,10 +27,9 @@ const init = () => {
       name: yup.string().required('Directory name is required')
     }),
     onSubmit: async (values: { name: string; file_id?: number }) => {
-      console.log(values)
       try {
         await storage.createDir(crypto.keypair, values.name, storage.dir?.id)
-        storage.find(crypto.keypair)
+        storage.find(crypto.keypair, storage.dir?.id || null)
         emit('confirm')
         emit('update:modelValue', false)
         config.value.initialValues = { name: '' }

@@ -1,7 +1,5 @@
 import { uint8 } from '.'
-
-/// <reference path="cryptfns/cryptfns.d.ts" />
-import { aes_generate_key, aes_encrypt, aes_decrypt } from 'cryptfns/cryptfns.js'
+import { aes_decrypt, aes_encrypt, aes_generate_key } from './wasm'
 
 export type Key = Uint8Array
 

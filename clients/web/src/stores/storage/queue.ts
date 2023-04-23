@@ -1,74 +1,96 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import type { AppFile } from './meta'
+import type {
+  FilesStore,
+  IntervalType,
+  UploadStore,
+  DownloadStore,
+  UploadChunkResponseMessage,
+  DownloadProgressResponseMessage
+} from './types'
+import { ref } from 'vue'
+import { FileMetadata } from './metadata'
 
-export interface UploadQueueItem extends Partial<AppFile> {
-  file?: File
-  name: string
-  mime: string
-  size: number
-  chunks: number
-  chunks_stored: number
-  startedAt?: Date
-  finishedAt?: Date
-}
-
-export const store = defineStore('upload-queue', () => {
-  /**
-   * Upload queue
-   */
-  const queue = ref<UploadQueueItem[]>([])
+export const store = defineStore('queue', () => {
+  const uploading = ref<IntervalType>()
+  const downloading = ref<IntervalType>()
+  const messageListenersActive = ref(false)
 
   /**
-   * Number of files currently uploading
+   * Start all the depending queues and setup worker listeners
    */
-  const uploading = computed(() => {
-    return queue.value.filter((item) => item.startedAt && !item.finishedAt).length
-  })
+  async function start(files: FilesStore, upload: UploadStore, download: DownloadStore) {
+    if (!uploading.value) {
+      uploading.value = await upload.start(files)
+    }
 
-  /**
-   * Add file to upload queue that will be picked up by the upload worker
-   * and will start upload process async
-   */
-  function add(item: File) {
-    queue.value.push({
-      file: item,
-      mime: item.type || 'text/plain',
-      name: item.name,
-      size: item.size,
-      chunks: 0,
-      chunks_stored: 0
-    })
+    if (!downloading.value) {
+      downloading.value = await download.start(files)
+    }
+
+    if ('SW' in window && messageListenersActive.value === false) {
+      window.SW.onmessage = async (event) => {
+        if (event.data.type === 'upload-progress') {
+          console.log('in event listener', event.data)
+          await uploadMessage(files, upload, event.data.response)
+        }
+
+        if (event.data.type === 'download-progress') {
+          await handleDownloadProgressMessage(files, download, event.data.message)
+        }
+      }
+
+      messageListenersActive.value = true
+    }
   }
 
   /**
-   * Progress queue item status
+   * Stop all the depending queues and remove worker listeners
    */
-  function progress(item: UploadQueueItem, done?: boolean) {
-    const index = queue.value.findIndex((i) => {
-      if (item.id && i.id) {
-        return i.id === item.id
-      }
-
-      return `${i.name}${i.size}` === `${item.name}${item.size}`
-    })
-
-    if (index === -1) {
-      return
+  function stop() {
+    if (uploading.value) {
+      clearInterval(uploading.value)
     }
 
-    queue.value[index] = item
-    queue.value[index].startedAt = queue.value[index].startedAt || new Date()
-
-    if (done) {
-      queue.value[index].finishedAt = new Date()
+    if (downloading.value) {
+      clearInterval(downloading.value)
     }
   }
 
   return {
-    queue,
-    uploading,
-    add,
-    progress
+    start,
+    stop
   }
 })
+
+/**
+ * Handle Worker event for received upload message
+ */
+async function uploadMessage(
+  files: FilesStore,
+  upload: UploadStore,
+  response: UploadChunkResponseMessage
+) {
+  response.transferableFile.metadata = FileMetadata.fromJson(response.metadataJson)
+
+  const storedChunks = response.transferableFile.uploaded_chunks?.length || 0
+
+  await upload.progress(
+    files,
+    response.transferableFile,
+    storedChunks === response.transferableFile.chunks,
+    response.error
+  )
+}
+
+/**
+ * Handle and parse the message received from the worker about download progress
+ */
+async function handleDownloadProgressMessage(
+  files: FilesStore,
+  download: DownloadStore,
+  response: DownloadProgressResponseMessage
+) {
+  const { transferableFile, chunkBytes, error } = response
+
+  await download.progress(files, transferableFile, chunkBytes, error)
+}

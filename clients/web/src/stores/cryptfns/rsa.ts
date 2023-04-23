@@ -1,6 +1,4 @@
 import { aes } from '.'
-
-/// <reference path="cryptfns/cryptfns.d.ts" />
 import {
   rsa_generate_private,
   rsa_public_from_private,
@@ -12,7 +10,7 @@ import {
   rsa_verify,
   rsa_public_key_size,
   rsa_private_key_size
-} from 'cryptfns/cryptfns.js'
+} from './wasm'
 
 export interface KeyPair {
   /**

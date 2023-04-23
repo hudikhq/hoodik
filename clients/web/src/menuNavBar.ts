@@ -12,9 +12,15 @@ export interface NavBarItem {
   isUpload?: boolean
   isCreateDirectory?: boolean
   menu?: NavBarItem[]
+  [key: string]: any
 }
 
 export default [
+  {
+    sw: true,
+    icon: mdiFile,
+    label: 'Worker Test'
+  },
   {
     label: '',
     menu: [

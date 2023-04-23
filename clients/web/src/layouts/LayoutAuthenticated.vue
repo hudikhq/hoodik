@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { mdiForwardburger, mdiBackburger, mdiMenu } from '@mdi/js'
-import { ref } from 'vue'
+import { ref, onBeforeMount } from 'vue'
 import { useRouter } from 'vue-router'
 import menuAside from '@/menuAside'
 import menuNavBar, { type NavBarItem } from '@/menuNavBar'
@@ -18,7 +18,12 @@ import CreateDirectoryModal from '@/components/actions/CreateDirectoryModal.vue'
 import { store as storageStore } from '@/stores/storage'
 import { store as cryptoStore } from '@/stores/crypto'
 import { store as uploadStore } from '@/stores/storage/upload'
+import { store as downloadStore } from '@/stores/storage/download'
+import { store as queueStore } from '@/stores/storage/queue'
+import Api from '@/stores/api'
 
+const queue = queueStore()
+const download = downloadStore()
 const upload = uploadStore()
 const crypto = cryptoStore()
 const storage = storageStore()
@@ -44,13 +49,17 @@ const add = async () => {
   }
 
   if (!upload.active) {
-    await upload.start(storage, crypto.keypair)
+    upload.active = true
   }
 }
 
-router.beforeEach(() => {
+router.beforeEach(async () => {
   isAsideMobileExpanded.value = false
   isAsideLgActive.value = false
+})
+
+onBeforeMount(async () => {
+  await queue.start(storage, upload, download)
 })
 
 const menuClick = (event: Event, item: NavBarItem) => {
@@ -64,6 +73,10 @@ const menuClick = (event: Event, item: NavBarItem) => {
 
   if (item.isCreateDirectory) {
     isModalCreateDirectory.value = true
+  }
+
+  if (item.sw && 'SW' in window) {
+    window.SW.postMessage({ type: 'ping', message: { api: new Api().toJson() } })
   }
 }
 

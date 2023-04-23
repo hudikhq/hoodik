@@ -42,3 +42,35 @@ export function format(date: Date | string, formatString?: string): string {
 
   return f(date, formatString || DATE_FORMAT)
 }
+/**
+ * Format bytes to human readable string
+ */
+export function formatSize(b?: number | string): string {
+  if (b === undefined || b === null) {
+    return '0 B'
+  }
+
+  if (typeof b === 'string') {
+    b = parseInt(b)
+  }
+
+  if (b < 2048) {
+    return `${b.toFixed(2)} B`
+  }
+
+  const kb = b / 1024
+
+  if (kb < 2048) {
+    return `${kb.toFixed(2)} KB`
+  }
+
+  const mb = b / 1024 / 1024
+
+  if (mb < 2048) {
+    return `${mb.toFixed(2)} MB`
+  }
+
+  const gb = b / 1024 / 1024 / 1024
+
+  return `${gb.toFixed(2)} GB`
+}

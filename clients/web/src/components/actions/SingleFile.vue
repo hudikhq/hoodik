@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { format as formatSize } from '@/stores/storage'
-import type { UploadAppFile } from '@/stores/storage/upload'
+import { formatSize, localDateFromUtcString } from '@/stores'
+import type { UploadAppFile } from '@/stores/storage/types'
 import { computed } from 'vue'
 
 const props = defineProps<{
@@ -30,7 +30,9 @@ const speed = computed(() => {
     return '0 B/s'
   }
 
-  const seconds = (Date.now().valueOf() - props.file.started_upload_at.valueOf()) / 1000
+  const started = localDateFromUtcString(props.file.started_upload_at)
+
+  const seconds = (Date.now().valueOf() - started.valueOf()) / 1000
 
   const stored = props.file.uploaded_chunks?.length || 0
 

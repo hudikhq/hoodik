@@ -3,9 +3,9 @@ import { mdiTrashCan } from '@mdi/js'
 import BaseButtons from '@/components/ui/BaseButtons.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
-import { format as formatDate } from '@/stores'
-import { format as formatSize, type ListAppFile } from '@/stores/storage'
+import { format as formatDate, formatSize } from '@/stores'
 import { computed } from 'vue'
+import type { ListAppFile } from '@/stores/storage/types'
 
 const props = defineProps<{
   file: ListAppFile

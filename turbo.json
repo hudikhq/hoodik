@@ -27,8 +27,8 @@
     },
     "test:dev": {
       "dependsOn": [
-        "server",
-        "wasm-pack"
+        "wasm-pack",
+        "server"
       ],
       "cache": false,
       "persistent": true

@@ -3,8 +3,9 @@ import { ref, computed } from 'vue'
 import TableFilesRow from '@/components/files/TableFilesRow.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import CardBoxModal from '../ui/CardBoxModal.vue'
-import { store as storageStore, type ListAppFile } from '@/stores/storage'
+import { store as storageStore } from '@/stores/storage'
 import { store as cryptoStore } from '@/stores/crypto'
+import type { ListAppFile } from '@/stores/storage/types'
 
 const storage = storageStore()
 const crypto = cryptoStore()

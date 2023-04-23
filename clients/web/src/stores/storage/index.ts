@@ -5,73 +5,14 @@ import * as download from './download'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { utcStringFromLocal } from '..'
-import type { CreateFile } from './meta'
 import type { KeyPair } from '../cryptfns/rsa'
+import { FileMetadata } from './metadata'
+
+import type { AppFile, CreateFile, FileResponse, ListAppFile, Parameters } from './types'
 
 export { meta, upload, download, queue }
 
-export interface ListAppFile extends meta.AppFile {
-  current?: boolean
-  parent?: boolean
-  encrypted?: boolean
-  name?: string
-  checked?: boolean
-}
-
-/**
- * Decrypt file metadata
- */
-export async function decrypt(
-  file: meta.AppFile,
-  kp: KeyPair,
-  progress?: (id?: number) => void
-): Promise<meta.AppFile> {
-  file = {
-    metadata: await meta.FileMetadata.decrypt(file.encrypted_metadata, kp),
-    ...file
-  }
-
-  if (progress) {
-    progress(file.id)
-  }
-
-  return file
-}
-
-/**
- * Format bytes to human readable string
- */
-export function format(b?: number | string): string {
-  if (b === undefined || b === null) {
-    return '0 B'
-  }
-
-  if (typeof b === 'string') {
-    b = parseInt(b)
-  }
-
-  if (b < 2048) {
-    return `${b.toFixed(2)} B`
-  }
-
-  const kb = b / 1024
-
-  if (kb < 2048) {
-    return `${kb.toFixed(2)} KB`
-  }
-
-  const mb = b / 1024 / 1024
-
-  if (mb < 2048) {
-    return `${mb.toFixed(2)} MB`
-  }
-
-  const gb = b / 1024 / 1024 / 1024
-
-  return `${gb.toFixed(2)} GB`
-}
-
-export const store = defineStore('storage', () => {
+export const store = defineStore('filesStore', () => {
   /**
    * Are we loading the files?
    */
@@ -87,8 +28,8 @@ export const store = defineStore('storage', () => {
   /**
    * Lookup parameters
    */
-  const parameters = computed<meta.Parameters>(() => {
-    const parameters: meta.Parameters = {}
+  const parameters = computed<Parameters>(() => {
+    const parameters: Parameters = {}
 
     if (dir.value) {
       parameters['dir_id'] = dir.value?.id
@@ -156,7 +97,7 @@ export const store = defineStore('storage', () => {
       query = { ...parameters.value, dir_id: fileId.value }
     }
 
-    let response: meta.FileResponse = { children: [], parents: [] }
+    let response: FileResponse = { children: [], parents: [] }
 
     // We wrap this here so we can somewhat support failing network
     // connection and use the files we have in the store.
@@ -187,7 +128,7 @@ export const store = defineStore('storage', () => {
   async function decryptItem(item: ListAppFile, kp: KeyPair): Promise<ListAppFile> {
     return {
       ...item,
-      metadata: await meta.FileMetadata.decrypt(item.encrypted_metadata, kp),
+      metadata: await FileMetadata.decrypt(item.encrypted_metadata, kp),
       encrypted: false
     }
   }
@@ -273,7 +214,7 @@ export const store = defineStore('storage', () => {
   /**
    * Create a directory in the storage
    */
-  async function createDir(keypair: KeyPair, name: string, dir_id?: number): Promise<meta.AppFile> {
+  async function createDir(keypair: KeyPair, name: string, dir_id?: number): Promise<AppFile> {
     const createFile: CreateFile = {
       name,
       mime: 'dir',
@@ -299,6 +240,7 @@ export const store = defineStore('storage', () => {
     createDir,
     hasItem,
     updateItem,
+    upsertItem,
     addItem,
     removeItem
   }

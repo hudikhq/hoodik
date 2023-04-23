@@ -67,7 +67,11 @@ pub fn app(
         .configure(configure)
         .route(
             "/api/liveness",
-            web::get().to(|| async { actix_web::HttpResponse::Ok().body("I am alive") }),
+            web::get().to(|| async { actix_web::HttpResponse::Ok().body("GET: I am alive") }),
+        )
+        .route(
+            "/api/liveness",
+            web::post().to(|| async { actix_web::HttpResponse::Ok().body("POST: I am alive") }),
         )
         // Proxy HTTP requests to frontend
         .route("/{tail:.*}", web::to(proxy::http))
