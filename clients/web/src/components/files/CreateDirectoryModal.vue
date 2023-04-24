@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
-import { AppForm, AppField, AppButton } from '@/components/form'
+import { AppForm, AppField } from '@/components/form'
 import * as yup from 'yup'
 import { store as storageStore } from '@/stores/storage'
 import { store as cryptoStore } from '@/stores/crypto'
@@ -32,7 +32,6 @@ const init = () => {
         storage.find(crypto.keypair, storage.dir?.id || null)
         emit('confirm')
         emit('update:modelValue', false)
-        config.value.initialValues = { name: '' }
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
@@ -46,23 +45,22 @@ init()
 </script>
 
 <template>
-  <CardBoxModal
-    :modelValue="props.modelValue"
-    @update:modelValue="$emit('update:modelValue', $event)"
-    title="Create a directory"
-    button="info"
-    buttonLabel="Create"
-    has-cancel
-    hide-submit
-    @cancel="$emit('cancel')"
-  >
-    <AppForm v-if="config" :config="config" v-slot="{ form }">
+  <AppForm v-if="config" :config="config" v-slot="{ form }">
+    <CardBoxModal
+      :modelValue="props.modelValue"
+      @update:modelValue="$emit('update:modelValue', $event)"
+      title="Create a directory"
+      button="info"
+      buttonLabel="Create"
+      has-cancel
+      @cancel="$emit('cancel')"
+      :form="form"
+    >
       <p v-if="errorMessage" class="text-sm text-red-900 dark:text-red-200">
         {{ errorMessage }}
       </p>
 
       <AppField :form="form" label="Directory name" name="name" placeholder="Documents" autofocus />
-      <AppButton :form="form" type="submit">Create</AppButton>
-    </AppForm>
-  </CardBoxModal>
+    </CardBoxModal>
+  </AppForm>
 </template>

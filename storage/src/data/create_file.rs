@@ -84,7 +84,7 @@ impl Validation for CreateFile {
 
                 if let Some(v) = obj.chunks {
                     if v <= 0 {
-                        return error.add("min:1");
+                        error.add("min:1");
                     }
 
                     // We won't validate the size of each chunk because we won't allow that

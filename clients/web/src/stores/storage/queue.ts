@@ -30,7 +30,6 @@ export const store = defineStore('queue', () => {
     if ('SW' in window && messageListenersActive.value === false) {
       window.SW.onmessage = async (event) => {
         if (event.data.type === 'upload-progress') {
-          console.log('in event listener', event.data)
           await uploadMessage(files, upload, event.data.response)
         }
 
@@ -77,7 +76,7 @@ async function uploadMessage(
   await upload.progress(
     files,
     response.transferableFile,
-    storedChunks === response.transferableFile.chunks,
+    response.isDone || storedChunks === response.transferableFile.chunks,
     response.error
   )
 }

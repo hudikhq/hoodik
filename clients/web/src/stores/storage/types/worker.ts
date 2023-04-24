@@ -1,11 +1,23 @@
-import type { ApiTransfer, ErrorResponse } from '@/stores/api'
+import type { ApiTransfer, InnerValidationErrors } from '@/stores/api'
 import type { ListAppFile, UploadAppFile } from './file'
 import type { FileMetadataJson } from '.'
 
-export type UploadWorkerMessage = {
-  file: string
-  key: string
-  isDone: boolean
+/**
+ * Message error that is sent from the worker
+ */
+export type WorkerErrorType =
+  | undefined
+  | { context: InnerValidationErrors | string | undefined; stack?: string }
+
+/**
+ * Message sent to the worker to upload a file,
+ * the worker takes care of the chunking and sending
+ * one by one
+ */
+export type UploadFileMessage = {
+  api: ApiTransfer
+  transferableFile: UploadAppFile
+  metadataJson: FileMetadataJson
 }
 
 /**
@@ -37,7 +49,8 @@ export type UploadChunkResponseMessage = {
   metadataJson: FileMetadataJson | null
   chunk: number
   attempt: number
-  error?: Error | ErrorResponse<any> | string
+  isDone?: boolean
+  error?: WorkerErrorType
 }
 
 /**
@@ -47,5 +60,5 @@ export type DownloadProgressResponseMessage = {
   transferableFile: ListAppFile
   metadataJson: FileMetadataJson | null
   chunkBytes: number
-  error?: Error | ErrorResponse<any> | string
+  error?: WorkerErrorType
 }

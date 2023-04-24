@@ -4,11 +4,11 @@ import { localDateFromUtcString, utcStringFromLocal } from '../..'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as sync from './sync'
-import { pushChunkToWorker } from '../workers'
+import { pushUploadToWorker } from '../workers'
 import {
   CHUNK_SIZE_BYTES,
-  CONCURRENT_CHUNKS_UPLOAD,
-  FILES_UPLOADING_AT_ONE_TIME
+  FILES_UPLOADING_AT_ONE_TIME,
+  KEEP_FINISHED_UPLOADS_FOR_MINUTES
 } from '../constants'
 
 import type {
@@ -32,11 +32,9 @@ export const store = defineStore('upload', () => {
 
     const tracker = (file: UploadAppFile, isDone: boolean) => progress(storage, file, isDone)
 
-    const worker = !!('SW' in window)
-
     return setInterval(async () => {
       if (active.value) {
-        await _tick(tracker, worker)
+        await _tick(tracker)
       }
     }, 1000)
   }
@@ -82,10 +80,6 @@ export const store = defineStore('upload', () => {
       storage.upsertItem(file)
     }
 
-    console.log(
-      `File ${file.metadata?.name} ${file.chunks_stored} / ${file.chunks} has been uploaded`
-    )
-
     /// Get the index of uploading file if it exists
     const index = uploading.value.findIndex((f) => f.id === file.id)
 
@@ -96,17 +90,19 @@ export const store = defineStore('upload', () => {
       uploading.value.push(file)
     }
 
-    let item = uploading.value.splice(index, 1)[0]
+    uploading.value.splice(index, 1)
 
-    // TODO:
-    // If the file has been canceled, we will remove it from the uploading list
-    // and stop the loop sending the chunks to the worker
-    // This is currently not working ... we must handle this somehow
-    if (item.cancel) {
+    // Canceling the upload is done by deleting the file on the server,
+    // that will trigger the upload error and the file will be moved to the
+    // failed list as if it was canceled
+    if (file.cancel) {
       console.log(`File ${file.metadata?.name} is canceling the upload...`)
 
-      item = file
-      item.cancel = true
+      uploading.value = uploading.value.filter((i) => i.id !== file.id)
+      failed.value.push(file)
+      storage.removeItem(file.id)
+
+      return
     }
 
     // If the file has been finished, we will remove it from the uploading list
@@ -127,7 +123,7 @@ export const store = defineStore('upload', () => {
    * Run single tick of the upload queue that takes the waiting
    * files and starts the upload process for them
    */
-  async function _tick(tracker: UploadProgressFunction, worker: boolean) {
+  async function _tick(tracker: UploadProgressFunction) {
     let batch: UploadAppFile[] = []
 
     if (uploading.value.length < FILES_UPLOADING_AT_ONE_TIME) {
@@ -139,7 +135,9 @@ export const store = defineStore('upload', () => {
         // We don't wait for this promise, it will be left to run in the background
         Promise.all(
           batch.map((file) => {
-            upload(file, tracker, worker).catch((err) => {
+            const promise = 'SW' in window ? pushUploadToWorker(file) : upload(file, tracker)
+
+            promise.catch((err) => {
               if (err instanceof ErrorResponse) {
                 const error = err as ErrorResponse<unknown>
                 setFailed({ ...file, error })
@@ -154,9 +152,11 @@ export const store = defineStore('upload', () => {
 
       done.value = done.value.filter((file) => {
         if (file.finished_upload_at) {
-          const date = localDateFromUtcString(file.finished_upload_at).valueOf() + 120 * 1000
+          const date =
+            localDateFromUtcString(file.finished_upload_at).valueOf() +
+            KEEP_FINISHED_UPLOADS_FOR_MINUTES * 60 * 1000
 
-          return date < new Date().valueOf()
+          return new Date().valueOf() < date
         }
 
         return false
@@ -178,21 +178,6 @@ export const store = defineStore('upload', () => {
     }
 
     failed.value.push(file)
-  }
-
-  /**
-   * Move the file back into the queue for another try at uploading
-   */
-  function retry(file: UploadAppFile) {
-    for (let i = 0; i < failed.value.length; i++) {
-      if (failed.value[i].id === file.id) {
-        failed.value.splice(i, 1)
-
-        break
-      }
-    }
-
-    waiting.value.push(file)
   }
 
   /**
@@ -241,7 +226,6 @@ export const store = defineStore('upload', () => {
     done,
     active,
     start,
-    retry,
     push,
     create,
     progress
@@ -251,16 +235,10 @@ export const store = defineStore('upload', () => {
 /**
  * Upload single file from the upload queue
  */
-export async function upload(
-  file: UploadAppFile,
-  progress?: UploadProgressFunction,
-  useWorker?: boolean
-) {
+export async function upload(file: UploadAppFile, progress?: UploadProgressFunction) {
   if (!file.started_upload_at) {
     file.started_upload_at = utcStringFromLocal()
   }
-
-  const concurrency = useWorker ? CONCURRENT_CHUNKS_UPLOAD : 1
 
   if (progress) {
     await progress(file, false)
@@ -280,15 +258,11 @@ export async function upload(
 
       const data = await sliceChunk(file.file as File, chunk)
 
-      if (useWorker) {
-        await pushChunkToWorker(file, data, chunk)
-      } else {
-        file = await sync.uploadChunk(file, data, chunk)
+      file = await sync.uploadChunk(file, data, chunk)
 
-        if (progress) {
-          const storedChunks = file.uploaded_chunks?.length || 0
-          await progress(file, storedChunks === file.chunks)
-        }
+      if (progress) {
+        const storedChunks = file.uploaded_chunks?.length || 0
+        await progress(file, storedChunks === file.chunks)
       }
 
       return file
@@ -296,7 +270,7 @@ export async function upload(
   })
 
   while (workers.length) {
-    const batch = workers.splice(0, concurrency)
+    const batch = workers.splice(0, 1)
     file = await Promise.race(batch.map((worker) => worker()))
   }
 

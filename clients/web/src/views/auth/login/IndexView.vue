@@ -27,8 +27,6 @@ const init = () => {
       password: yup.string().required('Password is required')
     }),
     onSubmit: async (values: Credentials) => {
-      console.debug(values)
-
       try {
         await login.withCredentials(crypto, values)
         router.push('/')

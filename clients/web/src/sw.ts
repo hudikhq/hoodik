@@ -1,22 +1,70 @@
 import { uploadChunk, download } from './stores/storage/workers'
-import Api from './stores/api'
+import Api, { ErrorResponse } from './stores/api'
+import { FileMetadata } from './stores/storage/metadata'
+import { uploadFile } from './stores/storage/workers/file'
 
 import type {
   DownloadFileMessage,
   DownloadProgressResponseMessage,
+  UploadAppFile,
   UploadChunkMessage,
-  UploadChunkResponseMessage
+  UploadChunkResponseMessage,
+  UploadFileMessage,
+  WorkerErrorType
 } from './stores/storage/types'
-import type { ErrorResponse } from '@/stores/api'
-import { FileMetadata } from './stores/storage/metadata'
 
 onmessage = async (message: MessageEvent<any>) => {
+  if (message.data?.type === 'upload-file') {
+    handleUploadFile(message.data.message)
+  }
+
   if (message.data?.type === 'upload-chunk') {
     handleUploadChunk(message.data.message)
   }
 
   if (message.data?.type === 'download-file') {
     handleDownloadFile(message.data.message)
+  }
+
+  if (message.data?.type === 'test') {
+    console.log(message)
+  }
+}
+
+/**
+ * Handle taking the file in, chunking it and sending it to the backend
+ */
+async function handleUploadFile({ api, transferableFile, metadataJson }: UploadFileMessage) {
+  const file = transferableFile as UploadAppFile
+  file.metadata = FileMetadata.fromJson(metadataJson)
+
+  const apiRunner = new Api(api)
+
+  const progress = (
+    file: UploadAppFile,
+    attempt: number,
+    isDone: boolean,
+    error?: Error | ErrorResponse<any> | string | undefined
+  ) => {
+    const transferableFile = { ...file, metadata: undefined }
+
+    postMessage({
+      type: 'upload-progress',
+      response: {
+        transferableFile,
+        metadataJson,
+        attempt: attempt || 0,
+        isDone,
+        error: handleError(error)
+      } as UploadChunkResponseMessage
+    })
+  }
+
+  try {
+    await uploadFile(apiRunner, file, progress)
+  } catch (error) {
+    console.log('In worker error')
+    progress(file, 0, false, error as ErrorResponse<unknown>)
   }
 }
 
@@ -42,7 +90,7 @@ async function handleUploadChunk({
   } catch (err) {
     const error = err as ErrorResponse<unknown>
 
-    transferableFile = { ...transferableFile, metadata: undefined, file: undefined }
+    transferableFile = { ...transferableFile, metadata: undefined }
     const metadataJson = transferableFile.metadata?.toJson()
 
     postMessage({
@@ -53,7 +101,7 @@ async function handleUploadChunk({
         data,
         chunk,
         attempt: attempt || 0,
-        error: error.message || 'something went wrong'
+        error: handleError(error)
       } as UploadChunkResponseMessage
     })
   }
@@ -75,8 +123,29 @@ async function handleDownloadFile({ api, transferableFile, metadataJson }: Downl
       response: {
         transferableFile,
         chunkBytes: 0,
-        error: error?.message || 'something went wrong'
+        error: handleError(error)
       } as DownloadProgressResponseMessage
     })
+  }
+}
+
+/**
+ * Convert error into something receivable by the main thread
+ */
+function handleError(error?: undefined | Error | ErrorResponse<any> | string): WorkerErrorType {
+  if (!error) return
+
+  if (typeof error === 'string') {
+    return { context: error }
+  }
+
+  if (error instanceof Error) {
+    return {
+      context:
+        (error as ErrorResponse<unknown>).validation ||
+        (error as ErrorResponse<unknown>).description ||
+        error.message,
+      stack: error.stack
+    }
   }
 }

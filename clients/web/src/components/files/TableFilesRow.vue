@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiTrashCan } from '@mdi/js'
+import { mdiTrashCan, mdiCloudCancel } from '@mdi/js'
 import BaseButtons from '@/components/ui/BaseButtons.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
@@ -13,6 +13,7 @@ const props = defineProps<{
 }>()
 
 const emits = defineEmits<{
+  (event: 'cancel', file: ListAppFile): void
   (event: 'remove', file: ListAppFile): void
   (event: 'view', file: ListAppFile): void
   (event: 'checked', value: boolean, file: ListAppFile): void
@@ -106,6 +107,15 @@ const fileFinishedUploadAt = computed(() => {
           small
           @click="emits('remove', file)"
           :disabled="!props.file.id"
+          v-if="props.file.finished_upload_at || props.file.mime === 'dir'"
+        />
+        <BaseButton
+          color="warning"
+          :icon="mdiCloudCancel"
+          small
+          @click="emits('cancel', file)"
+          :disabled="!props.file.id"
+          v-else
         />
       </BaseButtons>
     </td>

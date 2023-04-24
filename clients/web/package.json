@@ -4,12 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "release": "vite build",
     "preview": "vite preview",
     "test:unit": "vitest run --testNamePattern 'UNIT:'",
-    "test:api": "vitest run --testNamePattern 'API:'",
-    "test:dev": "vitest",
-    "build-only": "vite build",
+    "test:e2e": "vitest run --testNamePattern 'E2E:'",
+    "test:watch": "vitest",
     "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
     "format": "prettier --write src/"

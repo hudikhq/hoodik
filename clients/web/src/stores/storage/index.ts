@@ -194,7 +194,7 @@ export const store = defineStore('filesStore', () => {
       throw new Error('Cannot download file without key')
     }
 
-    return download.chunked(file)
+    return download.download(file)
   }
 
   /**

@@ -16,8 +16,6 @@ export async function uploadChunk(
   chunk: number,
   attempt: number
 ): Promise<UploadChunkResponseMessage> {
-  let error
-
   try {
     if (!file.metadata?.key) {
       throw new Error(`File ${file.id} is missing key`)
@@ -30,10 +28,10 @@ export async function uploadChunk(
       throw new Error(`Failed encrypting chunk ${chunk} / ${file.chunks} of ${file.metadata?.name}`)
     }
 
-    console.log(
-      'Worker',
-      `Uploading chunk (${encrypted.length} B) ${chunk} / ${file.chunks} of ${file.metadata?.name} - upload attempt ${attempt} (checksum: ${checksum})`
-    )
+    // console.log(
+    //   'Worker',
+    //   `Uploading chunk (${encrypted.length} B) ${chunk} / ${file.chunks} of ${file.metadata?.name} - upload attempt ${attempt} (checksum: ${checksum})`
+    // )
 
     const query = {
       chunk,
@@ -65,16 +63,16 @@ export async function uploadChunk(
       ...response.body
     }
 
-    console.log(
-      'Worker',
-      `Done uploading chunk (${encrypted.length} B) ${chunk} / ${file.chunks} of ${file.metadata?.name}`
-    )
+    // console.log(
+    //   'Worker',
+    //   `Done uploading chunk (${encrypted.length} B) ${chunk} / ${file.chunks} of ${file.metadata?.name}`
+    // )
   } catch (err) {
-    const _error = err as ErrorResponse<Uint8Array>
+    const error = err as ErrorResponse<Uint8Array>
 
     // If we get checksum error, most likely the data was corrupted during transfer
     // we wont retry indefinitely, but we will try a few times
-    if (_error.validation?.checksum && attempt < MAX_UPLOAD_RETRIES) {
+    if (error.validation?.checksum && attempt < MAX_UPLOAD_RETRIES) {
       console.warn(
         'Worker',
         `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.metadata?.name}, failed checksum, retrying...`
@@ -83,7 +81,7 @@ export async function uploadChunk(
     }
 
     // The chunk was already uploaded, so we can just return the file
-    if (_error.validation?.chunk === 'chunk_already_exists') {
+    if (error.validation?.chunk === 'chunk_already_exists') {
       console.warn(
         'Worker',
         `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.metadata?.name}, chunk already exist, skipping...`
@@ -95,7 +93,7 @@ export async function uploadChunk(
         err
       )
 
-      error = _error
+      throw error
     }
   }
 
@@ -110,7 +108,6 @@ export async function uploadChunk(
     transferableFile,
     metadataJson: file.metadata?.toJson() || null,
     chunk,
-    attempt,
-    error: error?.message || undefined
+    attempt
   }
 }

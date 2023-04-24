@@ -4,36 +4,60 @@
     "**/.env.*local"
   ],
   "pipeline": {
-    "server": {},
+    "dev": {
+      "dependsOn": [
+        "wasm-pack"
+      ],
+      "cache": false,
+      "persistent": true
+    },
+    "//#dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": [],
+      "inputs": [
+        "**/*.rs",
+        "**/*.toml"
+      ]
+    },
     "wasm-pack": {
+      "dependsOn": [],
       "outputs": [
         "pkg/**"
+      ],
+      "inputs": [
+        "cryptfns/**/*.rs",
+        "cryptfns/**/*.toml"
       ]
     },
     "test:unit": {
       "dependsOn": [
         "wasm-pack"
       ],
-      "cache": false,
-      "persistent": true
+      "cache": false
     },
-    "test:api": {
+    "//#test:unit": {
+      "dependsOn": []
+    },
+    "test:e2e": {
       "dependsOn": [
-        "server",
+        "wasm-pack"
+      ],
+      "cache": false
+    },
+    "test:watch": {
+      "dependsOn": [
         "wasm-pack"
       ],
       "cache": false,
       "persistent": true
     },
-    "test:dev": {
-      "dependsOn": [
-        "wasm-pack",
-        "server"
-      ],
+    "//#test:watch": {
+      "dependsOn": [],
       "cache": false,
       "persistent": true
     },
-    "build": {
+    "release": {
       "dependsOn": [
         "wasm-pack"
       ],
@@ -41,13 +65,16 @@
         "dist/**"
       ]
     },
-    "dev": {
-      "dependsOn": [
-        "wasm-pack",
-        "server"
+    "//#release": {
+      "dependsOn": [],
+      "inputs": [
+        "**/*.rs",
+        "**/*.toml"
       ],
-      "cache": false,
-      "persistent": true
+      "outputs": [
+        "target/release/hoodik",
+        "target/release/hoodik.*"
+      ]
     },
     "lint": {}
   }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ListAppFile } from '@/stores/storage'
+import type { ListAppFile } from '@/stores/storage/types'
 
 const props = defineProps<{
   parents: ListAppFile[]

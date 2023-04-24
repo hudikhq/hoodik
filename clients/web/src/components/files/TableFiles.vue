@@ -25,6 +25,7 @@ const download = (file: ListAppFile) => {
 }
 
 const isModalRemoveActive = ref(false)
+const isCancelUpload = ref(false)
 const fileToRemove = ref<Partial<ListAppFile> | null>(null)
 const _checkedRows = ref<ListAppFile[]>([])
 
@@ -87,11 +88,13 @@ const confirmRemove = async () => {
     fileToRemove.value = null
   }
   isModalRemoveActive.value = false
+  isCancelUpload.value = false
 }
 
 const cancelRemove = async () => {
   fileToRemove.value = null
   isModalRemoveActive.value = false
+  isCancelUpload.value = false
 }
 
 const removeFile = (file: Partial<ListAppFile>) => {
@@ -99,12 +102,18 @@ const removeFile = (file: Partial<ListAppFile>) => {
   isModalRemoveActive.value = true
 }
 
+const cancelUpload = (file: Partial<ListAppFile>) => {
+  fileToRemove.value = file
+  isModalRemoveActive.value = true
+  isCancelUpload.value = true
+}
+
 const viewFile = async () => {}
 </script>
 
 <template>
   <CardBoxModal
-    title="Deleting the file"
+    :title="isCancelUpload ? 'Cancel upload' : 'Delete file'"
     button="danger"
     v-model="isModalRemoveActive"
     button-label="Yes, delete"
@@ -112,7 +121,10 @@ const viewFile = async () => {}
     @cancel="cancelRemove"
     @confirm="confirmRemove"
   >
-    <p>
+    <p v-if="isCancelUpload">
+      Are you sure you want to cancel the upload of file '{{ fileToRemove?.metadata?.name }}'?
+    </p>
+    <p v-else>
       Are you sure you want to delete forever '{{ fileToRemove?.metadata?.name }}'
       <span v-if="fileToRemove?.mime === 'dir'"> directory</span>
       ?
@@ -142,6 +154,7 @@ const viewFile = async () => {}
         <TableFilesRow
           :file="file"
           :checkedRows="checkedRows"
+          @cancel="cancelUpload"
           @remove="removeFile"
           @view="viewFile"
           @checked="selectOne"
