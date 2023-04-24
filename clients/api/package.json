@@ -1,9 +1,0 @@
-{
-  "private": true,
-  "name": "hoodik-rust-api",
-  "version": "0.0.1",
-  "description": "This is just a dummy package to force Turborepo to run the rust server",
-  "scripts": {
-    "server": "cd ../../ && cargo run"
-  }
-}

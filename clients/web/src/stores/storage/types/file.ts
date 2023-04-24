@@ -5,7 +5,7 @@ export interface UploadAppFile extends AppFile {
   /**
    * File system file
    */
-  file?: File
+  file: File
 
   /**
    * Start of the upload

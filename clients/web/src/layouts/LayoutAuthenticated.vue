@@ -8,19 +8,18 @@ import { store as style } from '@/stores/style'
 import { store as login } from '@/stores/auth/login'
 import { ensureAuthenticated } from '@/stores/auth'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
-// import FormControl from '@/components/ui/FormControl.vue'
+import NavBarSearch from '@/components/ui/NavBarSearch.vue'
 import NavBar from '@/components/ui/NavBar.vue'
 import NavBarItemPlain from '@/components/ui/NavBarItemPlain.vue'
 import AsideMenu from '@/components/ui/AsideMenu.vue'
 import FooterBar from '@/components/ui/FooterBar.vue'
 import IOStatus from '@/components/files/IOStatus.vue'
-import CreateDirectoryModal from '@/components/actions/CreateDirectoryModal.vue'
+import CreateDirectoryModal from '@/components/files/CreateDirectoryModal.vue'
 import { store as storageStore } from '@/stores/storage'
 import { store as cryptoStore } from '@/stores/crypto'
 import { store as uploadStore } from '@/stores/storage/upload'
 import { store as downloadStore } from '@/stores/storage/download'
 import { store as queueStore } from '@/stores/storage/queue'
-import Api from '@/stores/api'
 
 const queue = queueStore()
 const download = downloadStore()
@@ -74,10 +73,6 @@ const menuClick = (event: Event, item: NavBarItem) => {
   if (item.isCreateDirectory) {
     isModalCreateDirectory.value = true
   }
-
-  if (item.sw && 'SW' in window) {
-    window.SW.postMessage({ type: 'ping', message: { api: new Api().toJson() } })
-  }
 }
 
 const cancel = () => {
@@ -98,7 +93,6 @@ const cancel = () => {
       :class="[layoutAsidePadding, { 'ml-60 lg:ml-0': isAsideMobileExpanded }]"
       class="pt-5 min-h-screen w-screen transition-position lg:w-auto bg-gray-50 dark:bg-slate-800 dark:text-slate-100"
     >
-      <IOStatus />
       <CreateDirectoryModal v-model="isModalCreateDirectory" @cancel="cancel" />
       <NavBar
         :menu="menuNavBar"
@@ -114,9 +108,9 @@ const cancel = () => {
         <NavBarItemPlain display="hidden lg:flex xl:hidden" @click.prevent="isAsideLgActive = true">
           <BaseIcon :path="mdiMenu" size="24" />
         </NavBarItemPlain>
-        <!-- <NavBarItemPlain use-margin>
-          <FormControl placeholder="Search (ctrl+k)" ctrl-k-focus transparent borderless />
-        </NavBarItemPlain> -->
+        <NavBarItemPlain use-margin>
+          <NavBarSearch />
+        </NavBarItemPlain>
       </NavBar>
       <AsideMenu
         :is-aside-mobile-expanded="isAsideMobileExpanded"
@@ -126,6 +120,8 @@ const cancel = () => {
         @aside-lg-close-click="isAsideLgActive = false"
       />
       <slot :authenticated="loginStore.authenticated" :keypair="crypto.keypair" />
+
+      <IOStatus />
       <FooterBar> </FooterBar>
     </div>
   </div>

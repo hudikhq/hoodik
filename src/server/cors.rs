@@ -1,11 +1,28 @@
 use actix_cors::Cors;
+use actix_web::http;
+use std::str::FromStr;
 
 pub fn setup() -> Cors {
-    Cors::permissive()
-    // .allow_any_origin()
-    // .allow_any_method()
-    // .expose_any_header()
-    // .allow_any_header()
-    // .send_wildcard()
-    // .max_age(3600)
+    let expose = vec![
+        "content-type",
+        "cache-control",
+        "content-length",
+        "x-csrf-token",
+        "authorization",
+        "access-control-allow-origin",
+    ];
+
+    Cors::default()
+        .allow_any_origin()
+        .allowed_origin_fn(move |_, _| true)
+        .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+        .expose_headers(expose)
+        .allowed_headers(vec![
+            http::header::CONTENT_TYPE,
+            http::header::ACCEPT,
+            http::header::ORIGIN,
+            http::header::AUTHORIZATION,
+            http::header::HeaderName::from_str("X-Csrf-Token").unwrap(),
+        ])
+        .max_age(3600)
 }

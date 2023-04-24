@@ -40,7 +40,7 @@ export async function getUserWithoutKey() {
 }
 
 describe('Register test', () => {
-  it('API: Can we register user', async () => {
+  it('E2E: Can we register user', async () => {
     const { user, privateKey, password } = await getUserWithKey()
 
     expect(!!user).toBeTruthy()

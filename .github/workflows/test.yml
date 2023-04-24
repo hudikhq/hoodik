@@ -15,7 +15,6 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -23,5 +22,17 @@ jobs:
       - name: Install pkg-config
         run: sudo apt install -y clang llvm pkg-config nettle-dev
 
-      - name: Run tests
-        run: ./test-rust
+      - name: Run yarn install
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: install
+
+      - name: Run unit tests
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: unit
+
+      - name: Run e2e tests
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: e2e

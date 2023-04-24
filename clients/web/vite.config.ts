@@ -40,4 +40,10 @@ export default defineConfig({
       plugins: [require('tailwindcss'), require('autoprefixer')]
     }
   }
+  // server: {
+  //   hmr: {
+  //     host: 'localhost',
+  //     port: 5173
+  //   }
+  // }
 })

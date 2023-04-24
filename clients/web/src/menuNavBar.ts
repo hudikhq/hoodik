@@ -1,4 +1,4 @@
-import { mdiLock, mdiThemeLightDark, mdiFile, mdiFileCabinet } from '@mdi/js'
+import { mdiLock, mdiThemeLightDark, mdiFolderPlusOutline, mdiFilePlusOutline } from '@mdi/js'
 
 export interface NavBarItem {
   icon?: string
@@ -17,32 +17,14 @@ export interface NavBarItem {
 
 export default [
   {
-    sw: true,
-    icon: mdiFile,
-    label: 'Worker Test'
+    icon: mdiFilePlusOutline,
+    isUpload: true
   },
   {
-    label: '',
-    menu: [
-      {
-        icon: mdiFileCabinet,
-        label: 'Directory',
-        isCreateDirectory: true
-      },
-      {
-        isDivider: true
-      },
-      {
-        icon: mdiFile,
-        label: 'Upload',
-        isUpload: true
-      }
-      // {
-      //   icon: mdiCrop,
-      //   label: 'Upload Folder'
-      // }
-    ]
+    icon: mdiFolderPlusOutline,
+    isCreateDirectory: true
   },
+  { isDivider: true },
   {
     icon: mdiThemeLightDark,
     label: 'Light/Dark',

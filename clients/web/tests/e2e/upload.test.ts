@@ -1,13 +1,13 @@
-import * as cryptfns from './../../src/stores/cryptfns'
-import * as storage from './../../src/stores/storage'
+import * as cryptfns from '../../src/stores/cryptfns'
+import * as storage from '../../src/stores/storage'
 import { describe, expect, it } from 'vitest'
 import { getUserWithKey } from './register.test'
-import { CreateFile } from '../../src/stores/storage/meta'
-import { CHUNK_SIZE_BYTES } from '../../src/stores/storage/upload'
 import { utcStringFromLocal } from '../../src/stores'
+import { CreateFile } from '../../src/stores/storage/types'
+import { CHUNK_SIZE_BYTES } from '../../src/stores/storage/constants'
 
 describe('Upload a file', () => {
-  it('API: Can upload a file', async () => {
+  it('E2E: Can upload a file', async () => {
     const { privateKey } = await getUserWithKey()
     const KeyPair = await cryptfns.rsa.inputToKeyPair(privateKey)
 

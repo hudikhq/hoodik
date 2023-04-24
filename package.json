@@ -2,9 +2,19 @@
   "private": true,
   "name": "hoodik",
   "workspaces": [
-    "clients/api",
     "clients/web",
     "cryptfns"
   ],
+  "scripts": {
+    "dev": "cargo run",
+    "test:watch": "cargo run",
+    "test:unit": "./rust-unit",
+    "release": "cargo build --release",
+    "alias-commands": "Below this line ###########################################",
+    "watch": "turbo run test:watch",
+    "start": "turbo run dev",
+    "e2e": "./e2e",
+    "unit": "turbo run test:unit"
+  },
   "packageManager": "yarn@1.22.19"
 }

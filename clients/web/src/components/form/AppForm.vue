@@ -8,6 +8,7 @@ const props = defineProps<{
   config: Parameters<typeof useForm>
   class?: string
   working?: boolean
+  leaveOnSubmit?: boolean
 }>()
 
 const form = useForm({
@@ -19,7 +20,7 @@ const submit = form.handleSubmit(async (values) => {
   // @ts-ignore
   if (typeof props?.config?.onSubmit === 'function') {
     // @ts-ignore
-    return await props.config.onSubmit(values)
+    await props.config.onSubmit(values)
   }
 })
 
