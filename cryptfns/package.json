@@ -1,5 +1,6 @@
 {
   "name": "cryptfns",
+  "license": "CC BY-NC 4.0",
   "version": "0.1.0",
   "scripts": {
     "wasm-pack": "wasm-pack build --out-name cryptfns"

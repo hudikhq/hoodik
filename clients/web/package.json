@@ -1,5 +1,6 @@
 {
   "name": "@hoodik/hoodik-web",
+  "license": "CC BY-NC 4.0",
   "version": "0.0.0",
   "private": true,
   "scripts": {
