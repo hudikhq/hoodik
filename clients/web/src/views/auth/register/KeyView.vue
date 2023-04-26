@@ -112,7 +112,7 @@ init()
             Next
           </AppButton>
 
-          <div class="text-sm font-medium text-gray-500 dark:text-gray-400">
+          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-400">
             Already have an account?
             <router-link
               to="/auth/login"

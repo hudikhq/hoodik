@@ -11,7 +11,7 @@ import type {
   UploadChunkResponseMessage,
   UploadFileMessage,
   WorkerErrorType
-} from './stores/storage/types'
+} from './stores/types'
 
 onmessage = async (message: MessageEvent<any>) => {
   if (message.data?.type === 'upload-file') {

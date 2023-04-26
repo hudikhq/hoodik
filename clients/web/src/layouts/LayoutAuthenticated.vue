@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { mdiForwardburger, mdiBackburger, mdiMenu } from '@mdi/js'
-import { ref, onBeforeMount } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import menuAside from '@/menuAside'
 import menuNavBar, { type NavBarItem } from '@/menuNavBar'
@@ -12,21 +12,10 @@ import NavBarSearch from '@/components/ui/NavBarSearch.vue'
 import NavBar from '@/components/ui/NavBar.vue'
 import NavBarItemPlain from '@/components/ui/NavBarItemPlain.vue'
 import AsideMenu from '@/components/ui/AsideMenu.vue'
-import FooterBar from '@/components/ui/FooterBar.vue'
-import IOStatus from '@/components/files/IOStatus.vue'
-import CreateDirectoryModal from '@/components/files/CreateDirectoryModal.vue'
-import { store as storageStore } from '@/stores/storage'
+import StatusBar from '@/components/files/io/StatusBar.vue'
 import { store as cryptoStore } from '@/stores/crypto'
-import { store as uploadStore } from '@/stores/storage/upload'
-import { store as downloadStore } from '@/stores/storage/download'
-import { store as queueStore } from '@/stores/storage/queue'
 
-const queue = queueStore()
-const download = downloadStore()
-const upload = uploadStore()
 const crypto = cryptoStore()
-const storage = storageStore()
-
 const styleStore = style()
 const router = useRouter()
 const loginStore = login()
@@ -35,54 +24,22 @@ await ensureAuthenticated(router, loginStore, crypto)
 
 const layoutAsidePadding = 'xl:pl-60'
 
-const isModalCreateDirectory = ref(false)
 const isAsideMobileExpanded = ref(false)
 const isAsideLgActive = ref(false)
-const fileInput = ref<HTMLInputElement>()
-
-const add = async () => {
-  if (fileInput.value && fileInput.value?.files?.length) {
-    for (let i = 0; i < fileInput.value?.files?.length; i++) {
-      await upload.push(crypto.keypair, fileInput.value?.files?.[i], storage.dir?.id || undefined)
-    }
-  }
-
-  if (!upload.active) {
-    upload.active = true
-  }
-}
 
 router.beforeEach(async () => {
   isAsideMobileExpanded.value = false
   isAsideLgActive.value = false
 })
 
-onBeforeMount(async () => {
-  await queue.start(storage, upload, download)
-})
-
 const menuClick = (event: Event, item: NavBarItem) => {
   if (item.isToggleLightDark) {
     styleStore.setDarkMode()
   }
-
-  if (item.isUpload && fileInput.value) {
-    fileInput.value.click()
-  }
-
-  if (item.isCreateDirectory) {
-    isModalCreateDirectory.value = true
-  }
-}
-
-const cancel = () => {
-  isModalCreateDirectory.value = false
 }
 </script>
 
 <template>
-  <input style="display: none" type="file" ref="fileInput" multiple @change="add" />
-
   <div
     :class="{
       dark: styleStore.darkMode,
@@ -91,9 +48,8 @@ const cancel = () => {
   >
     <div
       :class="[layoutAsidePadding, { 'ml-60 lg:ml-0': isAsideMobileExpanded }]"
-      class="pt-5 min-h-screen w-screen transition-position lg:w-auto bg-gray-50 dark:bg-slate-800 dark:text-slate-100"
+      class="pt-5 min-h-screen w-screen transition-position lg:w-auto bg-white dark:bg-brownish-800 dark:text-brownish-100"
     >
-      <CreateDirectoryModal v-model="isModalCreateDirectory" @cancel="cancel" />
       <NavBar
         :menu="menuNavBar"
         :class="[layoutAsidePadding, { 'ml-60 lg:ml-0': isAsideMobileExpanded }]"
@@ -121,8 +77,7 @@ const cancel = () => {
       />
       <slot :authenticated="loginStore.authenticated" :keypair="crypto.keypair" />
 
-      <IOStatus />
-      <FooterBar> </FooterBar>
+      <StatusBar />
     </div>
   </div>
 </template>

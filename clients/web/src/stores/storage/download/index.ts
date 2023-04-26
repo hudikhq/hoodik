@@ -10,11 +10,10 @@ import type {
   FilesStore,
   IntervalType,
   ListAppFile
-} from '../types'
+} from '../../types'
 import type { KeyPair } from '../../cryptfns/rsa'
-import { localDateFromUtcString, utcStringFromLocal } from '@/stores'
-import { ErrorResponse } from '@/stores/api'
-import { FILES_DOWNLOADING_AT_ONE_TIME } from '../constants'
+import { errorIntoWorkerError, localDateFromUtcString, utcStringFromLocal } from '@/stores'
+import { FILES_DOWNLOADING_AT_ONE_TIME, KEEP_FINISHED_DOWNLOADS_FOR_MINUTES } from '../constants'
 import { ref } from 'vue'
 
 export const store = defineStore('download', () => {
@@ -44,7 +43,7 @@ export const store = defineStore('download', () => {
   /**
    * Files currently being downloaded
    */
-  const downloading = ref<DownloadAppFile[]>([])
+  const running = ref<DownloadAppFile[]>([])
 
   /**
    * Files that failed the downloading process
@@ -84,32 +83,33 @@ export const store = defineStore('download', () => {
     }
 
     /// Get the index of downloading file if it exists
-    const index = downloading.value.findIndex((f) => f.id === file.id)
+    const index = running.value.findIndex((f) => f.id === file.id)
 
     if (index === -1) {
       console.log(`File ${file.metadata?.name} not found in the downloading list, adding...`)
 
       // File hasn't been found in the downloading list so we add it
-      downloading.value.push(file)
+      running.value.push(file)
     }
 
-    const item = downloading.value.splice(index, 1)[0]
-    item.downloadedBytes = item.downloadedBytes || 0 + chunkBytes
+    const item = running.value.splice(index, 1)[0]
+    file.downloadedBytes = (item.downloadedBytes || 0) + chunkBytes
 
     // If the file has been finished, we will remove it from the downloading list
     // and move it to the done list
-    if (item.downloadedBytes >= (item.size || 0)) {
+    if (file.downloadedBytes >= (file.size || 0)) {
       console.log(
         `File ${file.metadata?.name} has finished downloading, pushing to the done list...`
       )
 
+      file.finished_downloading_at = utcStringFromLocal(new Date())
       done.value.push(file)
 
       return
     }
 
     // Update the file in the downloading list
-    downloading.value.unshift(file)
+    running.value.unshift(file)
   }
 
   /**
@@ -119,8 +119,8 @@ export const store = defineStore('download', () => {
   async function _tick(progress: DownloadProgressFunction) {
     let batch: DownloadAppFile[] = []
 
-    if (downloading.value.length < FILES_DOWNLOADING_AT_ONE_TIME) {
-      batch = waiting.value.splice(0, FILES_DOWNLOADING_AT_ONE_TIME - downloading.value.length)
+    if (running.value.length < FILES_DOWNLOADING_AT_ONE_TIME) {
+      batch = waiting.value.splice(0, FILES_DOWNLOADING_AT_ONE_TIME - running.value.length)
     }
 
     return new Promise((resolve) => {
@@ -129,23 +129,19 @@ export const store = defineStore('download', () => {
         Promise.all(
           batch.map((file) => {
             download(file, progress).catch((err) => {
-              if (err instanceof ErrorResponse) {
-                const error = err as ErrorResponse<unknown>
-                setFailed({ ...file, error })
-              } else {
-                const error = err as Error
-                setFailed({ ...file, error })
-              }
+              setFailed({ ...file, error: errorIntoWorkerError(err) })
             })
           })
         )
       }
 
-      done.value = done.value.filter((file: DownloadAppFile) => {
+      done.value = done.value.filter((file) => {
         if (file.finished_downloading_at) {
-          const date = localDateFromUtcString(file.finished_downloading_at).valueOf() + 120 * 1000
+          const date =
+            localDateFromUtcString(file.finished_downloading_at).valueOf() +
+            KEEP_FINISHED_DOWNLOADS_FOR_MINUTES * 60 * 1000
 
-          return date < new Date().valueOf()
+          return new Date().valueOf() < date
         }
 
         return false
@@ -159,9 +155,9 @@ export const store = defineStore('download', () => {
    * Set a file in failed state
    */
   function setFailed(file: DownloadAppFile) {
-    for (let i = 0; i < downloading.value.length; i++) {
-      if (downloading.value[i].id === file.id) {
-        downloading.value.splice(i, 1)
+    for (let i = 0; i < running.value.length; i++) {
+      if (running.value[i].id === file.id) {
+        running.value.splice(i, 1)
 
         break
       }
@@ -194,7 +190,7 @@ export const store = defineStore('download', () => {
 
   return {
     waiting,
-    downloading,
+    running,
     failed,
     done,
     active,

@@ -4,7 +4,7 @@ import { utcStringFromLocal } from '@/stores'
 import { MAX_UPLOAD_RETRIES } from '../constants'
 
 import type { Query } from '../../api'
-import type { AppFile, UploadAppFile } from '../types'
+import type { AppFile, UploadAppFile } from '../../types'
 
 /**
  * Upload a single file chunk

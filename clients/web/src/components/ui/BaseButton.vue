@@ -15,11 +15,14 @@ const props = defineProps<{
   type?: string
   color?: ColorType
   as?: string
+  xs?: Boolean
   small?: Boolean
   outline?: Boolean
   active?: Boolean
   disabled?: Boolean
   roundedFull?: Boolean
+  noBorder?: Boolean
+  class?: String
 }>()
 
 const is = computed(() => {
@@ -46,10 +49,20 @@ const computedType = computed(() => {
   return null
 })
 
-const labelClass = computed(() => (props.small && props.icon ? 'px-1' : 'px-2'))
+const labelClass = computed(() => {
+  if (props.xs) {
+    return 'px-1'
+  }
+
+  if (props.small && props.icon) {
+    return 'px-1'
+  }
+
+  return 'px-2'
+})
 
 const componentClass = computed(() => {
-  const base = [
+  let base = [
     'inline-flex',
     'justify-center',
     'items-center',
@@ -58,14 +71,20 @@ const componentClass = computed(() => {
     'transition-colors',
     'focus:ring',
     'duration-150',
-    'border',
     props.disabled ? 'cursor-not-allowed' : 'cursor-pointer',
     props.roundedFull ? 'rounded-full' : 'rounded',
     getButtonColor(props.color || 'white', !!props.outline, !props.disabled, !!props.active)
   ]
 
+  if (!props.noBorder) {
+    base.push('border')
+  }
+
   if (!props.label && props.icon) {
     base.push('p-1')
+  } else if (props.xs) {
+    base.push('text-xs')
+    base.push('py-1', props.roundedFull ? 'px-3' : 'px-1')
   } else if (props.small) {
     base.push('text-sm', props.roundedFull ? 'px-3 py-1' : 'p-1')
   } else {
@@ -74,6 +93,10 @@ const componentClass = computed(() => {
 
   if (props.disabled) {
     base.push(props.outline ? 'opacity-50' : 'opacity-70')
+  }
+
+  if (props.class) {
+    base.push(props.class as string)
   }
 
   return base

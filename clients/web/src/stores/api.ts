@@ -1,4 +1,5 @@
 import { getCsrf, getJwt } from './auth'
+import type { WorkerErrorType } from './types'
 
 export type Query = {
   [key: string]: string | number | string[] | undefined | null | Query
@@ -39,7 +40,7 @@ export type InnerValidationErrors = { [key: string]: string | InnerValidationErr
  * @class
  */
 export class ErrorResponse<B> extends Error {
-  static kind: string = 'ErrorResponse'
+  kind: string = 'ErrorResponse'
 
   validation: InnerValidationErrors | null
   description: string
@@ -65,6 +66,15 @@ export class ErrorResponse<B> extends Error {
 
     this.description = this._description()
     this.validation = this._validation()
+  }
+
+  /**
+   * Convert into a worker error
+   */
+  intoWorkerError(): WorkerErrorType {
+    const context = this.validation || this.description
+
+    return { context, stack: this.stack }
   }
 
   /**

@@ -29,7 +29,7 @@ const email = computed(() => props.email)
       v-if="email"
       :src="avatar"
       :alt="email"
-      class="rounded-full block h-auto w-full max-w-full bg-gray-100 dark:bg-slate-800"
+      class="rounded-full block h-auto w-full max-w-full bg-brownish-100 dark:bg-brownish-800"
     />
     <slot />
   </div>

@@ -11,3 +11,13 @@ export interface QueueItem extends Partial<AppFile> {
   finishedAt?: Date
   type: 'upload' | 'download'
 }
+
+export type QueueItemActionType =
+  | 'upload:running'
+  | 'upload:waiting'
+  | 'upload:failed'
+  | 'upload:done'
+  | 'download:running'
+  | 'download:waiting'
+  | 'download:failed'
+  | 'download:done'

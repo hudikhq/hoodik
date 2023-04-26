@@ -6,7 +6,7 @@ import useClipboard from 'vue-clipboard3'
 const { toClipboard } = useClipboard()
 
 const originalClass =
-  'w-full px-4 py-2 text-gray-900 placeholder-gray-400 transition duration-150 ease-in-out bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+  'w-full px-4 py-2 text-brownish-900 placeholder-brownish-400 transition duration-150 ease-in-out bg-white border border-brownish-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
 
 const props = defineProps<{
   name: string
@@ -73,7 +73,7 @@ const copy = () => {
       </div>
       <div class="float-right w-1/2 mb-2" v-if="allowCopy">
         <button
-          class="float-right text-center justify-center text-xs text-gray-400"
+          class="float-right text-center justify-center text-xs text-brownish-400"
           :class="{ 'text-green-600': copied }"
           @click.prevent="copy"
         >
@@ -115,7 +115,7 @@ const copy = () => {
         />
       </Field>
     </div>
-    <div v-if="help" class="text-xs text-gray-500 dark:text-slate-400 mt-1">
+    <div v-if="help" class="text-xs text-brownish-500 dark:text-brownish-400 mt-1">
       {{ help }}
     </div>
     <ErrorMessage :name="name" class="text-xs text-red-700 dark:text-red-500" />

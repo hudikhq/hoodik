@@ -1,5 +1,5 @@
-import type { ErrorResponse } from '@/stores/api'
-import type { FileMetadata } from '../metadata'
+import type { FileMetadata } from '../storage/metadata'
+import type { WorkerErrorType } from './worker'
 
 export interface UploadAppFile extends AppFile {
   /**
@@ -20,7 +20,7 @@ export interface UploadAppFile extends AppFile {
   /**
    * Possible error while uploading the file
    */
-  error?: ErrorResponse<unknown> | Error | string
+  error?: WorkerErrorType
 
   /**
    * Signalize the file to cancel the upload
@@ -42,7 +42,7 @@ export interface DownloadAppFile extends ListAppFile {
   /**
    * Possible error while uploading the file
    */
-  error?: ErrorResponse<unknown> | Error | string
+  error?: WorkerErrorType
 
   /**
    * Signalize the file to cancel the upload

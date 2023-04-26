@@ -1,12 +1,13 @@
-import type { Query } from '../../api'
-import type { store as downloadStore } from '../download'
-import type { store as uploadStore } from '../upload'
-import type { store as filesStore } from '..'
+import type { Query } from '../api'
+import type { store as downloadStore } from '../storage/download'
+import type { store as uploadStore } from '../storage/upload'
+import type { store as filesStore } from '../storage'
 import type { AppFile, ListAppFile, UploadAppFile } from './file'
 
 export * from './create'
 export * from './file'
 export * from './worker'
+export * from './queue'
 
 export type UploadStore = ReturnType<typeof uploadStore>
 export type DownloadStore = ReturnType<typeof downloadStore>

@@ -8,7 +8,7 @@ import type {
   DownloadFileMessage,
   UploadAppFile,
   UploadChunkMessage
-} from '../types'
+} from '../../types'
 
 /**
  * Use service worker to upload a single chunk
@@ -18,7 +18,11 @@ export async function pushUploadToWorker(file: UploadAppFile): Promise<void> {
     throw new Error(`File ${file.id} is missing key`)
   }
 
-  const transferableFile = { ...file, metadata: undefined }
+  const transferableFile = {
+    ...file,
+    uploaded_chunks: undefined,
+    metadata: undefined
+  }
 
   window.SW.postMessage({
     type: 'upload-file',

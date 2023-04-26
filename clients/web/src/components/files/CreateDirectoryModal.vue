@@ -26,9 +26,10 @@ const init = () => {
     validationSchema: yup.object().shape({
       name: yup.string().required('Directory name is required')
     }),
-    onSubmit: async (values: { name: string; file_id?: number }) => {
+    onSubmit: async (values: { name: string; file_id?: number }, ctx: any) => {
       try {
         await storage.createDir(crypto.keypair, values.name, storage.dir?.id)
+        ctx.resetForm()
         storage.find(crypto.keypair, storage.dir?.id || null)
         emit('confirm')
         emit('update:modelValue', false)

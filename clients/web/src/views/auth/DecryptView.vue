@@ -92,9 +92,9 @@ init()
             {{ authenticationError }}
           </p>
 
-          <AppButton :form="form" type="submit">Unlock</AppButton>
+          <AppButton color="info" :form="form" type="submit">Unlock</AppButton>
 
-          <div class="text-sm font-medium text-gray-500 dark:text-gray-400">
+          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-400">
             Not your account?
             <router-link
               to="/auth/register"

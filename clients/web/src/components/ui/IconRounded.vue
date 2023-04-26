@@ -18,7 +18,7 @@ const componentClass = computed(() => {
 
   const cls = props.color ? colorsText[props.color] : ''
 
-  return [cls, 'bg-gray-50 dark:bg-slate-800']
+  return [cls, 'bg-brownish-50 dark:bg-brownish-800']
 })
 </script>
 

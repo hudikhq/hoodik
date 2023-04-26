@@ -8,7 +8,7 @@ import { utcStringFromLocal } from '..'
 import type { KeyPair } from '../cryptfns/rsa'
 import { FileMetadata } from './metadata'
 
-import type { AppFile, CreateFile, FileResponse, ListAppFile, Parameters } from './types'
+import type { AppFile, CreateFile, FileResponse, ListAppFile, Parameters } from '../types'
 
 export { meta, upload, download, queue }
 
@@ -176,6 +176,7 @@ export const store = defineStore('filesStore', () => {
    */
   function removeItem(id: number): void {
     items.value = items.value.filter((item) => item.id !== id)
+    forDelete.value = forDelete.value.filter((item) => item.id !== id)
   }
 
   /**
@@ -227,6 +228,51 @@ export const store = defineStore('filesStore', () => {
     return { ...created }
   }
 
+  /**
+   * Files selected to be deleted from various places
+   */
+  const forDelete = ref<AppFile[]>([])
+
+  /**
+   * Add single file to select list
+   */
+  function selectOne(select: boolean, file: ListAppFile) {
+    if (select) {
+      forDelete.value.push(file)
+    } else {
+      forDelete.value = forDelete.value.filter((f) => f.id !== file.id)
+    }
+  }
+
+  /**
+   * Add single file to select list
+   */
+  function selectAll(files: ListAppFile[], fileId?: number | null) {
+    forDelete.value = files.filter((f) => {
+      if (fileId && f.file_id !== fileId) {
+        return false
+      }
+
+      return true
+    })
+  }
+
+  /**
+   * Remove all the files on the selected list
+   */
+  async function removeAll(kp: KeyPair, files: ListAppFile[]) {
+    await Promise.all(
+      files.map(async (file) => {
+        await meta.remove(file.id)
+        removeItem(file.id)
+      })
+    )
+
+    forDelete.value = []
+
+    await find(kp, fileId.value)
+  }
+
   return {
     dir,
     parents,
@@ -234,6 +280,10 @@ export const store = defineStore('filesStore', () => {
     title,
     items,
     parameters,
+    forDelete,
+    selectOne,
+    selectAll,
+    removeAll,
     get,
     find,
     remove,

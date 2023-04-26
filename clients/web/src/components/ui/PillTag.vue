@@ -5,25 +5,24 @@ import PillTagPlain from '@/components/ui/PillTagPlain.vue'
 
 const props = defineProps<{
   label: string
-  color: ColorType
+  color?: ColorType
   icon?: string
-  small?: Boolean
-  outline?: Boolean
+  small?: boolean
+  outline?: boolean
+  class?: string
+  notRound?: boolean
+  noBorder?: boolean
 }>()
 
 const componentClass = computed(() => [
   props.small ? 'py-1 px-3' : 'py-1.5 px-4',
-  // @ts-ignore
-  props.outline ? colorsOutline[props.color] : colorsBgLight[props.color]
+  props.outline ? colorsOutline[props.color || 'empty'] : colorsBgLight[props.color || 'empty'],
+  props.class ? props.class : '',
+  props.noBorder ? '' : 'border',
+  props.notRound ? '' : 'rounded-full'
 ])
 </script>
 
 <template>
-  <PillTagPlain
-    class="border rounded-full"
-    :class="componentClass"
-    :icon="icon"
-    :label="label"
-    :small="!!small"
-  />
+  <PillTagPlain :class="componentClass" :icon="icon" :label="label" :small="!!small" />
 </template>

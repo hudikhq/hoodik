@@ -1,44 +1,53 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import TableFilesRow from '@/components/files/TableFilesRow.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
-import CardBoxModal from '../ui/CardBoxModal.vue'
-import { store as storageStore } from '@/stores/storage'
-import { store as cryptoStore } from '@/stores/crypto'
-import type { ListAppFile } from '@/stores/storage/types'
-
-const storage = storageStore()
-const crypto = cryptoStore()
+import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import { mdiTrashCanOutline, mdiFolderPlusOutline, mdiFilePlusOutline, mdiLoading } from '@mdi/js'
+import type { ListAppFile } from '@/stores/types'
 
 const props = defineProps<{
+  forDelete: ListAppFile[]
   items: ListAppFile[]
-  parent: ListAppFile | null
+  parents: ListAppFile[]
+  dir: ListAppFile | null
   file_id?: number
+  hideCheckbox?: boolean
+  hideDelete?: boolean
+  showActions?: boolean
+  loading?: boolean
 }>()
 
 const emits = defineEmits<{
+  (event: 'browse-files'): void
+  (event: 'create-directory'): void
   (event: 'download', file: ListAppFile): void
+  (event: 'view', file: ListAppFile): void
+  (event: 'remove', file: ListAppFile): void
+  (event: 'remove-all', files: ListAppFile[], fileId: number | null | undefined): void
+  (event: 'select-one', select: boolean, file: ListAppFile): void
+  (event: 'select-all', files: ListAppFile[], fileId: number | null | undefined): void
 }>()
 
-const download = (file: ListAppFile) => {
-  emits('download', file)
-}
+const checked = ref(false)
 
-const isModalRemoveActive = ref(false)
-const isCancelUpload = ref(false)
-const fileToRemove = ref<Partial<ListAppFile> | null>(null)
-const _checkedRows = ref<ListAppFile[]>([])
-
-const parentId = computed<number | null>(() => {
-  if (props.parent) {
-    return props.parent.id
+const dirId = computed<number | null>(() => {
+  if (props.dir) {
+    return props.dir.id
   }
 
   return null
 })
 
-const checkedRows = computed<ListAppFile[]>(() => {
-  return _checkedRows.value?.filter((item) => item.file_id === parentId.value) || []
+const checkedRows = computed(() => {
+  return props.items.filter((item) => {
+    return props.forDelete.find((file) => file.id === item.id)
+  })
+})
+
+const showDeleteAll = computed(() => {
+  return (checked.value || checkedRows.value.length > 0) && !props.hideDelete
 })
 
 const items = computed(() => {
@@ -47,8 +56,8 @@ const items = computed(() => {
       return false
     }
 
-    if (props.parent) {
-      return item.file_id === props.parent.id
+    if (props.dir) {
+      return item.file_id === props.dir.id
     }
 
     return item.file_id === null
@@ -59,8 +68,8 @@ const items = computed(() => {
       return false
     }
 
-    if (props.parent) {
-      return item.file_id === props.parent.id
+    if (props.dir) {
+      return item.file_id === props.dir.id
     }
 
     return item.file_id === null
@@ -69,98 +78,132 @@ const items = computed(() => {
   return [...directories, ...files]
 })
 
-const selectOne = (value: boolean, file: ListAppFile) => {
-  if (value && file) {
-    _checkedRows.value.push(file)
-  } else {
-    _checkedRows.value = _checkedRows.value.filter((item) => item.id !== file.id)
+const viewFile = async (file: ListAppFile) => {
+  emits('view', file)
+}
+
+watch(
+  () => checkedRows.value,
+  (value) => {
+    if (value.length === 0) {
+      checked.value = false
+    }
   }
-}
+)
 
-const selectAll = (value: boolean) => {
-  console.log(value)
-  _checkedRows.value = value ? items.value.filter((item) => item.file_id === parentId.value) : []
-}
-
-const confirmRemove = async () => {
-  if (fileToRemove.value) {
-    await storage.remove(crypto.keypair, fileToRemove.value)
-    fileToRemove.value = null
+watch(
+  () => checked.value,
+  (value) => {
+    if (value) {
+      emits(
+        'select-all',
+        items.value.filter((item) => item.file_id === dirId.value),
+        dirId.value
+      )
+    } else {
+      emits('select-all', [], dirId.value)
+    }
   }
-  isModalRemoveActive.value = false
-  isCancelUpload.value = false
-}
+)
 
-const cancelRemove = async () => {
-  fileToRemove.value = null
-  isModalRemoveActive.value = false
-  isCancelUpload.value = false
-}
+const borderClass = 'sm:border-l-2 sm:border-brownish-50 sm:dark:border-brownish-900'
 
-const removeFile = (file: Partial<ListAppFile>) => {
-  fileToRemove.value = file
-  isModalRemoveActive.value = true
+const sizes = {
+  checkbox: 'w-10',
+  name: 'w-10/12 p-2 sm:w-7/12 xl:w-5/12 flex',
+  size: 'hidden p-2 md:block md:w-2/12 xl:w-1/12',
+  type: 'hidden p-2 xl:block xl:w-1/12',
+  createdAt: 'hidden p-2 sm:block sm:w-4/12 lg:w-3/12 xl:w-2/12',
+  uploadedAt: 'hidden p-2 xl:block xl:w-2/12',
+  buttons: 'w-2/12 p-2 sm:w-1/12'
 }
-
-const cancelUpload = (file: Partial<ListAppFile>) => {
-  fileToRemove.value = file
-  isModalRemoveActive.value = true
-  isCancelUpload.value = true
-}
-
-const viewFile = async () => {}
 </script>
 
 <template>
-  <CardBoxModal
-    :title="isCancelUpload ? 'Cancel upload' : 'Delete file'"
-    button="danger"
-    v-model="isModalRemoveActive"
-    button-label="Yes, delete"
-    :has-cancel="true"
-    @cancel="cancelRemove"
-    @confirm="confirmRemove"
+  <div
+    class="w-full p-2 mb-2 flex rounded-t-md bg-brownish-100 dark:bg-brownish-900 gap-4"
+    v-if="showActions"
   >
-    <p v-if="isCancelUpload">
-      Are you sure you want to cancel the upload of file '{{ fileToRemove?.metadata?.name }}'?
-    </p>
-    <p v-else>
-      Are you sure you want to delete forever '{{ fileToRemove?.metadata?.name }}'
-      <span v-if="fileToRemove?.mime === 'dir'"> directory</span>
-      ?
-    </p>
-  </CardBoxModal>
-  <table>
-    <thead>
-      <tr>
-        <th>
-          <TableCheckboxCell
-            type="td"
-            class="py-0 px-0"
-            :model-value="false"
-            @update:model-value="selectAll"
-          />
-        </th>
-        <th>Name</th>
-        <th>Size</th>
-        <th>Type</th>
-        <th>Created</th>
-        <th>Uploaded</th>
-        <th />
-      </tr>
-    </thead>
-    <tbody>
-      <template v-for="file in items" :key="file.id">
-        <TableFilesRow
-          :file="file"
-          :checkedRows="checkedRows"
-          @cancel="cancelUpload"
-          @remove="removeFile"
-          @view="viewFile"
-          @checked="selectOne"
-          @download="download"
-        />
-      </template>
-    </tbody>
-  </table>
+    <BaseButton
+      title="Delete selected files and folders"
+      :iconSize="20"
+      :xs="true"
+      :icon="mdiTrashCanOutline"
+      color="danger"
+      v-if="showDeleteAll"
+      @click="() => emits('remove-all', checkedRows, props.file_id)"
+    />
+
+    <BaseButton
+      title="Create directory"
+      :iconSize="20"
+      :xs="true"
+      :icon="mdiFolderPlusOutline"
+      color="light"
+      v-if="!showDeleteAll"
+      @click="emits('create-directory')"
+    />
+
+    <BaseButton
+      title="Upload files"
+      :iconSize="20"
+      :xs="true"
+      :icon="mdiFilePlusOutline"
+      color="light"
+      v-if="!showDeleteAll"
+      @click="emits('browse-files')"
+    />
+  </div>
+
+  <div class="w-full flex rounded-t-lg bg-brownish-100 dark:bg-brownish-950">
+    <div :class="`${sizes.name}`">
+      <div :class="sizes.checkbox">
+        <TableCheckboxCell v-model="checked" v-if="!props.hideCheckbox" />
+      </div>
+
+      <span>Name</span>
+    </div>
+
+    <div :class="`${sizes.size} ${borderClass}`">
+      <span>Size</span>
+    </div>
+
+    <div :class="`${sizes.type} ${borderClass}`">
+      <span>Type</span>
+    </div>
+
+    <div :class="`${sizes.createdAt} ${borderClass}`">
+      <span>Created</span>
+    </div>
+
+    <div :class="`${sizes.uploadedAt} ${borderClass}`">
+      <span>Uploaded</span>
+    </div>
+
+    <div :class="`${sizes.buttons} ${borderClass}`"></div>
+  </div>
+
+  <div
+    v-if="props.loading"
+    class="w-full pt-20 rounded-b-lg bg-brownish-100 dark:bg-brownish-900 h-52 text-center"
+  >
+    <span class="w-1/2 h-1/2">
+      <SpinnerIcon :size="200" />
+    </span>
+  </div>
+  <div v-else class="flex flex-col rounded-b-lg">
+    <template v-for="file in items" :key="file.id">
+      <TableFilesRow
+        :file="file"
+        :sizes="sizes"
+        :checkedRows="checkedRows"
+        :hideCheckbox="props.hideCheckbox"
+        :hideDelete="props.hideDelete"
+        @remove="emits('remove', file)"
+        @view="viewFile"
+        @checked="(value) => emits('select-one', value, file)"
+        @download="emits('download', file)"
+      />
+    </template>
+  </div>
 </template>
