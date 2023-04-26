@@ -11,6 +11,7 @@
     "test:unit": "./rust-unit",
     "release": "cargo build --release",
     "alias-commands": "Below this line ###########################################",
+    "wasm-pack": "turbo run wasm-pack",
     "watch": "turbo run test:watch",
     "start": "turbo run dev",
     "e2e": "./e2e",
