@@ -16,7 +16,7 @@ const check = (event: Event) => {
 </script>
 
 <template>
-  <component :is="type || 'id'" :class="props.class || 'lg:w-1'">
+  <component :is="type || 'span'" :class="props.class || 'lg:w-1'">
     <label class="checkbox">
       <input :checked="modelValue" @change="check" type="checkbox" />
       <span class="check" />

@@ -6,7 +6,7 @@ import type {
   DownloadStore,
   UploadChunkResponseMessage,
   DownloadProgressResponseMessage
-} from './types'
+} from '../types'
 import { ref } from 'vue'
 import { FileMetadata } from './metadata'
 

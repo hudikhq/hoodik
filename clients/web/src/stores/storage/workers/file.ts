@@ -1,6 +1,6 @@
 import { utcStringFromLocal } from '@/stores'
 import { uploadChunk } from './chunk'
-import type { UploadAppFile } from '../types'
+import type { UploadAppFile } from '../../types'
 import type { ErrorResponse } from '@/stores/api'
 import type Api from '@/stores/api'
 import { CHUNK_SIZE_BYTES, CONCURRENT_CHUNKS_UPLOAD } from '../constants'
@@ -28,12 +28,7 @@ export async function uploadFile(
     return async () => {
       // Skip already uploaded chunks
       if (file.uploaded_chunks?.includes(chunk)) {
-        if (progress) {
-          const storedChunks = file.uploaded_chunks?.length || 0
-          progress(file, 0, storedChunks === file.chunks)
-        }
-
-        return file
+        return
       }
 
       const data = await sliceChunk(file.file as File, chunk)

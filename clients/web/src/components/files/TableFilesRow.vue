@@ -1,19 +1,29 @@
 <script setup lang="ts">
-import { mdiTrashCan, mdiCloudCancel } from '@mdi/js'
-import BaseButtons from '@/components/ui/BaseButtons.vue'
+import { mdiTrashCan, mdiEye, mdiDownload, mdiDotsVertical } from '@mdi/js'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
-import { format as formatDate, formatSize } from '@/stores'
+import TruncatedSpan from '../ui/TruncatedSpan.vue'
+import { formatPrettyDate, formatSize } from '@/stores'
 import { computed } from 'vue'
-import type { ListAppFile } from '@/stores/storage/types'
+import type { ListAppFile } from '@/stores/types'
 
 const props = defineProps<{
   file: ListAppFile
   checkedRows: Partial<ListAppFile>[]
+  hideDelete?: boolean
+  hideCheckbox?: boolean
+  sizes: {
+    checkbox: string
+    name: string
+    size: string
+    type: string
+    createdAt: string
+    uploadedAt: string
+    buttons: string
+  }
 }>()
 
 const emits = defineEmits<{
-  (event: 'cancel', file: ListAppFile): void
   (event: 'remove', file: ListAppFile): void
   (event: 'view', file: ListAppFile): void
   (event: 'checked', value: boolean, file: ListAppFile): void
@@ -24,8 +34,13 @@ const check = (value: boolean) => {
   emits('checked', value, props.file)
 }
 
-const checked = computed(() => {
-  return !!props.checkedRows.find((item) => item.id === props.file.id)
+const checked = computed({
+  get: () => !!props.checkedRows.find((item) => item.id === props.file.id),
+  set: (v) => check(v)
+})
+
+const isDir = computed(() => {
+  return props.file.mime === 'dir'
 })
 
 const fileName = computed(() => {
@@ -39,7 +54,7 @@ const fileSize = computed(() => {
 })
 
 const fileCreatedAt = computed(() => {
-  return props.file.file_created_at ? formatDate(props.file.file_created_at, 'yyyy-MM-dd') : ''
+  return props.file.file_created_at ? formatPrettyDate(props.file.file_created_at) : ''
 })
 
 const progressValue = computed(() => {
@@ -55,69 +70,108 @@ const progressValue = computed(() => {
 })
 
 const fileFinishedUploadAt = computed(() => {
-  return props.file.finished_upload_at
-    ? formatDate(props.file.finished_upload_at, 'yyyy-MM-dd')
-    : ''
+  return props.file.finished_upload_at ? formatPrettyDate(props.file.finished_upload_at) : ''
+})
+
+const sharedClass = computed(() => {
+  return 'bg-brownish-100 dark:bg-brownish-900 hover:bg-brownish-200 hover:dark:bg-brownish-700'
+})
+
+const border = 'sm:border-l-2 sm:border-brownish-50 sm:dark:border-brownish-950'
+const sizes = computed(() => {
+  return {
+    checkbox: `${props.sizes.checkbox}`,
+    name: `${props.sizes.name}`,
+    size: `${border} ${props.sizes.size}`,
+    type: `${border} ${props.sizes.type}`,
+    createdAt: `${border} ${props.sizes.createdAt}`,
+    uploadedAt: `${border} ${props.sizes.uploadedAt}`,
+    buttons: `${border} ${props.sizes.buttons} text-right`
+  }
 })
 </script>
 
 <template>
-  <tr>
-    <TableCheckboxCell type="td" v-model="checked" @update:modelValue="check" />
-    <td data-label="Name">
-      <router-link :to="`/${file.id}`" v-if="file.mime === 'dir'">
-        {{ fileName }}
+  <div class="w-full flex" :class="sharedClass">
+    <div :class="sizes.name" :title="fileName">
+      <div :class="sizes.checkbox">
+        <TableCheckboxCell
+          v-if="!props.hideCheckbox"
+          v-model="checked"
+          @update:modelValue="check"
+        />
+      </div>
+
+      <router-link class="font-bold" :to="`/directory/${file.id}`" v-if="isDir">
+        <TruncatedSpan :middle="fileName.length > 50" :text="fileName" />
       </router-link>
-      <a href="#" @click="emits('download', file)" v-else>
-        {{ fileName }}
-      </a>
-    </td>
-    <td data-label="Size">
-      {{ fileSize }}
-    </td>
-    <td data-label="City">
-      {{ props.file.mime || '' }}
-    </td>
-    <td data-label="Created" class="lg:w-1 whitespace-nowrap">
-      <small class="text-gray-500 dark:text-slate-400" :title="props.file.file_created_at">
-        {{ fileCreatedAt }}
-      </small>
-    </td>
-    <td data-label="Uploaded" class="lg:w-1 whitespace-nowrap">
-      <small
-        class="text-gray-500 dark:text-slate-400"
-        :title="props.file.file_created_at"
+      <span v-else>
+        <TruncatedSpan :middle="fileName.length > 50" :text="fileName" />
+      </span>
+    </div>
+
+    <div :class="sizes.size" :title="fileSize">
+      <span>{{ fileSize || '-' }}</span>
+    </div>
+
+    <div :class="sizes.type" :title="props.file.mime">
+      <TruncatedSpan :text="props.file.mime" />
+    </div>
+
+    <div :class="sizes.createdAt" :title="props.file.file_created_at">
+      <TruncatedSpan :text="fileCreatedAt" />
+    </div>
+
+    <div :class="sizes.uploadedAt">
+      <TruncatedSpan
         v-if="!props.file.current && !props.file.parent && props.file.finished_upload_at"
-      >
-        {{ fileFinishedUploadAt }}
-      </small>
+        :text="fileFinishedUploadAt"
+      />
       <progress
-        class="flex w-2/5 self-center lg:w-full"
+        class="self-center w-full"
         :max="100"
         :value="progressValue"
         v-else-if="props.file.mime !== 'dir'"
       />
-    </td>
-    <td class="before:hidden lg:w-1 whitespace-nowrap">
-      <BaseButtons type="justify-start lg:justify-end" no-wrap>
-        <!-- <BaseButton color="info" :icon="mdiEye" small @click="isModalActive = true" /> -->
-        <BaseButton
-          color="danger"
-          :icon="mdiTrashCan"
-          small
-          @click="emits('remove', file)"
-          :disabled="!props.file.id"
-          v-if="props.file.finished_upload_at || props.file.mime === 'dir'"
-        />
-        <BaseButton
-          color="warning"
-          :icon="mdiCloudCancel"
-          small
-          @click="emits('cancel', file)"
-          :disabled="!props.file.id"
-          v-else
-        />
-      </BaseButtons>
-    </td>
-  </tr>
+    </div>
+
+    <div class="hidden xl:block" :class="sizes.buttons">
+      <BaseButton
+        v-if="file.mime === 'something-image-mime-type-TODO'"
+        color="lightDark"
+        :icon="mdiEye"
+        small
+        @click="emits('view', file)"
+        :disabled="!props.file.id"
+      />
+      <BaseButton
+        v-else
+        color="lightDark"
+        :icon="mdiDownload"
+        small
+        @click="emits('download', file)"
+        :disabled="!props.file.id || isDir"
+      />
+      <BaseButton
+        v-if="!hideDelete"
+        color="danger"
+        :icon="mdiTrashCan"
+        small
+        class="ml-2"
+        @click="emits('remove', file)"
+        :disabled="!props.file.id"
+      />
+    </div>
+    <div class="xl:hidden" :class="sizes.buttons">
+      <BaseButton
+        v-if="!hideDelete"
+        color="lightDark"
+        :icon="mdiDotsVertical"
+        small
+        class="ml-2"
+        @click="emits('view', file)"
+        :disabled="!props.file.id"
+      />
+    </div>
+  </div>
 </template>

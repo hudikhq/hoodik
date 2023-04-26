@@ -5,7 +5,7 @@ import * as colors from '@/colors'
 import type { ColorType } from '@/colors'
 
 const originalClass =
-  'inline-flex justify-center items-center whitespace-nowrap focus:outline-none transition-colors focus:ring duration-150 border cursor-pointer rounded py-2 px-3 mr-3 last:mr-0 mb-3'
+  'inline-flex justify-center items-center whitespace-nowrap focus:outline-none transition-colors focus:ring duration-150 border cursor-pointer rounded py-2 px-3 mr-3 last:mr-0 mb-3 '
 
 const props = defineProps<{
   disabled?: boolean

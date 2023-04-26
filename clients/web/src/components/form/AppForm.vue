@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useForm } from 'vee-validate'
+import { useForm, type SubmissionContext } from 'vee-validate'
 import { mdiLoading } from '@mdi/js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { computed } from 'vue'
@@ -16,11 +16,11 @@ const form = useForm({
   ...props.config
 })
 
-const submit = form.handleSubmit(async (values) => {
+const submit = form.handleSubmit(async (values, ctx: SubmissionContext<typeof values>) => {
   // @ts-ignore
   if (typeof props?.config?.onSubmit === 'function') {
     // @ts-ignore
-    await props.config.onSubmit(values)
+    await props.config.onSubmit(values, ctx)
   }
 })
 

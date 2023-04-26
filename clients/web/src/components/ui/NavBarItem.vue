@@ -38,8 +38,8 @@ const styleStore = store()
 const componentClass = computed(() => {
   const base = [
     isDropdownActive.value
-      ? `${styleStore.navBarItemLabelActiveColorStyle} dark:text-slate-400`
-      : `${styleStore.navBarItemLabelStyle} dark:text-white dark:hover:text-slate-400 ${styleStore.navBarItemLabelHoverStyle}`,
+      ? `${styleStore.navBarItemLabelActiveColorStyle} dark:text-brownish-400`
+      : `${styleStore.navBarItemLabelStyle} dark:text-white dark:hover:text-brownish-400 ${styleStore.navBarItemLabelHoverStyle}`,
     props.item.menu ? 'lg:py-2 lg:px-3' : 'py-2 px-3'
   ]
 
@@ -110,7 +110,7 @@ onBeforeUnmount(() => {
     <div
       class="flex items-center"
       :class="{
-        'bg-gray-100 dark:bg-slate-800 lg:bg-transparent lg:dark:bg-transparent p-3 lg:p-0':
+        'bg-brownish-100 dark:bg-brownish-800 lg:bg-transparent lg:dark:bg-transparent p-3 lg:p-0':
           item.menu
       }"
     >
@@ -129,7 +129,7 @@ onBeforeUnmount(() => {
     </div>
     <div
       v-if="item.menu"
-      class="text-sm border-b border-gray-100 lg:border lg:bg-white lg:absolute lg:top-full lg:left-0 lg:min-w-full lg:z-20 lg:rounded-lg lg:shadow-lg lg:dark:bg-slate-800 dark:border-slate-700"
+      class="text-sm border-b border-brownish-100 lg:border lg:bg-white lg:absolute lg:top-full lg:left-0 lg:min-w-full lg:z-20 lg:rounded-lg lg:shadow-lg lg:dark:bg-brownish-800 dark:border-brownish-700"
       :class="{ 'lg:hidden': !isDropdownActive }"
     >
       <NavBarMenuList :menu="item.menu" @menu-click="menuClickDropdown" />

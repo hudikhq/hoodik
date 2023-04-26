@@ -3,7 +3,7 @@ import { FileMetadata } from './metadata'
 import * as cryptfns from '../cryptfns'
 
 import type { KeyPair } from '../cryptfns/rsa'
-import type { AppFile, CreateFile, EncryptedCreateFile, FileResponse, Parameters } from './types'
+import type { AppFile, CreateFile, EncryptedCreateFile, FileResponse, Parameters } from '../types'
 
 /**
  * Create a file or directory on the server

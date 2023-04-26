@@ -1,6 +1,6 @@
 import * as meta from '../meta'
 import { ErrorResponse } from '../../api'
-import { localDateFromUtcString, utcStringFromLocal } from '../..'
+import { errorIntoWorkerError, localDateFromUtcString, utcStringFromLocal } from '../..'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as sync from './sync'
@@ -17,7 +17,7 @@ import type {
   UploadAppFile,
   IntervalType,
   FilesStore
-} from '../types'
+} from '../../types'
 import type { store as filesStore } from '../'
 import type { KeyPair } from '../../cryptfns/rsa'
 
@@ -68,29 +68,30 @@ export const store = defineStore('upload', () => {
    * Create function that will track the progress
    */
   async function progress(storage: FilesStore, file: UploadAppFile, isDone: boolean, error?: any) {
+    if (done.value.filter((f) => f.id === file.id).length !== 0) {
+      return
+    }
+
+    // Remove it from the uploading list
+    uploading.value = uploading.value.filter((f) => f.id !== file.id)
+
     if (error) {
       file.error = error
       file.cancel = true
     }
 
+    // If it already exists in the failed list, we don't want to
+    if (file.cancel && failed.value.filter((f) => f.id === file.id).length !== 0) {
+      return
+    }
+
     const currentFileId = file.file_id || null
     const currentDirId = storage?.dir?.id || null
 
-    if (storage && currentFileId === currentDirId) {
+    // Upsert the item in the storage
+    if (!file.cancel && storage && currentFileId === currentDirId) {
       storage.upsertItem(file)
     }
-
-    /// Get the index of uploading file if it exists
-    const index = uploading.value.findIndex((f) => f.id === file.id)
-
-    if (index === -1) {
-      console.log(`File ${file.metadata?.name} not found in the uploading list, adding...`)
-
-      // File hasn't been found in the uploading list so we add it
-      uploading.value.push(file)
-    }
-
-    uploading.value.splice(index, 1)
 
     // Canceling the upload is done by deleting the file on the server,
     // that will trigger the upload error and the file will be moved to the
@@ -98,8 +99,8 @@ export const store = defineStore('upload', () => {
     if (file.cancel) {
       console.log(`File ${file.metadata?.name} is canceling the upload...`)
 
-      uploading.value = uploading.value.filter((i) => i.id !== file.id)
       failed.value.push(file)
+      uploading.value = uploading.value.filter((i) => i.id !== file.id)
       storage.removeItem(file.id)
 
       return
@@ -110,6 +111,7 @@ export const store = defineStore('upload', () => {
     if (isDone || file.finished_upload_at) {
       console.log(`File ${file.metadata?.name} has finished uploading, pushing to the done list...`)
 
+      file.finished_upload_at = utcStringFromLocal(new Date())
       done.value.push(file)
 
       return
@@ -138,13 +140,7 @@ export const store = defineStore('upload', () => {
             const promise = 'SW' in window ? pushUploadToWorker(file) : upload(file, tracker)
 
             promise.catch((err) => {
-              if (err instanceof ErrorResponse) {
-                const error = err as ErrorResponse<unknown>
-                setFailed({ ...file, error })
-              } else {
-                const error = err as Error
-                setFailed({ ...file, error })
-              }
+              setFailed({ ...file, error: errorIntoWorkerError(err) })
             })
           })
         )
@@ -161,6 +157,7 @@ export const store = defineStore('upload', () => {
 
         return false
       })
+
       resolve(undefined)
     })
   }
@@ -200,6 +197,22 @@ export const store = defineStore('upload', () => {
   }
 
   /**
+   * Cancel the upload of a file
+   */
+  async function cancel(files: FilesStore, file: UploadAppFile) {
+    if (uploading.value.filter((f) => f.id === file.id).length === 0) {
+      throw new Error('File cannot be canceled when its not uploading')
+    }
+
+    file.cancel = true
+
+    await meta.remove(file.id)
+    files.removeItem(file.id)
+
+    await progress(files, file, false, new Error('Upload canceled'))
+  }
+
+  /**
    * Create new file metadata and add it to the upload queue
    */
   async function create(keypair: KeyPair, file: File, parent_id?: number): Promise<UploadAppFile> {
@@ -228,6 +241,7 @@ export const store = defineStore('upload', () => {
     start,
     push,
     create,
+    cancel,
     progress
   }
 })

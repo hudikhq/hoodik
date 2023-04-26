@@ -87,7 +87,7 @@ init()
             Login With Private Key
           </router-link>
 
-          <div class="text-sm font-medium text-gray-500 dark:text-gray-400">
+          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-400">
             Don't have an account yet?
             <router-link
               to="/auth/register"

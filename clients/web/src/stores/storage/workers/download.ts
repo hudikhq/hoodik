@@ -2,7 +2,7 @@ import Api from '@/stores/api'
 import { DOWNLOAD_POOL_LIMIT } from '../constants'
 import * as cryptfns from '@/stores/cryptfns'
 
-import type { ListAppFile } from '../types'
+import type { ListAppFile } from '../../types'
 
 export type DownloadIteratorFunction = (
   file: ListAppFile,

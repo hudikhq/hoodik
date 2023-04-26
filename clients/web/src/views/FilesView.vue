@@ -1,36 +1,48 @@
 <script setup lang="ts">
 import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
-import BreadCrumbs from '@/components/files/BreadCrumbs.vue'
 import TableFiles from '@/components/files/TableFiles.vue'
 import FileBrowser from '@/components/files/FileBrowser.vue'
 import SectionMain from '@/components/ui/SectionMain.vue'
 import CardBox from '@/components/ui/CardBox.vue'
-import SectionTitleLineWithButton from '@/components/ui/SectionTitleLineWithButton.vue'
-import type { DownloadStore, ListAppFile } from '@/stores/storage/types'
+import BreadCrumbs from '@/components/files/BreadCrumbs.vue'
+import { useRoute } from 'vue-router'
+import { computed } from 'vue'
 
-const downloadAction = (download: DownloadStore, file: ListAppFile) => {
-  return download.push(file)
-}
+const route = useRoute()
+
+const parentId = computed(() => {
+  if (route.params.file_id) {
+    return parseInt(route.params.file_id as string)
+  }
+
+  return undefined
+})
 </script>
 
 <template>
   <Suspense>
     <LayoutAuthenticated>
-      <FileBrowser v-slot="{ storage, download }">
+      <FileBrowser :parentId="parentId" v-slot="{ storage, loading, on }">
         <SectionMain>
-          <SectionTitleLineWithButton title="" main />
-
-          <CardBox rounded="rounded-md" class="mb-2 px-3 py-1" has-table>
-            <BreadCrumbs :parents="storage.parents" />
+          <CardBox rounded="rounded-md" class="mb-2 px-0 py-0 mt-4" has-table>
+            <div class="w-full border-y-0">
+              <div class="float-left p-2">
+                <BreadCrumbs :parents="storage.parents" :parentId="parentId" />
+              </div>
+            </div>
           </CardBox>
 
-          <CardBox rounded="rounded-md" class="mb-6" has-table>
-            <TableFiles
-              :items="storage.items"
-              :parent="storage.dir || null"
-              @download="(file) => downloadAction(download, file)"
-            />
-          </CardBox>
+          <TableFiles
+            :for-delete="storage.forDelete"
+            :parents="storage.parents"
+            :items="storage.items"
+            :dir="storage.dir || null"
+            :hide-checkbox="false"
+            :hide-delete="false"
+            :show-actions="true"
+            :loading="loading"
+            v-on="on"
+          />
         </SectionMain>
       </FileBrowser>
     </LayoutAuthenticated>

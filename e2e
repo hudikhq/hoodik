@@ -2,7 +2,7 @@
 
 set -e
 
-cargo run &
+cargo run -- -c ./.env.e2e &
 
 (turbo test:e2e) || TEST_EXIT_CODE=$?
 

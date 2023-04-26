@@ -21,8 +21,8 @@ const computedValue = computed({
 
 const inputElClass = computed(() => {
   const base = [
-    'px-3 py-2 max-w-full focus:ring focus:outline-none border-gray-700 rounded w-full',
-    'dark:placeholder-gray-400',
+    'px-3 py-2 max-w-full focus:ring focus:outline-none border-brownish-700 rounded w-full',
+    'dark:placeholder-brownish-400',
     'h-12',
     'border-0',
     'bg-transparent',
@@ -81,7 +81,7 @@ onBeforeUnmount(() => {
       :path="mdiFileSearch"
       w="w-10"
       h="h-12"
-      class="absolute top-0 left-0 z-10 pointer-events-none text-gray-500 dark:text-slate-400"
+      class="absolute top-0 left-0 z-10 pointer-events-none text-brownish-500 dark:text-brownish-400"
     />
   </div>
 </template>

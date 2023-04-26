@@ -1,6 +1,6 @@
 import type { Key } from '../cryptfns/aes'
 import * as cryptfns from '../cryptfns'
-import type { FileMetadataJson } from './types'
+import type { FileMetadataJson } from '../types'
 
 export class FileMetadata {
   /**
