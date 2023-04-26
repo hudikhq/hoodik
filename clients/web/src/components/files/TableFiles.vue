@@ -4,7 +4,7 @@ import TableFilesRow from '@/components/files/TableFilesRow.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import { mdiTrashCanOutline, mdiFolderPlusOutline, mdiFilePlusOutline, mdiLoading } from '@mdi/js'
+import { mdiTrashCanOutline, mdiFolderPlusOutline, mdiFilePlusOutline } from '@mdi/js'
 import type { ListAppFile } from '@/stores/types'
 
 const props = defineProps<{
