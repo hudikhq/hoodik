@@ -22,8 +22,14 @@ jobs:
       - name: Install pkg-config
         run: sudo apt install -y clang llvm pkg-config nettle-dev
 
-      - name: Run yarn install
-        run: npm install -g yarn && yarn install
+      - name: Install wasm build
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Install yarn
+        run: npm install -g yarn
+
+      - name: Install yarn dependencies
+        run: yarn install
 
       - name: Run unit tests
         run: yarn unit
