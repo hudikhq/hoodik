@@ -1,5 +1,6 @@
 {
   "private": true,
+  "license": "CC BY-NC 4.0",
   "name": "hoodik",
   "workspaces": [
     "clients/web",
