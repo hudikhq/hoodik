@@ -2,6 +2,10 @@
 
 set -e
 
+cargo test --test web_authentication -- --nocapture
+
+cargo test --test storage -- --nocapture
+
 cargo run -- -c ./.env.e2e &
 
 (turbo test:e2e) || TEST_EXIT_CODE=$?
