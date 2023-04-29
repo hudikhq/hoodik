@@ -1,11 +1,11 @@
 use chrono::NaiveDateTime;
-use entity::{files, user_files};
+use entity::{files, user_files, Uuid};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AppFile {
-    pub id: i32,
-    pub user_id: i32,
+    pub id: Uuid,
+    pub user_id: Uuid,
     pub is_owner: bool,
     pub encrypted_metadata: String,
     pub name_hash: String,
@@ -13,7 +13,7 @@ pub struct AppFile {
     pub size: Option<i64>,
     pub chunks: Option<i32>,
     pub chunks_stored: Option<i32>,
-    pub file_id: Option<i32>,
+    pub file_id: Option<Uuid>,
     pub file_created_at: NaiveDateTime,
     pub created_at: NaiveDateTime,
     pub finished_upload_at: Option<NaiveDateTime>,
@@ -38,7 +38,11 @@ impl AppFile {
 
     pub fn get_filename(&self) -> Option<String> {
         if self.is_file() {
-            Some(format!("{}-{}", &self.created_at.timestamp(), &self.id))
+            Some(format!(
+                "{}-{}",
+                &self.created_at.timestamp(),
+                &self.id.to_string()
+            ))
         } else {
             None
         }

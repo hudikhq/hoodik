@@ -103,3 +103,17 @@ pub fn aes_encrypt(key: Vec<u8>, plaintext: Vec<u8>) -> Option<Vec<u8>> {
 pub fn aes_decrypt(key: Vec<u8>, ciphertext: Vec<u8>) -> Option<Vec<u8>> {
     aes::decrypt(key, ciphertext).ok()
 }
+
+#[wasm_bindgen]
+pub fn text_into_tokens(input: &str) -> Option<String> {
+    crate::tokenizer::into_tokens(input)
+        .ok()
+        .map(crate::tokenizer::into_string)
+}
+
+#[wasm_bindgen]
+pub fn text_into_hashed_tokens(input: &str) -> Option<String> {
+    crate::tokenizer::into_tokens(input)
+        .ok()
+        .map(crate::tokenizer::into_string)
+}

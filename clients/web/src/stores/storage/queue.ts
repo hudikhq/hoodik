@@ -5,8 +5,9 @@ import type {
   UploadStore,
   DownloadStore,
   UploadChunkResponseMessage,
-  DownloadProgressResponseMessage
-} from '../types'
+  DownloadProgressResponseMessage,
+  DownloadCompletedResponseMessage
+} from '../../types'
 import { ref } from 'vue'
 import { FileMetadata } from './metadata'
 
@@ -27,14 +28,24 @@ export const store = defineStore('queue', () => {
       downloading.value = await download.start(files)
     }
 
-    if ('SW' in window && messageListenersActive.value === false) {
-      window.SW.onmessage = async (event) => {
-        if (event.data.type === 'upload-progress') {
-          await uploadMessage(files, upload, event.data.response)
+    if (messageListenersActive.value === false) {
+      if ('UPLOAD' in window) {
+        window.UPLOAD.onmessage = async (event) => {
+          if (event.data.type === 'upload-progress') {
+            await uploadMessage(files, upload, event.data.response)
+          }
         }
+      }
 
-        if (event.data.type === 'download-progress') {
-          await handleDownloadProgressMessage(files, download, event.data.message)
+      if ('DOWNLOAD' in window) {
+        window.DOWNLOAD.onmessage = async (event) => {
+          if (event.data.type === 'download-progress') {
+            await handleDownloadProgressMessage(files, download, event.data.response)
+          }
+
+          if (event.data.type === 'download-completed') {
+            await handleDownloadCompletedMessage(event.data.response)
+          }
         }
       }
 
@@ -89,7 +100,24 @@ async function handleDownloadProgressMessage(
   download: DownloadStore,
   response: DownloadProgressResponseMessage
 ) {
-  const { transferableFile, chunkBytes, error } = response
+  const { transferableFile, metadataJson, chunkBytes, error } = response
+  transferableFile.metadata = FileMetadata.fromJson(metadataJson)
 
   await download.progress(files, transferableFile, chunkBytes, error)
+}
+
+/**
+ * Handle catching the file stream after it has completed with downloading
+ * in the worker and send it to the browser download.
+ */
+async function handleDownloadCompletedMessage(response: DownloadCompletedResponseMessage) {
+  const { transferableFile, metadataJson, blob } = response
+  transferableFile.metadata = FileMetadata.fromJson(metadataJson)
+
+  const url = window.URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = transferableFile.metadata?.name as string
+  anchor.click()
+  window.URL.revokeObjectURL(url)
 }

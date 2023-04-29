@@ -2,8 +2,14 @@ import Api from '../api'
 import { FileMetadata } from './metadata'
 import * as cryptfns from '../cryptfns'
 
-import type { KeyPair } from '../cryptfns/rsa'
-import type { AppFile, CreateFile, EncryptedCreateFile, FileResponse, Parameters } from '../types'
+import type {
+  AppFile,
+  CreateFile,
+  EncryptedCreateFile,
+  FileResponse,
+  Parameters,
+  KeyPair
+} from '@/types'
 
 /**
  * Create a file or directory on the server
@@ -12,11 +18,8 @@ export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise
   const key = cryptfns.aes.generateKey()
   const metadata = new FileMetadata(unencrypted.name, key)
 
-  // TODO: tokenize the name and search data
-  const search_tokens_hashed = [].map((token) => cryptfns.sha256.digest(token))
-
   const createFile: EncryptedCreateFile = {
-    search_tokens_hashed,
+    search_tokens_hashed: unencrypted.search_tokens_hashed,
     name_hash: cryptfns.sha256.digest(unencrypted.name),
     encrypted_metadata: await metadata.encrypt(keypair.publicKey as string),
     mime: unencrypted.mime,
@@ -63,7 +66,7 @@ export async function get(keypair: KeyPair, file_id: number): Promise<AppFile> {
 export async function getByName(
   keypair: KeyPair,
   name: string,
-  parent_id?: number
+  parent_id?: string
 ): Promise<AppFile> {
   const nameHash = cryptfns.sha256.digest(name)
 
@@ -88,7 +91,7 @@ export async function getByName(
  */
 export async function find(parameters: Parameters): Promise<FileResponse> {
   // @ts-ignore
-  if (isNaN(parameters.dir_id)) {
+  if (typeof parameters.dir_id !== 'undefined') {
     delete parameters.dir_id
   }
 
@@ -100,6 +103,6 @@ export async function find(parameters: Parameters): Promise<FileResponse> {
 /**
  * Get file or directory metadata
  */
-export async function remove(fileId: number): Promise<void> {
+export async function remove(fileId: string): Promise<void> {
   await Api.delete(`/api/storage/${fileId}`)
 }

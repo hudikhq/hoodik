@@ -15,12 +15,17 @@ const props = defineProps({
     type: [String, Number],
     default: null,
     required: false
+  },
+  path: {
+    type: String,
+    default: mdiLoading,
+    required: false
   }
 })
 </script>
 
 <template>
-  <BaseIcon :path="mdiLoading" class="spinner" :size="props.size" />
+  <BaseIcon :path="props.path" class="spinner" :size="props.size" />
 </template>
 
 <style scoped lang="css">

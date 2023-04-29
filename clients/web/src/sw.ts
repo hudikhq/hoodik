@@ -1,44 +1,67 @@
-import { uploadChunk, download } from './stores/storage/workers'
+import { downloadAndDecryptStream } from './stores/storage/workers'
 import Api, { ErrorResponse } from './stores/api'
 import { FileMetadata } from './stores/storage/metadata'
 import { uploadFile } from './stores/storage/workers/file'
 
 import type {
+  DownloadCompletedResponseMessage,
   DownloadFileMessage,
   DownloadProgressResponseMessage,
+  ListAppFile,
   UploadAppFile,
-  UploadChunkMessage,
   UploadChunkResponseMessage,
   UploadFileMessage,
   WorkerErrorType
-} from './stores/types'
+} from './types'
+
+const sleep = (s: number) => new Promise((r) => setTimeout(r, s * 1000))
 
 onmessage = async (message: MessageEvent<any>) => {
+  // Creating api maker with the updated credentials received
+  // from the main browser thread that has access to JWT and CSRF
+  if (message.data?.type === 'auth') {
+    console.log('In worker, received authentication data...')
+    self.SWApi = new Api(message.data)
+  }
+
+  self.canceled = {
+    upload: [],
+    download: []
+  }
+
+  if (message.data?.type === 'cancel') {
+    const type = message.data.kind
+
+    if (type === 'upload') {
+      self.canceled.upload.push(message.data.id)
+    } else if (type === 'download') {
+      self.canceled.download.push(message.data.id)
+    }
+  }
+
   if (message.data?.type === 'upload-file') {
+    while (!self.SWApi) {
+      await sleep(1)
+    }
+
     handleUploadFile(message.data.message)
   }
 
-  if (message.data?.type === 'upload-chunk') {
-    handleUploadChunk(message.data.message)
-  }
-
   if (message.data?.type === 'download-file') {
-    handleDownloadFile(message.data.message)
-  }
+    while (!self.SWApi) {
+      await sleep(1)
+    }
 
-  if (message.data?.type === 'test') {
-    console.log(message)
+    handleDownloadFile(message.data.message)
   }
 }
 
 /**
  * Handle taking the file in, chunking it and sending it to the backend
  */
-async function handleUploadFile({ api, transferableFile, metadataJson }: UploadFileMessage) {
+async function handleUploadFile({ transferableFile, metadataJson }: UploadFileMessage) {
   const file = transferableFile as UploadAppFile
   file.metadata = FileMetadata.fromJson(metadataJson)
-
-  const apiRunner = new Api(api)
 
   const progress = (
     file: UploadAppFile,
@@ -61,60 +84,48 @@ async function handleUploadFile({ api, transferableFile, metadataJson }: UploadF
   }
 
   try {
-    await uploadFile(apiRunner, file, progress)
+    await uploadFile(self.SWApi, file, progress)
   } catch (error) {
-    console.log('In worker error')
+    console.log('In worker error', error)
     progress(file, 0, false, error as ErrorResponse<unknown>)
   }
 }
 
 /**
- * Handle received upload chunk message
- */
-async function handleUploadChunk({
-  api,
-  transferableFile,
-  metadataJson,
-  data,
-  chunk,
-  attempt
-}: UploadChunkMessage) {
-  try {
-    transferableFile.metadata = FileMetadata.fromJson(metadataJson)
-
-    const response = await uploadChunk(new Api(api), transferableFile, data, chunk, attempt || 0)
-
-    console.log('Sending message back from worker')
-
-    postMessage({ type: 'upload-progress', response })
-  } catch (err) {
-    const error = err as ErrorResponse<unknown>
-
-    transferableFile = { ...transferableFile, metadata: undefined }
-    const metadataJson = transferableFile.metadata?.toJson()
-
-    postMessage({
-      type: 'upload-progress',
-      response: {
-        transferableFile,
-        metadataJson,
-        data,
-        chunk,
-        attempt: attempt || 0,
-        error: handleError(error)
-      } as UploadChunkResponseMessage
-    })
-  }
-}
-
-/**
  * Handle received download file message and downloading the file
+ *
+ * Once the download is generated it transfers the stream back
+ * with the postMessage. This happens right away and
  */
-async function handleDownloadFile({ api, transferableFile, metadataJson }: DownloadFileMessage) {
+async function handleDownloadFile({ transferableFile, metadataJson }: DownloadFileMessage) {
   transferableFile.metadata = FileMetadata.fromJson(metadataJson)
 
   try {
-    await download(new Api(api), transferableFile)
+    const response = await downloadAndDecryptStream(
+      self.SWApi,
+      transferableFile,
+      async (file: ListAppFile, chunkBytes: number): Promise<void> => {
+        const transferableFile = { ...file, metadata: undefined }
+
+        postMessage({
+          type: 'download-progress',
+          response: {
+            transferableFile,
+            metadataJson,
+            chunkBytes
+          } as DownloadProgressResponseMessage
+        })
+      }
+    )
+
+    postMessage({
+      type: 'download-completed',
+      response: {
+        transferableFile,
+        metadataJson,
+        blob: await response.blob()
+      } as DownloadCompletedResponseMessage
+    })
   } catch (err) {
     const error = err as ErrorResponse<unknown>
 

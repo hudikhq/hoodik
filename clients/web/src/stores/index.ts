@@ -3,10 +3,23 @@ import * as auth from './auth'
 import * as crypto from './cryptfns'
 export { auth, crypto, api }
 import { parseISO, format as f } from 'date-fns'
-import type { WorkerErrorType } from './types'
+import type { WorkerErrorType } from '../types'
 import type { ErrorResponse } from './api'
 
 const DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+
+/**
+ * Simple way to generate random uuid4
+ */
+export function uuidv4() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    /* eslint-disable */
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    /* eslint-enable */
+    return v.toString(16)
+  })
+}
 
 /**
  * Takes the UTC date and creates a local date

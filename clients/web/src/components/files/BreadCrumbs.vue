@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { ListAppFile } from '@/stores/types'
+import type { ListAppFile } from '@/types'
 import BaseButton from '../ui/BaseButton.vue'
 import { computed } from 'vue'
 
 const props = defineProps<{
   parents: ListAppFile[]
-  parentId?: number
+  parentId?: string
 }>()
 
 const skipIndexes = computed<number[]>(() => {
@@ -36,7 +36,7 @@ const skipIndexes = computed<number[]>(() => {
             :to="`/directory/${parent.id}`"
             :xs="true"
             color="lightDark"
-            :label="`${parent.metadata?.name}/`"
+            :label="`${parent.metadata?.name || '...'}/`"
             :disabled="parent.id === props.parentId"
           />
         </li>

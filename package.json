@@ -16,7 +16,8 @@
     "watch": "turbo run test:watch",
     "start": "turbo run dev",
     "e2e": "./e2e",
-    "unit": "turbo run test:unit"
+    "unit": "turbo run test:unit",
+    "tc": "turbo run type-check"
   },
   "packageManager": "yarn@1.22.19"
 }

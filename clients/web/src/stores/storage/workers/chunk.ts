@@ -2,7 +2,7 @@ import * as cryptfns from '@/stores/cryptfns'
 import { utcStringFromLocal } from '@/stores'
 import { MAX_UPLOAD_RETRIES } from '@/stores/storage/constants'
 
-import type { AppFile, UploadAppFile, UploadChunkResponseMessage } from '@/stores/types'
+import type { AppFile, UploadAppFile, UploadChunkResponseMessage } from '@/types'
 import type Api from '@/stores/api'
 import type { ErrorResponse } from '@/stores/api'
 

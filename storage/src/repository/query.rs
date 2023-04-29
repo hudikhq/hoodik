@@ -1,7 +1,7 @@
 //! Repository module for running query operations on files that will automatically filter
 //! them for only the files where the user has the file shared with him.
 
-use entity::{users, ConnectionTrait};
+use entity::{users, ConnectionTrait, Uuid};
 use error::{AppResult, Error};
 
 use crate::data::app_file::AppFile;
@@ -25,14 +25,14 @@ where
     }
 
     /// Get any kind of file for the user
-    pub async fn get(&self, id: i32) -> AppResult<AppFile> {
+    pub async fn get(&self, id: Uuid) -> AppResult<AppFile> {
         let file = self.repository.by_id(id, self.user.id).await?;
 
         Ok(file)
     }
 
     /// Alias to get the file metadata for the user
-    pub async fn file(&self, id: i32) -> AppResult<AppFile> {
+    pub async fn file(&self, id: Uuid) -> AppResult<AppFile> {
         let file = self.repository.by_id(id, self.user.id).await?;
 
         if file.is_dir() {
@@ -43,7 +43,7 @@ where
     }
 
     /// Alias to get directory metadata for the user
-    pub async fn dir(&self, id: i32) -> AppResult<AppFile> {
+    pub async fn dir(&self, id: Uuid) -> AppResult<AppFile> {
         let file = self.repository.by_id(id, self.user.id).await?;
 
         if file.is_file() {

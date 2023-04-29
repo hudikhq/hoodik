@@ -28,13 +28,12 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(
                         ColumnDef::new(UserFiles::Id)
-                            .integer()
+                            .string()
                             .not_null()
-                            .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(UserFiles::FileId).integer().not_null())
-                    .col(ColumnDef::new(UserFiles::UserId).integer().not_null())
+                    .col(ColumnDef::new(UserFiles::FileId).uuid().not_null())
+                    .col(ColumnDef::new(UserFiles::UserId).uuid().not_null())
                     .col(
                         ColumnDef::new(UserFiles::EncryptedMetadata)
                             .text()
@@ -44,6 +43,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(UserFiles::CreatedAt).date_time().not_null())
                     .col(ColumnDef::new(UserFiles::ExpiresAt).date_time())
                     .foreign_key(&mut foreign_key_file_id)
+                    .foreign_key(&mut foreign_key_user_id)
                     .to_owned(),
             )
             .await

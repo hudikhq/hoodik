@@ -4,12 +4,12 @@ WORKDIR /usr/src/app
 
 COPY . .
 
-RUN apt update && apt install curl libpq-dev clang llvm pkg-config nettle-dev -y
+RUN apt update && apt install curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev -y
 RUN cargo build --release
 
 FROM debian:bullseye-slim
 
-RUN apt update && apt install curl libpq-dev clang llvm pkg-config nettle-dev -y
+RUN apt update && apt install curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev -y
 ENV HOST 0.0.0.0
 EXPOSE 4554/tcp
 

@@ -1,115 +1,52 @@
-import Api from '@/stores/api'
-import { DOWNLOAD_POOL_LIMIT } from '../constants'
+import type Api from '@/stores/api'
 import * as cryptfns from '@/stores/cryptfns'
 
-import type { ListAppFile } from '../../types'
+import type { DownloadProgressFunction, ListAppFile } from '../../../types'
 
-export type DownloadIteratorFunction = (
+/**
+ * Create readable stream from downloading chunks and stream them
+ * to download of the browser
+ */
+export async function downloadAndDecryptStream(
+  api: Api,
   file: ListAppFile,
-  i: number,
-  items: number[]
-) => Promise<Uint8Array>
+  progress: DownloadProgressFunction
+): Promise<Response> {
+  const chunks = [...new Array(file.chunks)].map((_, i) => i)
 
-/**
- * Start downloading concurrently chunks of the file
- */
-export async function download(api: Api, file: ListAppFile): Promise<void> {
-  const buffer = await start(api, file)
-  return saveAs(file, buffer)
-}
+  const stream = new ReadableStream<Uint8Array>({
+    start: async () => {
+      if (progress) {
+        await progress(file, 0)
+      }
+    },
+    pull: async (controller) => {
+      const chunk = chunks.shift()
 
-/**
- * Initiate the browser download action
- */
-function saveAs(file: ListAppFile, buffers: Uint8Array): void {
-  const blob = new Blob([buffers], { type: file.mime })
-  const blobUrl = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.download = file.metadata?.name || file.id.toString()
-  a.href = blobUrl
-  a.click()
-  URL.revokeObjectURL(a.href)
-  console.log('File downloaded')
-}
+      // @ts-ignore
+      if ('canceled' in self && self.canceled?.download?.includes(file.id)) {
+        throw new Error('Download cancelled')
+      }
 
-/**
- * Concatenate multiple uint8 arrays together
- */
-function concatenate(arrays: Uint8Array[]): Uint8Array {
-  if (!arrays.length) return new Uint8Array(0)
+      if (!chunk && chunk !== 0) {
+        controller.close()
+        return
+      }
 
-  const totalLength = arrays.reduce((acc, value) => acc + value.length, 0)
-  const result = new Uint8Array(totalLength)
-  let length = 0
-  for (const array of arrays) {
-    result.set(array, length)
-    length += array.length
-  }
-  return result
-}
-
-/**
- * Create a pool of asynchronous tasks that will download chunks and decrypt them.
- */
-async function asyncPool(
-  concurrency: number,
-  file: ListAppFile,
-  iterable: number[],
-  iteratorFn: DownloadIteratorFunction
-): Promise<Uint8Array[]> {
-  const ret = [] // Store all asynchronous tasks
-  const executing = new Set() // Stores executing asynchronous tasks
-  for (const item of iterable) {
-    // Call the iteratorFn function to create an asynchronous task
-    const p = Promise.resolve().then(() => iteratorFn(file, item, iterable))
-
-    ret.push(p) // save new async task
-    executing.add(p) // Save an executing asynchronous task
-
-    const clean = () => executing.delete(p)
-    p.then(clean).catch(clean)
-    if (executing.size >= concurrency) {
-      // Wait for faster task execution to complete
-      await Promise.race(executing)
-    }
-  }
-  return Promise.all(ret)
-}
-
-/**
- * Start by creating a pool of asynchronous tasks that will download
- * chunks and decrypt them.
- */
-async function start(api: Api, file: ListAppFile): Promise<Uint8Array> {
-  if (!file.size || !file.chunks || !file.finished_upload_at || !file.metadata) {
-    throw new Error(`File ${file.id} is not available for download`)
-  }
-
-  const results = await asyncPool(
-    DOWNLOAD_POOL_LIMIT,
-    file,
-    [...new Array(file.chunks).keys()],
-    async (file: ListAppFile, i: number) => {
-      const content = await downloadChunk(api, file, i)
-
-      const transferableFile = { ...file, metadata: undefined }
-
-      self.postMessage({
-        type: 'download-progress',
-        message: {
-          transferableFile,
-          metadataJson: file.metadata?.toJson() || null,
-          chunkBytes: content.byteLength
+      const data = await downloadChunk(api, file, chunk as number)
+      if (data) {
+        if (progress) {
+          await progress(file, data.length)
         }
-      })
 
-      return content
+        return controller.enqueue(data)
+      } else {
+        controller.close()
+      }
     }
-  )
+  })
 
-  const sortedBuffers = results.map((item) => new Uint8Array(item.buffer))
-
-  return concatenate(sortedBuffers)
+  return new Response(stream)
 }
 
 /**
@@ -159,8 +96,8 @@ export async function downloadEncryptedChunk(
 
     if (done) {
       downloaded = true
-      const checksum = cryptfns.sha256.digest(data)
-      console.log(`Downloaded chunk (${data.length} B) ${chunk} of ${file.chunks} - ${checksum}`)
+      // const checksum = cryptfns.sha256.digest(data)
+      // console.log(`Downloaded chunk (${data.length} B) ${chunk} of ${file.chunks} - ${checksum}`)
       return data
     }
   }
@@ -174,14 +111,5 @@ export async function downloadEncryptedChunk(
 async function getResponse(api: Api, file: ListAppFile | number, chunk: number): Promise<Response> {
   const id = typeof file === 'number' ? file : file.id
 
-  const { request, fetchOptions } = Api.buildRequest(
-    'get',
-    `/api/storage/${id}?chunk=${chunk}`,
-    undefined,
-    undefined,
-    undefined,
-    api
-  )
-
-  return fetch(decodeURIComponent(request.url), fetchOptions)
+  return await api.download(`/api/storage/${id}?chunk=${chunk}`)
 }

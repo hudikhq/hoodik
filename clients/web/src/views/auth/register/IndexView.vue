@@ -3,12 +3,12 @@ import { AppForm, AppField, AppButton, AppCheckbox } from '@/components/form'
 import * as yup from 'yup'
 import { zxcvbn } from '@zxcvbn-ts/core'
 import { store } from '@/stores/auth/register'
-import type { CreateUser } from '@/stores/auth/register'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
+import type { CreateUser } from '@/types'
 
 const register = store()
 const router = useRouter()

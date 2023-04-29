@@ -23,12 +23,18 @@ export interface CreateFile {
    * If the file or directory is a child of another
    * directory this is where you put its id
    */
-  file_id?: number
+  file_id?: string
 
   /**
    * When was the file created on disk
    */
   file_created_at?: string
+
+  /**
+   * Tokenize the unencrypted file name or any search data,
+   * hash each token and load it in this array.
+   */
+  search_tokens_hashed?: string[]
 }
 
 export interface EncryptedCreateFile {
@@ -68,7 +74,7 @@ export interface EncryptedCreateFile {
    * If the file or directory is a child of another
    * directory this is where you put its id
    */
-  file_id?: number
+  file_id?: string
 
   /**
    * When was the file created on disk

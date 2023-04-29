@@ -1,4 +1,4 @@
-import type { ApiTransfer, InnerValidationErrors } from '@/stores/api'
+import type { InnerValidationErrors } from '@/stores/api'
 import type { ListAppFile, UploadAppFile } from './file'
 import type { FileMetadataJson } from '.'
 
@@ -15,7 +15,6 @@ export type WorkerErrorType =
  * one by one
  */
 export type UploadFileMessage = {
-  api: ApiTransfer
   transferableFile: UploadAppFile
   metadataJson: FileMetadataJson
 }
@@ -24,7 +23,6 @@ export type UploadFileMessage = {
  * Message sent to the worker to upload a chunk
  */
 export type UploadChunkMessage = {
-  api: ApiTransfer
   transferableFile: UploadAppFile
   metadataJson: FileMetadataJson
   data: Uint8Array
@@ -36,7 +34,6 @@ export type UploadChunkMessage = {
  * Message sent to the worker to download a file
  */
 export type DownloadFileMessage = {
-  api: ApiTransfer
   transferableFile: ListAppFile
   metadataJson: FileMetadataJson
 }
@@ -61,4 +58,14 @@ export type DownloadProgressResponseMessage = {
   metadataJson: FileMetadataJson | null
   chunkBytes: number
   error?: WorkerErrorType
+}
+
+/**
+ * File returned after download to pipe into browser
+ * download.
+ */
+export type DownloadCompletedResponseMessage = {
+  transferableFile: ListAppFile
+  metadataJson: FileMetadataJson | null
+  blob: Blob
 }

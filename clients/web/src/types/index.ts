@@ -1,20 +1,23 @@
-import type { Query } from '../api'
-import type { store as downloadStore } from '../storage/download'
-import type { store as uploadStore } from '../storage/upload'
-import type { store as filesStore } from '../storage'
-import type { AppFile, ListAppFile, UploadAppFile } from './file'
+import type { Query } from '../stores/api'
+import type { store as downloadStore } from '../stores/storage/download'
+import type { store as uploadStore } from '../stores/storage/upload'
+import type { store as filesStore } from '../stores/storage'
+import type { AppFile, ListAppFile, UploadAppFile, DownloadAppFile } from './file'
 
 export * from './create'
 export * from './file'
 export * from './worker'
 export * from './queue'
+export * from './login'
+export * from './register'
+export * from './cryptfns'
 
 export type UploadStore = ReturnType<typeof uploadStore>
 export type DownloadStore = ReturnType<typeof downloadStore>
 export type FilesStore = ReturnType<typeof filesStore>
 
 export interface Parameters extends Query {
-  dir_id?: number | null
+  dir_id?: string | null
   order?: 'asc' | 'desc'
   order_by?: 'created_at' | 'size'
 }
@@ -38,4 +41,12 @@ export interface FileMetadataJson {
   name?: string
   key?: string
   [other: string]: any
+}
+
+export interface HelperType {
+  decrypt(file: AppFile): Promise<AppFile>
+  decrypt(file: ListAppFile): Promise<ListAppFile>
+  decrypt(file: UploadAppFile): Promise<UploadAppFile>
+  decrypt(file: DownloadAppFile): Promise<DownloadAppFile>
+  [key: string]: any
 }

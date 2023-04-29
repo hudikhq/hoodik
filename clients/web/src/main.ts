@@ -1,22 +1,20 @@
 import { createApp } from 'vue'
-import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
+import { createPinia } from '@/stores/init'
 import { store as style } from '@/stores/style'
 import { lightModeKey, styleKey } from '@/config'
-
-declare global {
-  interface Window {
-    SW: Worker
-  }
-}
 
 // @ts-ignore
 import { serviceWorkerFile } from 'virtual:vite-plugin-service-worker'
 
 try {
   if ('Worker' in window) {
-    window.SW = new Worker(serviceWorkerFile, { type: 'module', name: 'Hoodik Worker' })
+    window.UPLOAD = new Worker(serviceWorkerFile, { type: 'module', name: 'Hoodik Upload Worker' })
+    window.DOWNLOAD = new Worker(serviceWorkerFile, {
+      type: 'module',
+      name: 'Hoodik Download Worker'
+    })
   }
 } catch (error) {
   console.error('Registration failed', error)
@@ -24,7 +22,6 @@ try {
 
 import './css/main.css'
 
-/* Init Pinia */
 const pinia = createPinia()
 
 /* Create Vue app */

@@ -1,4 +1,4 @@
-use sea_orm_migration::prelude::*;
+use sea_orm_migration::{prelude::*, sea_orm::prelude::Uuid};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -13,9 +13,9 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(
                         ColumnDef::new(Users::Id)
-                            .integer()
+                            .uuid()
+                            .default(Uuid::new_v4().to_string())
                             .not_null()
-                            .auto_increment()
                             .primary_key(),
                     )
                     .col(ColumnDef::new(Users::Email).string().not_null())

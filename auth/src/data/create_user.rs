@@ -79,7 +79,7 @@ impl CreateUser {
         let data = self.validate()?;
 
         Ok(ActiveModel {
-            id: ActiveValue::NotSet,
+            id: ActiveValue::Set(entity::Uuid::new_v4()),
             email: ActiveValue::Set(data.email.unwrap()),
             password: ActiveValue::Set(data.password.map(hash)),
             secret: ActiveValue::Set(data.secret),

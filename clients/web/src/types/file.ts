@@ -1,4 +1,4 @@
-import type { FileMetadata } from '../storage/metadata'
+import type { FileMetadata } from '../stores/storage/metadata'
 import type { WorkerErrorType } from './worker'
 
 export interface UploadAppFile extends AppFile {
@@ -70,18 +70,30 @@ export interface AppFile extends EncryptedAppFile {
   metadata?: FileMetadata
 
   /**
+   * Transferable way of storing FileMetadata
+   */
+  metadataJson?: { [key: string]: string }
+
+  /**
    * Decrypted data of the file
    */
   data?: Uint8Array
+
+  /**
+   * Temporary ID that is only used within the client application
+   * it helps us keep track of the file while its moving through
+   * various process methods so we don't duplicate it in the UI
+   */
+  temporaryId?: string
 }
 
 export interface EncryptedAppFile {
-  id: number
+  id: string
 
   /**
    * User id of the user that loaded the file
    */
-  user_id: number
+  user_id: string
 
   /**
    * Is the current user file owner
@@ -123,7 +135,7 @@ export interface EncryptedAppFile {
    * If the file or directory is a child of another
    * directory then this will be the parent directory id
    */
-  file_id?: number
+  file_id?: string
 
   /**
    * This is an optional field that can be

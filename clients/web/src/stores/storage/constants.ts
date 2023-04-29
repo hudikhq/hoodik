@@ -4,7 +4,7 @@ export const CHUNK_SIZE_BYTES = 1024 * 1024 * 4
  * Upload constants
  */
 export const MAX_UPLOAD_RETRIES = 3
-export const CONCURRENT_CHUNKS_UPLOAD = 2
+export const CONCURRENT_CHUNKS_UPLOAD = 4
 export const FILES_UPLOADING_AT_ONE_TIME = 1
 export const KEEP_FINISHED_UPLOADS_FOR_MINUTES = 15
 
