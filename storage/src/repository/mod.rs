@@ -6,7 +6,7 @@ use crate::data::app_file::AppFile;
 use self::{manage::Manage, query::Query};
 use entity::{
     files, user_files, users, ColumnTrait, ConnectionTrait, EntityTrait, Expr, IntoCondition,
-    JoinType, QueryFilter, QuerySelect, RelationTrait, Value,
+    JoinType, QueryFilter, QuerySelect, RelationTrait, Uuid, Value,
 };
 use error::{AppResult, Error};
 use std::fmt::Display;
@@ -56,7 +56,7 @@ where
     }
 
     /// Load the file from the database by its id
-    pub async fn by_id<V>(&self, id: V, user_id: i32) -> AppResult<AppFile>
+    pub async fn by_id<V>(&self, id: V, user_id: Uuid) -> AppResult<AppFile>
     where
         V: Into<Value> + Display + Clone,
     {

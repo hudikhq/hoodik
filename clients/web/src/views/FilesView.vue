@@ -12,7 +12,11 @@ const route = useRoute()
 
 const parentId = computed(() => {
   if (route.params.file_id) {
-    return parseInt(route.params.file_id as string)
+    if (Array.isArray(route.params.file_id)) {
+      return route.params.file_id[0]
+    }
+
+    return route.params.file_id
   }
 
   return undefined
@@ -22,17 +26,18 @@ const parentId = computed(() => {
 <template>
   <Suspense>
     <LayoutAuthenticated>
-      <FileBrowser :parentId="parentId" v-slot="{ storage, loading, on }">
+      <FileBrowser :parentId="parentId" v-slot="{ storage, loading, helper, on }">
         <SectionMain>
           <CardBox rounded="rounded-md" class="mb-2 px-0 py-0 mt-4" has-table>
             <div class="w-full border-y-0">
               <div class="float-left p-2">
-                <BreadCrumbs :parents="storage.parents" :parentId="parentId" />
+                <BreadCrumbs :helper="helper" :parents="storage.parents" :parentId="parentId" />
               </div>
             </div>
           </CardBox>
 
           <TableFiles
+            :helper="helper"
             :for-delete="storage.forDelete"
             :parents="storage.parents"
             :items="storage.items"

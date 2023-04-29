@@ -3,7 +3,7 @@ use actix_web::cookie::{time::OffsetDateTime, Cookie, SameSite};
 use chrono::{Duration, Utc};
 use context::Context;
 use entity::{
-    sessions, users, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, QueryFilter,
+    sessions, users, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, QueryFilter, Uuid,
 };
 use error::{AppResult, Error};
 
@@ -39,19 +39,23 @@ impl<'ctx> Auth<'ctx> {
         let email = data.email.clone();
         let active_model = data.into_active_model()?;
 
+        let id: Uuid = entity::active_value_to_uuid(active_model.id.clone())
+            .ok_or(Error::as_wrong_id("user"))?;
+
         // We can unwrap here because it would fail validation before this
         if self.get_by_email(email.unwrap().as_str()).await.is_ok() {
             return Err(Error::as_validation("email", "invalid_email"));
         }
 
-        active_model
-            .insert(&self.context.db)
-            .await
-            .map_err(Error::from)
+        users::Entity::insert(active_model)
+            .exec_without_returning(&self.context.db)
+            .await?;
+
+        self.get_by_id(id).await
     }
 
     /// Get a user by id
-    pub async fn get_by_id(&self, id: i32) -> AppResult<users::Model> {
+    pub async fn get_by_id(&self, id: Uuid) -> AppResult<users::Model> {
         users::Entity::find_by_id(id)
             .one(&self.context.db)
             .await
@@ -80,7 +84,7 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Validate a session by its device id
-    pub async fn validate(&self, id: i32) -> AppResult<()> {
+    pub async fn validate(&self, id: Uuid) -> AppResult<()> {
         let session = sessions::Entity::find()
             .filter(sessions::Column::Id.eq(id))
             .one(&self.context.db)
@@ -166,21 +170,28 @@ impl<'ctx> Auth<'ctx> {
             }
         };
 
+        let id = entity::Uuid::new_v4();
+
         let active_model = sessions::ActiveModel {
-            id: ActiveValue::NotSet,
+            id: ActiveValue::Set(id),
             user_id: ActiveValue::Set(user.id),
-            device_id: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
-            token: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
-            csrf: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
+            device_id: ActiveValue::Set(Uuid::new_v4().to_string()),
+            token: ActiveValue::Set(Uuid::new_v4().to_string()),
+            csrf: ActiveValue::Set(Uuid::new_v4().to_string()),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
             expires_at: ActiveValue::Set(expires_at.naive_utc()),
         };
 
-        active_model
-            .insert(&self.context.db)
-            .await
-            .map_err(Error::from)
+        sessions::Entity::insert(active_model)
+            .exec_without_returning(&self.context.db)
+            .await?;
+
+        let result = sessions::Entity::find_by_id(id)
+            .one(&self.context.db)
+            .await?;
+
+        result.ok_or(Error::NotFound("session_not_found".to_string()))
     }
 
     /// Refresh session, if it's not expired. Refreshing a session will extend the expiration date by 10 minutes.
@@ -192,8 +203,8 @@ impl<'ctx> Auth<'ctx> {
             id: ActiveValue::Set(session.id),
             user_id: ActiveValue::Set(session.user_id),
             device_id: ActiveValue::Set(session.device_id.clone()),
-            token: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
-            csrf: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
+            token: ActiveValue::Set(Uuid::new_v4().to_string()),
+            csrf: ActiveValue::Set(Uuid::new_v4().to_string()),
             created_at: ActiveValue::Set(session.created_at),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
             expires_at: ActiveValue::Set(expires_at),
@@ -210,8 +221,8 @@ impl<'ctx> Auth<'ctx> {
             id: ActiveValue::Set(session.id),
             user_id: ActiveValue::Set(session.user_id),
             device_id: ActiveValue::Set(session.device_id.clone()),
-            token: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
-            csrf: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
+            token: ActiveValue::Set(Uuid::new_v4().to_string()),
+            csrf: ActiveValue::Set(Uuid::new_v4().to_string()),
             created_at: ActiveValue::Set(session.created_at),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
             expires_at: ActiveValue::Set(Utc::now().naive_utc()),

@@ -1,7 +1,9 @@
 use actix_web::{route, web, HttpRequest, HttpResponse};
 use auth::{data::authenticated::Authenticated, middleware::verify::Verify};
 use context::Context;
+use entity::Uuid;
 use error::{AppResult, Error};
+use std::str::FromStr;
 
 use crate::{contract::StorageProvider, repository::Repository, storage::Storage};
 
@@ -16,7 +18,8 @@ use crate::{contract::StorageProvider, repository::Repository, storage::Storage}
 pub async fn metadata(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let authenticated = Authenticated::try_from(&req)?;
-    let file_id = util::actix::path_var(&req, "file_id")?;
+    let file_id: String = util::actix::path_var(&req, "file_id")?;
+    let file_id = Uuid::from_str(&file_id)?;
 
     let mut file = Repository::new(&context.db)
         .query(&authenticated.user)

@@ -1,13 +1,13 @@
 //! Repository module for manipulating with files in the database
 //! this module should only be used by the owner of the file
 
-use std::{cmp::Ordering, fmt::Display};
+use std::{cmp::Ordering, fmt::Display, str::FromStr};
 
 use chrono::Utc;
 use entity::{
     files, user_files, users, ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait,
     EntityTrait, Expr, IntoCondition, JoinType, Order, QueryFilter, QueryOrder, QuerySelect,
-    RelationTrait, Statement, Value,
+    RelationTrait, Statement, Uuid, Value,
 };
 use error::{AppResult, Error};
 
@@ -32,7 +32,7 @@ where
     }
 
     /// Get any kind of file for the owner
-    pub async fn get(&self, id: i32) -> AppResult<AppFile> {
+    pub async fn get(&self, id: Uuid) -> AppResult<AppFile> {
         let file = self.repository.by_id(id, self.owner.id).await?;
 
         if !file.is_owner {
@@ -43,7 +43,7 @@ where
     }
 
     /// Alias to get the file metadata for the owner
-    pub async fn file(&self, id: i32) -> AppResult<AppFile> {
+    pub async fn file(&self, id: Uuid) -> AppResult<AppFile> {
         let file = self.repository.by_id(id, self.owner.id).await?;
 
         if file.is_dir() {
@@ -54,7 +54,7 @@ where
     }
 
     /// Alias to get directory metadata for the owner
-    pub async fn dir(&self, id: i32) -> AppResult<AppFile> {
+    pub async fn dir(&self, id: Uuid) -> AppResult<AppFile> {
         let file = self.repository.by_id(id, self.owner.id).await?;
 
         if file.is_file() {
@@ -70,8 +70,8 @@ where
 
         let mut query = files::Entity::find();
 
-        if let Some(dir_id) = request_query.dir_id {
-            parents = self.dir_tree(dir_id).await?;
+        if let Some(dir_id) = request_query.dir_id.as_ref() {
+            parents = self.dir_tree(Uuid::from_str(dir_id)?).await?;
 
             query = query.filter(files::Column::FileId.eq(dir_id));
         } else {
@@ -127,7 +127,7 @@ where
     /// Get the directory tree for the owner,
     /// tree is starting with the oldest parent leading all the way up to
     /// the given directory id
-    pub async fn dir_tree(&self, id: i32) -> AppResult<Vec<AppFile>> {
+    pub async fn dir_tree(&self, id: Uuid) -> AppResult<Vec<AppFile>> {
         let sql = r#"
             WITH RECURSIVE file_tree(id, file_id) AS (
                 SELECT id, file_id FROM files WHERE id = ? AND mime = 'dir'
@@ -138,7 +138,7 @@ where
             SELECT * FROM file_tree;
         "#;
 
-        let ids: Vec<i32> = files::Entity::find()
+        let ids: Vec<String> = files::Entity::find()
             .from_raw_sql(Statement::from_sql_and_values(
                 self.repository.connection().get_database_backend(),
                 sql,
@@ -148,7 +148,13 @@ where
             .all(self.repository.connection())
             .await?
             .into_iter()
-            .map(|json| json.get("id").unwrap().as_i64().unwrap() as i32)
+            .map(|json| {
+                json.get("id")
+                    .unwrap()
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_string()
+            })
             .collect();
 
         let user_id = self.owner.id;
@@ -191,7 +197,7 @@ where
 
     /// Get the file or a directory, if we get a directory we will also
     /// recursively get all the files and directories inside it
-    pub async fn file_tree(&self, id: i32) -> AppResult<Vec<AppFile>> {
+    pub async fn file_tree(&self, id: Uuid) -> AppResult<Vec<AppFile>> {
         let sql = r#"
             WITH RECURSIVE file_tree(id, file_id) AS (
             SELECT id, file_id FROM files WHERE id = ?
@@ -202,7 +208,7 @@ where
             SELECT id, file_id FROM file_tree;
         "#;
 
-        let ids: Vec<i32> = files::Entity::find()
+        let ids: Vec<String> = files::Entity::find()
             .from_raw_sql(Statement::from_sql_and_values(
                 self.repository.connection().get_database_backend(),
                 sql,
@@ -212,7 +218,13 @@ where
             .all(self.repository.connection())
             .await?
             .into_iter()
-            .map(|json| json.get("id").unwrap().as_i64().unwrap() as i32)
+            .map(|json| {
+                json.get("id")
+                    .unwrap()
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_string()
+            })
             .collect();
 
         let user_id = self.owner.id;
@@ -284,7 +296,7 @@ where
     }
 
     /// Delete a file or directory for the owner
-    pub async fn delete(&self, id: i32) -> AppResult<AppFile> {
+    pub async fn delete(&self, id: Uuid) -> AppResult<AppFile> {
         let file = self.get(id).await?;
 
         files::Entity::delete_by_id(id)
@@ -295,7 +307,7 @@ where
     }
 
     /// Delete many files or directories for the owner
-    pub async fn delete_many(&self, ids: Vec<i32>) -> AppResult<u64> {
+    pub async fn delete_many(&self, ids: Vec<Uuid>) -> AppResult<u64> {
         let results = files::Entity::delete_many()
             .filter(files::Column::Id.is_in(ids))
             .exec(self.repository.connection())
@@ -323,18 +335,38 @@ where
             }
         }
 
-        let file = create_file.insert(self.repository.connection()).await?;
+        let id = entity::active_value_to_uuid(create_file.id.clone())
+            .ok_or(Error::as_wrong_id("file"))?;
+
+        files::Entity::insert(create_file)
+            .exec_without_returning(self.repository.connection())
+            .await?;
+
+        let file = files::Entity::find_by_id(id)
+            .one(self.repository.connection())
+            .await?
+            .ok_or(Error::NotFound("file_not_found".to_string()))?;
+
+        let id = uuid::Uuid::new_v4();
+
         let user_file = user_files::ActiveModel {
-            id: ActiveValue::NotSet,
+            id: ActiveValue::Set(id),
             file_id: ActiveValue::Set(file.id),
             user_id: ActiveValue::Set(self.owner.id),
             is_owner: ActiveValue::Set(true),
             encrypted_metadata: ActiveValue::Set(encrypted_metadata.to_string()),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
             expires_at: ActiveValue::NotSet,
-        }
-        .insert(self.repository.connection())
-        .await?;
+        };
+
+        user_files::Entity::insert(user_file)
+            .exec_without_returning(self.repository.connection())
+            .await?;
+
+        let user_file = user_files::Entity::find_by_id(id)
+            .one(self.repository.connection())
+            .await?
+            .ok_or(Error::NotFound("user_file_not_found".to_string()))?;
 
         Ok(AppFile::from((file, user_file)).is_new(true))
     }

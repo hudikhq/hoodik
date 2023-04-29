@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 #[sea_orm(table_name = "user_files")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub id: i32,
-    pub file_id: i32,
-    pub user_id: i32,
+    pub id: Uuid,
+    pub file_id: Uuid,
+    pub user_id: Uuid,
     pub encrypted_metadata: String,
     pub is_owner: bool,
     pub created_at: NaiveDateTime,

@@ -4,11 +4,11 @@ import * as upload from './upload'
 import * as download from './download'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { utcStringFromLocal } from '..'
-import type { KeyPair } from '../cryptfns/rsa'
-import { FileMetadata } from './metadata'
+import { utcStringFromLocal, uuidv4 } from '@/stores'
+import { FileMetadata } from '@/stores/storage/metadata'
+import type { KeyPair } from '@/types'
 
-import type { AppFile, CreateFile, FileResponse, ListAppFile, Parameters } from '../types'
+import type { AppFile, CreateFile, FileResponse, ListAppFile, Parameters } from '../../types'
 
 export { meta, upload, download, queue }
 
@@ -39,14 +39,14 @@ export const store = defineStore('filesStore', () => {
   })
 
   /**
-   * Content of the currently selected directory (or root)
+   * All the items regardless of the current directory
    */
   const items = ref<ListAppFile[]>([])
 
   /**
    * Currently selected directory id
    */
-  const fileId = ref<number | null>(null)
+  const fileId = ref<string | null>(null)
 
   /**
    * Last error message that happened when trying to
@@ -67,7 +67,7 @@ export const store = defineStore('filesStore', () => {
   const parents = computed<ListAppFile[]>(() => {
     const p: ListAppFile[] = []
 
-    const find = (id: number | null) => {
+    const f = (id: string | null) => {
       const i = items.value.find((item) => item.id === id)
 
       if (i) {
@@ -75,11 +75,11 @@ export const store = defineStore('filesStore', () => {
       }
 
       if (i?.file_id) {
-        find(i.file_id)
+        f(i.file_id)
       }
     }
 
-    find(fileId.value)
+    f(fileId.value)
 
     return p.reverse()
   })
@@ -87,14 +87,15 @@ export const store = defineStore('filesStore', () => {
   /**
    * Head over to backend and do a lookup for the current directory
    */
-  async function find(kp: KeyPair, parentId: number | null): Promise<void> {
+  async function find(kp: KeyPair, parentId: string | null): Promise<void> {
     loading.value = true
     error.value = null
-    fileId.value = parentId
 
     let query = parameters.value
-    if (fileId.value !== undefined && fileId.value !== null) {
-      query = { ...parameters.value, dir_id: fileId.value }
+    if (parentId !== undefined && parentId !== null) {
+      query = { ...parameters.value, dir_id: parentId }
+    } else {
+      delete query.dir_id
     }
 
     let response: FileResponse = { children: [], parents: [] }
@@ -112,14 +113,28 @@ export const store = defineStore('filesStore', () => {
     }
 
     response.parents?.forEach(async (item) => {
-      upsertItem(await decryptItem({ ...item, parent: true }, kp))
+      await replaceItem({ ...item, parent: true }, kp)
     })
 
     response.children?.forEach(async (item) => {
-      upsertItem(await decryptItem({ ...item, parent: false }, kp))
+      await replaceItem({ ...item, parent: false }, kp)
     })
 
+    fileId.value = parentId
     loading.value = false
+  }
+
+  /**
+   * Attempts to avoid decrypting of an item that is already in the list
+   */
+  async function replaceItem(item: ListAppFile, kp: KeyPair): Promise<void> {
+    const existing = getItem(item.id)
+
+    if (existing) {
+      return upsertItem({ ...item, metadata: existing.metadata, temporaryId: uuidv4() })
+    } else {
+      return upsertItem(await decryptItem({ ...item, temporaryId: uuidv4() }, kp))
+    }
   }
 
   /**
@@ -140,14 +155,31 @@ export const store = defineStore('filesStore', () => {
     if (hasItem(item.id, item.file_id || null)) {
       updateItem(item)
     } else {
-      addItem(item)
+      addItem({ ...item, temporaryId: uuidv4() })
     }
+  }
+
+  /**
+   * Get copy of the item from the list
+   */
+  function getItem(id: string): ListAppFile | null {
+    const index = items.value.findIndex((item) => item.id === id)
+
+    return items.value[index] || null
   }
 
   /**
    * Remove item from the list
    */
-  function hasItem(id: number, file_id: number | null): boolean {
+  function takeItem(id: string): ListAppFile | null {
+    const index = items.value.findIndex((item) => item.id === id)
+    return items.value.slice(index, 1)[0] || null
+  }
+
+  /**
+   * Remove item from the list
+   */
+  function hasItem(id: string, file_id: string | null): boolean {
     return items.value.findIndex((item) => item.id === id && item.file_id === file_id) !== -1
   }
 
@@ -174,7 +206,7 @@ export const store = defineStore('filesStore', () => {
   /**
    * Remove item from the list
    */
-  function removeItem(id: number): void {
+  function removeItem(id: string): void {
     items.value = items.value.filter((item) => item.id !== id)
     forDelete.value = forDelete.value.filter((item) => item.id !== id)
   }
@@ -215,7 +247,7 @@ export const store = defineStore('filesStore', () => {
   /**
    * Create a directory in the storage
    */
-  async function createDir(keypair: KeyPair, name: string, dir_id?: number): Promise<AppFile> {
+  async function createDir(keypair: KeyPair, name: string, dir_id?: string): Promise<AppFile> {
     const createFile: CreateFile = {
       name,
       mime: 'dir',
@@ -247,7 +279,7 @@ export const store = defineStore('filesStore', () => {
   /**
    * Add single file to select list
    */
-  function selectAll(files: ListAppFile[], fileId?: number | null) {
+  function selectAll(files: ListAppFile[], fileId?: string | null) {
     forDelete.value = files.filter((f) => {
       if (fileId && f.file_id !== fileId) {
         return false
@@ -284,11 +316,15 @@ export const store = defineStore('filesStore', () => {
     selectOne,
     selectAll,
     removeAll,
+    decryptItem,
     get,
     find,
     remove,
     createDir,
     hasItem,
+    getItem,
+    takeItem,
+    replaceItem,
     updateItem,
     upsertItem,
     addItem,

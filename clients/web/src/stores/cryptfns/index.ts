@@ -4,9 +4,20 @@ import * as uint8 from './uint8'
 import * as sha256 from './sha256'
 import * as lscache from 'lscache'
 
+import * as wasm from './wasm'
+
 export { rsa, aes, sha256, uint8 }
 
 const ENCRYPTED_PRIVATE_KEY_LOCAL_STORAGE = 'encrypted-secret'
+
+/**
+ * Convert input string into hashed tokens
+ */
+export function stringToHashedTokens(s: string): string[] {
+  const output = wasm.text_into_hashed_tokens(s) || ''
+
+  return output.split(';')
+}
 
 /**
  * Get the encrypted private key from the localStorage

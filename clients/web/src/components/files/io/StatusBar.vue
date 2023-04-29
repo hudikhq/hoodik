@@ -3,11 +3,11 @@ import { store as filesStore } from '@/stores/storage'
 import { store as queueStore } from '@/stores/storage/queue'
 import { store as uploadStore } from '@/stores/storage/upload'
 import { store as downloadStore } from '@/stores/storage/download'
-import StatusOfSingleFile from '@/components/files/io/StatusOfSingleFile.vue'
+import SingleFile from '@/components/files/io/SingleFile.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { computed, ref, watch, onBeforeMount } from 'vue'
 import { mdiChevronDown, mdiChevronUp } from '@mdi/js'
-import type { DownloadAppFile, UploadAppFile, QueueItemActionType } from '@/stores/types'
+import type { DownloadAppFile, UploadAppFile, QueueItemActionType } from '@/types'
 import BaseButton from '@/components/ui/BaseButton.vue'
 
 type InnerFileList = {
@@ -24,13 +24,12 @@ onBeforeMount(async () => {
   await queue.start(files, upload, download)
 })
 
-const neverPoppedItUp = ref(true)
 const showTable = ref(false)
 const tab = ref<'running' | 'done' | 'waiting' | 'failed'>()
 
 const items = computed((): InnerFileList[] => {
   const items = [
-    ...upload.uploading.map((item: UploadAppFile) => ({
+    ...upload.running.map((item: UploadAppFile) => ({
       type: 'upload:running' as QueueItemActionType,
       file: item
     })),
@@ -79,10 +78,6 @@ const items = computed((): InnerFileList[] => {
   return items
 })
 
-const hasItems = computed(() => {
-  return !!items.value.length
-})
-
 const totalItems = computed(() => {
   return items.value.length
 })
@@ -112,10 +107,9 @@ const displaying = computed((): InnerFileList[] => {
 })
 
 watch(
-  () => hasItems.value,
+  () => totalItems.value,
   () => {
-    if (neverPoppedItUp.value) {
-      neverPoppedItUp.value = false
+    if (!showTable.value) {
       showTable.value = true
     }
   }
@@ -139,7 +133,7 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
   }
 
   if (type === 'download:running') {
-    download.running = download.running.filter((item) => item.id !== file.id)
+    return download.cancel(files, file)
   }
 
   if (type === 'download:done') {
@@ -156,25 +150,33 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
 }
 </script>
 <template>
-  <div class="fixed bottom-0 right-0 w-full md:w-1/3 shadow-lg">
+  <div
+    class="fixed bottom-0 shadow-lg right-0"
+    :class="{
+      'w-full xl:w-2/5': showTable
+    }"
+  >
+    <div
+      class="cursor-pointer overflow-auto dark:text-white"
+      @click="showTable = !showTable"
+      :class="{
+        'bg-redish-50 dark:bg-redish-700': totalItems > 0,
+        'bg-brownish-100 dark:bg-brownish-600': totalItems === 0
+      }"
+    >
+      <BaseIcon
+        :path="showTable ? mdiChevronDown : mdiChevronUp"
+        w="w-6"
+        h="h-6"
+        class="float-right"
+      />
+      <span class="text-xs ml-2 mr-2 mt-1 float-right" v-if="totalItems">
+        {{ totalItems }}
+      </span>
+    </div>
     <div class="shadow rounded-sm outline-1">
-      <div
-        class="w-full cursor-pointer overflow-auto bg-brownish-50 dark:bg-brownish-700"
-        @click="showTable = !showTable"
-      >
-        <BaseIcon
-          :path="showTable ? mdiChevronDown : mdiChevronUp"
-          w="w-6"
-          h="h-6"
-          class="float-right"
-        />
-        <span class="text-xs ml-2 mr-2 mt-1 float-right" v-if="totalItems">
-          {{ totalItems }}
-        </span>
-      </div>
-      <div class="overflow-auto bg-brownish-50 dark:bg-brownish-800" v-show="showTable">
+      <div class="flex gap-2 overflow-auto bg-brownish-50 dark:bg-brownish-800" v-show="showTable">
         <BaseButton
-          class="float-left mr-2"
           color="lightDark"
           :label="`All (${totalItems})`"
           :xs="true"
@@ -185,7 +187,6 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
           :active="!tab"
         />
         <BaseButton
-          class="float-left mr-2"
           color="lightDark"
           :label="`Active (${activeItems})`"
           :xs="true"
@@ -196,7 +197,6 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
           :active="tab === 'running'"
         />
         <BaseButton
-          class="float-left mr-2"
           color="lightDark"
           :label="`Pending (${pendingItems})`"
           :xs="true"
@@ -207,7 +207,6 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
           :active="tab === 'waiting'"
         />
         <BaseButton
-          class="float-left mr-2"
           color="lightDark"
           :label="`Done (${doneItems})`"
           :xs="true"
@@ -218,7 +217,6 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
           :active="tab === 'done'"
         />
         <BaseButton
-          class="float-left"
           color="lightDark"
           :label="`Failed (${failedItems})`"
           :xs="true"
@@ -228,18 +226,16 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
           :active="tab === 'failed'"
         />
       </div>
-      <div class="w-full max-h-[325px] overflow-y-scroll bg-white dark:bg-brownish-800">
-        <table>
-          <tbody class="table-auto" v-show="showTable">
-            <template v-for="item in displaying" v-bind:key="item.file.id">
-              <StatusOfSingleFile :file="item.file" :type="item.type" @remove="remove" />
-            </template>
+      <div class="max-h-[325px] overflow-y-scroll bg-brownish-50 dark:bg-brownish-800">
+        <div v-show="showTable">
+          <template v-for="item in displaying" v-bind:key="item.file.id">
+            <SingleFile :file="item.file" :type="item.type" @remove="remove" />
+          </template>
 
-            <tr v-if="!displaying.length">
-              <td class="text-center text-sm mobile:table-cell pb-6">No activity in progress</td>
-            </tr>
-          </tbody>
-        </table>
+          <template v-if="!displaying.length">
+            <div class="text-center pb-3 pt-4">No activity in progress</div>
+          </template>
+        </div>
       </div>
     </div>
   </div>

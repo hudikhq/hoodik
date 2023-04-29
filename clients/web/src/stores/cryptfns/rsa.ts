@@ -1,3 +1,4 @@
+import type { KeyPair } from '@/types'
 import { aes } from '.'
 import {
   rsa_generate_private,
@@ -11,28 +12,6 @@ import {
   rsa_public_key_size,
   rsa_private_key_size
 } from './wasm'
-
-export interface KeyPair {
-  /**
-   * Private RSA key string
-   */
-  input: string | null
-
-  /**
-   * Public RSA key string
-   */
-  publicKey: string | null
-
-  /**
-   * Fingerprint of the public key
-   */
-  fingerprint: string | null
-
-  /**
-   * Size of the key in bits
-   */
-  keySize: number
-}
 
 /**
  * Decrypt a private key

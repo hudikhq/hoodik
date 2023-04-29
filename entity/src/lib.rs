@@ -7,6 +7,7 @@ pub mod users;
 pub use prelude::*;
 
 pub use sea_orm::{
+    entity::prelude::Uuid,
     entity::{ActiveModelTrait, ColumnTrait, EntityTrait, RelationTrait},
     sea_query::{
         Alias, Expr, IntoCondition, Query, SelectStatement, SimpleExpr, SubQueryOper,
@@ -16,6 +17,32 @@ pub use sea_orm::{
     JoinType, JsonValue, ModelTrait, Order, QueryFilter, QueryOrder, QuerySelect, QueryTrait,
     SelectTwo, Statement, TransactionTrait, TryGetableMany, Value,
 };
+
+/// Helper to convert Option<String> to Option<Uuid>
+pub fn option_sting_to_uuid(i: Option<String>) -> Option<Uuid> {
+    match i {
+        Some(s) => match Uuid::parse_str(s.as_str()) {
+            Ok(u) => Some(u),
+            Err(_) => None,
+        },
+        None => None,
+    }
+}
+
+/// Convert active value into Option<Uuid>
+pub fn active_value_to_uuid(i: ActiveValue<Uuid>) -> Option<Uuid> {
+    value_to_uuid(i.into_value()?)
+}
+
+/// Helper to convert Value to Option<Uuid>
+pub fn value_to_uuid<T: Into<Value>>(i: T) -> Option<Uuid> {
+    let v = i.into();
+
+    match v {
+        Value::Uuid(u) => u.map(|u| *u),
+        _ => None,
+    }
+}
 
 #[cfg(feature = "mock")]
 pub use sea_orm::{DatabaseBackend, MockDatabase, MockExecResult, Transaction};

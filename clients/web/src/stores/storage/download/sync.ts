@@ -1,7 +1,7 @@
 import * as cryptfns from '../../cryptfns'
 import Api from '../../api'
 
-import type { DownloadProgressFunction, ListAppFile } from '../../types'
+import type { DownloadProgressFunction, ListAppFile } from '../../../types'
 
 /**
  * Download the file content
@@ -29,7 +29,6 @@ export async function downloadAndDecryptStream(
   file: ListAppFile,
   progress?: DownloadProgressFunction
 ) {
-  console.log('File with chunks', file.chunks)
   const chunks = [...new Array(file.chunks)].map((_, i) => i)
 
   const stream = new ReadableStream({

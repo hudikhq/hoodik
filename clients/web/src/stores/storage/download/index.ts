@@ -2,7 +2,6 @@ import { meta } from '../'
 import * as sync from './sync'
 import { FileMetadata } from '../metadata'
 import { defineStore } from 'pinia'
-// import { startFileDownload } from '../workers'
 
 import type {
   DownloadAppFile,
@@ -10,11 +9,12 @@ import type {
   FilesStore,
   IntervalType,
   ListAppFile
-} from '../../types'
-import type { KeyPair } from '../../cryptfns/rsa'
-import { errorIntoWorkerError, localDateFromUtcString, utcStringFromLocal } from '@/stores'
+} from '../../../types'
+import type { KeyPair } from '@/types'
+import { errorIntoWorkerError, localDateFromUtcString, utcStringFromLocal, uuidv4 } from '@/stores'
 import { FILES_DOWNLOADING_AT_ONE_TIME, KEEP_FINISHED_DOWNLOADS_FOR_MINUTES } from '../constants'
 import { ref } from 'vue'
+import { startFileDownload } from '../workers'
 
 export const store = defineStore('download', () => {
   /**
@@ -72,6 +72,14 @@ export const store = defineStore('download', () => {
     if (error) {
       file.error = error
       setFailed(file)
+      return
+    }
+
+    if (done.value.filter((f) => f.temporaryId === file.temporaryId).length > 0) {
+      return
+    }
+
+    if (failed.value.filter((f) => f.temporaryId === file.temporaryId).length > 0) {
       return
     }
 
@@ -185,7 +193,22 @@ export const store = defineStore('download', () => {
    * Add new file to the download queue
    */
   async function push(file: ListAppFile) {
-    return waiting.value.push(file)
+    return waiting.value.push({ ...file, temporaryId: uuidv4() })
+  }
+
+  /**
+   * Cancel the upload of a file
+   */
+  async function cancel(files: FilesStore, file: DownloadAppFile) {
+    if (running.value.filter((f) => f.id === file.id).length === 0) {
+      throw new Error('File cannot be canceled when its not uploading')
+    }
+
+    file.cancel = true
+
+    if ('DOWNLOAD' in window) {
+      window.DOWNLOAD.postMessage({ type: 'cancel', kind: 'download', id: file.id })
+    }
   }
 
   return {
@@ -194,6 +217,7 @@ export const store = defineStore('download', () => {
     failed,
     done,
     active,
+    cancel,
     start,
     retry,
     push,
@@ -219,11 +243,11 @@ export async function download(
   }
 
   // No way to download files in SW, so abandoned for now :(
-  // if ('SW' in window) {
-  //   await startFileDownload(file)
-  // }
-
-  await sync.downloadAndDecryptStream(file, progress)
+  if ('DOWNLOAD' in window) {
+    await startFileDownload(file)
+  } else {
+    await sync.downloadAndDecryptStream(file, progress)
+  }
 }
 
 /**

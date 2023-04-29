@@ -13,51 +13,13 @@ import {
 import type { store as cryptoStore } from '../crypto'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-
-export interface Authenticated {
-  user: User
-  session: Session
-}
-
-export interface AuthenticatedJwt {
-  authenticated: Authenticated
-  jwt: string
-}
-
-export interface User {
-  id: number
-  email: string
-  private?: string
-  pubkey: string
-  fingerprint: string
-  encrypted_private_key?: string
-  created_at: string
-  updated_at: string
-}
-
-export interface Session {
-  id: number
-  user_id: number
-  token: string
-  device_id?: string
-  csrf: string
-  created_at: string
-  updated_at: string
-  expires_at: string
-}
-
-export interface Credentials {
-  email: string
-  password: string
-  token?: string
-  remember?: boolean
-  privateKey?: string
-}
-
-export interface PrivateKeyLogin {
-  privateKey: string
-  remember?: boolean
-}
+import type {
+  Authenticated,
+  AuthenticatedJwt,
+  Credentials,
+  KeyPair,
+  PrivateKeyLogin
+} from '@/types'
 
 interface PrivateKeyRequest {
   fingerprint: string
@@ -98,11 +60,19 @@ export const store = defineStore('login', () => {
   function setupAuthenticated(body: AuthenticatedJwt, privateKey: string) {
     const { authenticated, jwt } = body
     const expires = localDateFromUtcString(authenticated.session.expires_at)
+    const csrf = authenticated.session.csrf
 
     setPrivateKey(privateKey, authenticated.session.device_id as string, expires)
-    setCsrf(authenticated.session.csrf, expires)
+    setCsrf(csrf, expires)
     setJwt(jwt, expires)
     set(authenticated)
+
+    if ('UPLOAD' in window) {
+      window.UPLOAD.postMessage({ type: 'auth', jwt, csrf })
+    }
+    if ('DOWNLOAD' in window) {
+      window.DOWNLOAD.postMessage({ type: 'auth', jwt, csrf })
+    }
 
     _refresher.value = setInterval(() => setupRefresh(), 1000)
   }
@@ -282,7 +252,7 @@ export const store = defineStore('login', () => {
    */
   async function _withPrivateKey(
     store: ReturnType<typeof cryptoStore>,
-    kp: cryptfns.rsa.KeyPair,
+    kp: KeyPair,
     remember: boolean
   ): Promise<Authenticated> {
     const fingerprint = await cryptfns.rsa.getFingerprint(kp.input as string)

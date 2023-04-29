@@ -11,7 +11,8 @@ import {
   rsa_private_key_size,
   aes_generate_key,
   aes_encrypt,
-  aes_decrypt
+  aes_decrypt,
+  text_into_hashed_tokens
 } from 'cryptfns/cryptfns.js'
 
 export {
@@ -27,5 +28,6 @@ export {
   rsa_private_key_size,
   aes_generate_key,
   aes_encrypt,
-  aes_decrypt
+  aes_decrypt,
+  text_into_hashed_tokens
 }

@@ -4,6 +4,10 @@
     "**/.env.*local"
   ],
   "pipeline": {
+    "type-check": {
+      "cache": false,
+      "persistent": true
+    },
     "dev": {
       "dependsOn": [
         "wasm-pack"
@@ -21,6 +25,7 @@
       ]
     },
     "wasm-pack": {
+      "cache": false,
       "dependsOn": [],
       "outputs": [
         "pkg/**"

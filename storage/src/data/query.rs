@@ -3,7 +3,7 @@ use validr::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Query {
-    pub dir_id: Option<i32>,
+    pub dir_id: Option<String>,
     pub order: Option<String>,
     pub order_by: Option<String>,
 }

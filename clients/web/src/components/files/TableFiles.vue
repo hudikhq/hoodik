@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import TableFilesRow from '@/components/files/TableFilesRow.vue'
+import TableFileRowWatcher from '@/components/files/TableFileRowWatcher.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { mdiTrashCanOutline, mdiFolderPlusOutline, mdiFilePlusOutline } from '@mdi/js'
-import type { ListAppFile } from '@/stores/types'
+import type { ListAppFile } from '@/types'
+import type { Helper } from '@/stores/storage/helper'
 
 const props = defineProps<{
+  helper: Helper
   forDelete: ListAppFile[]
   items: ListAppFile[]
   parents: ListAppFile[]
   dir: ListAppFile | null
-  file_id?: number
+  file_id?: string
   hideCheckbox?: boolean
   hideDelete?: boolean
   showActions?: boolean
@@ -25,14 +27,14 @@ const emits = defineEmits<{
   (event: 'download', file: ListAppFile): void
   (event: 'view', file: ListAppFile): void
   (event: 'remove', file: ListAppFile): void
-  (event: 'remove-all', files: ListAppFile[], fileId: number | null | undefined): void
+  (event: 'remove-all', files: ListAppFile[], fileId: string | null | undefined): void
   (event: 'select-one', select: boolean, file: ListAppFile): void
-  (event: 'select-all', files: ListAppFile[], fileId: number | null | undefined): void
+  (event: 'select-all', files: ListAppFile[], fileId: string | null | undefined): void
 }>()
 
 const checked = ref(false)
 
-const dirId = computed<number | null>(() => {
+const dirId = computed<string | null>(() => {
   if (props.dir) {
     return props.dir.id
   }
@@ -193,7 +195,8 @@ const sizes = {
   </div>
   <div v-else class="flex flex-col rounded-b-lg">
     <template v-for="file in items" :key="file.id">
-      <TableFilesRow
+      <TableFileRowWatcher
+        :helper="props.helper"
         :file="file"
         :sizes="sizes"
         :checkedRows="checkedRows"

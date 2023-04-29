@@ -1,6 +1,5 @@
-import type { Key } from '../cryptfns/aes'
 import * as cryptfns from '../cryptfns'
-import type { FileMetadataJson } from '../types'
+import type { FileMetadataJson, Key, KeyPair } from '@/types'
 
 export class FileMetadata {
   /**
@@ -105,7 +104,7 @@ export class FileMetadata {
   /**
    * Decrypt the file metadata from string
    */
-  static async decrypt(encrypted: string, keypair: cryptfns.rsa.KeyPair): Promise<FileMetadata> {
+  static async decrypt(encrypted: string, keypair: KeyPair): Promise<FileMetadata> {
     const decrypted = await cryptfns.rsa.decryptMessage(keypair, encrypted)
 
     try {

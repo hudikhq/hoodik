@@ -1,6 +1,6 @@
 import { utcStringFromLocal } from '@/stores'
 import { uploadChunk } from './chunk'
-import type { UploadAppFile } from '../../types'
+import type { UploadAppFile } from '../../../types'
 import type { ErrorResponse } from '@/stores/api'
 import type Api from '@/stores/api'
 import { CHUNK_SIZE_BYTES, CONCURRENT_CHUNKS_UPLOAD } from '../constants'
@@ -26,6 +26,10 @@ export async function uploadFile(
 
   const workers = [...new Array(file.chunks)].map((_, chunk) => {
     return async () => {
+      if ('canceled' in self && self.canceled?.upload?.includes(file.id)) {
+        throw new Error('Upload cancelled')
+      }
+
       // Skip already uploaded chunks
       if (file.uploaded_chunks?.includes(chunk)) {
         return

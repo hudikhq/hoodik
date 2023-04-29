@@ -5,17 +5,20 @@ import { store as storageStore } from '@/stores/storage'
 import { store as cryptoStore } from '@/stores/crypto'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import CreateDirectoryModal from '@/components/files/CreateDirectoryModal.vue'
-import { ref, watch } from 'vue'
-import type { ListAppFile } from '@/stores/types'
+import { ref, watch, onMounted } from 'vue'
+import type { ListAppFile } from '@/types'
+import { Helper } from '@/stores/storage/helper'
 
 const props = defineProps<{
-  parentId?: number
+  parentId?: string
 }>()
 
 const download = downloadStore()
 const storage = storageStore()
 const upload = uploadStore()
 const crypto = cryptoStore()
+
+const helper = ref<Helper>(new Helper(crypto.keypair, storage))
 
 const isModalMultipleActive = ref(false)
 const isModalCreateDirectory = ref(false)
@@ -54,8 +57,16 @@ const downloadAction = (file: ListAppFile) => {
 const addFiles = async () => {
   if (fileInput.value && fileInput.value?.files?.length) {
     for (let i = 0; i < fileInput.value?.files?.length; i++) {
-      await upload.push(crypto.keypair, fileInput.value?.files?.[i], storage.dir?.id || undefined)
+      try {
+        await upload.push(crypto.keypair, fileInput.value?.files?.[i], storage.dir?.id || undefined)
+      } catch (error) {
+        // TODO: Add some kind of notifications store...
+      }
     }
+  }
+
+  if (fileInput.value) {
+    fileInput.value.value = ''
   }
 
   if (!upload.active) {
@@ -82,6 +93,8 @@ const load = async () => {
 
   if (props.parentId !== undefined) {
     file_id = props.parentId
+  } else {
+    file_id = null
   }
 
   await storage.find(crypto.keypair, file_id)
@@ -92,7 +105,9 @@ watch(
   () => load()
 )
 
-await load()
+onMounted(() => {
+  load()
+})
 </script>
 <template>
   <input style="display: none" type="file" ref="fileInput" multiple @change="addFiles" />
@@ -136,6 +151,7 @@ await load()
     </p>
   </CardBoxModal>
   <slot
+    :helper="helper"
     :parentId="parentId"
     :storage="storage"
     :download="download"

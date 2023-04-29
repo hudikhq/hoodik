@@ -1,11 +1,13 @@
 use super::users::{ActiveModel as UserActiveModel, Model as User};
 use chrono::Utc;
-use sea_orm::{ActiveModelTrait, ActiveValue};
+use sea_orm::{ActiveValue, EntityTrait};
 
 /// Create a user in the database.
 pub async fn create_user<T: super::ConnectionTrait>(db: &T, email: &str) -> User {
+    let id = crate::Uuid::new_v4();
+
     let user = UserActiveModel {
-        id: ActiveValue::NotSet,
+        id: ActiveValue::Set(id),
         email: ActiveValue::Set(email.to_string()),
         password: ActiveValue::Set(Some("".to_string())),
         secret: ActiveValue::NotSet,
@@ -16,5 +18,14 @@ pub async fn create_user<T: super::ConnectionTrait>(db: &T, email: &str) -> User
         updated_at: ActiveValue::Set(Utc::now().naive_utc()),
     };
 
-    user.insert(db).await.unwrap()
+    crate::users::Entity::insert(user)
+        .exec_without_returning(db)
+        .await
+        .unwrap();
+
+    crate::users::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap()
 }

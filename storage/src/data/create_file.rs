@@ -8,7 +8,7 @@
 //! If not, the file will be corrupted and we have no way of knowing if that is the case.
 use ::error::AppResult;
 use chrono::Utc;
-use entity::{files::ActiveModel as ActiveModelFile, ActiveValue};
+use entity::{files::ActiveModel as ActiveModelFile, option_sting_to_uuid, ActiveValue};
 use serde::{Deserialize, Serialize};
 use validr::*;
 
@@ -37,7 +37,7 @@ pub struct CreateFile {
     /// Total number of chunks, no limitations, frontend can decide
     pub chunks: Option<i32>,
     /// ID of the directory the file is located in (directories are files too)
-    pub file_id: Option<i32>,
+    pub file_id: Option<String>,
     /// Date of the file creation from the disk, if not provided we set it to now
     pub file_created_at: Option<String>,
 }
@@ -136,13 +136,13 @@ impl CreateFile {
 
         Ok((
             ActiveModelFile {
-                id: ActiveValue::NotSet,
+                id: ActiveValue::Set(uuid::Uuid::new_v4()),
                 name_hash: ActiveValue::Set(data.name_hash.unwrap()),
                 mime: ActiveValue::Set(data.mime.unwrap()),
                 size: ActiveValue::Set(data.size),
                 chunks: ActiveValue::Set(data.chunks),
                 chunks_stored: ActiveValue::Set(chunks_stored),
-                file_id: ActiveValue::Set(data.file_id),
+                file_id: ActiveValue::Set(option_sting_to_uuid(data.file_id)),
                 file_created_at: ActiveValue::Set(
                     data.file_created_at
                         .map(|i| {

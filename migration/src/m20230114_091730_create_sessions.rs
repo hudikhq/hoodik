@@ -19,14 +19,8 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Sessions::Table)
                     .if_not_exists()
-                    .col(
-                        ColumnDef::new(Sessions::Id)
-                            .integer()
-                            .not_null()
-                            .auto_increment()
-                            .primary_key(),
-                    )
-                    .col(ColumnDef::new(Sessions::UserId).integer().not_null())
+                    .col(ColumnDef::new(Sessions::Id).uuid().not_null().primary_key())
+                    .col(ColumnDef::new(Sessions::UserId).uuid().not_null())
                     .col(ColumnDef::new(Sessions::DeviceId).string().not_null())
                     .col(ColumnDef::new(Sessions::Token).string().not_null())
                     .col(ColumnDef::new(Sessions::Csrf).string().not_null())

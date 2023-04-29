@@ -1,21 +1,22 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import * as rsa from './cryptfns/rsa'
+import type { KeyPair } from '@/types'
 
 export const store = defineStore('crypto', () => {
-  const KeyPair = ref<rsa.KeyPair>({
+  const KeyPair = ref<KeyPair>({
     publicKey: null,
     input: null,
     fingerprint: null,
     keySize: 2048
   })
 
-  const keypair = computed<rsa.KeyPair>(() => KeyPair.value)
+  const keypair = computed<KeyPair>(() => KeyPair.value)
 
   /**
    * Set the external keypair value into the internal one
    */
-  async function set(keypair: rsa.KeyPair) {
+  async function set(keypair: KeyPair) {
     if (keypair.input) {
       const kp = await rsa.inputToKeyPair(keypair.input)
       KeyPair.value = kp

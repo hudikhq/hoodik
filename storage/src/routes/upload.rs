@@ -1,7 +1,9 @@
+use std::str::FromStr;
+
 use actix_web::{route, web, HttpRequest, HttpResponse};
 use auth::{data::authenticated::Authenticated, middleware::verify::Verify};
 use context::Context;
-use entity::TransactionTrait;
+use entity::{TransactionTrait, Uuid};
 use error::{AppResult, Error};
 
 use crate::{
@@ -34,7 +36,8 @@ async fn upload(
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let authenticated = Authenticated::try_from(&req)?;
-    let file_id: i32 = util::actix::path_var(&req, "file_id")?;
+    let file_id: String = util::actix::path_var(&req, "file_id")?;
+    let file_id = Uuid::from_str(&file_id)?;
     let (chunk, checksum, key_hex) = meta.into_inner().into_tuple()?;
     let body_checksum = cryptfns::sha256::digest(request_body.as_ref());
 
@@ -81,6 +84,7 @@ async fn upload(
         return Err(Error::BadRequest("no_file_data_received".to_string()));
     }
 
+    println!("{:?}", filename);
     storage.push(&filename, chunk, &request_body).await?;
 
     if file.is_file() {

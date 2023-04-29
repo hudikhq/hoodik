@@ -16,6 +16,7 @@ use serde_json::Error as SerdeJsonError;
 use std::io::Error as IoError;
 use std::string::FromUtf8Error;
 use thiserror::Error as ThisError;
+use uuid::Error as UuidError;
 use validr::error::{ValidationError, ValidationErrors};
 
 pub type AppResult<T> = Result<T, Error>;
@@ -41,11 +42,16 @@ pub enum Error {
     StorageError(String),
     MultipartError(MultipartError),
     SerdeJsonError(SerdeJsonError),
+    UuidError(UuidError),
 }
 
 impl Error {
     pub fn is_not_found(&self) -> bool {
         matches!(self, Error::NotFound(_))
+    }
+
+    pub fn as_wrong_id(entity: &str) -> Error {
+        Error::BadRequest(format!("invalid_id_provided_while_extracting:{}", entity))
     }
 
     pub fn as_validation(field: &str, message: &str) -> Error {
@@ -186,6 +192,12 @@ impl From<SerdeJsonError> for Error {
     }
 }
 
+impl From<UuidError> for Error {
+    fn from(source: UuidError) -> Error {
+        Error::UuidError(source)
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
     #[serde(skip_serializing)]
@@ -288,6 +300,11 @@ impl From<&Error> for ErrorResponse {
                 context: None,
             },
             Error::SerdeJsonError(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::UuidError(message) => ErrorResponse {
                 status: 500,
                 message: message.to_string(),
                 context: None,

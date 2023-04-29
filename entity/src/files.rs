@@ -8,13 +8,13 @@ use serde::{Deserialize, Serialize};
 #[sea_orm(table_name = "files")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub id: i32,
+    pub id: Uuid,
     pub name_hash: String,
     pub mime: String,
     pub size: Option<i64>,
     pub chunks: Option<i32>,
     pub chunks_stored: Option<i32>,
-    pub file_id: Option<i32>,
+    pub file_id: Option<Uuid>,
     pub file_created_at: NaiveDateTime,
     pub created_at: NaiveDateTime,
     pub finished_upload_at: Option<NaiveDateTime>,

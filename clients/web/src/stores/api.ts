@@ -1,5 +1,5 @@
 import { getCsrf, getJwt } from './auth'
-import type { WorkerErrorType } from './types'
+import type { WorkerErrorType } from '../types'
 
 export type Query = {
   [key: string]: string | number | string[] | undefined | null | Query
@@ -248,7 +248,14 @@ export default class Api {
    * Make get request
    */
   async download(path: string, query?: Query): Promise<globalThis.Response> {
-    const { request, fetchOptions } = Api.buildRequest('get', path, query)
+    const { request, fetchOptions } = Api.buildRequest(
+      'get',
+      path,
+      query,
+      undefined,
+      undefined,
+      this
+    )
 
     return fetch(decodeURIComponent(request.url), fetchOptions)
   }
