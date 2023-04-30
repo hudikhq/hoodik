@@ -10,7 +10,7 @@ import type { ColorType } from '@/colors'
 import type { FormType } from '../form'
 
 const props = defineProps<{
-  title: string
+  title?: string
   button?: ColorType
   buttonLabel?: string
   hasCancel?: boolean
@@ -56,7 +56,7 @@ window.addEventListener('keydown', (e) => {
       class="shadow-lg max-h-modal w-11/12 md:w-3/5 lg:w-2/5 xl:w-4/12 z-50"
       is-modal
     >
-      <CardBoxComponentTitle :title="title">
+      <CardBoxComponentTitle v-if="title" :title="title">
         <BaseButton
           v-if="hasCancel"
           :icon="mdiClose"
@@ -67,11 +67,11 @@ window.addEventListener('keydown', (e) => {
         />
       </CardBoxComponentTitle>
 
-      <div class="space-y-3">
+      <div>
         <slot />
       </div>
 
-      <template #footer>
+      <template #footer v-if="!hideSubmit || hasCancel">
         <BaseButtons>
           <slot name="buttons">
             <BaseButton

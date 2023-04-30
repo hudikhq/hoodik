@@ -1,9 +1,10 @@
 pub mod manage;
 pub mod query;
+pub mod tokens;
 
 use crate::data::app_file::AppFile;
 
-use self::{manage::Manage, query::Query};
+use self::{manage::Manage, query::Query, tokens::Tokens};
 use entity::{
     files, user_files, users, ColumnTrait, ConnectionTrait, EntityTrait, Expr, IntoCondition,
     JoinType, QueryFilter, QuerySelect, RelationTrait, Uuid, Value,
@@ -48,6 +49,17 @@ where
         Self: 'repository,
     {
         Manage::<'repository>::new(self, owner)
+    }
+
+    /// Manage files from the owners perspective
+    pub fn tokens<'repository>(
+        &'repository self,
+        user: &'repository users::Model,
+    ) -> Tokens<'repository, T>
+    where
+        Self: 'repository,
+    {
+        Tokens::<'repository>::new(self, user)
     }
 
     /// Get the inner database connection

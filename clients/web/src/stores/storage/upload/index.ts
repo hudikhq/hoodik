@@ -220,7 +220,7 @@ export const store = defineStore('upload', () => {
   async function create(keypair: KeyPair, file: File, parent_id?: string): Promise<UploadAppFile> {
     const modified = file.lastModified ? new Date(file.lastModified) : new Date()
 
-    const search_tokens_hashed = cryptfns.stringToHashedTokens(file.name)
+    const search_tokens_hashed = cryptfns.stringToHashedTokens(file.name.toLowerCase())
 
     const createFile: CreateFile = {
       name: file.name,

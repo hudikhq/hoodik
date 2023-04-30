@@ -8,7 +8,7 @@
 //! If not, the file will be corrupted and we have no way of knowing if that is the case.
 use ::error::AppResult;
 use chrono::Utc;
-use entity::{files::ActiveModel as ActiveModelFile, option_sting_to_uuid, ActiveValue};
+use entity::{files::ActiveModel as ActiveModelFile, option_string_to_uuid, ActiveValue};
 use serde::{Deserialize, Serialize};
 use validr::*;
 
@@ -124,7 +124,7 @@ impl Validation for CreateFile {
 }
 
 impl CreateFile {
-    pub fn into_active_model(self) -> AppResult<(ActiveModelFile, String)> {
+    pub fn into_active_model(self) -> AppResult<(ActiveModelFile, String, Vec<String>)> {
         let data = self.validate()?;
         let now = Utc::now().naive_utc();
 
@@ -142,7 +142,7 @@ impl CreateFile {
                 size: ActiveValue::Set(data.size),
                 chunks: ActiveValue::Set(data.chunks),
                 chunks_stored: ActiveValue::Set(chunks_stored),
-                file_id: ActiveValue::Set(option_sting_to_uuid(data.file_id)),
+                file_id: ActiveValue::Set(option_string_to_uuid(data.file_id)),
                 file_created_at: ActiveValue::Set(
                     data.file_created_at
                         .map(|i| {
@@ -155,6 +155,7 @@ impl CreateFile {
                 finished_upload_at: ActiveValue::Set(None),
             },
             data.encrypted_metadata.unwrap(),
+            data.search_tokens_hashed.unwrap_or_default(),
         ))
     }
 }

@@ -29,6 +29,10 @@ const props = defineProps<{
   autofocus?: boolean
 }>()
 
+const input = ref(null)
+
+defineExpose({ input })
+
 const emit = defineEmits(['update:modelValue', 'change'])
 
 function change(e: Event) {
@@ -46,6 +50,7 @@ function update(e: Event) {
   }
 
   emit('update:modelValue', (e.target as HTMLInputElement).value)
+  emit('change', (e.target as HTMLInputElement).value)
 }
 
 const model = ref<string>(props.form.values[props.name] || props.modelValue || '')
@@ -85,6 +90,7 @@ const copy = () => {
       <Field v-model="model" :name="name" v-slot="{ field }">
         <textarea
           v-if="textarea && typeof field === 'string'"
+          ref="input"
           :id="name"
           :rows="rows"
           :cols="cols"
@@ -100,12 +106,11 @@ const copy = () => {
         ></textarea>
         <input
           v-else
+          ref="input"
           :id="name"
           v-bind="field"
-          @input="update"
+          @input="change"
           @change="change"
-          @blur="change"
-          @keyup.enter="update"
           :class="componentClass"
           :type="type || 'text'"
           :placeholder="placeholder || ''"

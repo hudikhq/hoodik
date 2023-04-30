@@ -29,9 +29,15 @@ pub async fn create_file<'ctx, T: ConnectionTrait>(
         chunks = Some(1);
     }
 
+    let search_tokens_hashed =
+        cryptfns::tokenizer::into_string(cryptfns::tokenizer::into_tokens(name).unwrap())
+            .split(";")
+            .map(|i| i.to_string())
+            .collect::<Vec<_>>();
+
     let file = CreateFile {
         encrypted_metadata: Some(name.to_string()),
-        search_tokens_hashed: None,
+        search_tokens_hashed: Some(search_tokens_hashed),
         mime: mime.map(|m| m.to_string()),
         name_hash: Some(cryptfns::sha256::digest(name.as_bytes())),
         size,
@@ -40,8 +46,8 @@ pub async fn create_file<'ctx, T: ConnectionTrait>(
         file_created_at: None,
     };
 
-    let (am, _) = file.into_active_model()?;
-    repository.manage(&user).create(am, name).await
+    let (am, _, tokens) = file.into_active_model()?;
+    repository.manage(&user).create(am, name, tokens).await
 }
 
 #[async_std::test]

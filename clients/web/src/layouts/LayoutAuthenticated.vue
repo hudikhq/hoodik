@@ -8,12 +8,13 @@ import { store as style } from '@/stores/style'
 import { store as login } from '@/stores/auth/login'
 import { ensureAuthenticated } from '@/stores/auth'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
-import NavBarSearch from '@/components/ui/NavBarSearch.vue'
 import NavBar from '@/components/ui/NavBar.vue'
 import NavBarItemPlain from '@/components/ui/NavBarItemPlain.vue'
 import AsideMenu from '@/components/ui/AsideMenu.vue'
 import StatusBar from '@/components/files/io/StatusBar.vue'
 import { store as cryptoStore } from '@/stores/crypto'
+import SearchButton from '@/components/files/search/SearchButton.vue'
+import SearchModal from '@/components/files/search/SearchModal.vue'
 
 const crypto = cryptoStore()
 const styleStore = style()
@@ -26,6 +27,7 @@ const layoutAsidePadding = 'xl:pl-60'
 
 const isAsideMobileExpanded = ref(false)
 const isAsideLgActive = ref(false)
+const isSearchModalActive = ref(false)
 
 router.beforeEach(async () => {
   isAsideMobileExpanded.value = false
@@ -65,7 +67,7 @@ const menuClick = (event: Event, item: NavBarItem) => {
           <BaseIcon :path="mdiMenu" size="24" />
         </NavBarItemPlain>
         <NavBarItemPlain use-margin>
-          <NavBarSearch />
+          <SearchButton @search="isSearchModalActive = !isSearchModalActive" />
         </NavBarItemPlain>
       </NavBar>
       <AsideMenu
@@ -75,6 +77,7 @@ const menuClick = (event: Event, item: NavBarItem) => {
         @menu-click="menuClick"
         @aside-lg-close-click="isAsideLgActive = false"
       />
+      <SearchModal :keypair="crypto.keypair" v-model="isSearchModalActive" />
       <slot :authenticated="loginStore.authenticated" :keypair="crypto.keypair" />
 
       <StatusBar />

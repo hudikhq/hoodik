@@ -71,9 +71,11 @@ where
         let mut query = files::Entity::find();
 
         if let Some(dir_id) = request_query.dir_id.as_ref() {
-            parents = self.dir_tree(Uuid::from_str(dir_id)?).await?;
+            let file_id = Uuid::from_str(dir_id)?;
 
-            query = query.filter(files::Column::FileId.eq(dir_id));
+            parents = self.dir_tree(file_id).await?;
+
+            query = query.filter(files::Column::FileId.eq(file_id));
         } else {
             query = query.filter(files::Column::FileId.is_null());
         }
@@ -138,7 +140,7 @@ where
             SELECT * FROM file_tree;
         "#;
 
-        let ids: Vec<String> = files::Entity::find()
+        let ids: Vec<Uuid> = files::Entity::find()
             .from_raw_sql(Statement::from_sql_and_values(
                 self.repository.connection().get_database_backend(),
                 sql,
@@ -149,11 +151,8 @@ where
             .await?
             .into_iter()
             .map(|json| {
-                json.get("id")
-                    .unwrap()
-                    .as_str()
+                Uuid::from_str(json.get("id").unwrap().as_str().unwrap_or_default())
                     .unwrap_or_default()
-                    .to_string()
             })
             .collect();
 
@@ -323,6 +322,7 @@ where
         &self,
         create_file: files::ActiveModel,
         encrypted_metadata: &str,
+        hashed_tokens: Vec<String>,
     ) -> AppResult<AppFile> {
         // Check if the file_id is set, if it is, check if the parent is directory
         // and if the current user is the owner of that directory.
@@ -347,6 +347,11 @@ where
             .one(self.repository.connection())
             .await?
             .ok_or(Error::NotFound("file_not_found".to_string()))?;
+
+        self.repository
+            .tokens(self.owner)
+            .upsert(&file, hashed_tokens)
+            .await?;
 
         let id = uuid::Uuid::new_v4();
 

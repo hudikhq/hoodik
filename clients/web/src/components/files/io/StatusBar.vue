@@ -25,6 +25,7 @@ onBeforeMount(async () => {
 })
 
 const showTable = ref(false)
+const showedTable = ref(false)
 const tab = ref<'running' | 'done' | 'waiting' | 'failed'>()
 
 const items = computed((): InnerFileList[] => {
@@ -109,8 +110,9 @@ const displaying = computed((): InnerFileList[] => {
 watch(
   () => totalItems.value,
   () => {
-    if (!showTable.value) {
+    if (!showTable.value && !showedTable.value) {
       showTable.value = true
+      showedTable.value = true
     }
   }
 )

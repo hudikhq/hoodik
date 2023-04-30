@@ -24,7 +24,7 @@ pub async fn create(
     let context = context.into_inner();
     let authenticated = Authenticated::try_from(&req)?;
     let connection = context.db.begin().await?;
-    let (create_file, encrypted_metadata) = data.into_inner().into_active_model()?;
+    let (create_file, encrypted_metadata, hashed_tokens) = data.into_inner().into_active_model()?;
     let repository = Repository::new(&connection);
     let manage = repository.manage(&authenticated.user);
 
@@ -44,7 +44,9 @@ pub async fn create(
         return Err(Error::BadRequest("file_or_directory_exists".to_string()));
     }
 
-    let file = manage.create(create_file, &encrypted_metadata).await?;
+    let file = manage
+        .create(create_file, &encrypted_metadata, hashed_tokens)
+        .await?;
 
     connection.commit().await?;
 

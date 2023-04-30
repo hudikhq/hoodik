@@ -5,10 +5,11 @@ import FileBrowser from '@/components/files/FileBrowser.vue'
 import SectionMain from '@/components/ui/SectionMain.vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import BreadCrumbs from '@/components/files/BreadCrumbs.vue'
-import { useRoute } from 'vue-router'
-import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, watch } from 'vue'
 
 const route = useRoute()
+const router = useRouter()
 
 const parentId = computed(() => {
   if (route.params.file_id) {
@@ -20,6 +21,50 @@ const parentId = computed(() => {
   }
 
   return undefined
+})
+
+const fileId = computed(() => {
+  if (route.query.file) {
+    if (Array.isArray(route.query.file)) {
+      return route.query.file[0] as string
+    }
+
+    return route.query.file as string
+  }
+
+  return undefined
+})
+
+const scroll = () => {
+  if (fileId.value) {
+    const element = document.getElementById(`${fileId.value}`)
+    const headerOffset = 45
+    if (element) {
+      const elementPosition = element.getBoundingClientRect().top
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      })
+
+      setTimeout(() => {
+        router.replace({ query: { ...route.query, file: undefined }, params: route.params })
+      }, 5000)
+    }
+  }
+}
+
+onMounted(() => {
+  setTimeout(() => {
+    scroll()
+  }, 1000)
+})
+
+watch(fileId, () => {
+  setTimeout(() => {
+    scroll()
+  }, 1000)
 })
 </script>
 
@@ -38,6 +83,7 @@ const parentId = computed(() => {
 
           <TableFiles
             :helper="helper"
+            :searchedFileId="fileId"
             :for-delete="storage.forDelete"
             :parents="storage.parents"
             :items="storage.items"

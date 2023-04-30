@@ -1,6 +1,8 @@
+pub mod file_tokens;
 pub mod files;
 pub mod prelude;
 pub mod sessions;
+pub mod tokens;
 pub mod user_files;
 pub mod users;
 
@@ -19,7 +21,7 @@ pub use sea_orm::{
 };
 
 /// Helper to convert Option<String> to Option<Uuid>
-pub fn option_sting_to_uuid(i: Option<String>) -> Option<Uuid> {
+pub fn option_string_to_uuid(i: Option<String>) -> Option<Uuid> {
     match i {
         Some(s) => match Uuid::parse_str(s.as_str()) {
             Ok(u) => Some(u),

@@ -16,17 +16,17 @@ import type {
 
 const sleep = (s: number) => new Promise((r) => setTimeout(r, s * 1000))
 
+self.canceled = {
+  upload: [],
+  download: []
+}
+
 onmessage = async (message: MessageEvent<any>) => {
   // Creating api maker with the updated credentials received
   // from the main browser thread that has access to JWT and CSRF
   if (message.data?.type === 'auth') {
     console.log('In worker, received authentication data...')
     self.SWApi = new Api(message.data)
-  }
-
-  self.canceled = {
-    upload: [],
-    download: []
   }
 
   if (message.data?.type === 'cancel') {

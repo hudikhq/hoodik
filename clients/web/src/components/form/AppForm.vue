@@ -2,7 +2,7 @@
 import { useForm, type SubmissionContext } from 'vee-validate'
 import { mdiLoading } from '@mdi/js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps<{
   config: Parameters<typeof useForm>
@@ -24,7 +24,34 @@ const submit = form.handleSubmit(async (values, ctx: SubmissionContext<typeof va
   }
 })
 
+let waiter: ReturnType<typeof setTimeout> | null = null
+const debouncedFn = () => {
+  if (waiter) {
+    console.log('have waiter')
+    return
+  }
+
+  waiter = setTimeout(() => {
+    if (!form?.isSubmitting?.value) {
+      console.log('posting')
+      submit()
+    }
+
+    if (waiter) {
+      clearTimeout(waiter)
+      waiter = null
+    }
+  }, 1000)
+}
+
 const isWorking = computed(() => !!form?.isSubmitting?.value || !!props.working)
+
+defineExpose({
+  form,
+  submit,
+  debouncedFn,
+  isWorking
+})
 </script>
 
 <template>
@@ -37,7 +64,7 @@ const isWorking = computed(() => !!form?.isSubmitting?.value || !!props.working)
       }"
       @submit="submit"
     >
-      <slot :form="form" />
+      <slot :form="{ ...form, isWorking }" :submit="submit" :debounced="debouncedFn" />
     </form>
   </div>
 </template>
