@@ -13,11 +13,11 @@ export default defineConfig({
   envDir: '../../',
   envPrefix: 'APP_',
   plugins: [
-    vue(),
-    vueJsx(),
     wasm(),
     topLevelAwait(),
     wasmPack('../../cryptfns'),
+    vue(),
+    vueJsx(),
     serviceWorkerPlugin({
       filename: 'src/sw.ts'
     })

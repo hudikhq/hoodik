@@ -47,7 +47,7 @@ export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise
 /**
  * Get file or directory metadata
  */
-export async function get(keypair: KeyPair, file_id: number): Promise<AppFile> {
+export async function get(keypair: KeyPair, file_id: string): Promise<AppFile> {
   const response = await Api.get<AppFile>(`/api/storage/${file_id}/metadata`, undefined)
 
   if (!response?.body?.id) {
