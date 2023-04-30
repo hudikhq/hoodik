@@ -5,11 +5,9 @@ import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import TruncatedSpan from '../ui/TruncatedSpan.vue'
 import { formatPrettyDate, formatSize } from '@/stores'
 import type { ListAppFile } from '@/types'
-import { computed, ref } from 'vue'
-import type { Helper } from '@/stores/storage/helper'
+import { computed } from 'vue'
 
 const props = defineProps<{
-  helper: Helper
   file: ListAppFile
   checkedRows: Partial<ListAppFile>[]
   hideDelete?: boolean
@@ -25,13 +23,6 @@ const props = defineProps<{
   }
 }>()
 
-const decrypted = ref(props.file)
-const decrypt = async () => {
-  decrypted.value = await props.helper.decrypt(props.file)
-}
-
-await decrypt()
-
 const emits = defineEmits<{
   (event: 'remove', file: ListAppFile): void
   (event: 'view', file: ListAppFile): void
@@ -40,48 +31,46 @@ const emits = defineEmits<{
 }>()
 
 const check = (value: boolean) => {
-  emits('checked', value, decrypted.value)
+  emits('checked', value, props.file)
 }
 
 const checked = computed({
-  get: () => !!props.checkedRows.find((item) => item.id === decrypted.value.id),
+  get: () => !!props.checkedRows.find((item) => item.id === props.file.id),
   set: (v) => check(v)
 })
 
 const isDir = computed(() => {
-  return decrypted.value.mime === 'dir'
+  return props.file.mime === 'dir'
 })
 
 const fileName = computed(() => {
-  const name = decrypted.value.metadata?.name || '...'
+  const name = props.file.metadata?.name || '...'
 
-  return decrypted.value.mime === 'dir' ? `${name}/` : name
+  return props.file.mime === 'dir' ? `${name}/` : name
 })
 
 const fileSize = computed(() => {
-  return decrypted.value.size ? formatSize(decrypted.value.size) : ''
+  return props.file.size ? formatSize(props.file.size) : ''
 })
 
 const fileCreatedAt = computed(() => {
-  return decrypted.value.file_created_at ? formatPrettyDate(decrypted.value.file_created_at) : ''
+  return props.file.file_created_at ? formatPrettyDate(props.file.file_created_at) : ''
 })
 
 const progressValue = computed(() => {
-  const total = decrypted.value.chunks
+  const total = props.file.chunks
 
-  if (!total || decrypted.value.finished_upload_at) {
+  if (!total || props.file.finished_upload_at) {
     return 100
   }
 
-  const uploaded = decrypted.value.chunks_stored || 0
+  const uploaded = props.file.chunks_stored || 0
   const progress = uploaded / total
   return progress * 100
 })
 
 const fileFinishedUploadAt = computed(() => {
-  return decrypted.value.finished_upload_at
-    ? formatPrettyDate(decrypted.value.finished_upload_at)
-    : ''
+  return props.file.finished_upload_at ? formatPrettyDate(props.file.finished_upload_at) : ''
 })
 
 const sharedClass = computed(() => {
@@ -125,24 +114,21 @@ const sizes = computed(() => {
       <span>{{ fileSize || '-' }}</span>
     </div>
 
-    <div :class="sizes.type" :title="decrypted.mime">
-      <TruncatedSpan :text="decrypted.mime" />
+    <div :class="sizes.type" :title="props.file.mime">
+      <TruncatedSpan :text="props.file.mime" />
     </div>
 
-    <div :class="sizes.createdAt" :title="decrypted.file_created_at">
+    <div :class="sizes.createdAt" :title="props.file.file_created_at">
       <TruncatedSpan :text="fileCreatedAt" />
     </div>
 
     <div :class="sizes.uploadedAt">
-      <TruncatedSpan
-        v-if="!decrypted.current && !decrypted.parent && decrypted.finished_upload_at"
-        :text="fileFinishedUploadAt"
-      />
+      <TruncatedSpan v-if="props.file.finished_upload_at" :text="fileFinishedUploadAt" />
       <progress
         class="self-center w-full"
         :max="100"
         :value="progressValue"
-        v-else-if="decrypted.mime !== 'dir'"
+        v-else-if="props.file.mime !== 'dir'"
       />
     </div>
 
@@ -153,7 +139,7 @@ const sizes = computed(() => {
         :icon="mdiEye"
         small
         @click="emits('view', file)"
-        :disabled="!decrypted.id"
+        :disabled="!props.file.id"
       />
       <BaseButton
         v-else
@@ -161,7 +147,7 @@ const sizes = computed(() => {
         :icon="mdiDownload"
         small
         @click="emits('download', file)"
-        :disabled="!decrypted.id || isDir"
+        :disabled="!props.file.id || isDir"
       />
       <BaseButton
         v-if="!hideDelete"
@@ -170,7 +156,7 @@ const sizes = computed(() => {
         small
         class="ml-2"
         @click="emits('remove', file)"
-        :disabled="!decrypted.id"
+        :disabled="!props.file.id"
       />
     </div>
     <div class="xl:hidden" :class="sizes.buttons">
@@ -181,7 +167,7 @@ const sizes = computed(() => {
         small
         class="ml-2"
         @click="emits('view', file)"
-        :disabled="!decrypted.id"
+        :disabled="!props.file.id"
       />
     </div>
   </div>

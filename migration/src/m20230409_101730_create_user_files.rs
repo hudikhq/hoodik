@@ -40,8 +40,8 @@ impl MigrationTrait for Migration {
                             .not_null(),
                     )
                     .col(ColumnDef::new(UserFiles::IsOwner).boolean().not_null())
-                    .col(ColumnDef::new(UserFiles::CreatedAt).date_time().not_null())
-                    .col(ColumnDef::new(UserFiles::ExpiresAt).date_time())
+                    .col(ColumnDef::new(UserFiles::CreatedAt).timestamp().not_null())
+                    .col(ColumnDef::new(UserFiles::ExpiresAt).timestamp())
                     .foreign_key(&mut foreign_key_file_id)
                     .foreign_key(&mut foreign_key_user_id)
                     .to_owned(),

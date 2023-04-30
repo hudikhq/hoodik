@@ -24,9 +24,9 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Sessions::DeviceId).string().not_null())
                     .col(ColumnDef::new(Sessions::Token).string().not_null())
                     .col(ColumnDef::new(Sessions::Csrf).string().not_null())
-                    .col(ColumnDef::new(Sessions::CreatedAt).string().not_null())
-                    .col(ColumnDef::new(Sessions::UpdatedAt).string().not_null())
-                    .col(ColumnDef::new(Sessions::ExpiresAt).string().not_null())
+                    .col(ColumnDef::new(Sessions::CreatedAt).timestamp().not_null())
+                    .col(ColumnDef::new(Sessions::UpdatedAt).timestamp().not_null())
+                    .col(ColumnDef::new(Sessions::ExpiresAt).timestamp().not_null())
                     .foreign_key(&mut foreign_key)
                     .to_owned(),
             )

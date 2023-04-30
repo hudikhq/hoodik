@@ -41,6 +41,7 @@ onmessage = async (message: MessageEvent<any>) => {
 
   if (message.data?.type === 'upload-file') {
     while (!self.SWApi) {
+      console.warn('Waiting for SWApi to be initialized...')
       await sleep(1)
     }
 

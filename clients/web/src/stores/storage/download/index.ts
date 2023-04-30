@@ -253,16 +253,16 @@ export async function download(
 /**
  * Get the file and the files content decrypt the file and its content
  */
-export async function get(file: ListAppFile | number, kp: KeyPair): Promise<ListAppFile> {
-  if (typeof file === 'number') {
+export async function get(file: ListAppFile | string, kp: KeyPair): Promise<ListAppFile> {
+  if (typeof file === 'string') {
     file = await meta.get(kp, file)
   }
 
-  if (!file.metadata) {
+  if (!file.metadata && file.encrypted_metadata && kp && kp.input) {
     file.metadata = await FileMetadata.decrypt(file.encrypted_metadata, kp)
   }
 
-  if (!file.metadata.key) {
+  if (!file.metadata?.key) {
     throw new Error("File doesn't have a key, cannot decrypt the data, file is unrecoverable")
   }
 

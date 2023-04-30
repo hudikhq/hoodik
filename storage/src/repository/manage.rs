@@ -208,7 +208,7 @@ where
             SELECT id, file_id FROM file_tree;
         "#;
 
-        let ids: Vec<String> = files::Entity::find()
+        let ids = files::Entity::find()
             .from_raw_sql(Statement::from_sql_and_values(
                 self.repository.connection().get_database_backend(),
                 sql,
@@ -219,13 +219,14 @@ where
             .await?
             .into_iter()
             .map(|json| {
-                json.get("id")
-                    .unwrap()
-                    .as_str()
-                    .unwrap_or_default()
-                    .to_string()
+                let id = json.get("id").unwrap().as_str().unwrap_or_default();
+
+                match Uuid::from_str(&id) {
+                    Ok(id) => id,
+                    Err(_) => Uuid::nil(),
+                }
             })
-            .collect();
+            .collect::<Vec<Uuid>>();
 
         let user_id = self.owner.id;
         let mut results = files::Entity::find()

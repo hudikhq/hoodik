@@ -3,7 +3,7 @@ import * as storage from '../../src/stores/storage'
 import { describe, expect, it } from 'vitest'
 import { getUserWithKey } from './register.test'
 import { utcStringFromLocal } from '../../src/stores'
-import { CreateFile } from '../../src/stores/storage/types'
+import { CreateFile } from '../../src/types'
 import { CHUNK_SIZE_BYTES } from '../../src/stores/storage/constants'
 
 describe('Upload a file', () => {

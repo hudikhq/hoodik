@@ -84,7 +84,6 @@ async fn upload(
         return Err(Error::BadRequest("no_file_data_received".to_string()));
     }
 
-    println!("{:?}", filename);
     storage.push(&filename, chunk, &request_body).await?;
 
     if file.is_file() {

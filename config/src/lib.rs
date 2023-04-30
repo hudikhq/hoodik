@@ -132,6 +132,12 @@ pub struct Config {
 impl Config {
     #[cfg(feature = "mock")]
     pub fn mock() -> Config {
+        if let Ok(e) = env_var("ENV_FILE") {
+            dotenv(Some(e));
+
+            return Config::env_only();
+        }
+
         Config {
             port: 4554,
             address: "localhost".to_string(),
@@ -148,6 +154,7 @@ impl Config {
             long_term_session_duration_days: 30,
             short_term_session_duration_minutes: 5,
         }
+        .ensure_data_dir()
     }
 
     /// Read the env and arguments and init the config struct

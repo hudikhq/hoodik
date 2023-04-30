@@ -66,15 +66,22 @@ export const store = defineStore('login', () => {
     setCsrf(csrf, expires)
     setJwt(jwt, expires)
     set(authenticated)
-
-    if ('UPLOAD' in window) {
-      window.UPLOAD.postMessage({ type: 'auth', jwt, csrf })
-    }
-    if ('DOWNLOAD' in window) {
-      window.DOWNLOAD.postMessage({ type: 'auth', jwt, csrf })
-    }
+    passAuthenticationToWorkers()
 
     _refresher.value = setInterval(() => setupRefresh(), 1000)
+  }
+
+  function passAuthenticationToWorkers() {
+    setTimeout(() => {
+      const { jwt, csrf } = new Api().toJson()
+
+      if ('UPLOAD' in window) {
+        window.UPLOAD.postMessage({ type: 'auth', jwt, csrf })
+      }
+      if ('DOWNLOAD' in window) {
+        window.DOWNLOAD.postMessage({ type: 'auth', jwt, csrf })
+      }
+    }, 1000)
   }
 
   /**

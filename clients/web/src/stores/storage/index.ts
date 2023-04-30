@@ -193,7 +193,7 @@ export const store = defineStore('filesStore', () => {
       return
     }
 
-    items.value[index] = file
+    items.value.splice(index, 1, file)
   }
 
   /**

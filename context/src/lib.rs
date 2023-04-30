@@ -80,9 +80,6 @@ impl Context {
 
         let context = Context { config, db };
 
-        // let config = Config::new("mock", "1", "none");
-        // let context = Context::new(config).await.unwrap();
-
         migration::Migrator::up(&context.db, None).await.unwrap();
 
         context
