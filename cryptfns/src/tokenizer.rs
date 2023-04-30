@@ -33,7 +33,7 @@ impl Display for Token {
 
 /// Use a pre-trained model to convert text into tokens
 pub fn into_tokens(input: &str) -> CryptoResult<Vec<Token>> {
-    let tokenizer = Tokenizer::from_file("./assets/bert-base-cased.json")?;
+    let tokenizer = Tokenizer::from_bytes(include_bytes!("../assets/bert-base-cased.json"))?;
     let input = tokenizers::decoders::wordpiece::cleanup(input).replace(';', "");
 
     let encoding = tokenizer.encode(input, false)?;
@@ -85,6 +85,33 @@ pub fn into_string(tokens: Vec<Token>) -> String {
         .map(|t| t.to_string())
         .collect::<Vec<String>>()
         .join(";")
+}
+
+/// Take vector of strings that might be tokens and convert them into tokens
+pub fn from_vec(string_tokens: Vec<String>) -> CryptoResult<Vec<Token>> {
+    let mut tokens = vec![];
+
+    for token in string_tokens {
+        let mut split = token.split(':');
+        let token = match split.next() {
+            Some(token) => token,
+            None => continue,
+        };
+
+        let weight = match split.next() {
+            Some(weight) => weight,
+            None => continue,
+        };
+
+        let weight = match weight.parse::<usize>() {
+            Ok(weight) => weight,
+            Err(_) => continue,
+        };
+
+        tokens.push(Token::new(token.to_string(), weight));
+    }
+
+    Ok(tokens)
 }
 
 #[cfg(test)]

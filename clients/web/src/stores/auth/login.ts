@@ -71,6 +71,10 @@ export const store = defineStore('login', () => {
     _refresher.value = setInterval(() => setupRefresh(), 1000)
   }
 
+  /**
+   * Sending the new authentication tokens to the workers
+   * so it can communicate with the backend with the latest credentials
+   */
   function passAuthenticationToWorkers() {
     setTimeout(() => {
       const { jwt, csrf } = new Api().toJson()

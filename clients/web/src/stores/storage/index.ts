@@ -4,9 +4,10 @@ import * as upload from './upload'
 import * as download from './download'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import * as cryptfns from '@/stores/cryptfns'
 import { utcStringFromLocal, uuidv4 } from '@/stores'
 import { FileMetadata } from '@/stores/storage/metadata'
-import type { KeyPair } from '@/types'
+import type { EncryptedAppFile, KeyPair } from '@/types'
 
 import type { AppFile, CreateFile, FileResponse, ListAppFile, Parameters } from '../../types'
 
@@ -108,8 +109,6 @@ export const store = defineStore('filesStore', () => {
       error.value = `Seems like we are having some kind of problem with getting the files: ${
         (e as Error).message
       }`
-
-      console.warn(error.value)
     }
 
     response.parents?.forEach(async (item) => {
@@ -248,11 +247,14 @@ export const store = defineStore('filesStore', () => {
    * Create a directory in the storage
    */
   async function createDir(keypair: KeyPair, name: string, dir_id?: string): Promise<AppFile> {
+    const search_tokens_hashed = cryptfns.stringToHashedTokens(name.toLowerCase())
+
     const createFile: CreateFile = {
       name,
       mime: 'dir',
       file_id: dir_id,
-      file_created_at: utcStringFromLocal(new Date())
+      file_created_at: utcStringFromLocal(new Date()),
+      search_tokens_hashed
     }
 
     const created = await meta.create(keypair, createFile)
@@ -331,3 +333,21 @@ export const store = defineStore('filesStore', () => {
     removeItem
   }
 })
+
+export async function search(query: string, kp: KeyPair): Promise<ListAppFile[]> {
+  const results = await Promise.all(
+    (
+      await meta.search(query)
+    ).map(async (file: EncryptedAppFile) => {
+      return {
+        ...file,
+        metadata: await FileMetadata.decrypt(file.encrypted_metadata, kp),
+        encrypted: false
+      }
+    })
+  )
+
+  console.log(results)
+
+  return results
+}

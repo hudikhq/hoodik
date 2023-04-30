@@ -15,6 +15,7 @@ const props = defineProps<{
   parents: ListAppFile[]
   dir: ListAppFile | null
   file_id?: string
+  searchedFileId?: string
   hideCheckbox?: boolean
   hideDelete?: boolean
   showActions?: boolean
@@ -112,11 +113,11 @@ const borderClass = 'sm:border-l-2 sm:border-brownish-50 sm:dark:border-brownish
 
 const sizes = {
   checkbox: 'w-10',
-  name: 'w-10/12 p-2 sm:w-7/12 xl:w-5/12 flex',
-  size: 'hidden p-2 md:block md:w-2/12 xl:w-1/12',
-  type: 'hidden p-2 xl:block xl:w-1/12',
-  createdAt: 'hidden p-2 sm:block sm:w-4/12 lg:w-3/12 xl:w-2/12',
-  uploadedAt: 'hidden p-2 xl:block xl:w-2/12',
+  name: 'w-10/12 p-2 pt-3 sm:w-7/12 xl:w-5/12 flex',
+  size: 'hidden p-2 pt-3 md:block md:w-2/12 xl:w-1/12',
+  type: 'hidden p-2 pt-3 xl:block xl:w-1/12',
+  createdAt: 'hidden p-2 pt-3 sm:block sm:w-4/12 lg:w-3/12 xl:w-2/12',
+  uploadedAt: 'hidden p-2 pt-3 xl:block xl:w-2/12',
   buttons: 'w-2/12 p-2 sm:w-1/12'
 }
 </script>
@@ -202,6 +203,7 @@ const sizes = {
         :checkedRows="checkedRows"
         :hideCheckbox="props.hideCheckbox"
         :hideDelete="props.hideDelete"
+        :highlighted="props.searchedFileId === file.id"
         @remove="emits('remove', file)"
         @view="viewFile"
         @checked="(value) => emits('select-one', value, file)"

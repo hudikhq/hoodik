@@ -1,18 +1,17 @@
 <script setup lang="ts">
 import TableFileRow from '@/components/files/TableFileRow.vue'
-import { uuidv4 } from '@/stores'
 import type { Helper } from '@/stores/storage/helper'
 import type { ListAppFile } from '@/types'
 import scrollMonitor from 'scrollmonitor'
 import { ref, onMounted } from 'vue'
 
-const id = uuidv4()
 const props = defineProps<{
   helper: Helper
   file: ListAppFile
   checkedRows: Partial<ListAppFile>[]
   hideDelete?: boolean
   hideCheckbox?: boolean
+  highlighted?: boolean
   sizes: {
     checkbox: string
     name: string
@@ -47,10 +46,12 @@ onMounted(() => {
 </script>
 
 <template>
-  <div ref="referenceObject" :id="id"></div>
   <Suspense>
     <div
-      class="w-full flex p-2 bg-brownish-100 dark:bg-brownish-900 hover:bg-brownish-200 hover:dark:bg-brownish-700"
+      :class="{
+        'border-greeny-100 dark:border-greeny-800 border-2': props.highlighted
+      }"
+      class="w-full flex p-2 dark:bg-brownish-900 hover:bg-dirty-white hover:dark:bg-brownish-700"
       v-if="!visible"
     >
       Loading...
@@ -63,10 +64,12 @@ onMounted(() => {
       :hide-delete="props.hideDelete"
       :hide-checkbox="props.hideCheckbox"
       :sizes="props.sizes"
+      :highlighted="props.highlighted"
       @remove="(f) => emits('remove', f)"
       @view="(f) => emits('view', f)"
       @checked="(v, f) => emits('checked', v, f)"
       @download="(f) => emits('download', f)"
     />
   </Suspense>
+  <div ref="referenceObject" :id="props.file.id"></div>
 </template>

@@ -113,7 +113,7 @@ pub fn text_into_tokens(input: &str) -> Option<String> {
 
 #[wasm_bindgen]
 pub fn text_into_hashed_tokens(input: &str) -> Option<String> {
-    crate::tokenizer::into_tokens(input)
+    crate::tokenizer::into_hashed_tokens(input)
         .ok()
         .map(crate::tokenizer::into_string)
 }

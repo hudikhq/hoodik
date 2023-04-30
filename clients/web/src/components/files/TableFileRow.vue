@@ -12,6 +12,7 @@ const props = defineProps<{
   checkedRows: Partial<ListAppFile>[]
   hideDelete?: boolean
   hideCheckbox?: boolean
+  highlighted?: boolean
   sizes: {
     checkbox: string
     name: string
@@ -74,7 +75,7 @@ const fileFinishedUploadAt = computed(() => {
 })
 
 const sharedClass = computed(() => {
-  return 'bg-brownish-100 dark:bg-brownish-900 hover:bg-brownish-200 hover:dark:bg-brownish-700'
+  return 'dark:bg-brownish-900 hover:bg-dirty-white hover:dark:bg-brownish-700'
 })
 
 const border = 'sm:border-l-2 sm:border-brownish-50 sm:dark:border-brownish-950'
@@ -92,7 +93,14 @@ const sizes = computed(() => {
 </script>
 
 <template>
-  <div class="w-full flex" :class="sharedClass">
+  <div
+    class="w-full flex"
+    :class="{
+      'bg-greeny-100 dark:bg-greeny-900 hover:bg-greeny-200 hover:dark:bg-greeny-800':
+        props.highlighted,
+      [sharedClass]: true
+    }"
+  >
     <div :class="sizes.name" :title="fileName">
       <div :class="sizes.checkbox">
         <TableCheckboxCell

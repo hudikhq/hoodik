@@ -28,7 +28,7 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(
                         ColumnDef::new(UserFiles::Id)
-                            .string()
+                            .uuid()
                             .not_null()
                             .primary_key(),
                     )

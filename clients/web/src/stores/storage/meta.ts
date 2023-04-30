@@ -8,7 +8,9 @@ import type {
   EncryptedCreateFile,
   FileResponse,
   Parameters,
-  KeyPair
+  KeyPair,
+  EncryptedAppFile,
+  SearchQuery
 } from '@/types'
 
 /**
@@ -91,13 +93,39 @@ export async function getByName(
  */
 export async function find(parameters: Parameters): Promise<FileResponse> {
   // @ts-ignore
-  if (typeof parameters.dir_id !== 'undefined') {
+  if (typeof parameters.dir_id !== 'undefined' && typeof parameters.dir_id !== 'string') {
     delete parameters.dir_id
   }
 
   const response = await Api.get<FileResponse>(`/api/storage`, parameters)
 
   return response.body || { children: [], parents: [] }
+}
+
+/**
+ * Get file or directory metadata
+ */
+export async function search(input: string, dir_id?: string): Promise<EncryptedAppFile[]> {
+  const search_tokens_hashed = cryptfns.stringToHashedTokens(input.toLowerCase())
+
+  if (!search_tokens_hashed.length) {
+    return []
+  }
+
+  const body = {
+    search_tokens_hashed,
+    dir_id,
+    limit: 10,
+    skip: 0
+  }
+
+  const response = await Api.post<SearchQuery, EncryptedAppFile[]>(
+    `/api/storage/search`,
+    undefined,
+    body
+  )
+
+  return response.body || []
 }
 
 /**

@@ -22,6 +22,13 @@ export interface Parameters extends Query {
   order_by?: 'created_at' | 'size'
 }
 
+export interface SearchQuery {
+  search_tokens_hashed: string[]
+  dir_id?: string
+  limit?: number
+  skip?: number
+}
+
 export interface FileResponse {
   parents?: AppFile[]
   children: AppFile[]

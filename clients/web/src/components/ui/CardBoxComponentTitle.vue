@@ -2,14 +2,14 @@
 defineProps({
   title: {
     type: String,
-    required: true
+    required: false
   }
 })
 </script>
 
 <template>
   <div class="flex items-center justify-between mb-3">
-    <h1 class="text-2xl">
+    <h1 class="text-2xl" v-if="title">
       {{ title }}
     </h1>
     <slot />

@@ -9,6 +9,7 @@ module.exports = {
     colors: {
       transparent: 'transparent',
       white: '#FFFFFF',
+      'dirty-white': '#EEEEEE',
       redish: {
         50: '#F58596',
         100: '#E2677B',

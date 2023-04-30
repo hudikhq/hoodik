@@ -4,6 +4,8 @@ pub mod m20220101_000001_create_users;
 pub mod m20230114_091730_create_sessions;
 pub mod m20230409_091730_create_files;
 pub mod m20230409_101730_create_user_files;
+pub mod m20230429_091730_create_tokens;
+pub mod m20230429_101730_create_file_tokens;
 
 pub struct Migrator;
 
@@ -15,6 +17,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20230114_091730_create_sessions::Migration),
             Box::new(m20230409_091730_create_files::Migration),
             Box::new(m20230409_101730_create_user_files::Migration),
+            Box::new(m20230429_091730_create_tokens::Migration),
+            Box::new(m20230429_101730_create_file_tokens::Migration),
         ]
     }
 }

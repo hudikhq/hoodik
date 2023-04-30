@@ -32,6 +32,8 @@ pub enum Relation {
     Files,
     #[sea_orm(has_many = "super::user_files::Entity")]
     UserFiles,
+    #[sea_orm(has_many = "super::file_tokens::Entity")]
+    FileTokens,
 }
 
 pub struct ChildFilesLink;
@@ -55,6 +57,22 @@ impl Related<Entity> for Entity {
 impl Related<super::user_files::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::UserFiles.def()
+    }
+}
+
+impl Related<super::file_tokens::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::FileTokens.def()
+    }
+}
+
+impl Related<super::tokens::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::file_tokens::Relation::Tokens.def()
+    }
+
+    fn via() -> Option<RelationDef> {
+        Some(super::file_tokens::Relation::Files.def().rev())
     }
 }
 
