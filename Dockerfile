@@ -1,8 +1,8 @@
 FROM rust:latest AS builder
 
 RUN curl -sL https://deb.nodesource.com/setup_18.x | bash
-RUN apt update && apt install curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev nodejs -y
-RUN curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+RUN apt-get update && apt-get install curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev libssl-dev nodejs npm -y
+RUN curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | bash
 
 WORKDIR /home/circleci
 COPY . /home/circleci
@@ -13,7 +13,7 @@ RUN yarn release:all
 
 FROM debian:bullseye-slim
 
-RUN apt update && apt install curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev -y
+RUN apt update && apt install curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev libssl-dev -y
 ENV HOST 0.0.0.0
 EXPOSE 4554/tcp
 
@@ -24,3 +24,4 @@ COPY --from=builder \
   /usr/local/bin
 
 CMD /usr/local/bin/hoodik -a 0.0.0.0 -p 4554
+
