@@ -39,17 +39,22 @@ const fileSize = computed(() => {
 </script>
 <template>
   <router-link
-    class="p-2 flex hover:bg-brownish-200 hover:dark:bg-brownish-800"
+    class="p-2 flex hover:bg-brownish-200 hover:dark:bg-brownish-800 border-b-[1px] border-brownish-50 dark:border-brownish-700"
     :to="url"
     @click="emits('clicked')"
   >
-    <div class="w-1/12">
-      <BaseIcon v-if="props.file.mime === 'dir'" :path="mdiFolderOutline" :size="15" />
-      <BaseIcon v-else :path="mdiFileOutline" :size="15" />
+    <div class="w-1/12 pt-2">
+      <BaseIcon v-if="props.file.mime === 'dir'" :path="mdiFolderOutline" :size="30" />
+      <BaseIcon v-else :path="mdiFileOutline" :size="30" />
     </div>
-    <div class="w-7/12 text-left truncate">
-      {{ name }}
+    <div class="w-7/12 text-left">
+      <div class="w-full text-left truncate">
+        {{ name }}
+      </div>
+      <div class="w-full text-left truncate text-sm">
+        {{ props.file.mime }}
+      </div>
     </div>
-    <div class="w-4/12 text-right truncate text-sm">{{ fileSize }} {{ props.file.mime }}</div>
+    <div class="w-4/12 text-right truncate text-sm">{{ fileSize || '-' }}</div>
   </router-link>
 </template>

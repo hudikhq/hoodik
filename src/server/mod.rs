@@ -67,11 +67,24 @@ pub fn app(
         .configure(configure)
         .route(
             "/api/liveness",
-            web::get().to(|| async { actix_web::HttpResponse::Ok().body("GET: I am alive") }),
+            web::get().to(|| async {
+                actix_web::HttpResponse::Ok()
+                    .json(serde_json::json!({"METHOD": "GET", "message": "I am alive"}))
+            }),
         )
         .route(
             "/api/liveness",
-            web::post().to(|| async { actix_web::HttpResponse::Ok().body("POST: I am alive") }),
+            web::post().to(|| async {
+                actix_web::HttpResponse::Ok()
+                    .json(serde_json::json!({"METHOD": "POST", "message": "I am alive"}))
+            }),
+        )
+        .route(
+            "/api/liveness",
+            web::head().to(|| async {
+                actix_web::HttpResponse::Ok()
+                    .json(serde_json::json!({"METHOD": "HEAD", "message": "I am alive"}))
+            }),
         )
         // Proxy HTTP requests to frontend
         .default_service(web::to(proxy::http))

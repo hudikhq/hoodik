@@ -13,8 +13,7 @@ import {
   aes_encrypt,
   aes_decrypt,
   text_into_hashed_tokens
-  // @ts-ignore
-} from 'cryptfns/cryptfns.js'
+} from '../../../node_modules/cryptfns/cryptfns.js'
 
 export {
   rsa_generate_private,

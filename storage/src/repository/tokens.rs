@@ -1,6 +1,8 @@
 //! Repository module for manipulating the tokens for a file in order to index
 //! it better and enable full text search.
 
+use std::cmp::Ordering;
+
 use cryptfns::tokenizer::Token;
 use entity::{
     file_tokens, files, tokens, user_files, users, ActiveValue, ColumnTrait, ConnectionTrait,
@@ -148,14 +150,10 @@ where
             })
             .collect::<Vec<_>>();
 
-        tokens.sort_by(|a, b| {
-            if a.weight > b.weight {
-                std::cmp::Ordering::Less
-            } else if a.weight < b.weight {
-                std::cmp::Ordering::Greater
-            } else {
-                std::cmp::Ordering::Equal
-            }
+        tokens.sort_by(|a, b| match a.weight.cmp(&b.weight) {
+            Ordering::Less => Ordering::Greater,
+            Ordering::Equal => Ordering::Equal,
+            Ordering::Greater => Ordering::Less,
         });
 
         Ok(tokens)
