@@ -6,11 +6,11 @@ use std::{
 
 /// If no dist dir is available, we will just write an empty client
 fn handle_no_dist(client_out_file: &mut File) -> io::Result<()> {
-    writeln!(client_out_file, "pub const _DEFAULT: &'static [u8] = &[];",)?;
+    writeln!(client_out_file, "pub const _DEFAULT: &[u8] = &[];",)?;
 
     writeln!(
         client_out_file,
-        "pub const _CLIENT: [(&'static str, &'static [u8]); 0] = [];",
+        "pub const _CLIENT: [(&str, &[u8]); 0] = [];",
     )?;
 
     Ok(())
