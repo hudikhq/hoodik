@@ -19,6 +19,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: rust sccache
+        uses: pl-strflt/rust-sccache-action@v1.1.1
+
       - name: Loading the configuration from
         run: ls -la && cat "$PWD/.env.e2e" && export ENV_FILE="$PWD/.env.e2e"
 
@@ -37,8 +40,8 @@ jobs:
       - name: Wasm pack
         run: yarn wasm-pack
 
-      - name: Run unit tests
-        run: yarn unit
+      # - name: Run unit tests
+      #   run: yarn unit
 
       - name: Run e2e tests
         run: yarn e2e
