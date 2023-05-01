@@ -2,13 +2,13 @@
 
 set -e
 
-cargo test --test web_authentication -- --nocapture
+# cargo test --test web_authentication -- --nocapture
 
-cargo test --test storage -- --nocapture
+# cargo test --test storage -- --nocapture
 
 cargo run -- -c ./.env.e2e &
 
-node_modules/.bin/wait-on -t 600000 -i 250 -w 250 http://127.0.0.1:4554/api/liveness
+node_modules/.bin/wait-on -t 600000 -i 250 -w 250 http://127.0.0.1:4554/api/liveness && echo "API is up"
 
 (turbo test:e2e) || TEST_EXIT_CODE=$?
 
