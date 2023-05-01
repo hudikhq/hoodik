@@ -33,7 +33,7 @@ export function setCsrf(csrf: string, expires: Date) {
   Cookies.set(CSRF_COOKIE_NAME, csrf, {
     path: '/',
     sameSite: 'lax',
-    domain: import.meta.env.APP_COOKIE_DOMAIN,
+    // domain: import.meta.env.APP_COOKIE_DOMAIN,
     expires
   })
 }

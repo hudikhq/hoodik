@@ -12,12 +12,14 @@
     "test:unit": "./rust-unit",
     "release": "cargo build --release",
     "alias-commands": "Below this line ###########################################",
+    "release:all": "turbo run release",
     "wasm-pack": "turbo run wasm-pack",
     "watch": "turbo run test:watch",
     "start": "turbo run dev",
     "e2e": "./e2e",
     "unit": "turbo run test:unit",
-    "tc": "turbo run type-check"
+    "tc": "turbo run type-check",
+    "all": "turbo run type-check && turbo run test:unit && ./e2e"
   },
   "packageManager": "yarn@1.22.19",
   "devDependencies": {

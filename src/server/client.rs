@@ -1,0 +1,42 @@
+//! # Client code module
+//!
+//! Through this module we are serving all the built client static files.
+use crate::client::{_CLIENT, _DEFAULT};
+use actix_web::{get, web, HttpRequest, HttpResponse, Responder};
+use context::Context;
+
+/// Get content type from a filename
+fn content_type(filename: &str) -> &str {
+    match filename.split('.').last().unwrap_or("") {
+        "html" => "text/html; charset=utf-8",
+        "css" => "text/css",
+        "js" => "text/javascript",
+        "json" => "application/json",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        _ => "application/octet-stream",
+    }
+}
+
+/// Catch all requests that don't match any internal routes and forward them to the frontend
+#[get("/{filename:.*}")]
+pub async fn client(
+    _context: web::Data<Context>,
+    _req: HttpRequest,
+    info: web::Path<String>,
+) -> impl Responder {
+    let filename = info.into_inner();
+
+    for (path, contents) in _CLIENT {
+        if path == filename {
+            return HttpResponse::Ok()
+                .content_type(content_type(&filename))
+                .body(contents);
+        }
+    }
+
+    return HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(_DEFAULT);
+}

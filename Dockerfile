@@ -1,11 +1,15 @@
-FROM rust AS builder
+FROM rust:latest AS builder
 
-WORKDIR /usr/src/app
+RUN curl -sL https://deb.nodesource.com/setup_18.x | bash
+RUN apt update && apt install curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev nodejs -y
+RUN curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-COPY . .
+WORKDIR /home/circleci
+COPY . /home/circleci
 
-RUN apt update && apt install curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev -y
-RUN cargo build --release
+RUN npm install -g yarn
+RUN yarn install
+RUN yarn release:all
 
 FROM debian:bullseye-slim
 
@@ -16,7 +20,7 @@ EXPOSE 4554/tcp
 RUN useradd rust
 USER rust:rust
 COPY --from=builder \
-  /usr/src/app/release/hoodik \
+  /home/circleci/target/release/hoodik \
   /usr/local/bin
 
-CMD /usr/local/bin/hoodik
+CMD /usr/local/bin/hoodik -a 0.0.0.0 -p 4554

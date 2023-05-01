@@ -401,7 +401,16 @@ impl Config {
             Ok(v) => Some(v),
             Err(_) => match matches {
                 Some(m) => match m.try_get_one::<String>("DATABASE_URL") {
-                    Ok(v) => v.cloned(),
+                    Ok(v) => match v {
+                        Some(v) => {
+                            if !v.is_empty() {
+                                None
+                            } else {
+                                Some(v.clone())
+                            }
+                        }
+                        None => None,
+                    },
                     Err(_) => None,
                 },
                 None => None,
@@ -465,7 +474,7 @@ pub fn arguments<'a>(name: &'a str, version: &'a str, about: &'a str) -> ArgMatc
         .arg(
             Arg::new("address")
                 .id("HTTP_ADDRESS")
-                .short('b')
+                .short('a')
                 .long("address")
                 .help("HTTP address where the application will attach itself")
                 .required(false),
