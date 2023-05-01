@@ -17,7 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Loading the configuration from
-        run: cat "$PWD/.env.e2e" && export ENV_FILE="$PWD/.env.e2e"
+        run: ls -la
+        # run: cat "$PWD/.env.e2e" && export ENV_FILE="$PWD/.env.e2e"
 
       - name: Checkout repository
         uses: actions/checkout@v3
