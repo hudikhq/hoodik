@@ -3,7 +3,6 @@ FROM htunlogic/hoodik-builder:latest AS builder
 WORKDIR /home/app
 COPY . /home/app
 
-# RUN cargo build --release
 RUN npm install -g yarn
 RUN yarn install
 RUN yarn wasm-pack
