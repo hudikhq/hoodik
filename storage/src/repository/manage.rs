@@ -220,7 +220,7 @@ where
             .map(|json| {
                 let id = json.get("id").unwrap().as_str().unwrap_or_default();
 
-                match Uuid::from_str(&id) {
+                match Uuid::from_str(id) {
                     Ok(id) => id,
                     Err(_) => Uuid::nil(),
                 }

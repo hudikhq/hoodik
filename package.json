@@ -19,5 +19,8 @@
     "unit": "turbo run test:unit",
     "tc": "turbo run type-check"
   },
-  "packageManager": "yarn@1.22.19"
+  "packageManager": "yarn@1.22.19",
+  "devDependencies": {
+    "wait-on": "^7"
+  }
 }

@@ -105,15 +105,18 @@ async fn create_files_and_try_searching() {
 
     let search = Search {
         dir_id: None,
-        search_tokens_hashed: Some(vec!["hello".to_string()]),
+        search_tokens_hashed: Some(vec!["hello:1".to_string()]),
         skip: None,
         limit: None,
     };
 
-    let results = repository.tokens(&user).search(search).await.unwrap();
+    let mut results = repository.tokens(&user).search(search).await.unwrap();
 
-    let first = results.iter().next().unwrap();
-    let second = results.iter().next().unwrap();
+    let second = results.pop().unwrap();
+    let first = results.pop().unwrap();
+
+    // println!("First {:#?}", first);
+    // println!("Second {:#?}", second);
 
     assert_eq!(first.id, dir2.id);
     assert_eq!(second.id, dir.id);
