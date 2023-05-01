@@ -15,11 +15,9 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      ENV_FILE: "$PWD/.env.e2e"
     steps:
       - name: Loading the configuration from
-        run: echo "ENV_FILE=$ENV_FILE"
+        run: cat "$PWD/.env.e2e" && export ENV_FILE="$PWD/.env.e2e"
 
       - name: Checkout repository
         uses: actions/checkout@v3
