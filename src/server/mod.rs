@@ -28,8 +28,8 @@ pub mod routes {
     pub use storage::routes as storage_routes;
 }
 
+pub mod client;
 pub mod cors;
-pub mod proxy;
 
 /// Inject the application features into the server
 fn configure(cfg: &mut web::ServiceConfig) {
@@ -87,7 +87,7 @@ pub fn app(
             }),
         )
         // Proxy HTTP requests to frontend
-        .default_service(web::to(proxy::http))
+        .service(client::client)
 }
 
 /// Start the server

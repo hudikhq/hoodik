@@ -19,7 +19,7 @@ export default defineConfig({
     vue(),
     vueJsx(),
     serviceWorkerPlugin({
-      filename: 'src/sw.ts'
+      filename: 'sw.ts'
     })
   ],
   optimizeDeps: {

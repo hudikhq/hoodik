@@ -183,8 +183,10 @@ export const store = defineStore('upload', () => {
     try {
       const existing = await meta.getByName(keypair, file.name, parent_id)
 
-      if (existing.chunks < (existing.chunks_stored || 0)) {
-        return waiting.value.push({ ...existing, file, temporaryId: uuidv4() })
+      const chunksStored = existing.chunks_stored || 0
+      if (existing.chunks > chunksStored) {
+        console.log('Pushing existing')
+        waiting.value.push({ ...existing, file, temporaryId: uuidv4() })
       } else {
         throw new Error('File already exists')
       }

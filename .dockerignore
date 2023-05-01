@@ -1,10 +1,8 @@
 .cargo
-.node_modules
+target
+node_modules
 data
 .env.example
 docker-compose.yml
-package-lock.json
-package.json
-yarn.lock
 .turbo
 README.md

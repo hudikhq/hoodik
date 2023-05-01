@@ -152,7 +152,7 @@ export function getClientUrl(): string {
  * Return the API URL from environment variable or fallback to the client URL
  */
 export function getApiUrl(): string {
-  return ensureNoEndingSlash(import.meta.env.APP_URL || 'http://localhost:4554')
+  return ensureNoEndingSlash(import.meta.env.APP_URL || '')
 }
 
 /**

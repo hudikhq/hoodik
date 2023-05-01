@@ -37,7 +37,7 @@
     },
     "test:unit": {
       "dependsOn": [
-        "wasm-pack"
+        "^wasm-pack"
       ],
       "cache": false
     },
@@ -46,13 +46,13 @@
     },
     "test:e2e": {
       "dependsOn": [
-        "wasm-pack"
+        "^wasm-pack"
       ],
       "cache": false
     },
     "test:watch": {
       "dependsOn": [
-        "wasm-pack"
+        "^wasm-pack"
       ],
       "cache": false,
       "persistent": true
@@ -64,7 +64,7 @@
     },
     "release": {
       "dependsOn": [
-        "wasm-pack"
+        "^wasm-pack"
       ],
       "outputs": [
         "dist/**"

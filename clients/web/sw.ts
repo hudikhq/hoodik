@@ -1,7 +1,7 @@
-import { downloadAndDecryptStream } from './stores/storage/workers'
-import Api, { ErrorResponse } from './stores/api'
-import { FileMetadata } from './stores/storage/metadata'
-import { uploadFile } from './stores/storage/workers/file'
+import { downloadAndDecryptStream } from './src/stores/storage/workers'
+import Api, { ErrorResponse } from './src/stores/api'
+import { FileMetadata } from './src/stores/storage/metadata'
+import { uploadFile } from './src/stores/storage/workers/file'
 
 import type {
   DownloadCompletedResponseMessage,
@@ -12,7 +12,7 @@ import type {
   UploadChunkResponseMessage,
   UploadFileMessage,
   WorkerErrorType
-} from './types'
+} from './src/types'
 
 const sleep = (s: number) => new Promise((r) => setTimeout(r, s * 1000))
 
