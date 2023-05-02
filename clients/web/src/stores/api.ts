@@ -146,7 +146,7 @@ export function ensureNoEndingSlash(url: string): string {
  */
 export function getClientUrl(): string {
   return ensureNoEndingSlash(
-    import.meta.env.APP_CLIENT_URL || import.meta.env.APP_URL || window.location.href
+    import.meta.env.APP_CLIENT_URL || import.meta.env.APP_URL || window.location.origin
   )
 }
 
@@ -154,7 +154,7 @@ export function getClientUrl(): string {
  * Return the API URL from environment variable or fallback to the client URL
  */
 export function getApiUrl(): string {
-  return ensureNoEndingSlash(import.meta.env.APP_URL || '')
+  return ensureNoEndingSlash(import.meta.env.APP_URL || window.location.origin)
 }
 
 /**
@@ -380,7 +380,7 @@ export default class Api {
    * be a query present in the path, so try to take that into account also
    */
   static getUrlWithQuery(path: string, query?: Query) {
-    const url = new URL(`${getClientUrl()}${path}`)
+    const url = new URL(`${getApiUrl()}${path}`)
 
     if (query !== null && query !== undefined && typeof query === 'object') {
       for (const name in query) {
