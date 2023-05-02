@@ -1,12 +1,15 @@
+import {} from './../../api'
 export * from './chunk'
 export * from './download'
+
+import Api from '@/stores/api'
 
 import type {
   DownloadAppFile,
   DownloadFileMessage,
   UploadAppFile,
-  UploadChunkMessage
-} from '../../../types'
+  UploadFileMessage
+} from '@/types'
 
 /**
  * Use service worker to upload a single chunk
@@ -22,12 +25,15 @@ export async function pushUploadToWorker(file: UploadAppFile): Promise<void> {
     metadata: undefined
   }
 
+  const apiTransfer = new Api().toJson()
+
   window.UPLOAD.postMessage({
     type: 'upload-file',
+    apiTransfer,
     message: {
       transferableFile,
       metadataJson: file.metadata.toJson()
-    } as UploadChunkMessage
+    } as UploadFileMessage
   })
 }
 
@@ -41,8 +47,11 @@ export async function startFileDownload(file: DownloadAppFile): Promise<void> {
 
   const transferableFile = { ...file, metadata: undefined, uploaded_chunks: undefined }
 
+  const apiTransfer = new Api().toJson()
+
   window.DOWNLOAD.postMessage({
     type: 'download-file',
+    apiTransfer,
     message: {
       transferableFile,
       metadataJson: file.metadata.toJson()
