@@ -142,11 +142,26 @@ export function ensureNoEndingSlash(url: string): string {
 }
 
 /**
+ * Try to get origin from window.location
+ */
+export function getOrigin(): string {
+  if ('location' in window) {
+    return ensureNoEndingSlash(window.location.origin)
+  }
+
+  if ('location' in self) {
+    return ensureNoEndingSlash(self.location.origin)
+  }
+
+  return '/'
+}
+
+/**
  * Return the CLIENT URL from environment variable
  */
 export function getClientUrl(): string {
   return ensureNoEndingSlash(
-    import.meta.env.APP_CLIENT_URL || import.meta.env.APP_URL || window.location.origin
+    import.meta.env.APP_CLIENT_URL || import.meta.env.APP_URL || getOrigin()
   )
 }
 
@@ -154,7 +169,7 @@ export function getClientUrl(): string {
  * Return the API URL from environment variable or fallback to the client URL
  */
 export function getApiUrl(): string {
-  return ensureNoEndingSlash(import.meta.env.APP_URL || window.location.origin)
+  return ensureNoEndingSlash(import.meta.env.APP_URL || getOrigin())
 }
 
 /**

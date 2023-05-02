@@ -79,7 +79,7 @@ export const store = defineStore('login', () => {
    * With 1 second delay to ensure the workers are ready
    */
   function passAuthenticationToWorkers() {
-    setTimeout(() => passAuthenticationToWorkersNow(), 1000)
+    setTimeout(() => passAuthenticationToWorkersNow(), 3000)
   }
 
   /**
