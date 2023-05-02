@@ -9,7 +9,7 @@ docker run --name hoodik -it -d \
 -e DATA_DIR='/data' \
 --volume "$(pwd)/data:/data" \
 -p 4554:4554 \
-hoodik:latest
+htunlogic/hoodik:latest
 ```
 
 # License
