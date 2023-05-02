@@ -15,7 +15,7 @@ use crate::{data::search::Search, repository::Repository};
     method = "POST",
     wrap = "Verify::csrf_header_default()"
 )]
-pub async fn search(
+pub(crate) async fn search(
     req: HttpRequest,
     context: web::Data<Context>,
     data: web::Json<Search>,

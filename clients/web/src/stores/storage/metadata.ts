@@ -80,6 +80,19 @@ export class FileMetadata {
   }
 
   /**
+   * Set any additional information about the file
+   */
+  setExtras(extras: { [key: string]: string | null | undefined }): FileMetadata {
+    for (const key in extras) {
+      if (extras[key] !== undefined && extras[key] !== null) {
+        this[key] = extras[key]
+      }
+    }
+
+    return this
+  }
+
+  /**
    * Set any other possible arguments of the metadata
    */
   set(key: string, value: any): void {
@@ -92,45 +105,58 @@ export class FileMetadata {
    * Return encrypted string of the file metadata
    */
   async encrypt(publicKey: string): Promise<string> {
-    let key
-
-    if (this.key) {
-      key = cryptfns.aes.keyToStringJson(this.key)
+    if (!this.key) {
+      throw new Error('Cannot encrypt without a file key')
     }
 
-    return cryptfns.rsa.encryptMessage(JSON.stringify({ ...this, key }), publicKey)
+    const encrypted = this.toJson()
+
+    for (const key in encrypted) {
+      if (key !== 'key' && encrypted[key] !== undefined && encrypted[key] !== null) {
+        encrypted[key] = cryptfns.aes.encryptString(encrypted[key], this.key)
+      }
+    }
+
+    // Only the AES key is encrypted with RSA public key
+    if (encrypted.key) {
+      encrypted.key = await cryptfns.rsa.encryptMessage(encrypted.key, publicKey)
+    }
+
+    return JSON.stringify(encrypted)
   }
 
   /**
    * Decrypt the file metadata from string
    */
-  static async decrypt(encrypted: string, keypair: KeyPair): Promise<FileMetadata> {
-    const decrypted = await cryptfns.rsa.decryptMessage(keypair, encrypted)
-
+  static async decrypt(encryptedString: string, keypair: KeyPair): Promise<FileMetadata> {
     try {
-      const obj = JSON.parse(decrypted)
-      let key = obj.key
+      const encrypted = JSON.parse(encryptedString)
 
-      if (key) {
-        try {
-          key = cryptfns.aes.keyFromStringJson(obj.key)
-        } catch (e) {
-          obj.error =
-            'Data key is not valid, most likely the file encryption was broken and it is unrecoverable'
+      if (!encrypted.key) {
+        throw new Error('Cannot decrypt without a file key')
+      }
+
+      if (!keypair.input) {
+        throw new Error('Cannot decrypt without a private RSA key')
+      }
+
+      const encryptedAesKey = encrypted.key
+      const decryptedAesKey = await cryptfns.rsa.decryptMessage(keypair, encryptedAesKey)
+      const key = cryptfns.aes.keyFromStringJson(decryptedAesKey)
+
+      // Decrypt the AES key with RSA private key
+      const decrypted: FileMetadataJson = {}
+
+      // Decrypt the rest of the metadata with AES key
+      for (const k in encrypted) {
+        if (k !== 'key' && encrypted[k] !== undefined && encrypted[k] !== null) {
+          decrypted[k] = cryptfns.aes.decryptString(encrypted[k], key)
         }
       }
 
-      const metadata = new FileMetadata(obj.name, key)
-
-      for (const key in obj) {
-        if (key !== 'name' && key !== 'key') {
-          metadata[key] = obj[key]
-        }
-      }
-
-      return metadata
+      return new FileMetadata(decrypted.name || '', key).setExtras(decrypted)
     } catch (error) {
-      return new FileMetadata('decrypt failed', undefined)
+      return new FileMetadata((error as Error).message, undefined)
     }
   }
 }

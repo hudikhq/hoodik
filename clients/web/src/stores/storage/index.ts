@@ -213,7 +213,7 @@ export const store = defineStore('filesStore', () => {
   /**
    * Download and decrypt file to the local machine
    */
-  async function get(file: ListAppFile): Promise<void> {
+  async function get(file: ListAppFile, kp: KeyPair): Promise<ListAppFile> {
     if (!file.id) {
       throw new Error('Cannot download file without ID')
     }
@@ -226,7 +226,7 @@ export const store = defineStore('filesStore', () => {
       throw new Error('Cannot download file without key')
     }
 
-    return download.download(file)
+    return download.get(file, kp)
   }
 
   /**

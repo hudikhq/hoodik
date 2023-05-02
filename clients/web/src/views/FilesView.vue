@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
-import TableFiles from '@/components/files/TableFiles.vue'
-import FileBrowser from '@/components/files/FileBrowser.vue'
+import TableFiles from '@/components/files/list/TableFiles.vue'
+import FileBrowser from '@/components/files/browser/FileBrowser.vue'
 import SectionMain from '@/components/ui/SectionMain.vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import BreadCrumbs from '@/components/files/BreadCrumbs.vue'
@@ -71,7 +71,11 @@ watch(fileId, () => {
 <template>
   <Suspense>
     <LayoutAuthenticated>
-      <FileBrowser :parentId="parentId" v-slot="{ storage, loading, helper, on }">
+      <FileBrowser
+        :parentId="parentId"
+        :hide-delete="false"
+        v-slot="{ storage, loading, helper, on }"
+      >
         <SectionMain>
           <CardBox rounded="rounded-md" class="mb-2 px-0 py-0 mt-4" has-table>
             <div class="w-full border-y-0">

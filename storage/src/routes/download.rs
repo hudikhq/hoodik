@@ -21,7 +21,10 @@ use crate::{contract::StorageProvider, repository::Repository, storage::Storage}
     method = "GET",
     wrap = "Verify::csrf_header_default()"
 )]
-pub async fn download(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
+pub(crate) async fn download(
+    req: HttpRequest,
+    context: web::Data<Context>,
+) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let authenticated = Authenticated::try_from(&req)?;
     let file_id: String = util::actix::path_var(&req, "file_id")?;
@@ -89,7 +92,7 @@ pub async fn download(req: HttpRequest, context: web::Data<Context>) -> AppResul
     method = "HEAD",
     wrap = "Verify::csrf_header_default()"
 )]
-pub async fn head(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
+pub(crate) async fn head(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let authenticated = Authenticated::try_from(&req)?;
     let file_id: String = util::actix::path_var(&req, "file_id")?;

@@ -20,12 +20,3 @@ pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
     cfg.service(search::search);
     cfg.service(upload::upload);
 }
-
-pub use create::*;
-pub use delete::*;
-pub use download::*;
-pub use index::*;
-pub use metadata::*;
-pub use name_hash::*;
-pub use search::*;
-pub use upload::*;

@@ -23,6 +23,7 @@ const props = defineProps<{
   roundedFull?: Boolean
   noBorder?: Boolean
   class?: String
+  dropdownEl?: boolean
 }>()
 
 const is = computed(() => {
@@ -63,8 +64,8 @@ const labelClass = computed(() => {
 
 const componentClass = computed(() => {
   let base = [
-    'inline-flex',
-    'justify-center',
+    props.dropdownEl ? '' : 'inline-flex',
+    props.dropdownEl ? 'justify-start' : 'justify-center',
     'items-center',
     'whitespace-nowrap',
     'focus:outline-none',

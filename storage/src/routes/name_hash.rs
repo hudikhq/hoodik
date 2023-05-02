@@ -14,7 +14,10 @@ use crate::{contract::StorageProvider, repository::Repository, storage::Storage}
     method = "GET",
     wrap = "Verify::csrf_header_default()"
 )]
-pub async fn name_hash(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
+pub(crate) async fn name_hash(
+    req: HttpRequest,
+    context: web::Data<Context>,
+) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let authenticated = Authenticated::try_from(&req)?;
     let name_hash = util::actix::path_var::<String>(&req, "name_hash")?;

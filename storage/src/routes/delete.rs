@@ -15,7 +15,10 @@ use crate::{contract::StorageProvider, repository::Repository, storage::Storage}
     method = "DELETE",
     wrap = "Verify::csrf_header_default()"
 )]
-pub async fn delete(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
+pub(crate) async fn delete(
+    req: HttpRequest,
+    context: web::Data<Context>,
+) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let authenticated = Authenticated::try_from(&req)?;
     let file_id: String = util::actix::path_var(&req, "file_id")?;

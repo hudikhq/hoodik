@@ -20,6 +20,7 @@ import type {
   FilesStore,
   KeyPair
 } from '@/types'
+import { createThumbnail } from './thumbnail'
 
 export const store = defineStore('upload', () => {
   /**
@@ -223,6 +224,7 @@ export const store = defineStore('upload', () => {
     const modified = file.lastModified ? new Date(file.lastModified) : new Date()
 
     const search_tokens_hashed = cryptfns.stringToHashedTokens(file.name.toLowerCase())
+    const thumbnail = await createThumbnail(file)
 
     const createFile: CreateFile = {
       name: file.name,
@@ -234,7 +236,7 @@ export const store = defineStore('upload', () => {
       search_tokens_hashed
     }
 
-    const created = await meta.create(keypair, createFile)
+    const created = await meta.create(keypair, createFile, { thumbnail })
 
     return { ...created, file }
   }

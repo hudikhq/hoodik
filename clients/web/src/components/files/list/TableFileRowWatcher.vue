@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import TableFileRow from '@/components/files/TableFileRow.vue'
+import TableFileRow from '@/components/files/list/TableFileRow.vue'
 import type { Helper } from '@/stores/storage/helper'
 import type { ListAppFile } from '@/types'
 import scrollMonitor from 'scrollmonitor'
@@ -24,10 +24,11 @@ const props = defineProps<{
 }>()
 
 const emits = defineEmits<{
+  (event: 'actions', file: ListAppFile): void
   (event: 'remove', file: ListAppFile): void
-  (event: 'view', file: ListAppFile): void
-  (event: 'checked', value: boolean, file: ListAppFile): void
+  (event: 'preview', file: ListAppFile): void
   (event: 'download', file: ListAppFile): void
+  (event: 'select-one', value: boolean, file: ListAppFile): void
 }>()
 
 const referenceObject = ref()
@@ -65,10 +66,11 @@ onMounted(() => {
       :hide-checkbox="props.hideCheckbox"
       :sizes="props.sizes"
       :highlighted="props.highlighted"
-      @remove="(f) => emits('remove', f)"
-      @view="(f) => emits('view', f)"
-      @checked="(v, f) => emits('checked', v, f)"
-      @download="(f) => emits('download', f)"
+      @actions="(f: ListAppFile) => emits('actions', f)"
+      @remove="(f: ListAppFile) => emits('remove', f)"
+      @preview="(f: ListAppFile) => emits('preview', f)"
+      @download="(f: ListAppFile) => emits('download', f)"
+      @select-one="(v: boolean, f: ListAppFile) => emits('select-one', v, f)"
     />
   </Suspense>
   <div ref="referenceObject" :id="props.file.id"></div>

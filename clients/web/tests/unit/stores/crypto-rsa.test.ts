@@ -173,4 +173,20 @@ describe('Crypto test', () => {
     expect(encryptionMessage !== encrypted).toBe(true)
     expect(decrypted).toEqual(encryptionMessage)
   })
+
+  it('UNIT: RSA: test length of the encryption', async () => {
+    const kp = await rsa.generateKeyPair()
+
+    for (let i = 1; i < 1000; i++) {
+      try {
+        const message = 'a'.repeat(i)
+        const encrypted = await rsa.encryptMessage(message, kp.publicKey as string)
+        const decrypted = await rsa.decryptMessage(kp, encrypted)
+
+        expect(decrypted).toEqual(message)
+      } catch (e) {
+        expect(`${i} characters`).toBe(false)
+      }
+    }
+  })
 })

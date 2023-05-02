@@ -170,6 +170,10 @@ export async function encryptMessage(message: string, publicKey: string): Promis
  * Decrypt a message with stored private key
  */
 export async function decryptMessage(kp: KeyPair, message: string): Promise<string> {
+  if (typeof kp === 'string') {
+    throw new Error("KeyPair can't be a string, you might have swapped arguments")
+  }
+
   const { input } = kp
 
   if (!input) {

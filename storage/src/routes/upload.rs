@@ -28,7 +28,7 @@ use crate::{
     method = "POST",
     wrap = "Verify::csrf_header_default()"
 )]
-async fn upload(
+pub(crate) async fn upload(
     req: HttpRequest,
     context: web::Data<Context>,
     meta: web::Query<Meta>,

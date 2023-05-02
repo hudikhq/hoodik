@@ -2,7 +2,7 @@
 import { mdiTrashCan, mdiEye, mdiDownload, mdiDotsVertical } from '@mdi/js'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
-import TruncatedSpan from '../ui/TruncatedSpan.vue'
+import TruncatedSpan from '@/components/ui/TruncatedSpan.vue'
 import { formatPrettyDate, formatSize } from '@/stores'
 import type { ListAppFile } from '@/types'
 import { computed } from 'vue'
@@ -25,19 +25,20 @@ const props = defineProps<{
 }>()
 
 const emits = defineEmits<{
+  (event: 'actions', file: ListAppFile): void
   (event: 'remove', file: ListAppFile): void
-  (event: 'view', file: ListAppFile): void
-  (event: 'checked', value: boolean, file: ListAppFile): void
+  (event: 'preview', file: ListAppFile): void
   (event: 'download', file: ListAppFile): void
+  (event: 'select-one', value: boolean, file: ListAppFile): void
 }>()
 
-const check = (value: boolean) => {
-  emits('checked', value, props.file)
+const selectOne = (value: boolean) => {
+  emits('select-one', value, props.file)
 }
 
 const checked = computed({
   get: () => !!props.checkedRows.find((item) => item.id === props.file.id),
-  set: (v) => check(v)
+  set: (v) => selectOne(v)
 })
 
 const isDir = computed(() => {
@@ -103,16 +104,24 @@ const sizes = computed(() => {
   >
     <div :class="sizes.name" :title="fileName">
       <div :class="sizes.checkbox">
-        <TableCheckboxCell
-          v-if="!props.hideCheckbox"
-          v-model="checked"
-          @update:modelValue="check"
-        />
+        <TableCheckboxCell v-if="!props.hideCheckbox" v-model="checked" />
       </div>
 
       <router-link class="font-bold" :to="`/directory/${file.id}`" v-if="isDir">
         <TruncatedSpan :middle="fileName.length > 50" :text="fileName" />
       </router-link>
+
+      <a class="font-bold" href="#" @click="emits('preview', file)" v-if="file.metadata?.thumbnail">
+        <img
+          v-if="file.metadata?.thumbnail"
+          :src="file.metadata?.thumbnail"
+          :alt="fileName"
+          class="h-6 mr-2 mb-1 inline-block"
+        />
+        <div class="inline-block">
+          <TruncatedSpan :middle="fileName.length > 50" :text="fileName" />
+        </div>
+      </a>
       <span v-else>
         <TruncatedSpan :middle="fileName.length > 50" :text="fileName" />
       </span>
@@ -142,11 +151,11 @@ const sizes = computed(() => {
 
     <div class="hidden xl:block" :class="sizes.buttons">
       <BaseButton
-        v-if="file.mime === 'something-image-mime-type-TODO'"
+        v-if="file.metadata?.thumbnail"
         color="lightDark"
         :icon="mdiEye"
         small
-        @click="emits('view', file)"
+        @click="emits('preview', file)"
         :disabled="!props.file.id"
       />
       <BaseButton
@@ -174,7 +183,7 @@ const sizes = computed(() => {
         :icon="mdiDotsVertical"
         small
         class="ml-2"
-        @click="emits('view', file)"
+        @click="emits('actions', file)"
         :disabled="!props.file.id"
       />
     </div>
