@@ -20,7 +20,7 @@ pub use sea_orm::{
     SelectTwo, Statement, TransactionTrait, TryGetableMany, Value,
 };
 
-/// Helper to convert Option<String> to Option<Uuid>
+/// Helper to convert `Option<String>` to `Option<Uuid>`
 pub fn option_string_to_uuid(i: Option<String>) -> Option<Uuid> {
     match i {
         Some(s) => match Uuid::parse_str(s.as_str()) {
@@ -31,12 +31,12 @@ pub fn option_string_to_uuid(i: Option<String>) -> Option<Uuid> {
     }
 }
 
-/// Convert active value into Option<Uuid>
+/// Convert `ActiveValue` to `Option<Uuid>`
 pub fn active_value_to_uuid(i: ActiveValue<Uuid>) -> Option<Uuid> {
     value_to_uuid(i.into_value()?)
 }
 
-/// Helper to convert Value to Option<Uuid>
+/// Helper to convert `Value` to `Option<Uuid>`
 pub fn value_to_uuid<T: Into<Value>>(i: T) -> Option<Uuid> {
     let v = i.into();
 

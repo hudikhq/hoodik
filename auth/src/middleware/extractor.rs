@@ -9,13 +9,13 @@ use crate::data::authenticated::Authenticated;
 use crate::jwt;
 
 #[derive(Clone, PartialEq, Debug)]
-pub enum TokenExtractor {
+pub(crate) enum TokenExtractor {
     Header(String),
     Cookie(String),
 }
 
 #[derive(Clone, Debug)]
-pub enum ExtractionResult {
+pub(crate) enum ExtractionResult {
     Token(String),
     Claims(String),
     None,
@@ -35,7 +35,7 @@ impl std::fmt::Display for ExtractionResult {
         write!(f, "{}", w)
     }
 }
-pub async fn extract_session(
+pub(crate) async fn extract_session(
     extraction: &ExtractionResult,
     context: &Context,
 ) -> Option<Authenticated> {
@@ -101,6 +101,6 @@ async fn authenticated_cache(
 }
 
 /// Remove the entry from the cache
-pub async fn remove_authenticated_session(token: &String) {
+pub(crate) async fn remove_authenticated_session(token: &String) {
     AUTHENTICATED_CACHE.lock().await.cache_remove(token);
 }
