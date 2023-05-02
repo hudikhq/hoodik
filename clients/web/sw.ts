@@ -1,7 +1,7 @@
 import { downloadAndDecryptStream } from './src/stores/storage/workers'
-import Api, { ErrorResponse } from './src/stores/api'
 import { FileMetadata } from './src/stores/storage/metadata'
 import { uploadFile } from './src/stores/storage/workers/file'
+import Api, { ErrorResponse, type ApiTransfer } from './src/stores/api'
 
 import type {
   DownloadCompletedResponseMessage,
@@ -21,14 +21,27 @@ self.canceled = {
   download: []
 }
 
+/**
+ * Setup on the self object the API handler
+ */
+function handleApiTransfer(apiTransfer?: ApiTransfer) {
+  if (apiTransfer && apiTransfer.jwt && apiTransfer.csrf && apiTransfer.apiUrl) {
+    console.log('Setting the SWApi...', apiTransfer.apiUrl)
+
+    const api = new Api(apiTransfer)
+    self.SWApi = api
+  } else {
+    console.warn('Missing apiTransfer...')
+  }
+}
+
 onmessage = async (message: MessageEvent<any>) => {
   console.log('In worker, receiving message', message.data?.type || 'unknown')
 
   // Creating api maker with the updated credentials received
   // from the main browser thread that has access to JWT and CSRF
   if (message.data?.type === 'auth') {
-    console.log('In worker, received authentication data...')
-    self.SWApi = new Api(message.data)
+    handleApiTransfer(message.data.apiTransfer)
   }
 
   if (message.data?.type === 'cancel') {
@@ -42,6 +55,8 @@ onmessage = async (message: MessageEvent<any>) => {
   }
 
   if (message.data?.type === 'upload-file') {
+    handleApiTransfer(message.data.apiTransfer)
+
     while (!self.SWApi) {
       console.warn('Waiting for SWApi to be initialized...')
       await sleep(1)
@@ -51,6 +66,8 @@ onmessage = async (message: MessageEvent<any>) => {
   }
 
   if (message.data?.type === 'download-file') {
+    handleApiTransfer(message.data.apiTransfer)
+
     while (!self.SWApi) {
       await sleep(1)
     }

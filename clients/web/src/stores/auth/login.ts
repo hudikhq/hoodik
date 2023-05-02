@@ -91,11 +91,11 @@ export const store = defineStore('login', () => {
 
     if ('UPLOAD' in window) {
       console.log('Sending auth to upload worker')
-      window.UPLOAD.postMessage({ type: 'auth', ...apiTransfer })
+      window.UPLOAD.postMessage({ type: 'auth', apiTransfer })
     }
     if ('DOWNLOAD' in window) {
       console.log('Sending auth to download worker')
-      window.DOWNLOAD.postMessage({ type: 'auth', ...apiTransfer })
+      window.DOWNLOAD.postMessage({ type: 'auth', apiTransfer })
     }
   }
 

@@ -20,17 +20,6 @@ export type UploadFileMessage = {
 }
 
 /**
- * Message sent to the worker to upload a chunk
- */
-export type UploadChunkMessage = {
-  transferableFile: UploadAppFile
-  metadataJson: FileMetadataJson
-  data: Uint8Array
-  chunk: number
-  attempt?: number
-}
-
-/**
  * Message sent to the worker to download a file
  */
 export type DownloadFileMessage = {
