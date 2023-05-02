@@ -37,7 +37,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     method = "POST",
     wrap = "Verify::csrf_header_default()"
 )]
-pub async fn authenticated_self(req: HttpRequest) -> AppResult<HttpResponse> {
+pub(crate) async fn authenticated_self(req: HttpRequest) -> AppResult<HttpResponse> {
     let authenticated = Authenticated::try_from(&req)?;
 
     Ok(HttpResponse::Ok().json(authenticated))
@@ -49,7 +49,7 @@ pub async fn authenticated_self(req: HttpRequest) -> AppResult<HttpResponse> {
 ///
 /// Response: [crate::data::authenticated::AuthenticatedJwt]
 #[route("/api/auth/login", method = "POST")]
-pub async fn login(
+pub(crate) async fn login(
     context: web::Data<Context>,
     data: web::Json<Credentials>,
 ) -> AppResult<HttpResponse> {
@@ -76,7 +76,7 @@ pub async fn login(
 ///
 /// Response: [crate::data::authenticated::AuthenticatedJwt]
 #[route("/api/auth/signature", method = "POST")]
-pub async fn signature(
+pub(crate) async fn signature(
     context: web::Data<Context>,
     data: web::Json<Signature>,
 ) -> AppResult<HttpResponse> {
@@ -105,7 +105,10 @@ pub async fn signature(
     method = "POST",
     wrap = "Verify::csrf_header_default()"
 )]
-pub async fn refresh(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
+pub(crate) async fn refresh(
+    req: HttpRequest,
+    context: web::Data<Context>,
+) -> AppResult<HttpResponse> {
     let authenticated = Authenticated::try_from(&req)?;
     let auth = Auth::new(&context);
 
@@ -130,7 +133,10 @@ pub async fn refresh(req: HttpRequest, context: web::Data<Context>) -> AppResult
     method = "POST",
     wrap = "Verify::csrf_header_default()"
 )]
-pub async fn logout(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
+pub(crate) async fn logout(
+    req: HttpRequest,
+    context: web::Data<Context>,
+) -> AppResult<HttpResponse> {
     let authenticated = Authenticated::try_from(&req)?;
     let auth = Auth::new(&context);
 
@@ -154,7 +160,7 @@ pub async fn logout(req: HttpRequest, context: web::Data<Context>) -> AppResult<
 ///
 /// Response: [AuthenticatedJwt]
 #[route("/api/auth/register", method = "POST")]
-pub async fn register(
+pub(crate) async fn register(
     context: web::Data<Context>,
     data: web::Json<CreateUser>,
 ) -> AppResult<HttpResponse> {
@@ -179,6 +185,6 @@ pub async fn register(
 ///
 /// Response [String]
 #[route("/api/auth/two-factor-secret", method = "GET")]
-pub async fn generate_two_factor() -> AppResult<HttpResponse> {
+pub(crate) async fn generate_two_factor() -> AppResult<HttpResponse> {
     Ok(HttpResponse::Ok().json(serde_json::json!({ "secret": Auth::generate_two_factor() })))
 }

@@ -217,10 +217,10 @@ export default class Api {
   private csrf: string | null
   private apiUrl: string
 
-  constructor({ jwt, csrf }: ApiTransfer = {}) {
+  constructor({ jwt, csrf, apiUrl }: ApiTransfer = {}) {
     this.jwt = jwt || getJwt()
     this.csrf = csrf || getCsrf()
-    this.apiUrl = getApiUrl()
+    this.apiUrl = apiUrl || getApiUrl()
   }
 
   /**
