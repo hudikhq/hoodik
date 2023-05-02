@@ -58,7 +58,7 @@ onmessage = async (message: MessageEvent<any>) => {
     handleApiTransfer(message.data.apiTransfer)
 
     while (!self.SWApi) {
-      console.warn('Waiting for SWApi to be initialized...')
+      console.warn('Waiting for SWApi to be initialized with credentials and start uploading...')
       await sleep(1)
     }
 
@@ -69,6 +69,7 @@ onmessage = async (message: MessageEvent<any>) => {
     handleApiTransfer(message.data.apiTransfer)
 
     while (!self.SWApi) {
+      console.warn('Waiting for SWApi to be initialized with credentials and start downloading...')
       await sleep(1)
     }
 
