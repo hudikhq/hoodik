@@ -145,15 +145,32 @@ export function ensureNoEndingSlash(url: string): string {
  * Try to get origin from window.location
  */
 export function getOrigin(): string {
-  if ('location' in window) {
-    return ensureNoEndingSlash(window.location.origin)
-  }
+  const windowish = getWindowish()
 
-  if ('location' in self) {
-    return ensureNoEndingSlash(self.location.origin)
+  if (windowish) {
+    return ensureNoEndingSlash(windowish.location.origin)
   }
 
   return '/'
+}
+
+/**
+ * Try to get window or self
+ */
+export function getWindowish(): Window | null {
+  try {
+    if ('location' in window) {
+      return window
+    }
+
+    if ('location' in self) {
+      return self
+    }
+  } catch (e) {
+    // do nothing
+  }
+
+  return null
 }
 
 /**
