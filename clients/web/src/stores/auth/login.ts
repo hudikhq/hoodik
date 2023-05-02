@@ -66,6 +66,7 @@ export const store = defineStore('login', () => {
     setCsrf(csrf, expires)
     setJwt(jwt, expires)
     set(authenticated)
+    passAuthenticationToWorkersNow()
     passAuthenticationToWorkers()
 
     _refresher.value = setInterval(() => setupRefresh(), 1000)
@@ -74,18 +75,28 @@ export const store = defineStore('login', () => {
   /**
    * Sending the new authentication tokens to the workers
    * so it can communicate with the backend with the latest credentials
+   *
+   * With 1 second delay to ensure the workers are ready
    */
   function passAuthenticationToWorkers() {
-    setTimeout(() => {
-      const { jwt, csrf } = new Api().toJson()
+    setTimeout(() => passAuthenticationToWorkersNow(), 1000)
+  }
 
-      if ('UPLOAD' in window) {
-        window.UPLOAD.postMessage({ type: 'auth', jwt, csrf })
-      }
-      if ('DOWNLOAD' in window) {
-        window.DOWNLOAD.postMessage({ type: 'auth', jwt, csrf })
-      }
-    }, 1000)
+  /**
+   * Sending the new authentication tokens to the workers
+   * so it can communicate with the backend with the latest credentials
+   */
+  function passAuthenticationToWorkersNow() {
+    const apiTransfer = new Api().toJson()
+
+    if ('UPLOAD' in window) {
+      console.log('Sending auth to upload worker')
+      window.UPLOAD.postMessage({ type: 'auth', ...apiTransfer })
+    }
+    if ('DOWNLOAD' in window) {
+      console.log('Sending auth to download worker')
+      window.DOWNLOAD.postMessage({ type: 'auth', ...apiTransfer })
+    }
   }
 
   /**

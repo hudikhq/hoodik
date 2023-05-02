@@ -34,7 +34,8 @@ export function setCsrf(csrf: string, expires: Date) {
     path: '/',
     sameSite: 'lax',
     // domain: import.meta.env.APP_COOKIE_DOMAIN,
-    expires
+    expires,
+    secure: window.location.protocol.startsWith('https')
   })
 }
 

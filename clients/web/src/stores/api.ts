@@ -7,7 +7,7 @@ export type Query = {
 
 export type Headers = { [key: string]: string }
 
-export type ApiTransfer = { jwt?: string | null; csrf?: string | null }
+export type ApiTransfer = { jwt?: string | null; csrf?: string | null; apiUrl?: string }
 
 /**
  * Interface to represent all the request data we will be doing
@@ -183,10 +183,12 @@ export function toQueryValue(
 export default class Api {
   private jwt: string | null
   private csrf: string | null
+  private apiUrl: string
 
   constructor({ jwt, csrf }: ApiTransfer = {}) {
     this.jwt = jwt || getJwt()
     this.csrf = csrf || getCsrf()
+    this.apiUrl = getApiUrl()
   }
 
   /**
@@ -194,7 +196,7 @@ export default class Api {
    * to pass into the service worker.
    */
   toJson(): ApiTransfer {
-    return { jwt: this.jwt, csrf: this.csrf }
+    return { jwt: this.jwt, csrf: this.csrf, apiUrl: this.apiUrl }
   }
 
   /**
@@ -323,7 +325,7 @@ export default class Api {
   ) {
     api = api || new Api()
 
-    const url = Api.getUrlWithQuery(path, query)
+    const url = api.getUrlWithQuery(path, query)
     const _headers = api.getHeaders(headers)
 
     if (query) {
@@ -379,8 +381,8 @@ export default class Api {
    * Format URL with the query, take in consideration that there could already
    * be a query present in the path, so try to take that into account also
    */
-  static getUrlWithQuery(path: string, query?: Query) {
-    const url = new URL(`${getApiUrl()}${path}`)
+  getUrlWithQuery(path: string, query?: Query) {
+    const url = new URL(`${this.apiUrl}${path}`)
 
     if (query !== null && query !== undefined && typeof query === 'object') {
       for (const name in query) {
