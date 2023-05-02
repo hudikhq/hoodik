@@ -14,3 +14,17 @@ export const KEEP_FINISHED_UPLOADS_FOR_MINUTES = 15
 export const DOWNLOAD_POOL_LIMIT = 1
 export const FILES_DOWNLOADING_AT_ONE_TIME = 1
 export const KEEP_FINISHED_DOWNLOADS_FOR_MINUTES = 15
+
+/**
+ * Preview constants
+ */
+export const PREVIEW_MIME_TYPES = [
+  'image/jpg',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/bmp',
+  'image/webp'
+]
+
+export const IMAGE_THUMBNAIL_SIZE_PX = 200

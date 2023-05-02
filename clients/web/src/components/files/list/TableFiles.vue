@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import TableFileRowWatcher from '@/components/files/TableFileRowWatcher.vue'
+import TableFileRowWatcher from '@/components/files/list/TableFileRowWatcher.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -23,11 +23,12 @@ const props = defineProps<{
 }>()
 
 const emits = defineEmits<{
-  (event: 'browse-files'): void
-  (event: 'create-directory'): void
+  (event: 'actions', file: ListAppFile): void
   (event: 'download', file: ListAppFile): void
-  (event: 'view', file: ListAppFile): void
+  (event: 'preview', file: ListAppFile): void
   (event: 'remove', file: ListAppFile): void
+  (event: 'browse'): void
+  (event: 'directory'): void
   (event: 'remove-all', files: ListAppFile[], fileId: string | null | undefined): void
   (event: 'select-one', select: boolean, file: ListAppFile): void
   (event: 'select-all', files: ListAppFile[], fileId: string | null | undefined): void
@@ -80,10 +81,6 @@ const items = computed(() => {
 
   return [...directories, ...files]
 })
-
-const viewFile = async (file: ListAppFile) => {
-  emits('view', file)
-}
 
 watch(
   () => checkedRows.value,
@@ -144,7 +141,7 @@ const sizes = {
       :icon="mdiFolderPlusOutline"
       color="light"
       v-if="!showDeleteAll"
-      @click="emits('create-directory')"
+      @click="emits('directory')"
     />
 
     <BaseButton
@@ -154,7 +151,7 @@ const sizes = {
       :icon="mdiFilePlusOutline"
       color="light"
       v-if="!showDeleteAll"
-      @click="emits('browse-files')"
+      @click="emits('browse')"
     />
   </div>
 
@@ -204,10 +201,11 @@ const sizes = {
         :hideCheckbox="props.hideCheckbox"
         :hideDelete="props.hideDelete"
         :highlighted="props.searchedFileId === file.id"
-        @remove="emits('remove', file)"
-        @view="viewFile"
-        @checked="(value) => emits('select-one', value, file)"
-        @download="emits('download', file)"
+        @actions="(f: ListAppFile) => emits('actions', f)"
+        @remove="(f: ListAppFile) => emits('remove', f)"
+        @preview="(f: ListAppFile) => emits('preview', f)"
+        @download="(f: ListAppFile) => emits('download', f)"
+        @select-one="(v: boolean, f: ListAppFile) => emits('select-one', v, f)"
       />
     </template>
   </div>

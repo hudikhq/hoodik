@@ -16,7 +16,7 @@ use crate::{data::create_file::CreateFile, repository::Repository};
     method = "POST",
     wrap = "Verify::csrf_header_default()"
 )]
-pub async fn create(
+pub(crate) async fn create(
     req: HttpRequest,
     context: web::Data<Context>,
     data: web::Json<CreateFile>,

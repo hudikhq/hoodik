@@ -16,14 +16,30 @@ import type {
 /**
  * Create a file or directory on the server
  */
-export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise<AppFile> {
+export async function create(
+  keypair: KeyPair,
+  unencrypted: CreateFile,
+  extras?: { [key: string]: string | null | undefined }
+): Promise<AppFile> {
   const key = cryptfns.aes.generateKey()
   const metadata = new FileMetadata(unencrypted.name, key)
+
+  if (extras && Object.keys(extras).length > 0) {
+    metadata.setExtras(extras)
+  }
+
+  let encrypted_metadata
+
+  try {
+    encrypted_metadata = await metadata.encrypt(keypair.publicKey as string)
+  } catch (e) {
+    console.log(e)
+  }
 
   const createFile: EncryptedCreateFile = {
     search_tokens_hashed: unencrypted.search_tokens_hashed,
     name_hash: cryptfns.sha256.digest(unencrypted.name),
-    encrypted_metadata: await metadata.encrypt(keypair.publicKey as string),
+    encrypted_metadata,
     mime: unencrypted.mime,
     size: unencrypted.size,
     chunks: unencrypted.chunks,

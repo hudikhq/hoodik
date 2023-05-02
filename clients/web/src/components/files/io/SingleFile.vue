@@ -86,6 +86,7 @@ const percentage = computed(() => {
       :type="props.type"
       :name="name"
       :size="size"
+      :is-upload="isUpload"
       v-if="props.type.endsWith('waiting')"
       @remove="remove"
     />
@@ -95,6 +96,7 @@ const percentage = computed(() => {
       :type="props.type"
       :name="name"
       :size="size"
+      :is-upload="isUpload"
       v-if="props.type.endsWith('done')"
       @remove="remove"
     />
