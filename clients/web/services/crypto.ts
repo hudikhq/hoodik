@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import * as rsa from './cryptfns/rsa'
-import type { KeyPair } from '@/types'
+import type { KeyPair } from 'types'
 
 export const store = defineStore('crypto', () => {
   const KeyPair = ref<KeyPair>({

@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { store as loginStore } from './login'
 import * as crypto from '../cryptfns'
 import { default as Api, type InnerValidationErrors } from '../api'
-import type { AuthenticatedJwt, CreateUser } from '@/types'
+import type { AuthenticatedJwt, CreateUser } from 'types'
 
 export const store = defineStore('register', () => {
   const _createUser = ref<CreateUser>({

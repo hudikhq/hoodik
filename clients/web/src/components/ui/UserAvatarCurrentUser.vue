@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { store } from '@/stores/auth/login'
+import { store } from '!/auth/login'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 
 const login = store()

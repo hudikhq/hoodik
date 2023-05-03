@@ -1,4 +1,4 @@
-import type { FileMetadata } from '../stores/storage/metadata'
+import type { FileMetadata } from '../services/storage/metadata'
 import type { WorkerErrorType } from './worker'
 
 export interface UploadAppFile extends AppFile {

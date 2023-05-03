@@ -5,8 +5,8 @@ import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { mdiTrashCanOutline, mdiFolderPlusOutline, mdiFilePlusOutline } from '@mdi/js'
-import type { ListAppFile } from '@/types'
-import type { Helper } from '@/stores/storage/helper'
+import type { ListAppFile } from 'types'
+import type { Helper } from '!/storage/helper'
 
 const props = defineProps<{
   helper: Helper

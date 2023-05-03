@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { mdiClose, mdiLogout } from '@mdi/js'
 import { computed } from 'vue'
-import { store as style } from '@/stores/style'
-import { store as login } from '@/stores/auth/login'
-import { store as crypto } from '@/stores/crypto'
+import { store as style } from '!/style'
+import { store as login } from '!/auth/login'
+import { store as crypto } from '!/crypto'
 import AsideMenuList from '@/components/ui/AsideMenuList.vue'
 import AsideMenuItem from '@/components/ui/AsideMenuItem.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'

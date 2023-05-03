@@ -1,4 +1,4 @@
-import type { KeyPair } from '@/types'
+import type { KeyPair } from 'types'
 import { aes } from '.'
 import {
   rsa_generate_private,

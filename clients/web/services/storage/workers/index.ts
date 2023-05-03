@@ -1,15 +1,9 @@
-import {} from './../../api'
 export * from './chunk'
 export * from './download'
 
-import Api from '@/stores/api'
+import Api from '../../api'
 
-import type {
-  DownloadAppFile,
-  DownloadFileMessage,
-  UploadAppFile,
-  UploadFileMessage
-} from '@/types'
+import type { DownloadAppFile, DownloadFileMessage, UploadAppFile, UploadFileMessage } from 'types'
 
 /**
  * Use service worker to upload a single chunk

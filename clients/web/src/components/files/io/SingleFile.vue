@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { formatSize } from '@/stores'
+import { formatSize } from '!'
 import FilePending from './FilePending.vue'
 import FileDone from './FileDone.vue'
 import FileFailed from './FileFailed.vue'
 import FileRunning from './FileRunning.vue'
 import { computed } from 'vue'
-import type { DownloadAppFile, UploadAppFile, QueueItemActionType } from '@/types'
+import type { DownloadAppFile, UploadAppFile, QueueItemActionType } from 'types'
 
 const props = defineProps<{
   type: QueueItemActionType

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { store as uploadStore } from '@/stores/storage/upload'
+import { store as uploadStore } from '!/storage/upload'
 import { ref, watch } from 'vue'
-import type { KeyPair, ListAppFile } from '@/types'
+import type { KeyPair, ListAppFile } from 'types'
 
 const props = defineProps<{
   dir: ListAppFile | undefined | null

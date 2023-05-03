@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ListAppFile } from '@/types'
+import type { ListAppFile } from 'types'
 import BaseButton from '../ui/BaseButton.vue'
 import { computed } from 'vue'
 

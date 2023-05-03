@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { store as style } from '@/stores/style'
+import { store as style } from '!/style'
 import { gradientBgPurplePink, gradientBgDark, gradientBgPinkRed } from '@/colors'
 
 const props = defineProps<{ bg: 'purplePink' | 'pinkRed' }>()

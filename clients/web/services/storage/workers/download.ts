@@ -1,7 +1,7 @@
-import type Api from '@/stores/api'
-import * as cryptfns from '@/stores/cryptfns'
+import type Api from '../../api'
+import * as cryptfns from '../../cryptfns'
 
-import type { DownloadProgressFunction, ListAppFile } from '../../../types'
+import type { DownloadProgressFunction, ListAppFile } from 'types'
 
 /**
  * Create readable stream from downloading chunks and stream them

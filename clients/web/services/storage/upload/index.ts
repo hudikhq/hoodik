@@ -1,6 +1,6 @@
 import * as meta from '../meta'
 import { ErrorResponse } from '../../api'
-import { errorIntoWorkerError, localDateFromUtcString, utcStringFromLocal, uuidv4 } from '@/stores'
+import { errorIntoWorkerError, localDateFromUtcString, utcStringFromLocal, uuidv4 } from '../../'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as sync from './sync'
@@ -19,7 +19,7 @@ import type {
   IntervalType,
   FilesStore,
   KeyPair
-} from '@/types'
+} from 'types'
 import { createThumbnail } from './thumbnail'
 
 export const store = defineStore('upload', () => {

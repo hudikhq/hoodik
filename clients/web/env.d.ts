@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 /// <reference path="cryptfns/cryptfns.d.ts" />
 
-import type Api from './src/stores/api'
+import type Api from './stores/api'
 
 declare global {
   interface Window {

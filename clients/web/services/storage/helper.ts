@@ -6,7 +6,7 @@ import type {
   AppFile,
   HelperType,
   KeyPair
-} from '@/types'
+} from 'types'
 import { FileMetadata } from './metadata'
 
 /**

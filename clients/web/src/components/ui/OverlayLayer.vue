@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { store as style } from '@/stores/style.js'
+import { store as style } from '!/style.js'
 const styleStore = style()
 
 defineProps({

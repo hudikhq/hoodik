@@ -3,9 +3,9 @@ import { ref } from 'vue'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import { AppForm, AppField } from '@/components/form'
 import * as yup from 'yup'
-import { store as storageStore } from '@/stores/storage'
-import { store as cryptoStore } from '@/stores/crypto'
-import type { ErrorResponse } from '@/stores/api'
+import { store as storageStore } from '!/storage'
+import { store as cryptoStore } from '!/crypto'
+import type { ErrorResponse } from '!/api'
 
 const storage = storageStore()
 const crypto = cryptoStore()

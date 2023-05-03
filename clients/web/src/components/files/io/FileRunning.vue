@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { formatSize, localDateFromUtcString } from '@/stores'
+import { formatSize, localDateFromUtcString } from '!'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import { computed } from 'vue'
 import { mdiClose, mdiArrowUpBoldOutline, mdiArrowDownBoldOutline } from '@mdi/js'
-import type { DownloadAppFile, UploadAppFile, QueueItemActionType } from '@/types'
+import type { DownloadAppFile, UploadAppFile, QueueItemActionType } from 'types'
 
 const props = defineProps<{
   type: QueueItemActionType

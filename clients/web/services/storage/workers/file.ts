@@ -1,8 +1,8 @@
-import { utcStringFromLocal } from '@/stores'
+import { utcStringFromLocal } from '../../'
 import { uploadChunk } from './chunk'
-import type { UploadAppFile } from '../../../types'
-import type { ErrorResponse } from '@/stores/api'
-import type Api from '@/stores/api'
+import type { UploadAppFile } from 'types'
+import type { ErrorResponse } from '../../api'
+import type Api from '../../api'
 import { CHUNK_SIZE_BYTES, CONCURRENT_CHUNKS_UPLOAD } from '../constants'
 
 /**

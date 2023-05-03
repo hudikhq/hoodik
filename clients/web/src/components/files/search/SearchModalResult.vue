@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { ListAppFile } from '@/types'
+import type { ListAppFile } from 'types'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { mdiFolderOutline, mdiFileOutline } from '@mdi/js'
 import { computed } from 'vue'
-import { formatSize } from '@/stores'
+import { formatSize } from '!'
 
 const props = defineProps<{
   file: ListAppFile

@@ -1,7 +1,7 @@
-import type { Query } from '../stores/api'
-import type { store as downloadStore } from '../stores/storage/download'
-import type { store as uploadStore } from '../stores/storage/upload'
-import type { store as filesStore } from '../stores/storage'
+import type { Query } from '../services/api'
+import type { store as downloadStore } from '../services/storage/download'
+import type { store as uploadStore } from '../services/storage/upload'
+import type { store as filesStore } from '../services/storage'
 import type { AppFile, ListAppFile, UploadAppFile, DownloadAppFile } from './file'
 
 export * from './create'

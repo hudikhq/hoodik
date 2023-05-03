@@ -1,10 +1,10 @@
-import * as cryptfns from '@/stores/cryptfns'
-import { utcStringFromLocal } from '@/stores'
-import { MAX_UPLOAD_RETRIES } from '@/stores/storage/constants'
+import * as cryptfns from '../../cryptfns'
+import { utcStringFromLocal } from '../..'
+import { MAX_UPLOAD_RETRIES } from '../../storage/constants'
 
-import type { AppFile, UploadAppFile, UploadChunkResponseMessage } from '@/types'
-import type Api from '@/stores/api'
-import type { ErrorResponse } from '@/stores/api'
+import type { AppFile, UploadAppFile, UploadChunkResponseMessage } from 'types'
+import type Api from '../../api'
+import type { ErrorResponse } from '../../api'
 
 /**
  * Upload a single chunk

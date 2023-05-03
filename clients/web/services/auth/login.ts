@@ -13,13 +13,7 @@ import {
 import type { store as cryptoStore } from '../crypto'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type {
-  Authenticated,
-  AuthenticatedJwt,
-  Credentials,
-  KeyPair,
-  PrivateKeyLogin
-} from '@/types'
+import type { Authenticated, AuthenticatedJwt, Credentials, KeyPair, PrivateKeyLogin } from 'types'
 
 interface PrivateKeyRequest {
   fingerprint: string

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { store as style } from '@/stores/style'
+import { store as style } from '!/style'
 
 const styleStore = style()
 </script>

@@ -1,4 +1,4 @@
-import type { Key } from '@/types'
+import type { Key } from 'types'
 import { uint8 } from '.'
 import { aes_decrypt, aes_encrypt, aes_generate_key } from './wasm'
 
