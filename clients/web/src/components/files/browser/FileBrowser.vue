@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { store as downloadStore } from '@/stores/storage/download'
-import { store as storageStore } from '@/stores/storage'
-import { store as cryptoStore } from '@/stores/crypto'
+import { store as downloadStore } from '!/storage/download'
+import { store as storageStore } from '!/storage'
+import { store as cryptoStore } from '!/crypto'
 import PreviewModal from '@/components/files/browser/PreviewModal.vue'
 import DeleteMultipleModal from '@/components/files/browser/DeleteMultipleModal.vue'
 import ActionsModal from '@/components/files/browser/ActionsModal.vue'
@@ -9,8 +9,8 @@ import CreateDirectoryModal from '@/components/files/browser/CreateDirectoryModa
 import DeleteModal from '@/components/files/browser/DeleteModal.vue'
 import UploadButton from '@/components/files/browser/UploadButton.vue'
 import { ref, watch, onMounted } from 'vue'
-import type { ListAppFile } from '@/types'
-import { Helper } from '@/stores/storage/helper'
+import type { ListAppFile } from 'types'
+import { Helper } from '!/storage/helper'
 
 const props = defineProps<{
   parentId?: string

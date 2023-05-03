@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
-import type { FilesStore, KeyPair } from '@/types'
+import type { FilesStore, KeyPair } from 'types'
 
 const props = defineProps<{
   modelValue: boolean

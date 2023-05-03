@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import TableFileRow from '@/components/files/list/TableFileRow.vue'
-import type { Helper } from '@/stores/storage/helper'
-import type { ListAppFile } from '@/types'
+import type { Helper } from '!/storage/helper'
+import type { ListAppFile } from 'types'
 import scrollMonitor from 'scrollmonitor'
 import { ref, onMounted } from 'vue'
 

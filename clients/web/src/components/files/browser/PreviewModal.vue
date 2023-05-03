@@ -2,7 +2,7 @@
 import { mdiTrashCan, mdiDownload } from '@mdi/js'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import type { FilesStore, KeyPair, ListAppFile } from '@/types'
+import type { FilesStore, KeyPair, ListAppFile } from 'types'
 import { ref, watch } from 'vue'
 
 const props = defineProps<{

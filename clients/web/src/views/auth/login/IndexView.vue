@@ -4,12 +4,12 @@ import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import { AppForm, AppField, AppButton, AppCheckbox } from '@/components/form'
 import * as yup from 'yup'
-import { store } from '@/stores/auth/login'
-import { store as cryptoStore } from '@/stores/crypto'
+import { store } from '!/auth/login'
+import { store as cryptoStore } from '!/crypto'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
-import type { ErrorResponse } from '@/stores/api'
-import type { Credentials } from '@/types'
+import type { ErrorResponse } from '!/api'
+import type { Credentials } from 'types'
 
 const login = store()
 const router = useRouter()

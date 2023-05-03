@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { AppForm, AppField, AppButton } from '@/components/form'
 import * as yup from 'yup'
-import { store } from '@/stores/auth/register'
+import { store } from '!/auth/register'
 import { useRouter } from 'vue-router'
 import { computed, ref } from 'vue'
-import type { ErrorResponse } from '@/stores/api'
+import type { ErrorResponse } from '!/api'
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import QRCodeComponent from 'qrcode.vue'
-import type { CreateUser } from '@/types'
+import type { CreateUser } from 'types'
 
 const register = store()
 const router = useRouter()

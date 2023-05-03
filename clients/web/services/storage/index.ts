@@ -4,12 +4,19 @@ import * as upload from './upload'
 import * as download from './download'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import * as cryptfns from '@/stores/cryptfns'
-import { utcStringFromLocal, uuidv4 } from '@/stores'
-import { FileMetadata } from '@/stores/storage/metadata'
-import type { EncryptedAppFile, KeyPair } from '@/types'
+import * as cryptfns from '../cryptfns'
+import { utcStringFromLocal, uuidv4 } from '..'
+import { FileMetadata } from '../storage/metadata'
 
-import type { AppFile, CreateFile, FileResponse, ListAppFile, Parameters } from '../../types'
+import type {
+  AppFile,
+  CreateFile,
+  FileResponse,
+  ListAppFile,
+  Parameters,
+  EncryptedAppFile,
+  KeyPair
+} from 'types'
 
 export { meta, upload, download, queue }
 

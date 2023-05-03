@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { store as filesStore } from '@/stores/storage'
-import { store as queueStore } from '@/stores/storage/queue'
-import { store as uploadStore } from '@/stores/storage/upload'
-import { store as downloadStore } from '@/stores/storage/download'
+import { store as filesStore } from '!/storage'
+import { store as queueStore } from '!/storage/queue'
+import { store as uploadStore } from '!/storage/upload'
+import { store as downloadStore } from '!/storage/download'
 import SingleFile from '@/components/files/io/SingleFile.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { computed, ref, watch, onBeforeMount } from 'vue'
 import { mdiChevronDown, mdiChevronUp } from '@mdi/js'
-import type { DownloadAppFile, UploadAppFile, QueueItemActionType } from '@/types'
+import type { DownloadAppFile, UploadAppFile, QueueItemActionType } from 'types'
 import BaseButton from '@/components/ui/BaseButton.vue'
 
 type InnerFileList = {

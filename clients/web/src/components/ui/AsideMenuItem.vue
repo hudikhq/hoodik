@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { store as style } from '@/stores/style.js'
+import { store as style } from '!/style.js'
 import { mdiMinus, mdiPlus } from '@mdi/js'
 import { getButtonColor } from '@/colors.js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'

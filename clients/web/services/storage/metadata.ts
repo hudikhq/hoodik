@@ -1,5 +1,5 @@
 import * as cryptfns from '../cryptfns'
-import type { FileMetadataJson, Key, KeyPair } from '@/types'
+import type { FileMetadataJson, Key, KeyPair } from 'types'
 
 export class FileMetadata {
   /**

@@ -3,8 +3,8 @@ import { mdiTrashCan, mdiEye, mdiDownload, mdiDotsVertical } from '@mdi/js'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import TruncatedSpan from '@/components/ui/TruncatedSpan.vue'
-import { formatPrettyDate, formatSize } from '@/stores'
-import type { ListAppFile } from '@/types'
+import { formatPrettyDate, formatSize } from '!'
+import type { ListAppFile } from 'types'
 import { computed } from 'vue'
 
 const props = defineProps<{

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { computed, onMounted } from 'vue'
-import * as index from '@/stores'
+import * as index from '!'
 import { mdiMagnify } from '@mdi/js'
 
 const emits = defineEmits<{

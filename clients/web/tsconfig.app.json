@@ -4,7 +4,9 @@
     "env.d.ts",
     "src/**/*",
     "src/**/*.vue",
-    "sw.ts"
+    "sw.ts",
+    "./services",
+    "./types"
   ],
   "exclude": [
     "src/**/__tests__/*"
@@ -19,6 +21,12 @@
       ],
       "@": [
         "./src"
+      ],
+      "!/*": [
+        "./services/*"
+      ],
+      "!": [
+        "./services"
       ],
     }
   }

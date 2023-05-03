@@ -4,11 +4,11 @@ import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import { AppForm, AppField, AppButton, AppCheckbox } from '@/components/form'
 import * as yup from 'yup'
-import { store } from '@/stores/auth/login'
-import { store as cryptoStore } from '@/stores/crypto'
+import { store } from '!/auth/login'
+import { store as cryptoStore } from '!/crypto'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
-import * as cryptfns from '@/stores/cryptfns'
+import * as cryptfns from '!/cryptfns'
 
 const login = store()
 const router = useRouter()

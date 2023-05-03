@@ -2,10 +2,10 @@
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import SearchModalResult from '@/components/files/search/SearchModalResult.vue'
 import { AppForm } from '@/components/form'
-import { search } from '@/stores/storage'
+import { search } from '!/storage'
 import { computed, ref, watch } from 'vue'
 import * as yup from 'yup'
-import type { KeyPair, ListAppFile } from '@/types'
+import type { KeyPair, ListAppFile } from 'types'
 import { Field } from 'vee-validate'
 
 const props = defineProps<{ keypair: KeyPair; modelValue: boolean }>()

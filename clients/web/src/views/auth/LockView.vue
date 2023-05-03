@@ -2,14 +2,14 @@
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
-import { store } from '@/stores/auth/login'
-import { store as cryptoStore } from '@/stores/crypto'
+import { store } from '!/auth/login'
+import { store as cryptoStore } from '!/crypto'
 import { mdiLock } from '@mdi/js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
-import * as cryptfns from '@/stores/cryptfns'
+import * as cryptfns from '!/cryptfns'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
-import { hasAuthentication } from '@/stores/auth'
+import { hasAuthentication } from '!/auth'
 import { AppButton } from '@/components/form'
 
 const login = store()

@@ -1,4 +1,4 @@
-import type { InnerValidationErrors } from '@/stores/api'
+import type { InnerValidationErrors } from '!/api'
 import type { ListAppFile, UploadAppFile } from './file'
 import type { FileMetadataJson } from '.'
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { store } from '@/stores/style'
+import { store } from '!/style'
 
 defineProps({
   display: {

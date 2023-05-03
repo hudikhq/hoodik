@@ -2,7 +2,7 @@
 import PureButton from '@/components/ui/PureButton.vue'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import { mdiTrashCan, mdiEye, mdiDownload } from '@mdi/js'
-import type { ListAppFile } from '@/types'
+import type { ListAppFile } from 'types'
 
 const props = defineProps<{
   modelValue: ListAppFile | undefined

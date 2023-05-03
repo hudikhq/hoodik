@@ -11,7 +11,7 @@ import type {
   KeyPair,
   EncryptedAppFile,
   SearchQuery
-} from '@/types'
+} from 'types'
 
 /**
  * Create a file or directory on the server

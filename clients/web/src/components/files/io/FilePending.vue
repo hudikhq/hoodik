@@ -7,7 +7,7 @@ import {
   mdiArrowUpBoldOutline,
   mdiArrowDownBoldOutline
 } from '@mdi/js'
-import type { DownloadAppFile, UploadAppFile, QueueItemActionType } from '@/types'
+import type { DownloadAppFile, UploadAppFile, QueueItemActionType } from 'types'
 
 const props = defineProps<{
   type: QueueItemActionType

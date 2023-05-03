@@ -1,8 +1,8 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
-import { createPinia } from '@/stores/init'
-import { store as style } from '@/stores/style'
+import { createPinia } from '!/init'
+import { store as style } from '!/style'
 import { lightModeKey, styleKey } from '@/config'
 
 // @ts-ignore
