@@ -110,8 +110,12 @@ const sizes = computed(() => {
       <router-link class="font-bold" :to="`/directory/${file.id}`" v-if="isDir">
         <TruncatedSpan :middle="fileName.length > 50" :text="fileName" />
       </router-link>
-
-      <a class="font-bold" href="#" @click="emits('preview', file)" v-if="file.metadata?.thumbnail">
+      <a
+        class="font-bold"
+        href="#"
+        @click="emits('preview', file)"
+        v-else-if="file.metadata?.thumbnail"
+      >
         <img
           v-if="file.metadata?.thumbnail"
           :src="file.metadata?.thumbnail"
