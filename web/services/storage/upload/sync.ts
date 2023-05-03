@@ -1,6 +1,6 @@
 import Api, { ErrorResponse } from '../../api'
 import * as cryptfns from '../../cryptfns'
-import { utcStringFromLocal } from '../../'
+import { utcStringFromLocal } from '../..'
 import { MAX_UPLOAD_RETRIES } from '../constants'
 
 import type { Query } from '../../api'

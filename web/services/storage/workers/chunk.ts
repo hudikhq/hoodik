@@ -1,6 +1,6 @@
 import * as cryptfns from '../../cryptfns'
 import { utcStringFromLocal } from '../..'
-import { MAX_UPLOAD_RETRIES } from '../../storage/constants'
+import { MAX_UPLOAD_RETRIES } from '../constants'
 
 import type { AppFile, UploadAppFile, UploadChunkResponseMessage } from 'types'
 import type Api from '../../api'

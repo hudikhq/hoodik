@@ -1,4 +1,4 @@
-import { utcStringFromLocal } from '../../'
+import { utcStringFromLocal } from '../..'
 import { uploadChunk } from './chunk'
 import type { UploadAppFile } from 'types'
 import type { ErrorResponse } from '../../api'
