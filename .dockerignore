@@ -1,5 +1,4 @@
 .cargo
-target
 node_modules
 data
 .env.example
