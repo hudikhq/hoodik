@@ -1,2 +1,23 @@
-pub const _DEFAULT: &[u8] = &[];
-pub const _CLIENT: [(&str, &[u8]); 0] = [];
+pub const _DEFAULT: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/index.html"));
+pub const _CLIENT: [(&str, &[u8]); 20] = [
+("favicon.ico", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/favicon.ico"))),
+("index.html", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/index.html"))),
+("pwa-512x512.png", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/pwa-512x512.png"))),
+("pwa-192x192.png", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/pwa-192x192.png"))),
+("sw.js", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/sw.js"))),
+("assets/DecryptView-0781769c.js", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/assets/DecryptView-0781769c.js"))),
+("assets/LockView-8e5464e0.js", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/assets/LockView-8e5464e0.js"))),
+("assets/PrivateKeyView-2e912423.js", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/assets/PrivateKeyView-2e912423.js"))),
+("assets/KeyView-fe2412f6.js", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/assets/KeyView-fe2412f6.js"))),
+("assets/index-45eb5e7a.css", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/assets/index-45eb5e7a.css"))),
+("assets/IndexView-9cf76819.js", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/assets/IndexView-9cf76819.js"))),
+("assets/AppCheckbox.vue_vue_type_script_setup_true_lang-d80ac272.js", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/assets/AppCheckbox.vue_vue_type_script_setup_true_lang-d80ac272.js"))),
+("assets/constants-d13ff9cc.js", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/assets/constants-d13ff9cc.js"))),
+("assets/TwoFactorView-849dcd25.js", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/assets/TwoFactorView-849dcd25.js"))),
+("assets/SetupLockScreenView-7d26dc42.js", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/assets/SetupLockScreenView-7d26dc42.js"))),
+("assets/SectionFullScreen.vue_vue_type_script_setup_true_lang-d48aa2ea.js", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/assets/SectionFullScreen.vue_vue_type_script_setup_true_lang-d48aa2ea.js"))),
+("assets/TwoFactorView-6b50b406.css", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/assets/TwoFactorView-6b50b406.css"))),
+("assets/main.fd0a2ce1.js", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/assets/main.fd0a2ce1.js"))),
+("assets/cryptfns_bg-0af41ef1.wasm", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/assets/cryptfns_bg-0af41ef1.wasm"))),
+("assets/IndexView-6a82d512.js", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/assets/IndexView-6a82d512.js"))),
+];

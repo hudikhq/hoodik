@@ -13,7 +13,7 @@ import {
   aes_encrypt,
   aes_decrypt,
   text_into_hashed_tokens
-} from '../../cryptfns'
+} from 'cryptfns'
 
 export {
   rsa_generate_private,

@@ -18,7 +18,6 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v3
 
-      - uses: actions/checkout@v2
       - name: ⚡ Cache
         uses: actions/cache@v2
         with:
@@ -28,11 +27,14 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Install OS dependencies
+        run: sudo apt install curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev -y
+
+      - name: Install wasm pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
       - name: Read the crate version
         run: echo "CARGO_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')" >> $GITHUB_ENV
-
-      - name: rust sccache
-        uses: pl-strflt/rust-sccache-action@v1.1.1
 
       - name: Log in to Docker Hub
         uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
@@ -52,15 +54,6 @@ jobs:
           echo "APP_VERSION=${{ env.CARGO_VERSION }}" >> $PWD/.env
           echo "APP_NAME=Hoodik" >> $PWD/.env
 
-      - name: Loading the configuration from
-        run: ls -la && cat "$PWD/.env" && export ENV_FILE="$PWD/.env" && node --version
-
-      - name: Install os dependencies
-        run: sudo apt install curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev -y
-
-      - name: Install wasm pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-
       - name: Install yarn
         run: npm install -g yarn
 
@@ -79,5 +72,4 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.vars.outputs.tag }} , ${{ secrets.DOCKER_USERNAME }}/hoodik:latest
-
           labels: ${{ steps.meta.outputs.labels }}

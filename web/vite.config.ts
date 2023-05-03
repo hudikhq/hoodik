@@ -33,7 +33,8 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '!': path.resolve(__dirname, 'services'),
-      types: path.resolve(__dirname, 'types')
+      types: path.resolve(__dirname, 'types'),
+      cryptfns: path.resolve(__dirname, 'cryptfns')
     }
   },
   css: {
