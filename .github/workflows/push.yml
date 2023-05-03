@@ -18,6 +18,9 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v3
 
+      - name: Read the crate version
+        run: echo "CARGO_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')" >> $GITHUB_ENV
+
       - name: Log in to Docker Hub
         uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
         with:
@@ -28,13 +31,14 @@ jobs:
         id: meta
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
-          images: htunlogic/hoodik
-          tags: latest
+          images: ${{ secrets.DOCKER_USERNAME }}/hoodik
+          tags: ${{ CARGO_VERSION }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/hoodik:${{ steps.vars.outputs.tag }} , ${{ secrets.DOCKER_HUB_USERNAME }}/hoodik:latest
+
           labels: ${{ steps.meta.outputs.labels }}
