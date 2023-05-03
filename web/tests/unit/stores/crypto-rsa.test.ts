@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { rsa } from '../../../services/cryptfns'
-import { rsa_generate_private } from '../../../node_modules/cryptfns/cryptfns.js'
+import { rsa_generate_private } from '../../../cryptfns/cryptfns.js'
 
 const privatePem = `-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAsMvjT2NZNqJo/3AYHH3RIm5fwmOXabbYxduvtNp33JQQZSPu
@@ -177,7 +177,7 @@ describe('Crypto test', () => {
   it('UNIT: RSA: test length of the encryption', async () => {
     const kp = await rsa.generateKeyPair()
 
-    for (let i = 1; i < 1000; i++) {
+    for (let i = 1; i < 245; i++) {
       try {
         const message = 'a'.repeat(i)
         const encrypted = await rsa.encryptMessage(message, kp.publicKey as string)

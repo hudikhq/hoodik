@@ -17,7 +17,7 @@ fn handle_no_dist(client_out_file: &mut File) -> io::Result<()> {
 }
 
 fn main() -> io::Result<()> {
-    let client_dist_dir = PathBuf::from("clients/web/dist");
+    let client_dist_dir = PathBuf::from("web/dist");
     let out_dir = PathBuf::from("src");
     let mut client_out_file = File::create(out_dir.join("client.rs"))?;
 
@@ -27,7 +27,7 @@ fn main() -> io::Result<()> {
 
     writeln!(
         client_out_file,
-        "pub const _DEFAULT: &[u8] = include_bytes!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/clients/web/dist/index.html\"));",
+        "pub const _DEFAULT: &[u8] = include_bytes!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/web/dist/index.html\"));",
     )?;
 
     writeln!(
@@ -52,7 +52,7 @@ fn main() -> io::Result<()> {
 
                 writeln!(
                     client_out_file,
-                    r#"("{}", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/clients/web/dist/{}"))),"#,
+                    r#"("{}", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/{}"))),"#,
                     relative_path, relative_path
                 )?;
             }
@@ -60,7 +60,7 @@ fn main() -> io::Result<()> {
     }
     writeln!(client_out_file, "];")?;
 
-    println!("cargo:rerun-if-changed=clients/web/dist");
+    println!("cargo:rerun-if-changed=web/dist");
 
     Ok(())
 }

@@ -1,4 +1,4 @@
-import { meta } from '../'
+import { meta } from '..'
 import * as sync from './sync'
 import { FileMetadata } from '../metadata'
 import { defineStore } from 'pinia'
@@ -12,7 +12,7 @@ import type {
   QueueStore
 } from '../../../types'
 import type { KeyPair } from 'types'
-import { errorIntoWorkerError, localDateFromUtcString, utcStringFromLocal, uuidv4 } from '../../'
+import { errorIntoWorkerError, localDateFromUtcString, utcStringFromLocal, uuidv4 } from '../..'
 import { FILES_DOWNLOADING_AT_ONE_TIME, KEEP_FINISHED_DOWNLOADS_FOR_MINUTES } from '../constants'
 import { ref } from 'vue'
 import { startFileDownload } from '../workers'

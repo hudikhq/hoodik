@@ -6,7 +6,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import * as cryptfns from '../cryptfns'
 import { utcStringFromLocal, uuidv4 } from '..'
-import { FileMetadata } from '../storage/metadata'
+import { FileMetadata } from './metadata'
 
 import type {
   AppFile,
