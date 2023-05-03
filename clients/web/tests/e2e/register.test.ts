@@ -1,7 +1,8 @@
 import { createPinia } from 'pinia'
-import { store as registerStore, type CreateUser } from '../../src/stores/auth/register'
-import * as crypto from '../../src/stores/cryptfns'
+import { store as registerStore } from '../../services/auth/register'
+import * as crypto from '../../services/cryptfns'
 import { describe, it, expect } from 'vitest'
+import { CreateUser } from '../../types'
 
 const pinia = createPinia()
 const register = registerStore(pinia)

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { getUserWithoutKey, getUserWithKey } from './register.test'
-import { store as loginStore } from '../../src/stores/auth/login'
-import { store as cryptoStore } from '../../src/stores/crypto'
-import * as cryptofns from '../../src/stores/cryptfns'
+import { store as loginStore } from '../../services/auth/login'
+import { store as cryptoStore } from '../../services/crypto'
+import * as cryptofns from '../../services/cryptfns'
 import { createPinia } from 'pinia'
 
 const pinia = createPinia()

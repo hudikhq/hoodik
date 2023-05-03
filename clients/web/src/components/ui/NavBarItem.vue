@@ -5,7 +5,6 @@ import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { store } from '!/style'
 import { store as loginStore } from '!/auth/login'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
-import UserAvatarCurrentUser from '@/components/ui/UserAvatarCurrentUser.vue'
 import NavBarMenuList from '@/components/ui/NavBarMenuList.vue'
 import BaseDivider from '@/components/ui/BaseDivider.vue'
 import type { NavBarItem } from '@/menuNavBar'
@@ -114,7 +113,6 @@ onBeforeUnmount(() => {
           item.menu
       }"
     >
-      <UserAvatarCurrentUser v-if="item.isCurrentUser" class="w-6 h-6 mr-3 inline-flex" />
       <BaseIcon v-if="item.icon" :path="item.icon" class="transition-colors" />
       <span
         class="px-2 transition-colors"
