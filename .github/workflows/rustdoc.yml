@@ -28,7 +28,7 @@ jobs:
         run: cargo doc --workspace --no-deps
 
       - name: Deploy Docs
-        uses: peaceiris/actions-gh-pages@364c31d33bb99327c77b3a5438a83a357a6729ad # v3.4.0
+        uses: peaceiris/actions-gh-pages # v3.4.0
         with:
           github_token: ${{ secrets.GH_TOKEN }}
           publish_branch: gh-pages

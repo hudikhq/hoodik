@@ -34,6 +34,29 @@ jobs:
           images: ${{ secrets.DOCKER_USERNAME }}/hoodik
           tags: ${{ env.CARGO_VERSION }}
 
+      - name: Generate .env
+        run: |
+          echo "APP_VERSION=${{ env.CARGO_VERSION }}" >> $PWD/.env
+          echo "APP_NAME=Hoodik" >> $PWD/.env
+
+      - name: Loading the configuration from
+        run: ls -la && cat "$PWD/.env" && export ENV_FILE="$PWD/.env" && node --version
+
+      - name: Install os dependencies
+        run: sudo apt install curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev -y
+
+      - name: Install yarn
+        run: npm install -g yarn
+
+      - name: Install yarn dependencies
+        run: yarn install
+
+      - name: Wasm pack
+        run: yarn wasm-pack
+
+      - name: Wasm pack
+        run: yarn release:all
+
       - name: Build and push Docker image
         uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
         with:
