@@ -26,9 +26,8 @@
     },
     "wasm-pack": {
       "cache": false,
-      "dependsOn": [],
       "outputs": [
-        "pkg/**"
+        "web/cryptfns/**"
       ],
       "inputs": [
         "cryptfns/**/*.rs",
@@ -52,7 +51,7 @@
     },
     "test:watch": {
       "dependsOn": [
-        "^wasm-pack"
+        "wasm-pack"
       ],
       "cache": false,
       "persistent": true
@@ -68,7 +67,8 @@
       ],
       "outputs": [
         "dist/**"
-      ]
+      ],
+      "cache": true
     },
     "//#release": {
       "dependsOn": [],
@@ -79,7 +79,8 @@
       "outputs": [
         "target/release/hoodik",
         "target/release/hoodik.*"
-      ]
+      ],
+      "cache": true
     },
     "lint": {}
   }

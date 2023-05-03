@@ -60,9 +60,6 @@ jobs:
       - name: Install yarn dependencies
         run: yarn install
 
-      - name: Wasm pack
-        run: yarn wasm-pack
-
       - name: Release all
         run: yarn release:all
 
@@ -71,5 +68,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.vars.outputs.tag }} , ${{ secrets.DOCKER_USERNAME }}/hoodik:latest
+          tags: ${{ steps.vars.outputs.tags }} , ${{ secrets.DOCKER_USERNAME }}/hoodik:latest
           labels: ${{ steps.meta.outputs.labels }}

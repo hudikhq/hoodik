@@ -18,16 +18,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - uses: actions/checkout@v2
-      - name: ⚡ Cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Install Rust toolchain
         run: rustup update --no-self-update stable
 
@@ -38,7 +28,7 @@ jobs:
         run: cargo doc --workspace --no-deps
 
       - name: Deploy Docs
-        uses: peaceiris/actions-gh-pages # v3.4.0
+        uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GH_TOKEN }}
           publish_branch: gh-pages
