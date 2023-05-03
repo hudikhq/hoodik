@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { store as filesStore } from '!/storage'
-import { store as queueStore } from '!/storage/queue'
+import { store as queueStore } from '!/queue'
 import { store as uploadStore } from '!/storage/upload'
 import { store as downloadStore } from '!/storage/download'
 import SingleFile from '@/components/files/io/SingleFile.vue'
@@ -230,7 +230,7 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
       </div>
       <div class="max-h-[325px] overflow-y-scroll bg-brownish-50 dark:bg-brownish-800">
         <div v-show="showTable">
-          <template v-for="item in displaying" v-bind:key="item.file.id">
+          <template v-for="item in displaying" v-bind:key="`${item.file.id}-${item.type}`">
             <SingleFile :file="item.file" :type="item.type" @remove="remove" />
           </template>
 

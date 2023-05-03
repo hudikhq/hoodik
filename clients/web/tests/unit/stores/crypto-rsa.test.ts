@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rsa } from '../../../src/stores/cryptfns'
+import { rsa } from '../../../services/cryptfns'
 import { rsa_generate_private } from '../../../node_modules/cryptfns/cryptfns.js'
 
 const privatePem = `-----BEGIN RSA PRIVATE KEY-----

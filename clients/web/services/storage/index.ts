@@ -1,5 +1,5 @@
 import * as meta from './meta'
-import * as queue from './queue'
+import * as queue from '../queue'
 import * as upload from './upload'
 import * as download from './download'
 import { defineStore } from 'pinia'

@@ -55,6 +55,7 @@ export async function uploadChunk(
 
     return {
       ...uploaded,
+      temporaryId: file.temporaryId,
       metadata: file.metadata,
       file: file.file,
       started_upload_at: file.started_upload_at || utcStringFromLocal()

@@ -7,38 +7,53 @@ import type {
   UploadChunkResponseMessage,
   DownloadProgressResponseMessage,
   DownloadCompletedResponseMessage
-} from '../../types'
+} from '../types'
 import { ref } from 'vue'
-import { FileMetadata } from './metadata'
+import { FileMetadata } from './storage/metadata'
 
 export const store = defineStore('queue', () => {
   const uploading = ref<IntervalType>()
   const downloading = ref<IntervalType>()
-  const messageListenersActive = ref(false)
+  const uploadWorkerListenerActive = ref(false)
+  const downloadWorkerListenerActive = ref(false)
 
   /**
    * Start all the depending queues and setup worker listeners
    */
   async function start(files: FilesStore, upload: UploadStore, download: DownloadStore) {
     if (!uploading.value) {
-      uploading.value = await upload.start(files)
+      uploading.value = await upload.start(files, store())
     }
 
     if (!downloading.value) {
-      downloading.value = await download.start(files)
+      downloading.value = await download.start(files, store())
     }
 
-    if (messageListenersActive.value === false) {
+    if (uploadWorkerListenerActive.value === false) {
       if ('UPLOAD' in window) {
+        window.UPLOAD.postMessage({ type: 'ping' })
+
         window.UPLOAD.onmessage = async (event) => {
+          if (event.data.type === 'pong') {
+            uploadWorkerListenerActive.value = true
+          }
+
           if (event.data.type === 'upload-progress') {
             await uploadMessage(files, upload, event.data.response)
           }
         }
       }
+    }
 
+    if (downloadWorkerListenerActive.value === false) {
       if ('DOWNLOAD' in window) {
+        window.UPLOAD.postMessage({ type: 'ping' })
+
         window.DOWNLOAD.onmessage = async (event) => {
+          if (event.data.type === 'pong') {
+            downloadWorkerListenerActive.value = true
+          }
+
           if (event.data.type === 'download-progress') {
             await handleDownloadProgressMessage(files, download, event.data.response)
           }
@@ -48,8 +63,6 @@ export const store = defineStore('queue', () => {
           }
         }
       }
-
-      messageListenersActive.value = true
     }
   }
 
@@ -64,9 +77,14 @@ export const store = defineStore('queue', () => {
     if (downloading.value) {
       clearInterval(downloading.value)
     }
+
+    uploadWorkerListenerActive.value = false
+    downloadWorkerListenerActive.value = false
   }
 
   return {
+    uploadWorkerListenerActive,
+    downloadWorkerListenerActive,
     start,
     stop
   }

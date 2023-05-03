@@ -1,10 +1,10 @@
-import * as cryptfns from '../../src/stores/cryptfns'
-import * as storage from '../../src/stores/storage'
+import * as cryptfns from '../../services/cryptfns'
+import * as storage from '../../services/storage'
 import { describe, expect, it } from 'vitest'
 import { getUserWithKey } from './register.test'
-import { utcStringFromLocal } from '../../src/stores'
-import { CreateFile } from '../../src/types'
-import { CHUNK_SIZE_BYTES } from '../../src/stores/storage/constants'
+import { utcStringFromLocal } from '../../services'
+import { CreateFile } from '../../types'
+import { CHUNK_SIZE_BYTES } from '../../services/storage/constants'
 
 describe('Upload a file', () => {
   it('E2E: Can upload a file', async () => {

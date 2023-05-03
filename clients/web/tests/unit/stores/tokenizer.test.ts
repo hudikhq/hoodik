@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import * as cryptfns from '../../../src/stores/cryptfns'
+import * as cryptfns from '../../../services/cryptfns'
 
 describe('Converting names into tokens', () => {
   it('UNIT: Tokens: can convert string into valid tokens', async () => {

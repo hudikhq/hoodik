@@ -38,6 +38,11 @@ function handleApiTransfer(apiTransfer?: ApiTransfer) {
 onmessage = async (message: MessageEvent<any>) => {
   console.log('In worker, receiving message', message.data?.type || 'unknown')
 
+  // Handle ping messages from the main thread
+  if (message.data?.type === 'ping') {
+    postMessage({ type: 'pong' })
+  }
+
   // Creating api maker with the updated credentials received
   // from the main browser thread that has access to JWT and CSRF
   if (message.data?.type === 'auth') {

@@ -18,7 +18,8 @@ import type {
   UploadAppFile,
   IntervalType,
   FilesStore,
-  KeyPair
+  KeyPair,
+  QueueStore
 } from 'types'
 import { createThumbnail } from './thumbnail'
 
@@ -26,7 +27,7 @@ export const store = defineStore('upload', () => {
   /**
    * Start processing queue while its not stopped
    */
-  async function start(storage: FilesStore): Promise<IntervalType> {
+  async function start(storage: FilesStore, queue: QueueStore): Promise<IntervalType> {
     active.value = true
 
     console.log('Starting upload queue')
@@ -35,7 +36,7 @@ export const store = defineStore('upload', () => {
 
     return setInterval(async () => {
       if (active.value) {
-        await _tick(tracker)
+        await _tick(tracker, queue)
       }
     }, 1000)
   }
@@ -125,7 +126,7 @@ export const store = defineStore('upload', () => {
    * Run single tick of the upload queue that takes the waiting
    * files and starts the upload process for them
    */
-  async function _tick(tracker: UploadProgressFunction) {
+  async function _tick(tracker: UploadProgressFunction, queue: QueueStore) {
     let batch: UploadAppFile[] = []
 
     if (running.value.length < FILES_UPLOADING_AT_ONE_TIME) {
@@ -137,7 +138,9 @@ export const store = defineStore('upload', () => {
         // We don't wait for this promise, it will be left to run in the background
         Promise.all(
           batch.map((file) => {
-            const promise = 'UPLOAD' in window ? pushUploadToWorker(file) : upload(file, tracker)
+            const promise = queue.uploadWorkerListenerActive
+              ? pushUploadToWorker(file)
+              : upload(file, tracker)
 
             promise.catch((err) => {
               setFailed({ ...file, error: errorIntoWorkerError(err) })

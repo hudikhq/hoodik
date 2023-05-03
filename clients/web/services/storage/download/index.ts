@@ -8,7 +8,8 @@ import type {
   DownloadProgressFunction,
   FilesStore,
   IntervalType,
-  ListAppFile
+  ListAppFile,
+  QueueStore
 } from '../../../types'
 import type { KeyPair } from 'types'
 import { errorIntoWorkerError, localDateFromUtcString, utcStringFromLocal, uuidv4 } from '../../'
@@ -20,7 +21,7 @@ export const store = defineStore('download', () => {
   /**
    * Start processing queue while its not stopped
    */
-  async function start(storage: FilesStore): Promise<IntervalType> {
+  async function start(storage: FilesStore, queue: QueueStore): Promise<IntervalType> {
     active.value = true
 
     console.log('Starting download queue')
@@ -30,7 +31,7 @@ export const store = defineStore('download', () => {
 
     return setInterval(async () => {
       if (active.value) {
-        await _tick(tracker)
+        await _tick(tracker, queue)
       }
     }, 1000)
   }
@@ -124,7 +125,7 @@ export const store = defineStore('download', () => {
    * Run single tick of the upload queue that takes the waiting
    * files and starts the upload process for them
    */
-  async function _tick(progress: DownloadProgressFunction) {
+  async function _tick(progress: DownloadProgressFunction, queue: QueueStore) {
     let batch: DownloadAppFile[] = []
 
     if (running.value.length < FILES_DOWNLOADING_AT_ONE_TIME) {
@@ -136,7 +137,7 @@ export const store = defineStore('download', () => {
         // We don't wait for this promise, it will be left to run in the background
         Promise.all(
           batch.map((file) => {
-            download(file, progress).catch((err) => {
+            download(file, queue, progress).catch((err) => {
               setFailed({ ...file, error: errorIntoWorkerError(err) })
             })
           })
@@ -230,6 +231,7 @@ export const store = defineStore('download', () => {
  */
 export async function download(
   file: DownloadAppFile,
+  queue: QueueStore,
   progress?: DownloadProgressFunction
 ): Promise<void> {
   if (!file.metadata?.key) {
@@ -243,7 +245,7 @@ export async function download(
   }
 
   // No way to download files in SW, so abandoned for now :(
-  if ('DOWNLOAD' in window) {
+  if (queue.downloadWorkerListenerActive) {
     await startFileDownload(file)
   } else {
     await sync.downloadAndDecryptStream(file, progress)
