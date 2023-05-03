@@ -28,6 +28,12 @@
       "!": [
         "./services"
       ],
+      "cryptfns/*": [
+        "./cryptfns/*"
+      ],
+      "cryptfns": [
+        "./cryptfns"
+      ],
     }
   }
 }
