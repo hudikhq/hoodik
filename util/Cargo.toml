@@ -2,6 +2,10 @@
 name = "util"
 version = "0.1.0"
 edition = "2021"
+authors = ["Tibor Hudik <hello@hudik.eu>"]
+readme = "README.md"
+license-file = "../LICENSE.md"
+description = "Simple helper function that are used all around the application and don't have a home in any crate in particular"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -2,6 +2,10 @@
 name = "auth"
 version = "0.1.0"
 edition = "2021"
+authors = ["Tibor Hudik <hello@hudik.eu>"]
+readme = "README.md"
+license-file = "../LICENSE.md"
+description = "Hoodik app authentication service"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
