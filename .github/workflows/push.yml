@@ -27,8 +27,8 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      # - name: Install OS dependencies
-      #   run: apt update && apt install  curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev openssl libssl-dev -y
+      - name: Install OS dependencies
+        run: apt update && apt install curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev openssl libssl-dev -y
 
       - name: Install wasm pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
