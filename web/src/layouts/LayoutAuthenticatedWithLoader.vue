@@ -14,7 +14,7 @@ import LayoutAuthenticated from './LayoutAuthenticated.vue'
       >
         <div class="rounded-2xl flex-col flex bg-brownish-700 element">
           <div class="flex-1 p-4">
-            <img src="public/android-chrome-192x192.png" alt="logo" />
+            <img src="/android-chrome-192x192.png" alt="logo" />
             <div class="working">
               Working<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
             </div>
