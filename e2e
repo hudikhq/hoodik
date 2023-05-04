@@ -10,6 +10,8 @@ cargo run -- -c ./.env.e2e &
 
 node_modules/.bin/wait-on -t 600000 -i 250 -w 250 http://127.0.0.1:4554/api/liveness && echo "API is up"
 
+turbo run wasm-pack
+
 (turbo test:e2e) || TEST_EXIT_CODE=$?
 
 kill -9 $!

@@ -123,7 +123,7 @@ export const store = defineStore('login', () => {
     const response = await Api.post<undefined, Authenticated>('/api/auth/self')
     const authenticated = response.body as Authenticated
 
-    const privateKey = getPrivateKey(authenticated.session.device_id as string)
+    const privateKey = await getPrivateKey(authenticated.session.device_id as string)
 
     if (privateKey) {
       const fingerprint = await cryptfns.rsa.getFingerprint(privateKey)
@@ -176,7 +176,9 @@ export const store = defineStore('login', () => {
       throw new Error("No authenticated object found after refresh, can't refresh session")
     }
 
-    const privateKey = getPrivateKey(response.body?.authenticated?.session?.device_id as string)
+    const privateKey = await getPrivateKey(
+      response.body?.authenticated?.session?.device_id as string
+    )
 
     if (!privateKey) {
       throw new Error(
@@ -257,7 +259,7 @@ export const store = defineStore('login', () => {
     store: ReturnType<typeof cryptoStore>,
     pin: string
   ): Promise<Authenticated> {
-    const pk = cryptfns.getAndDecryptPrivateKey(pin)
+    const pk = await cryptfns.getAndDecryptPrivateKey(pin)
 
     return _withPrivateKey(store, await cryptfns.rsa.inputToKeyPair(pk), false)
   }

@@ -5,7 +5,7 @@ import * as cryptfns from '../../../services/cryptfns'
 describe('Testing the FileMetadata holder', () => {
   it('UNIT: Can be encrypted and decrypted back with given RSA private key', async () => {
     const kp = await cryptfns.rsa.generateKeyPair()
-    const aesKey = cryptfns.aes.generateKey()
+    const aesKey = await cryptfns.aes.generateKey()
 
     const metadata = new FileMetadata('some-file.txt', aesKey)
 

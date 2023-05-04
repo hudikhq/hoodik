@@ -20,8 +20,8 @@ export async function uploadChunk(
   }
 
   // const encrypted = data
-  const encrypted = cryptfns.aes.encrypt(data, file.metadata?.key)
-  const checksum = cryptfns.sha256.digest(encrypted)
+  const encrypted = await cryptfns.aes.encrypt(data, file.metadata?.key)
+  const checksum = await cryptfns.sha256.digest(encrypted)
 
   // Data can be encrypted also on the server, but this method is less secure
   // const key_hex = cryptfns.uint8.toHex(file.metadata.key)
