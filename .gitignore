@@ -7,3 +7,4 @@ node_modules
 .DS_Store
 .turbo
 dist
+src/client.rs
