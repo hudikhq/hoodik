@@ -14,6 +14,14 @@ export default defineConfig({
   envDir: '../',
   envPrefix: 'APP_',
   plugins: [
+    vue(),
+    vueJsx(),
+    wasm(),
+    topLevelAwait(),
+    wasmPack('../cryptfns'),
+    serviceWorkerPlugin({
+      filename: 'sw.ts'
+    }),
     VitePWA({
       devOptions: {
         enabled: true
@@ -56,14 +64,6 @@ export default defineConfig({
         background_color: '#1E1E1E',
         display: 'standalone'
       }
-    }),
-    wasm(),
-    topLevelAwait(),
-    wasmPack('../cryptfns'),
-    vue(),
-    vueJsx(),
-    serviceWorkerPlugin({
-      filename: 'sw.ts'
     })
   ],
   optimizeDeps: {

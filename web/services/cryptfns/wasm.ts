@@ -14,7 +14,7 @@ import {
   aes_encrypt,
   aes_decrypt,
   text_into_hashed_tokens
-} from 'cryptfns/cryptfns.js'
+} from '../../node_modules/cryptfns/cryptfns.js'
 
 /**
  * Currently we don't need this part.. it is working fine like this.
