@@ -17,7 +17,7 @@
     "watch": "turbo run test:watch",
     "start": "turbo run dev",
     "e2e": "./e2e",
-    "unit": "turbo run test:unit",
+    "unit": "turbo run wasm-pack && turbo run test:unit",
     "tc": "turbo run type-check",
     "all": "turbo run type-check && turbo run test:unit && ./e2e"
   },

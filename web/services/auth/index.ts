@@ -71,7 +71,7 @@ export function removeJwt(): void {
 /**
  * Get the private key from storage and decrypt it
  */
-export function getPrivateKey(deviceId: string): string | null {
+export async function getPrivateKey(deviceId: string): Promise<string | null> {
   const privateKey = lscache.get(PRIVATE_KEY_STORE_NAME) || null
 
   if (!privateKey) {

@@ -1,8 +1,11 @@
 {
   "name": "cryptfns",
   "version": "0.1.0",
+  "type": "module",
+  "main": "pkg/cryptfns.js",
+  "types": "pkg/cryptfns.d.ts",
   "scripts": {
-    "wasm-pack": "wasm-pack build --out-name cryptfns --out-dir ../web/cryptfns --target web --release",
-    "wasm-pack-dev": "wasm-pack build --out-name cryptfns --out-dir ../web/cryptfns --target web"
+    "wasm-pack": "wasm-pack build --out-name cryptfns --target bundler --release",
+    "wasm-pack-web": "wasm-pack build --out-name cryptfns --target web --release"
   }
 }

@@ -113,7 +113,7 @@ export class FileMetadata {
 
     for (const key in encrypted) {
       if (key !== 'key' && encrypted[key] !== undefined && encrypted[key] !== null) {
-        encrypted[key] = cryptfns.aes.encryptString(encrypted[key], this.key)
+        encrypted[key] = await cryptfns.aes.encryptString(encrypted[key], this.key)
       }
     }
 
@@ -150,7 +150,7 @@ export class FileMetadata {
       // Decrypt the rest of the metadata with AES key
       for (const k in encrypted) {
         if (k !== 'key' && encrypted[k] !== undefined && encrypted[k] !== null) {
-          decrypted[k] = cryptfns.aes.decryptString(encrypted[k], key)
+          decrypted[k] = await cryptfns.aes.decryptString(encrypted[k], key)
         }
       }
 

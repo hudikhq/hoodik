@@ -1,6 +1,6 @@
 import type { Key } from 'types'
 import { uint8 } from '.'
-import { aes_decrypt, aes_encrypt, aes_generate_key } from './wasm'
+import { init, aes_decrypt, aes_encrypt, aes_generate_key } from './wasm'
 
 /**
  * Convert a key into a string json
@@ -36,7 +36,8 @@ export function keyFromSimpleString(input: string): Key {
  * When creating a new file generate a random key for it
  * that will be used for actual data encryption
  */
-export function generateKey(): Key {
+export async function generateKey(): Promise<Key> {
+  await init()
   const key = aes_generate_key()
 
   if (!key) {
@@ -81,7 +82,8 @@ export function concatUint8Array(...arrays: Uint8Array[]): Uint8Array {
 /**
  * Encrypt raw data with the selected key
  */
-export function encrypt(data: Uint8Array, key: Key): Uint8Array {
+export async function encrypt(data: Uint8Array, key: Key): Promise<Uint8Array> {
+  await init()
   const ciphertext = aes_encrypt(key, data)
 
   if (!ciphertext) {
@@ -94,7 +96,8 @@ export function encrypt(data: Uint8Array, key: Key): Uint8Array {
 /**
  * Encrypt raw data with the selected key
  */
-export function decrypt(ciphertext: Uint8Array, key: Key): Uint8Array {
+export async function decrypt(ciphertext: Uint8Array, key: Key): Promise<Uint8Array> {
+  await init()
   const plaintext = aes_decrypt(key, ciphertext)
 
   if (!plaintext) {
@@ -107,21 +110,21 @@ export function decrypt(ciphertext: Uint8Array, key: Key): Uint8Array {
 /**
  * Encrypt a string and return a string
  */
-export function encryptString(secret: string, key: string | Key): string {
+export async function encryptString(secret: string, key: string | Key): Promise<string> {
   key = typeof key === 'string' ? keyFromSimpleString(key) : key
 
   const plaintext = uint8.fromUtf8(secret)
-  const result = encrypt(plaintext, key)
+  const result = await encrypt(plaintext, key)
   return uint8.toHex(result)
 }
 
 /**
  * Decrypt a string and return a string
  */
-export function decryptString(secret: string, key: string | Key): string {
+export async function decryptString(secret: string, key: string | Key): Promise<string> {
   key = typeof key === 'string' ? keyFromSimpleString(key) : key
 
   const ciphertext = uint8.fromHex(secret)
-  const result = decrypt(ciphertext, key)
+  const result = await decrypt(ciphertext, key)
   return uint8.toUtf8(result)
 }

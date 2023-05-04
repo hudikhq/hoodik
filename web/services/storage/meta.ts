@@ -21,7 +21,7 @@ export async function create(
   unencrypted: CreateFile,
   extras?: { [key: string]: string | null | undefined }
 ): Promise<AppFile> {
-  const key = cryptfns.aes.generateKey()
+  const key = await cryptfns.aes.generateKey()
   const metadata = new FileMetadata(unencrypted.name, key)
 
   if (extras && Object.keys(extras).length > 0) {

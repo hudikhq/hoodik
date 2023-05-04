@@ -21,8 +21,8 @@ export async function uploadChunk(
       throw new Error(`File ${file.id} is missing key`)
     }
 
-    const encrypted = cryptfns.aes.encrypt(data, file.metadata.key)
-    const checksum = cryptfns.sha256.digest(encrypted)
+    const encrypted = await cryptfns.aes.encrypt(data, file.metadata.key)
+    const checksum = await cryptfns.sha256.digest(encrypted)
 
     if (!encrypted.byteLength) {
       throw new Error(`Failed encrypting chunk ${chunk} / ${file.chunks} of ${file.metadata?.name}`)

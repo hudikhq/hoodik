@@ -1,4 +1,5 @@
 import {
+  // default as i,
   rsa_generate_private,
   rsa_public_from_private,
   rsa_decrypt,
@@ -13,7 +14,21 @@ import {
   aes_encrypt,
   aes_decrypt,
   text_into_hashed_tokens
-} from 'cryptfns'
+} from 'cryptfns/cryptfns.js'
+
+/**
+ * Currently we don't need this part.. it is working fine like this.
+ * When we do wasm-pack with --target web it works on the web, but
+ * it doesn't work on nodejs. So the tests are breaking which is not
+ * acceptable.
+ */
+// let initialized = false
+export async function init() {
+  // if (!initialized) {
+  //   await i()
+  //   initialized = true
+  // }
+}
 
 export {
   rsa_generate_private,

@@ -1,6 +1,7 @@
 import type { KeyPair } from 'types'
 import { aes } from '.'
 import {
+  init,
   rsa_generate_private,
   rsa_public_from_private,
   rsa_decrypt,
@@ -33,6 +34,7 @@ export async function protectPrivateKey(unencrypted: string, passphrase: string)
  * Convert input to raw
  */
 export async function inputToKeyPair(input: string): Promise<KeyPair> {
+  await init()
   const publicKey = rsa_public_from_private(input)
 
   if (!publicKey) {
@@ -63,7 +65,7 @@ export async function inputToKeyPair(input: string): Promise<KeyPair> {
  * Generate KeyPair from public key, this can only be used to verify signatures
  */
 export async function publicToKeyPair(publicKey: string): Promise<KeyPair> {
-  console.log(publicKey)
+  await init()
   const fingerprint = rsa_fingerprint_public(publicKey)
 
   if (!fingerprint) {
@@ -85,6 +87,7 @@ export async function publicToKeyPair(publicKey: string): Promise<KeyPair> {
  * @throws
  */
 export async function getFingerprint(input: string): Promise<string> {
+  await init()
   let fingerprint = rsa_fingerprint_public(input)
 
   if (!fingerprint) {
@@ -102,6 +105,7 @@ export async function getFingerprint(input: string): Promise<string> {
  * Generate a random input in a format of KeyPair
  */
 export async function generateKeyPair(): Promise<KeyPair> {
+  await init()
   const privateKey = rsa_generate_private()
 
   if (!privateKey) {
@@ -115,6 +119,7 @@ export async function generateKeyPair(): Promise<KeyPair> {
  * Sign the given message with current secret key and return an object with signature and publicKey
  */
 export async function sign(kp: KeyPair, message: string): Promise<string> {
+  await init()
   const { input } = kp
 
   if (!input) {
@@ -138,6 +143,7 @@ export async function verify(
   message: string,
   publicKey: string
 ): Promise<boolean> {
+  await init()
   const { publicKey: pk } = await publicToKeyPair(publicKey)
 
   if (!pk) {
@@ -151,6 +157,7 @@ export async function verify(
  * Encrypt a message with given public key
  */
 export async function encryptMessage(message: string, publicKey: string): Promise<string> {
+  await init()
   const fingerprint = await getFingerprint(publicKey)
 
   if (!fingerprint) {
@@ -170,6 +177,7 @@ export async function encryptMessage(message: string, publicKey: string): Promis
  * Decrypt a message with stored private key
  */
 export async function decryptMessage(kp: KeyPair, message: string): Promise<string> {
+  await init()
   if (typeof kp === 'string') {
     throw new Error("KeyPair can't be a string, you might have swapped arguments")
   }

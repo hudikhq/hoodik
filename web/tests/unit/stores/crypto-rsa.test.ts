@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { rsa } from '../../../services/cryptfns'
-import { rsa_generate_private } from '../../../cryptfns'
+import { rsa_generate_private, init } from '../../../services/cryptfns/wasm'
 
 const privatePem = `-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAsMvjT2NZNqJo/3AYHH3RIm5fwmOXabbYxduvtNp33JQQZSPu
@@ -52,6 +52,7 @@ const signatureMessage = '28004708'
 const encryptionMessage = 'hello world'
 describe('Crypto test', () => {
   it('UNIT: WASM: can generate private key from wasm package', async () => {
+    await init()
     expect(rsa_generate_private()).toBeTruthy()
   })
   it('UNIT: RSA: can generate secret key from input', async () => {
