@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import LayoutAuthenticated from '@/layouts/LayoutAuthenticated.vue'
+import LayoutAuthenticatedWithLoader from '@/layouts/LayoutAuthenticatedWithLoader.vue'
 import TableFiles from '@/components/files/list/TableFiles.vue'
 import FileBrowser from '@/components/files/browser/FileBrowser.vue'
 import SectionMain from '@/components/ui/SectionMain.vue'
@@ -70,7 +70,7 @@ watch(fileId, () => {
 
 <template>
   <Suspense>
-    <LayoutAuthenticated>
+    <LayoutAuthenticatedWithLoader>
       <FileBrowser
         :parentId="parentId"
         :hide-delete="false"
@@ -100,6 +100,6 @@ watch(fileId, () => {
           />
         </SectionMain>
       </FileBrowser>
-    </LayoutAuthenticated>
+    </LayoutAuthenticatedWithLoader>
   </Suspense>
 </template>
