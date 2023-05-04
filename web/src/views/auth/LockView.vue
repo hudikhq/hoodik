@@ -49,7 +49,7 @@ const deletePrivateKey = () => {
 }
 </script>
 <template>
-  <LayoutGuest>
+  <LayoutGuest v-if="login && crypto">
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="`${cardClass} text-center`" v-if="!locked && hasAuth">
         <h1 class="text-2xl text-white mb-5">Account Locked</h1>
