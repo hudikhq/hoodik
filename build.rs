@@ -17,7 +17,7 @@ fn handle_no_dist(client_out_file: &mut File) -> io::Result<()> {
 }
 
 fn main() -> io::Result<()> {
-    let client_dist_dir = PathBuf::from("web/dist");
+    let client_dist_dir = PathBuf::from("./web/dist");
     let out_dir = PathBuf::from("src");
     let mut client_out_file = File::create(out_dir.join("client.rs"))?;
 
