@@ -61,9 +61,18 @@
       "cache": false,
       "persistent": true
     },
+    "build": {
+      "dependsOn": [
+        "wasm-pack"
+      ],
+      "outputs": [
+        "dist/**"
+      ],
+      "cache": true
+    },
     "release": {
       "dependsOn": [
-        "^wasm-pack"
+        "build"
       ],
       "outputs": [
         "dist/**"
@@ -71,7 +80,6 @@
       "cache": true
     },
     "//#release": {
-      "dependsOn": [],
       "inputs": [
         "**/*.rs",
         "**/*.toml"

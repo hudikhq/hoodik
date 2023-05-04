@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "release": "vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "test:unit": "vitest run --testNamePattern 'UNIT:'",
     "test:e2e": "vitest run --testNamePattern 'E2E:'",
