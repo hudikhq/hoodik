@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import LayoutGuest from '@/layouts/LayoutGuest.vue'
+import LayoutAuthenticatedWithLoader from '@/layouts/LayoutAuthenticatedWithLoader.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import { AppForm, AppField, AppButton, AppCheckbox } from '@/components/form'
@@ -41,7 +41,7 @@ config.value = {
       return router.push('/auth/login')
     }
 
-    cryptfns.encryptPrivateKeyAndStore(privateKey, values.password)
+    await cryptfns.encryptPrivateKeyAndStore(privateKey, values.password)
 
     if (values.logout === true) {
       login.logout(crypto)
@@ -54,7 +54,7 @@ config.value = {
 }
 </script>
 <template>
-  <LayoutGuest>
+  <LayoutAuthenticatedWithLoader>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass">
         <h1 class="text-2xl text-white mb-5">Setup Lock Screen</h1>
@@ -89,5 +89,5 @@ config.value = {
         </AppForm>
       </CardBox>
     </SectionFullScreen>
-  </LayoutGuest>
+  </LayoutAuthenticatedWithLoader>
 </template>

@@ -36,8 +36,8 @@ export function hasEncryptedPrivateKey(): boolean {
 /**
  * Take the given private key, encrypt it with a pin and store it in localStorage
  */
-export function encryptPrivateKeyAndStore(pk: string, pin: string) {
-  const encrypted = aes.encryptString(pk, pin)
+export async function encryptPrivateKeyAndStore(pk: string, pin: string) {
+  const encrypted = await aes.encryptString(pk, pin)
 
   lscache.set(ENCRYPTED_PRIVATE_KEY_LOCAL_STORAGE, encrypted)
 }
