@@ -1,11 +1,6 @@
 name: Publish Docker image
 
-# on:
-#   release:
-#     types: [published]
-
 on:
-  # Trigger the workflow on every branch
   push:
     branches:
       - "master"

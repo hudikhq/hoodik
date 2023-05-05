@@ -5,7 +5,7 @@ use std::{
     fs::{self, DirBuilder},
 };
 
-const APP_CLIENT_URL: &str = "http://localhost:5173";
+pub mod ssl;
 
 /// Config struct that holds all the loaded configuration
 /// from the env and arguments.
@@ -17,10 +17,16 @@ pub struct Config {
     ///
     /// *optional*
     ///
-    /// default: 4554
+    /// default: 5443
     pub port: i32,
 
     /// HTTP_ADDRESS address where the application will address
+    /// this represents the IP address that the application
+    /// will listen to when running.
+    ///
+    /// In Docker image this will be automatically set to 0.0.0.0
+    /// and you shouldn't set this unless you are deploying the application
+    /// by yourself outside of the docker image.
     ///
     /// *optional*
     ///
@@ -39,12 +45,23 @@ pub struct Config {
     /// default: uses sqlite instead of postgres
     pub database_url: Option<String>,
 
-    /// APP_CLIENT_URL this is the URL of the client application
-    /// this is used to redirect all traffic downstream to the client server
+    /// APP_URL, this is the URL of the application.
+    /// When you are running in production this should be the URL
+    /// to your application.
     ///
     /// *optional*
     ///
-    /// default: const APP_CLIENT_URL (http://localhost:5137)
+    /// default: https://{HTTP_ADDRESS}:{HTTP_PORT}
+    pub app_url: Option<String>,
+
+    /// APP_CLIENT_URL this is the URL of the client application.
+    /// This is mostly used while developing and in production this should
+    /// ideally be the same as the APP_URL to get the provided
+    /// web client interface.
+    ///
+    /// *optional*
+    ///
+    /// default: APP_URL
     pub client_url: Option<String>,
 
     /// JWT_SECRET secret that will be used to sign the JWT tokens
@@ -70,8 +87,8 @@ pub struct Config {
     /// default: false
     pub use_cookies: bool,
 
-    /// COOKIE_DOMAIN This should be the URL you are entering to view the application
-    /// and it will be used as the cookie domain so its scoped only to this
+    /// COOKIE_DOMAIN: If the backend is working by using cookies and not JWT this will be used as the cookie domain.
+    /// it automatically defaults to be the same as the APP_URL
     ///
     /// *optional*
     pub cookie_domain: Option<String>,
@@ -127,6 +144,24 @@ pub struct Config {
     ///
     /// default: 5
     pub short_term_session_duration_minutes: i64,
+
+    /// Location of the ssl cert file, this will be loaded and setup on to the server
+    /// if you don't provide this, the server will generate a self signed certificate
+    /// and place them in the /tmp directory. This is not recommended for production.
+    ///
+    /// *optional*
+    ///
+    /// default: DATA_DIR/hoodik.crt.pem
+    pub ssl_cert_file: String,
+
+    /// Location of the ssl key file, this will be loaded and setup on to the server
+    /// if you don't provide this, the server will generate a self signed certificate
+    /// and place them in the /tmp directory. This is not recommended for production.
+    ///
+    /// *optional*
+    ///
+    /// default: DATA_DIR/hoodik.key.pem
+    pub ssl_key_file: String,
 }
 
 impl Config {
@@ -138,12 +173,17 @@ impl Config {
             return Config::env_only();
         }
 
+        let data_dir = "./data".to_string();
+
+        let (ssl_cert_file, ssl_key_file) = Self::parse_ssl_files(&Some(data_dir.clone()));
+
         Config {
-            port: 4554,
+            port: 5443,
             address: "localhost".to_string(),
-            data_dir: "./data".to_string(),
+            data_dir,
             database_url: None,
-            client_url: None,
+            app_url: Some("http://localhost:5443".to_string()),
+            client_url: Some("http://localhost:5443".to_string()),
             jwt_secret: uuid::Uuid::new_v4().to_string(),
             use_cookies: false,
             cookie_domain: None,
@@ -153,6 +193,8 @@ impl Config {
             cookie_same_site: "None".to_string(),
             long_term_session_duration_days: 30,
             short_term_session_duration_minutes: 5,
+            ssl_cert_file,
+            ssl_key_file,
         }
         .ensure_data_dir()
     }
@@ -174,7 +216,8 @@ impl Config {
         let address = Self::parse_address(matches.as_ref(), &mut errors);
         let data_dir = Self::parse_data_dir(matches.as_ref(), &mut errors);
         let database_url = Self::parse_database_url(matches.as_ref(), &mut errors);
-        let client_url = env_var("APP_CLIENT_URL").ok();
+        let app_url = Self::parse_app_url(&address, port);
+        let client_url = Self::parse_client_url(&app_url);
         let jwt_secret = env_var("JWT_SECRET").unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
         let use_cookies = env_var("USE_COOKIES")
             .ok()
@@ -182,7 +225,10 @@ impl Config {
             .unwrap_or_else(|| "false".to_string())
             .as_str()
             == "true";
-        let cookie_domain = env_var("COOKIE_DOMAIN").ok();
+        let cookie_domain = match env_var("COOKIE_DOMAIN") {
+            Ok(v) => Some(v),
+            Err(_) => app_url.clone(),
+        };
         let cookie_name = env_var("COOKIE_NAME")
             .ok()
             .unwrap_or_else(|| "hoodik_session".to_string());
@@ -208,6 +254,8 @@ impl Config {
             .parse()
             .unwrap_or(5);
 
+        let (ssl_cert_file, ssl_key_file) = Self::parse_ssl_files(&data_dir);
+
         if !errors.is_empty() {
             panic!("Failed loading configuration:\n{:#?}", errors);
         }
@@ -218,6 +266,7 @@ impl Config {
             data_dir: parse_path(data_dir.unwrap()),
             database_url,
             client_url,
+            app_url,
             jwt_secret,
             use_cookies,
             cookie_domain,
@@ -227,6 +276,8 @@ impl Config {
             cookie_same_site,
             long_term_session_duration_days,
             short_term_session_duration_minutes,
+            ssl_cert_file,
+            ssl_key_file,
         }
         .set_env()
         .ensure_data_dir()
@@ -245,7 +296,8 @@ impl Config {
         let address = Self::parse_address(matches.as_ref(), &mut errors);
         let data_dir = Self::parse_data_dir(matches.as_ref(), &mut errors);
         let database_url = Self::parse_database_url(matches.as_ref(), &mut errors);
-        let client_url = env_var("APP_CLIENT_URL").ok();
+        let app_url = Self::parse_app_url(&address, port);
+        let client_url = Self::parse_client_url(&app_url);
         let jwt_secret = env_var("JWT_SECRET").unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
         let use_cookies = env_var("USE_COOKIES")
             .ok()
@@ -253,7 +305,10 @@ impl Config {
             .unwrap_or_else(|| "false".to_string())
             .as_str()
             == "true";
-        let cookie_domain = env_var("COOKIE_DOMAIN").ok();
+        let cookie_domain = match env_var("COOKIE_DOMAIN") {
+            Ok(v) => Some(v),
+            Err(_) => app_url.clone(),
+        };
         let cookie_name = env_var("COOKIE_NAME")
             .ok()
             .unwrap_or_else(|| "hoodik_session".to_string());
@@ -279,6 +334,8 @@ impl Config {
             .parse()
             .unwrap_or(5);
 
+        let (ssl_cert_file, ssl_key_file) = Self::parse_ssl_files(&data_dir);
+
         if !errors.is_empty() {
             panic!("Failed loading configuration:\n{:#?}", errors);
         }
@@ -288,6 +345,7 @@ impl Config {
             address,
             data_dir: parse_path(data_dir.unwrap()),
             database_url,
+            app_url,
             client_url,
             jwt_secret,
             use_cookies,
@@ -298,6 +356,8 @@ impl Config {
             cookie_same_site,
             long_term_session_duration_days,
             short_term_session_duration_minutes,
+            ssl_cert_file,
+            ssl_key_file,
         }
         .set_env()
         .ensure_data_dir()
@@ -359,7 +419,7 @@ impl Config {
             },
         };
 
-        value.unwrap_or(4554)
+        value.unwrap_or(5443)
     }
 
     /// Try loading the address address from env or arguments
@@ -376,6 +436,24 @@ impl Config {
         };
 
         value.unwrap_or_else(|| "localhost".to_string())
+    }
+
+    /// Try loading the app url from env
+    fn parse_app_url(address: &str, port: i32) -> Option<String> {
+        if let Ok(app_url) = env_var("APP_URL") {
+            Some(app_url)
+        } else {
+            Some(format!("https://{}:{}", address, port))
+        }
+    }
+
+    /// Try loading the app url from env
+    fn parse_client_url(app_url: &Option<String>) -> Option<String> {
+        if let Ok(client_app_url) = env_var("CLIENT_APP_URL") {
+            Some(client_app_url)
+        } else {
+            app_url.clone()
+        }
     }
 
     /// Try loading the data_dir from env or arguments
@@ -438,6 +516,18 @@ impl Config {
         }
     }
 
+    /// Try to make sense of the SSL_CERT_FILE and SSL_KEY_FILE env variables
+    pub fn parse_ssl_files(data_dir: &Option<String>) -> (String, String) {
+        let data_dir = data_dir.clone().unwrap_or_else(|| "/tmp".to_string());
+
+        let ssl_cert_file =
+            env_var("SSL_CERT_FILE").unwrap_or_else(|_| format!("{}/hoodik.crt.pem", &data_dir));
+        let ssl_key_file =
+            env_var("SSL_KEY_FILE").unwrap_or_else(|_| format!("{}/hoodik.key.pem", &data_dir));
+
+        (ssl_cert_file, ssl_key_file)
+    }
+
     /// Get the full bind address
     pub fn get_full_bind_address(&self) -> String {
         format!("{}:{}", self.address, self.port)
@@ -449,12 +539,13 @@ impl Config {
     }
 
     /// Get URL of the client application
-    pub fn get_client_url(&self) -> String {
-        parse_path(
-            self.client_url
-                .clone()
-                .unwrap_or_else(|| APP_CLIENT_URL.to_string()),
-        )
+    pub fn get_client_url(&self) -> Option<String> {
+        self.client_url.clone().map(parse_path)
+    }
+
+    /// Get URL of the client application
+    pub fn get_app_url(&self) -> Option<String> {
+        self.app_url.clone().map(parse_path)
     }
 }
 

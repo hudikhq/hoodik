@@ -9,7 +9,9 @@ use actix_web::{
     dev::{ServiceFactory, ServiceRequest, ServiceResponse},
     web, App, HttpServer,
 };
+use config::ssl::SslConfig as _;
 use context::Context;
+use error::{AppResult, Error};
 
 pub mod middleware {
     //! # Middleware
@@ -91,11 +93,13 @@ pub fn app(
 }
 
 /// Start the server
-pub async fn engage(context: Context) -> std::io::Result<()> {
+pub async fn engage(context: Context) -> AppResult<()> {
     let bind_address = context.config.get_full_bind_address();
+    let config = context.config.build_rustls_config()?;
 
     HttpServer::new(move || app(context.clone()))
-        .bind(&bind_address)?
+        .bind_rustls(&bind_address, config)?
         .run()
         .await
+        .map_err(Error::from)
 }
