@@ -44,6 +44,7 @@ const init = () => {
 
         router.push('/')
       } catch (err) {
+        console.error(err)
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
         authenticationError.value = error.description
