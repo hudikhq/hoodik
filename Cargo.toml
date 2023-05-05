@@ -1,6 +1,6 @@
 [package]
 name = "hoodik"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
 readme = "README.md"
@@ -26,7 +26,7 @@ members = [
 [dependencies]
 log = "^0.4"
 env_logger = "^0.10"
-actix-web = "^4"
+actix-web = { version = "^4", features = ["rustls"] }
 actix-cors = "0.6.3"
 reqwest = "^0.11"
 serde = "^1"

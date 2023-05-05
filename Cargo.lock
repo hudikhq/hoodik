@@ -72,6 +72,7 @@ dependencies = [
  "actix-codec",
  "actix-rt",
  "actix-service",
+ "actix-tls",
  "actix-utils",
  "ahash 0.8.3",
  "base64 0.21.0",
@@ -203,6 +204,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "actix-tls"
+version = "3.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9fde0cf292f7cdc7f070803cb9a0d45c018441321a78b1042ffbbb81ec333297"
+dependencies = [
+ "actix-codec",
+ "actix-rt",
+ "actix-service",
+ "actix-utils",
+ "futures-core",
+ "log",
+ "pin-project-lite",
+ "tokio-rustls",
+ "tokio-util",
+ "webpki-roots",
+]
+
+[[package]]
 name = "actix-utils"
 version = "3.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -225,6 +244,7 @@ dependencies = [
  "actix-rt",
  "actix-server",
  "actix-service",
+ "actix-tls",
  "actix-utils",
  "actix-web-codegen",
  "ahash 0.7.6",
@@ -1133,9 +1153,13 @@ dependencies = [
 name = "config"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "clap 4.2.2",
  "dotenv",
  "error",
+ "rcgen",
+ "rustls",
+ "rustls-pemfile",
  "uuid",
 ]
 
@@ -1620,8 +1644,10 @@ dependencies = [
  "glob",
  "hex",
  "jsonwebtoken",
+ "rcgen",
  "reqwest",
  "rsa",
+ "rustls",
  "sea-orm",
  "sequoia-openpgp",
  "serde",
@@ -2025,7 +2051,7 @@ dependencies = [
 
 [[package]]
 name = "hoodik"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "actix-cors",
  "actix-web",
@@ -3234,6 +3260,18 @@ dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
  "num_cpus",
+]
+
+[[package]]
+name = "rcgen"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffbe84efe2f38dea12e9bfc1f65377fdf03e53a18cb3b995faedf7934c7e785b"
+dependencies = [
+ "pem",
+ "ring",
+ "time 0.3.20",
+ "yasna",
 ]
 
 [[package]]
@@ -5052,6 +5090,15 @@ name = "xxhash-rust"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "735a71d46c4d68d71d4b24d03fdc2b98e38cea81730595801db779c04fe80d70"
+
+[[package]]
+name = "yasna"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e17bb3549cc1321ae1296b9cdc2698e2b6cb1992adfa19a8c72e5b7a738f44cd"
+dependencies = [
+ "time 0.3.20",
+]
 
 [[package]]
 name = "zeroize"

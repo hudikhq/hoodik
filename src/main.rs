@@ -1,8 +1,9 @@
+use error::AppResult;
 use hoodik::{Config, Context};
 use migration::{Migrator, MigratorTrait};
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> AppResult<()> {
     // Catch any panic from any thread running and dump it here
     // This enables us to kill the entire process if any of the inner threads die
     let origin_hook = std::panic::take_hook();
@@ -21,10 +22,10 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     // Create context from the config
-    let context = Context::new(config).await.unwrap();
+    let context = Context::new(config).await?;
 
     // Run database migrations
-    Migrator::up(&context.db, None).await.unwrap();
+    Migrator::up(&context.db, None).await?;
 
     // Start the server
     hoodik::server::engage(context).await
