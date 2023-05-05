@@ -5,7 +5,9 @@ use cryptfns::error::Error as CryptoError;
 use glob::{GlobError, PatternError};
 use hex::FromHexError;
 use jsonwebtoken::errors::Error as JWTError;
+use rcgen::RcgenError;
 use reqwest::Error as ReqwestError;
+use rustls::Error as RustlsError;
 use sea_orm::{
     error::{ColumnFromStrErr, DbErr, RuntimeErr},
     TransactionError,
@@ -43,6 +45,8 @@ pub enum Error {
     MultipartError(MultipartError),
     SerdeJsonError(SerdeJsonError),
     UuidError(UuidError),
+    RustlsError(RustlsError),
+    RcgenError(RcgenError),
 }
 
 impl Error {
@@ -84,6 +88,18 @@ impl PartialEq for Error {
 impl From<Box<dyn std::any::Any + Send>> for Error {
     fn from(source: Box<dyn std::any::Any + Send>) -> Error {
         Error::InternalError(format!("{:?}", source))
+    }
+}
+
+impl From<&str> for Error {
+    fn from(source: &str) -> Error {
+        Error::InternalError(source.to_string())
+    }
+}
+
+impl From<String> for Error {
+    fn from(source: String) -> Error {
+        Error::from(source.as_str())
     }
 }
 
@@ -198,6 +214,18 @@ impl From<UuidError> for Error {
     }
 }
 
+impl From<RustlsError> for Error {
+    fn from(source: RustlsError) -> Error {
+        Error::RustlsError(source)
+    }
+}
+
+impl From<RcgenError> for Error {
+    fn from(source: RcgenError) -> Error {
+        Error::RcgenError(source)
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
     #[serde(skip_serializing)]
@@ -305,6 +333,16 @@ impl From<&Error> for ErrorResponse {
                 context: None,
             },
             Error::UuidError(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::RustlsError(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::RcgenError(message) => ErrorResponse {
                 status: 500,
                 message: message.to_string(),
                 context: None,
