@@ -51,12 +51,12 @@ export const store = defineStore('login', () => {
   /**
    * Setup the authenticated object after successful authentication event
    */
-  function setupAuthenticated(body: AuthenticatedJwt, privateKey: string) {
+  async function setupAuthenticated(body: AuthenticatedJwt, privateKey: string) {
     const { authenticated, jwt } = body
     const expires = localDateFromUtcString(authenticated.session.expires_at)
     const csrf = authenticated.session.csrf
 
-    setPrivateKey(privateKey, authenticated.session.device_id as string, expires)
+    await setPrivateKey(privateKey, authenticated.session.device_id as string, expires)
     setCsrf(csrf, expires)
     setJwt(jwt, expires)
     set(authenticated)
@@ -186,7 +186,7 @@ export const store = defineStore('login', () => {
       )
     }
 
-    setupAuthenticated(response.body as AuthenticatedJwt, privateKey)
+    await setupAuthenticated(response.body as AuthenticatedJwt, privateKey)
 
     return response.body?.authenticated as Authenticated
   }
@@ -229,7 +229,7 @@ export const store = defineStore('login', () => {
 
     const keypair = await cryptfns.rsa.inputToKeyPair(credentials.privateKey)
 
-    setupAuthenticated(response.body, keypair.input as string)
+    await setupAuthenticated(response.body, keypair.input as string)
 
     await store.set(keypair)
 
@@ -291,7 +291,7 @@ export const store = defineStore('login', () => {
       throw new Error('No authenticated object found after private key or pin login')
     }
 
-    setupAuthenticated(response.body as AuthenticatedJwt, kp.input as string)
+    await setupAuthenticated(response.body as AuthenticatedJwt, kp.input as string)
 
     await store.set(kp)
 
