@@ -84,9 +84,9 @@ export async function getPrivateKey(deviceId: string): Promise<string | null> {
 /**
  * Set the private key in storage and encrypt it
  */
-export function setPrivateKey(privateKey: string, deviceId: string, expires: Date) {
+export async function setPrivateKey(privateKey: string, deviceId: string, expires: Date) {
   const ex = expires.getTime() - new Date().getTime()
-  lscache.set(PRIVATE_KEY_STORE_NAME, cryptfns.aes.encryptString(privateKey, deviceId), ex)
+  lscache.set(PRIVATE_KEY_STORE_NAME, await cryptfns.aes.encryptString(privateKey, deviceId), ex)
 }
 
 /**
