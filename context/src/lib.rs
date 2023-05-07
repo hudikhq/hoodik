@@ -1,6 +1,12 @@
 use config::Config;
+use email::Sender;
 use error::AppResult;
-use sea_orm::{Database, DatabaseConnection};
+use sea_orm::Database;
+
+/// Re-export the database connection type
+pub use sea_orm::DatabaseConnection;
+
+pub use email::contract::SenderContract;
 
 /// Holder of the application context
 /// all the available database connections
@@ -9,6 +15,7 @@ use sea_orm::{Database, DatabaseConnection};
 pub struct Context {
     pub config: Config,
     pub db: DatabaseConnection,
+    pub sender: Option<Sender>,
 }
 
 /// We need to implement clone for the context manually because
@@ -33,6 +40,7 @@ impl Clone for Context {
                     DatabaseConnection::MockDatabaseConnection(conn.clone())
                 }
             },
+            sender: self.sender.clone(),
         }
     }
 }
@@ -46,14 +54,20 @@ impl Context {
             None => Database::connect(sqlite_file).await?,
         };
 
-        Ok(Context { config, db })
+        let sender = email::Sender::new(&config)?;
+
+        Ok(Context { config, db, sender })
     }
 
     #[cfg(feature = "mock")]
     pub fn mock_inject(db: DatabaseConnection) -> Context {
         let config = Config::mock();
 
-        Context { config, db }
+        Context {
+            config,
+            db,
+            sender: None,
+        }
     }
 
     #[cfg(feature = "mock")]
@@ -63,6 +77,7 @@ impl Context {
         Context {
             config,
             db: DatabaseConnection::Disconnected,
+            sender: None,
         }
     }
 
@@ -78,9 +93,22 @@ impl Context {
 
         let db = Database::connect("sqlite::memory:?mode=rwc").await.unwrap();
 
-        let context = Context { config, db };
+        let context = Context {
+            config,
+            db,
+            sender: None,
+        };
 
         migration::Migrator::up(&context.db, None).await.unwrap();
+
+        context
+    }
+
+    #[cfg(feature = "mock")]
+    pub fn add_mock_sender(mut context: Context) -> Context {
+        let sender = Sender::mock();
+
+        context.sender = Some(sender);
 
         context
     }

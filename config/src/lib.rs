@@ -1,10 +1,12 @@
 use clap::{builder::Str, Arg, ArgMatches, Command};
 use dotenv::{from_path, vars};
+use email::EmailConfig;
 use std::{
     env::{set_var as set_env_var, var as env_var},
     fs::{self, DirBuilder},
 };
 
+pub mod email;
 pub mod ssl;
 
 /// Config struct that holds all the loaded configuration
@@ -58,6 +60,9 @@ pub struct Config {
     /// This is mostly used while developing and in production this should
     /// ideally be the same as the APP_URL to get the provided
     /// web client interface.
+    ///
+    /// This will also be used for any kind of calls to actions, like links
+    /// from emails will be pointing to this URL with the proper path.
     ///
     /// *optional*
     ///
@@ -162,6 +167,10 @@ pub struct Config {
     ///
     /// default: DATA_DIR/hoodik.key.pem
     pub ssl_key_file: String,
+
+    /// Email configuration holder, there are couple of options for this configuration,
+    /// see more details in the [crate::email::EmailConfig] struct.
+    pub mailer: EmailConfig,
 }
 
 impl Config {
@@ -176,6 +185,8 @@ impl Config {
         let data_dir = "./data".to_string();
 
         let (ssl_cert_file, ssl_key_file) = Self::parse_ssl_files(&Some(data_dir.clone()));
+
+        let mailer = EmailConfig::None;
 
         Config {
             port: 5443,
@@ -195,6 +206,7 @@ impl Config {
             short_term_session_duration_minutes: 5,
             ssl_cert_file,
             ssl_key_file,
+            mailer,
         }
         .ensure_data_dir()
     }
@@ -255,6 +267,7 @@ impl Config {
             .unwrap_or(5);
 
         let (ssl_cert_file, ssl_key_file) = Self::parse_ssl_files(&data_dir);
+        let mailer = EmailConfig::new(&mut errors);
 
         if !errors.is_empty() {
             panic!("Failed loading configuration:\n{:#?}", errors);
@@ -278,6 +291,7 @@ impl Config {
             short_term_session_duration_minutes,
             ssl_cert_file,
             ssl_key_file,
+            mailer,
         }
         .set_env()
         .ensure_data_dir()
@@ -335,6 +349,7 @@ impl Config {
             .unwrap_or(5);
 
         let (ssl_cert_file, ssl_key_file) = Self::parse_ssl_files(&data_dir);
+        let mailer = EmailConfig::new(&mut errors);
 
         if !errors.is_empty() {
             panic!("Failed loading configuration:\n{:#?}", errors);
@@ -358,6 +373,7 @@ impl Config {
             short_term_session_duration_minutes,
             ssl_cert_file,
             ssl_key_file,
+            mailer,
         }
         .set_env()
         .ensure_data_dir()
@@ -539,13 +555,23 @@ impl Config {
     }
 
     /// Get URL of the client application
-    pub fn get_client_url(&self) -> Option<String> {
-        self.client_url.clone().map(parse_path)
+    pub fn get_client_url(&self) -> String {
+        parse_path(
+            self.client_url
+                .as_ref()
+                .map(|u| u.to_string())
+                .unwrap_or_else(|| self.get_app_url()),
+        )
     }
 
     /// Get URL of the client application
-    pub fn get_app_url(&self) -> Option<String> {
-        self.app_url.clone().map(parse_path)
+    pub fn get_app_url(&self) -> String {
+        parse_path(
+            self.app_url
+                .as_ref()
+                .map(|u| u.to_string())
+                .unwrap_or_else(|| format!("https://{}:{}", &self.address, self.port)),
+        )
     }
 }
 

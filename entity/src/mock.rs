@@ -14,6 +14,7 @@ pub async fn create_user<T: super::ConnectionTrait>(db: &T, email: &str) -> User
         pubkey: ActiveValue::Set("".to_string()),
         fingerprint: ActiveValue::Set("".to_string()),
         encrypted_private_key: ActiveValue::NotSet,
+        email_verified_at: ActiveValue::Set(Some(Utc::now().naive_utc())),
         created_at: ActiveValue::Set(Utc::now().naive_utc()),
         updated_at: ActiveValue::Set(Utc::now().naive_utc()),
     };

@@ -3,6 +3,7 @@ pub mod files;
 pub mod prelude;
 pub mod sessions;
 pub mod tokens;
+pub mod user_actions;
 pub mod user_files;
 pub mod users;
 

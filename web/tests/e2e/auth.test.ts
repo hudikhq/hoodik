@@ -56,7 +56,7 @@ describe('Auth test', () => {
   it('E2E: Can login only with pin', async () => {
     const { user, privateKey } = await getUserWithoutKey()
     const pin = '123'
-    cryptofns.encryptPrivateKeyAndStore(privateKey, pin)
+    await cryptofns.encryptPrivateKeyAndStore(privateKey, pin)
     const authenticated = await auth.withPin(crypto, pin)
     expect(!!authenticated).toBeTruthy()
     expect(authenticated.user.email).toBe(user.email)

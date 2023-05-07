@@ -16,6 +16,7 @@ members = [
   "config",
   "context",
   "cryptfns",
+  "email",
   "entity",
   "error",
   "migration",

@@ -1,5 +1,7 @@
+use std::str::FromStr;
+
 use chrono::{Duration, Utc};
-use context::Context;
+use context::{Context, SenderContract};
 use log::debug;
 
 use crate::{
@@ -247,4 +249,80 @@ async fn test_jwt_generate_and_claim() {
     if let Err(e) = response {
         panic!("Errored: {:#?}", e);
     }
+}
+
+#[async_std::test]
+async fn test_register_and_send_email() {
+    let context = Context::mock_sqlite().await;
+    let context = Context::add_mock_sender(context);
+    let auth = create_lib(&context);
+
+    let (pubkey, fingerprint) = get_pubkey_and_fingerprint();
+
+    let create_user = CreateUser {
+        email: Some("john@doe.com".to_string()),
+        password: Some("very-strong-password".to_string()),
+        secret: None,
+        pubkey,
+        fingerprint,
+        encrypted_private_key: Some("encrypted-gibberish".to_string()),
+        token: None,
+    };
+
+    let response = auth.register(create_user).await;
+
+    if let Err(e) = response {
+        panic!("Errored: {:#?}", e);
+    }
+
+    let id = context
+        .sender
+        .unwrap()
+        .find("Account activation token:")
+        .unwrap()
+        .replace("Account activation token: ", "");
+
+    println!("id: {}", id);
+
+    assert!(entity::Uuid::from_str(&id).is_ok());
+}
+
+#[async_std::test]
+async fn test_activate_user() {
+    let context = Context::mock_sqlite().await;
+    let context = Context::add_mock_sender(context);
+    let auth = create_lib(&context);
+
+    let (pubkey, fingerprint) = get_pubkey_and_fingerprint();
+
+    let create_user = CreateUser {
+        email: Some("john@doe.com".to_string()),
+        password: Some("very-strong-password".to_string()),
+        secret: None,
+        pubkey,
+        fingerprint,
+        encrypted_private_key: Some("encrypted-gibberish".to_string()),
+        token: None,
+    };
+
+    let response = auth.register(create_user).await;
+
+    if let Err(e) = response {
+        panic!("Errored: {:#?}", e);
+    }
+
+    let id = context
+        .sender
+        .as_ref()
+        .unwrap()
+        .find("Account activation token:")
+        .unwrap()
+        .replace("Account activation token: ", "");
+
+    let id = entity::Uuid::from_str(&id).unwrap();
+
+    let activated_user = auth.activate(id).await.unwrap();
+
+    assert_eq!(activated_user.email, "john@doe.com");
+    assert!(activated_user.email_verified_at.is_some());
 }
