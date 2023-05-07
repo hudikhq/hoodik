@@ -70,22 +70,17 @@ watch(fileId, () => {
 
 <template>
   <LayoutAuthenticatedWithLoader>
-    <FileBrowser
-      :parentId="parentId"
-      :hide-delete="false"
-      v-slot="{ storage, loading, helper, on }"
-    >
+    <FileBrowser :parentId="parentId" :hide-delete="false" v-slot="{ storage, loading, on }">
       <SectionMain>
         <CardBox rounded="rounded-md" class="mb-2 px-0 py-0 mt-4" has-table>
           <div class="w-full border-y-0">
             <div class="float-left p-2">
-              <BreadCrumbs :helper="helper" :parents="storage.parents" :parentId="parentId" />
+              <BreadCrumbs :parents="storage.parents" :parentId="parentId" />
             </div>
           </div>
         </CardBox>
 
         <TableFiles
-          :helper="helper"
           :searchedFileId="fileId"
           :for-delete="storage.forDelete"
           :parents="storage.parents"
