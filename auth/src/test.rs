@@ -282,8 +282,6 @@ async fn test_register_and_send_email() {
         .unwrap()
         .replace("Account activation token: ", "");
 
-    println!("id: {}", id);
-
     assert!(entity::Uuid::from_str(&id).is_ok());
 }
 

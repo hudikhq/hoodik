@@ -1583,6 +1583,7 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -2108,6 +2109,7 @@ dependencies = [
  "config",
  "context",
  "cryptfns",
+ "email",
  "entity",
  "env_logger",
  "error",

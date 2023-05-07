@@ -27,6 +27,8 @@ impl Template {
         let mut data = BTreeMap::new();
         data.insert("base_subject".to_string(), subject.to_string());
         data.insert("base_pre_header".to_string(), pre_header.to_string());
+        data.insert("base_app_name".to_string(), "Hoodik".to_string());
+        data.insert("base_app_version".to_string(), "unknown".to_string());
 
         let builder = Message::builder().subject(subject);
 
@@ -61,13 +63,13 @@ impl Template {
     /// the content of the email.
     /// This can be a simple string or a string with handlebars syntax
     /// that has access to all the data provided through the add_template_var method
-    pub fn register_content_template(&mut self, content: &str) -> AppResult<()> {
+    pub fn register_content_template(&mut self, content: &str) -> AppResult<&mut Self> {
         self.base
             .register_template_string("__base_content", content)?;
 
         self.base_content = true;
 
-        Ok(())
+        Ok(self)
     }
 
     /// Add a sender to the email

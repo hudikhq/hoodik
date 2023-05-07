@@ -45,5 +45,6 @@ migration = { path = "./migration" }
 [dev-dependencies]
 chrono = { version = "0.4.23", features = ["serde"] }
 auth = { path = "./auth", features = ["mock"] }
+email = { path = "./email", features = ["mock"] }
 context = { path = "./context", features = ["mock"] }
 cryptfns = { path = "./cryptfns", features = ["mock"] }

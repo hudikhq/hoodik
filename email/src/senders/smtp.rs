@@ -19,10 +19,16 @@ impl SmtpSender {
         address: &str,
         username: &str,
         password: &str,
+        port: Option<u16>,
         default_from: &str,
     ) -> AppResult<Self> {
-        let smtp = SmtpTransport::relay(address)
-            .unwrap()
+        let mut smtp = SmtpTransport::relay(address)?;
+
+        if let Some(port) = port {
+            smtp = smtp.port(port);
+        }
+
+        let smtp = smtp
             .credentials(Credentials::new(username.to_string(), password.to_string()))
             .build();
 

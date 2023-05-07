@@ -15,6 +15,16 @@ pub mod ssl;
 /// Arguments will overwrite any env variables
 #[derive(Clone, Debug)]
 pub struct Config {
+    /// APP_NAME
+    /// This is the name of the application, it will be automatically
+    /// filled if it hasn't been provided in the env to be something else then Hoodik
+    pub app_name: String,
+
+    /// APP_VERSION
+    /// if this is left empty it will be automatically filled with the version
+    /// from the Cargo.toml file.
+    pub app_version: String,
+
     /// HTTP_PORT where the application will listen at
     ///
     /// *optional*
@@ -182,6 +192,9 @@ impl Config {
             return Config::env_only();
         }
 
+        let app_name = "Hoodik".to_string();
+        let app_version = env_var("CARGO_PKG_VERSION").unwrap_or_else(|_| "unknown".to_string());
+
         let data_dir = "./data".to_string();
 
         let (ssl_cert_file, ssl_key_file) = Self::parse_ssl_files(&Some(data_dir.clone()));
@@ -189,6 +202,8 @@ impl Config {
         let mailer = EmailConfig::None;
 
         Config {
+            app_name,
+            app_version,
             port: 5443,
             address: "localhost".to_string(),
             data_dir,
@@ -220,6 +235,9 @@ impl Config {
             dotenv(m.try_get_one("CONFIG_PATH").unwrap_or(None).cloned());
         }
 
+        let app_name = env_var("APP_NAME").unwrap_or_else(|_| "Hoodik".to_string());
+        let app_version = env_var("CARGO_PKG_VERSION").unwrap_or_else(|_| "unknown".to_string());
+
         parse_log(matches.as_ref());
 
         let mut errors = vec![];
@@ -274,6 +292,8 @@ impl Config {
         }
 
         Config {
+            app_name,
+            app_version,
             port,
             address,
             data_dir: parse_path(data_dir.unwrap()),
@@ -304,6 +324,9 @@ impl Config {
 
         parse_log(matches.as_ref());
 
+        let app_name = env_var("APP_NAME").unwrap_or_else(|_| "Hoodik".to_string());
+        let app_version = env_var("CARGO_PKG_VERSION").unwrap_or_else(|_| "unknown".to_string());
+
         let mut errors = vec![];
 
         let port = Self::parse_port(matches.as_ref(), &mut errors);
@@ -356,6 +379,8 @@ impl Config {
         }
 
         Config {
+            app_name,
+            app_version,
             port,
             address,
             data_dir: parse_path(data_dir.unwrap()),
@@ -572,6 +597,14 @@ impl Config {
                 .map(|u| u.to_string())
                 .unwrap_or_else(|| format!("https://{}:{}", &self.address, self.port)),
         )
+    }
+
+    pub fn get_app_name(&self) -> String {
+        self.app_name.clone()
+    }
+
+    pub fn get_app_version(&self) -> String {
+        self.app_version.clone()
     }
 }
 

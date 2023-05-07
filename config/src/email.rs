@@ -6,6 +6,7 @@
 /// SMTP_ADDRESS=smtp.example.com:587
 /// SMTP_USERNAME=example
 /// SMTP_PASSWORD=secret
+/// SMTP_PORT=465 # optional
 /// SMTP_DEFAULT_FROM="example@example.com <Full Name>"
 #[derive(Debug, Clone)]
 pub enum EmailConfig {
@@ -18,12 +19,14 @@ pub enum EmailConfig {
 /// SMTP_ADDRESS=smtp.example.com:587
 /// SMTP_USERNAME=example
 /// SMTP_PASSWORD=secret
+/// SMTP_PORT=465 # optional
 /// SMTP_DEFAULT_FROM="example@example.com <Full Name>"
 #[derive(Debug, Clone)]
 pub struct SmtpCredentials {
     pub address: String,
     pub username: String,
     pub password: String,
+    pub port: Option<u16>,
     pub default_from: String,
 }
 
@@ -50,6 +53,11 @@ impl SmtpCredentials {
                 None
             })?;
 
+        let port = match std::env::var("SMTP_PORT") {
+            Ok(p) => p.parse::<u16>().ok(),
+            Err(_) => None,
+        };
+
         let default_from = std::env::var("SMTP_DEFAULT_FROM")
             .map(Some)
             .unwrap_or_else(|_| {
@@ -61,6 +69,7 @@ impl SmtpCredentials {
             address,
             username,
             password,
+            port,
             default_from,
         })
     }
