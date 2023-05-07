@@ -41,6 +41,14 @@ const checked = computed({
   set: (v) => selectOne(v)
 })
 
+const showProgress = computed(() => {
+  if (props.file.mime === 'dir') {
+    return false
+  }
+
+  return !props.file.finished_upload_at
+})
+
 const isDir = computed(() => {
   return props.file.mime === 'dir'
 })
@@ -68,7 +76,7 @@ const progressValue = computed(() => {
 
   const uploaded = props.file.chunks_stored || 0
   const progress = uploaded / total
-  return progress * 100
+  return Math.ceil(progress * 100)
 })
 
 const fileFinishedUploadAt = computed(() => {
@@ -160,7 +168,7 @@ const sizes = computed(() => {
         :icon="mdiEye"
         small
         @click="emits('preview', file)"
-        :disabled="!props.file.id"
+        :disabled="!props.file.id || !file.finished_upload_at"
       />
       <BaseButton
         v-else
@@ -168,7 +176,7 @@ const sizes = computed(() => {
         :icon="mdiDownload"
         small
         @click="emits('download', file)"
-        :disabled="!props.file.id || isDir"
+        :disabled="!props.file.id || isDir || !file.finished_upload_at"
       />
       <BaseButton
         v-if="!hideDelete"
@@ -192,4 +200,15 @@ const sizes = computed(() => {
       />
     </div>
   </div>
+
+  <div
+    :class="{
+      [sharedClass]: true,
+      'block sm:hidden': true,
+      'border-b-2 border-greeny-800 dark:border-greeny-400': showProgress
+    }"
+    :style="{
+      width: progressValue + '%'
+    }"
+  ></div>
 </template>
