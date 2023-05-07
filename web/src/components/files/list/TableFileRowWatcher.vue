@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import TableFileRow from '@/components/files/list/TableFileRow.vue'
-import type { Helper } from '!/storage/helper'
 import type { ListAppFile } from 'types'
 import scrollMonitor from 'scrollmonitor'
 import { ref, onMounted } from 'vue'
 
 const props = defineProps<{
-  helper: Helper
   file: ListAppFile
   checkedRows: Partial<ListAppFile>[]
   hideDelete?: boolean
@@ -59,7 +57,6 @@ onMounted(() => {
     </div>
     <TableFileRow
       v-else
-      :helper="props.helper"
       :file="props.file"
       :checked-rows="props.checkedRows"
       :hide-delete="props.hideDelete"

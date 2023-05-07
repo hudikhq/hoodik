@@ -6,10 +6,8 @@ import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { mdiTrashCanOutline, mdiFolderPlusOutline, mdiFilePlusOutline } from '@mdi/js'
 import type { ListAppFile } from 'types'
-import type { Helper } from '!/storage/helper'
 
 const props = defineProps<{
-  helper: Helper
   forDelete: ListAppFile[]
   items: ListAppFile[]
   parents: ListAppFile[]
@@ -194,7 +192,6 @@ const sizes = {
   <div v-else class="flex flex-col rounded-b-lg">
     <template v-for="file in items" :key="file.id">
       <TableFileRowWatcher
-        :helper="props.helper"
         :file="file"
         :sizes="sizes"
         :checkedRows="checkedRows"
