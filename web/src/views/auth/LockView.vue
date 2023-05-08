@@ -21,12 +21,12 @@ const locked = ref(false)
 const logout = async () => {
   if (!cryptfns.hasEncryptedPrivateKey() && hasAuthentication(login)) {
     return setTimeout(() => {
-      router.push({ path: '/auth/setup-lock-screen', replace: true })
+      router.push({ name: 'setup-lock-screen', replace: true })
     }, 5000)
   } else if (!cryptfns.hasEncryptedPrivateKey()) {
     hasAuth.value = false
     return setTimeout(() => {
-      router.push({ path: '/auth/login', replace: true })
+      router.push({ name: 'login', replace: true })
     }, 5000)
   }
 
@@ -45,7 +45,7 @@ logout()
 
 const deletePrivateKey = () => {
   cryptfns.clear()
-  router.push({ path: '/auth/login', replace: true })
+  router.push({ name: 'login', replace: true })
 }
 </script>
 <template>
@@ -64,7 +64,7 @@ const deletePrivateKey = () => {
         </div>
 
         <router-link
-          to="/auth/setup-lock-screen"
+          :to="{ name: 'setup-lock-screen' }"
           class="float-right rounded-md text-green-200 py-2 px-4 border border-green-300"
         >
           Setup Lock Screen
@@ -81,7 +81,7 @@ const deletePrivateKey = () => {
         </div>
 
         <router-link
-          to="/auth/login"
+          :to="{ name: 'login' }"
           class="float-right rounded-md text-green-200 py-2 px-4 border border-green-300"
         >
           Login
@@ -100,7 +100,7 @@ const deletePrivateKey = () => {
         </div>
 
         <router-link
-          to="/auth/decrypt"
+          :to="{ name: 'decrypt' }"
           class="float-left rounded-md text-green-200 py-2 px-4 border border-green-300"
         >
           Unlock Account

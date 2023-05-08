@@ -25,7 +25,7 @@ const init = () => {
   if (!cryptfns.hasEncryptedPrivateKey()) {
     hasAuth.value = false
     return setTimeout(() => {
-      router.push({ path: '/auth/login', replace: true })
+      router.push({ name: 'login', replace: true })
     }, 5000)
   }
 
@@ -37,14 +37,11 @@ const init = () => {
       password: yup.string().required('Password is required')
     }),
     onSubmit: async (values: Credentials) => {
-      console.debug(values)
-
       try {
         await login.withPin(crypto, values.password)
 
-        router.push('/')
+        router.push({ name: 'home' })
       } catch (err) {
-        console.error(err)
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
         authenticationError.value = error.description
@@ -69,7 +66,7 @@ init()
         </div>
 
         <router-link
-          to="/auth/login"
+          :to="{ name: 'login' }"
           class="float-right rounded-md text-red-200 py-2 px-4 border border-red-300"
         >
           Login
@@ -99,7 +96,7 @@ init()
           <div class="text-sm font-medium text-brownish-500 dark:text-brownish-400">
             Not your account?
             <router-link
-              to="/auth/register"
+              :to="{ name: 'register' }"
               class="text-primary-700 hover:underline dark:text-primary-500"
               >Create an Account</router-link
             >

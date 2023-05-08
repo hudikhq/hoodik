@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { store as loginStore } from './login'
 import * as crypto from '../cryptfns'
 import { default as Api, type InnerValidationErrors } from '../api'
-import type { AuthenticatedJwt, CreateUser } from 'types'
+import type { AuthenticatedJwt, CreateUser, User } from 'types'
 
 export const store = defineStore('register', () => {
   const _createUser = ref<CreateUser>({
@@ -111,12 +111,24 @@ export const store = defineStore('register', () => {
     return response.body?.secret as string
   }
 
+  /**
+   * Verify email with provided token from the route params (email)
+   * @throws
+   */
+  async function verifyEmail(token: string): Promise<User> {
+    const action = 'activate-email'
+    const response = await Api.post(`/api/auth/${action}/${token}`)
+
+    return response.body as User
+  }
+
   return {
     createUser,
     set,
     clear,
     register,
     getTwoFactorSecret,
+    verifyEmail,
 
     // Errors
     errors,

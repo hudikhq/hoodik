@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use actix_web::{cookie, http::StatusCode, test};
 use auth::{
     auth::Auth,
@@ -6,6 +8,7 @@ use auth::{
         signature::Signature,
     },
 };
+use context::SenderContract;
 use hoodik::server;
 
 #[actix_web::test]
@@ -155,4 +158,67 @@ async fn test_registration_and_login() {
     let resp = test::call_service(&mut app, req).await;
 
     assert_eq!(resp.status(), StatusCode::OK);
+}
+
+#[actix_web::test]
+async fn test_register_and_verify_user_email() {
+    let context = context::Context::add_mock_sender(context::Context::mock_sqlite().await);
+
+    let private = cryptfns::rsa::private::generate().unwrap();
+    let public = cryptfns::rsa::public::from_private(&private).unwrap();
+    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
+    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
+
+    let encrypted_secret = "some-random-encrypted-secret".to_string();
+
+    let mut app = test::init_service(server::app(context.clone())).await;
+
+    let req = test::TestRequest::post()
+        .uri("/api/auth/register")
+        .set_json(&CreateUser {
+            email: Some("john@doe.com".to_string()),
+            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
+            secret: None,
+            token: None,
+            pubkey: Some(public_string.clone()),
+            fingerprint: Some(fingerprint.clone()),
+            encrypted_private_key: Some(encrypted_secret.clone()),
+        })
+        .to_request();
+
+    let resp = test::call_service(&mut app, req).await;
+
+    assert_eq!(resp.status(), StatusCode::CREATED);
+
+    let id = context
+        .sender
+        .as_ref()
+        .unwrap()
+        .find("Account activation token:")
+        .unwrap()
+        .replace("Account activation token: ", "");
+
+    let _uuid = entity::Uuid::from_str(&id).unwrap();
+
+    let req = test::TestRequest::post()
+        .uri(format!("/api/auth/activate-email/{id}").as_str())
+        .set_json(&CreateUser {
+            email: Some("john@doe.com".to_string()),
+            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
+            secret: None,
+            token: None,
+            pubkey: Some(public_string.clone()),
+            fingerprint: Some(fingerprint.clone()),
+            encrypted_private_key: Some(encrypted_secret.clone()),
+        })
+        .to_request();
+
+    let resp = test::call_service(&mut app, req).await;
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = test::read_body(resp).await;
+    let body_str = String::from_utf8_lossy(&body).to_string();
+    let user = serde_json::from_str::<entity::users::Model>(&body_str).unwrap();
+
+    assert!(user.email_verified_at.is_some());
 }

@@ -11,6 +11,7 @@ import {
   FILES_UPLOADING_AT_ONE_TIME,
   KEEP_FINISHED_UPLOADS_FOR_MINUTES
 } from '../constants'
+import * as logger from '!/logger'
 
 import type {
   CreateFile,
@@ -30,7 +31,7 @@ export const store = defineStore('upload', () => {
   async function start(storage: FilesStore, queue: QueueStore): Promise<IntervalType> {
     active.value = true
 
-    console.log('Starting upload queue')
+    logger.debug('Starting upload queue')
 
     const tracker = (file: UploadAppFile, isDone: boolean) => progress(storage, file, isDone)
 
@@ -100,7 +101,7 @@ export const store = defineStore('upload', () => {
     // that will trigger the upload error and the file will be moved to the
     // failed list as if it was canceled
     if (file.cancel) {
-      console.log(`File ${file.metadata?.name} is canceling the upload...`)
+      logger.debug(`File ${file.metadata?.name} is canceling the upload...`)
 
       running.value = running.value.filter((i) => i.id !== file.id)
       failed.value.push(file)
@@ -110,7 +111,9 @@ export const store = defineStore('upload', () => {
     // If the file has been finished, we will remove it from the uploading list
     // and move it to the done list
     if (isDone || file.finished_upload_at) {
-      console.log(`File ${file.metadata?.name} has finished uploading, pushing to the done list...`)
+      logger.debug(
+        `File ${file.metadata?.name} has finished uploading, pushing to the done list...`
+      )
 
       file.finished_upload_at = utcStringFromLocal(new Date())
       done.value.push(file)
@@ -138,6 +141,11 @@ export const store = defineStore('upload', () => {
         // We don't wait for this promise, it will be left to run in the background
         Promise.all(
           batch.map((file) => {
+            logger.debug(
+              'Pushing upload file to',
+              queue.uploadWorkerListenerActive ? 'worker' : 'sync'
+            )
+
             const promise = queue.uploadWorkerListenerActive
               ? pushUploadToWorker(file)
               : upload(file, tracker)
@@ -189,7 +197,6 @@ export const store = defineStore('upload', () => {
 
       const chunksStored = existing.chunks_stored || 0
       if (existing.chunks > chunksStored) {
-        console.log('Pushing existing')
         waiting.value.push({ ...existing, file, temporaryId: uuidv4() })
       } else {
         throw new Error('File already exists')

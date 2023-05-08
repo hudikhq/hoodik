@@ -3,8 +3,12 @@ use actix_web::{HttpResponse, HttpResponseBuilder, ResponseError};
 use base64::DecodeError;
 use cryptfns::error::Error as CryptoError;
 use glob::{GlobError, PatternError};
+use handlebars::{RenderError, TemplateError};
 use hex::FromHexError;
 use jsonwebtoken::errors::Error as JWTError;
+use lettre::{
+    address::AddressError, error::Error as LettreError, transport::smtp::Error as SmtpError,
+};
 use rcgen::RcgenError;
 use reqwest::Error as ReqwestError;
 use rustls::Error as RustlsError;
@@ -47,6 +51,11 @@ pub enum Error {
     UuidError(UuidError),
     RustlsError(RustlsError),
     RcgenError(RcgenError),
+    SmtpError(SmtpError),
+    LettreError(LettreError),
+    AddressError(AddressError),
+    HandlebarsRenderError(RenderError),
+    HandlebarsTemplateError(TemplateError),
 }
 
 impl Error {
@@ -56,6 +65,10 @@ impl Error {
 
     pub fn as_wrong_id(entity: &str) -> Error {
         Error::BadRequest(format!("invalid_id_provided_while_extracting:{}", entity))
+    }
+
+    pub fn as_not_found(message: &str) -> Error {
+        Error::NotFound(message.to_string())
     }
 
     pub fn as_validation(field: &str, message: &str) -> Error {
@@ -226,6 +239,36 @@ impl From<RcgenError> for Error {
     }
 }
 
+impl From<LettreError> for Error {
+    fn from(source: LettreError) -> Error {
+        Error::LettreError(source)
+    }
+}
+
+impl From<SmtpError> for Error {
+    fn from(source: SmtpError) -> Error {
+        Error::SmtpError(source)
+    }
+}
+
+impl From<AddressError> for Error {
+    fn from(source: AddressError) -> Error {
+        Error::AddressError(source)
+    }
+}
+
+impl From<RenderError> for Error {
+    fn from(source: RenderError) -> Error {
+        Error::HandlebarsRenderError(source)
+    }
+}
+
+impl From<TemplateError> for Error {
+    fn from(source: TemplateError) -> Error {
+        Error::HandlebarsTemplateError(source)
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
     #[serde(skip_serializing)]
@@ -343,6 +386,31 @@ impl From<&Error> for ErrorResponse {
                 context: None,
             },
             Error::RcgenError(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::LettreError(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::SmtpError(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::AddressError(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::HandlebarsRenderError(message) => ErrorResponse {
+                status: 500,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::HandlebarsTemplateError(message) => ErrorResponse {
                 status: 500,
                 message: message.to_string(),
                 context: None,

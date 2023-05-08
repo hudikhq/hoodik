@@ -9,7 +9,7 @@ import { CHUNK_SIZE_BYTES, CONCURRENT_CHUNKS_UPLOAD } from '../constants'
  * Run chunked file upload from start to end in the worker
  */
 export async function uploadFile(
-  api: Api,
+  providedApi: Api,
   file: UploadAppFile,
   progress: (
     file: UploadAppFile,
@@ -24,8 +24,10 @@ export async function uploadFile(
 
   progress(file, 0, false)
 
+  const dataFile = file.file as File
+
   const workers = [...new Array(file.chunks)].map((_, chunk) => {
-    return async () => {
+    return async (api: Api) => {
       if ('canceled' in self && self.canceled?.upload?.includes(file.id)) {
         throw new Error('Upload cancelled')
       }
@@ -35,7 +37,7 @@ export async function uploadFile(
         return
       }
 
-      const data = await sliceChunk(file.file as File, chunk)
+      const data = await sliceChunk(dataFile, chunk)
 
       const response = await uploadChunk(api, file, data, chunk, 0)
 
@@ -47,7 +49,7 @@ export async function uploadFile(
 
   while (workers.length) {
     const batch = workers.splice(0, CONCURRENT_CHUNKS_UPLOAD)
-    await Promise.race(batch.map((worker) => worker()))
+    await Promise.all(batch.map((worker) => worker(self.SWApi || providedApi)))
   }
 }
 

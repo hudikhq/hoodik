@@ -14,7 +14,7 @@ name = "context"
 path = "src/lib.rs"
 
 [features]
-mock = ["config/mock", "sea-orm/mock", "migration"]
+mock = ["config/mock", "sea-orm/mock", "migration", "email/mock"]
 
 [dependencies]
 actix-web = "^4"
@@ -28,5 +28,6 @@ log = "^0.4"
 env_logger = "^0.10"
 
 config = { path = "../config" }
+email = { path = "../email" }
 error = { path = "../error" }
 migration = { path = "../migration", optional = true }

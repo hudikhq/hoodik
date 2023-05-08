@@ -11,6 +11,20 @@ use wasm_bindgen::prelude::*;
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[wasm_bindgen]
+pub fn crc16_digest(input: Vec<u8>) -> String {
+    crate::utils::set_panic_hook();
+
+    crate::crc::crc16_digest(input.as_slice())
+}
+
+#[wasm_bindgen]
+pub fn sha256_digest(input: Vec<u8>) -> String {
+    crate::utils::set_panic_hook();
+
+    crate::sha256::digest(input.as_slice())
+}
+
+#[wasm_bindgen]
 pub fn rsa_generate_private() -> Option<String> {
     crate::utils::set_panic_hook();
 

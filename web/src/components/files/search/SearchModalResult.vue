@@ -16,13 +16,31 @@ const emits = defineEmits<{
 const url = computed(() => {
   if (props.file.mime !== 'dir') {
     if (props.file.file_id) {
-      return `/directory/${props.file.file_id}?file=${props.file.id}`
+      return {
+        name: 'files',
+        params: {
+          file_id: props.file.file_id
+        },
+        query: {
+          file: props.file.id
+        }
+      }
     } else {
-      return `/directory?file=${props.file.id}`
+      return {
+        name: 'files',
+        query: {
+          file: props.file.id
+        }
+      }
     }
   }
 
-  return `/directory/${props.file.id}`
+  return {
+    name: 'files',
+    params: {
+      file_id: props.file.id
+    }
+  }
 })
 
 const name = computed(() => {

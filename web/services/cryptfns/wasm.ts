@@ -1,5 +1,7 @@
 import {
   // default as i,
+  crc16_digest,
+  sha256_digest,
   rsa_generate_private,
   rsa_public_from_private,
   rsa_decrypt,
@@ -31,6 +33,8 @@ export async function init() {
 }
 
 export {
+  crc16_digest,
+  sha256_digest,
   rsa_generate_private,
   rsa_public_from_private,
   rsa_decrypt,

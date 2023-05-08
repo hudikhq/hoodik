@@ -9,6 +9,7 @@ import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import type { CreateUser } from 'types'
+import * as logger from '!/logger'
 
 const register = store()
 const router = useRouter()
@@ -43,10 +44,10 @@ const init = () => {
         .oneOf([true], 'Checkbox must be accepted')
     }),
     onSubmit: async (values: Partial<CreateUser>) => {
-      console.debug(values)
+      logger.debug(values)
       register.set(values)
 
-      router.push('/auth/register/key')
+      router.push({ name: 'register-key' })
       working.value = true
     }
   }
@@ -92,7 +93,7 @@ init()
           <div class="text-sm font-medium text-brownish-500 dark:text-brownish-400">
             Already have an account?
             <router-link
-              to="/auth/login"
+              :to="{ name: 'login' }"
               class="text-primary-700 hover:underline dark:text-primary-500"
               >Login</router-link
             >

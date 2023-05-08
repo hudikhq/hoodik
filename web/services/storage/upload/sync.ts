@@ -2,6 +2,7 @@ import Api, { ErrorResponse } from '../../api'
 import * as cryptfns from '../../cryptfns'
 import { utcStringFromLocal } from '../..'
 import { MAX_UPLOAD_RETRIES } from '../constants'
+import * as logger from '!/logger'
 
 import type { Query } from '../../api'
 import type { AppFile, UploadAppFile } from '../../../types'
@@ -21,14 +22,15 @@ export async function uploadChunk(
 
   // const encrypted = data
   const encrypted = await cryptfns.aes.encrypt(data, file.metadata?.key)
-  const checksum = await cryptfns.sha256.digest(encrypted)
+  // const checksum = await cryptfns.sha256.digest(encrypted)
+  const checksum = await cryptfns.wasm.crc16_digest(encrypted)
 
   // Data can be encrypted also on the server, but this method is less secure
   // const key_hex = cryptfns.uint8.toHex(file.metadata.key)
   const query: Query = {
     chunk,
-    checksum
-    // key_hex
+    checksum,
+    checksum_function: 'crc16'
   }
 
   const headers = {
@@ -36,7 +38,8 @@ export async function uploadChunk(
   }
 
   try {
-    console.log(
+    logger.debug(
+      'Sync',
       `Uploading chunk (${encrypted.length} B) ${chunk} / ${file.chunks} of ${file.file.name} - upload attempt ${attempt} (checksum: ${checksum})`
     )
 
@@ -66,7 +69,7 @@ export async function uploadChunk(
     // If we get checksum error, most likely the data was corrupted during transfer
     // we wont retry indefinitely, but we will try a few times
     if (error.validation?.checksum && attempt < MAX_UPLOAD_RETRIES) {
-      console.warn(
+      logger.warn(
         `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.file.name}, failed checksum, retrying...`
       )
       return uploadChunk(file, data, chunk, attempt + 1)
@@ -74,13 +77,15 @@ export async function uploadChunk(
 
     // The chunk was already uploaded, so we can just return the file
     if (error.validation?.chunk === 'chunk_already_exists') {
-      console.warn(
+      logger.warn(
+        'Sync',
         `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.file.name}, chunk already exist, skipping...`
       )
       return file
     }
 
-    console.error(
+    logger.error(
+      'Sync',
       `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.file.name}, either some unexpected error, or too many failed checksum tries, aborting...`,
       err
     )

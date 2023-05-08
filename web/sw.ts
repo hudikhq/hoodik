@@ -2,6 +2,7 @@ import { downloadAndDecryptStream } from './services/storage/workers'
 import { FileMetadata } from './services/storage/metadata'
 import { uploadFile } from './services/storage/workers/file'
 import Api, { ErrorResponse, type ApiTransfer } from './services/api'
+import * as logger from '!/logger'
 
 import type {
   DownloadCompletedResponseMessage,
@@ -26,17 +27,17 @@ self.canceled = {
  */
 function handleApiTransfer(apiTransfer?: ApiTransfer) {
   if (apiTransfer && apiTransfer.jwt && apiTransfer.csrf && apiTransfer.apiUrl) {
-    console.log('Setting the SWApi...', apiTransfer.apiUrl)
+    logger.debug('Setting the SWApi...', apiTransfer.apiUrl)
 
     const api = new Api(apiTransfer)
     self.SWApi = api
   } else {
-    console.warn('Missing apiTransfer...')
+    logger.warn('Missing apiTransfer...')
   }
 }
 
 onmessage = async (message: MessageEvent<any>) => {
-  console.log('In worker, receiving message', message.data?.type || 'unknown')
+  logger.debug('In worker, receiving message', message.data?.type || 'unknown')
 
   // Handle ping messages from the main thread
   if (message.data?.type === 'ping') {
@@ -63,7 +64,7 @@ onmessage = async (message: MessageEvent<any>) => {
     handleApiTransfer(message.data.apiTransfer)
 
     while (!self.SWApi) {
-      console.warn('Waiting for SWApi to be initialized with credentials and start uploading...')
+      logger.warn('Waiting for SWApi to be initialized with credentials and start uploading...')
       await sleep(1)
     }
 
@@ -74,7 +75,7 @@ onmessage = async (message: MessageEvent<any>) => {
     handleApiTransfer(message.data.apiTransfer)
 
     while (!self.SWApi) {
-      console.warn('Waiting for SWApi to be initialized with credentials and start downloading...')
+      logger.warn('Waiting for SWApi to be initialized with credentials and start downloading...')
       await sleep(1)
     }
 
@@ -112,7 +113,7 @@ async function handleUploadFile({ transferableFile, metadataJson }: UploadFileMe
   try {
     await uploadFile(self.SWApi, file, progress)
   } catch (error) {
-    console.log('In worker error', error)
+    logger.error('In worker error', error)
     progress(file, 0, false, error as ErrorResponse<unknown>)
   }
 }

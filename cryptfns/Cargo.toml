@@ -31,6 +31,7 @@ ascon-aead = "^0.4"
 tokenizers = { version = "^0.13", default-features = false, features = [
   "unstable_wasm",
 ] }
+crc = "^3"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires

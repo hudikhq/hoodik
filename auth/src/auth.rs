@@ -1,9 +1,13 @@
-use crate::data::{authenticated::Authenticated, create_user::CreateUser};
+use crate::{
+    actions::UserActions,
+    data::{authenticated::Authenticated, create_user::CreateUser},
+};
 use actix_web::cookie::{time::OffsetDateTime, Cookie, SameSite};
 use chrono::{Duration, Utc};
 use context::Context;
 use entity::{
-    sessions, users, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, QueryFilter, Uuid,
+    sessions, users, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, QueryFilter,
+    TransactionTrait, Uuid,
 };
 use error::{AppResult, Error};
 
@@ -37,7 +41,7 @@ impl<'ctx> Auth<'ctx> {
     /// Create a new user
     pub async fn register(&self, data: CreateUser) -> AppResult<users::Model> {
         let email = data.email.clone();
-        let active_model = data.into_active_model()?;
+        let mut active_model = data.into_active_model()?;
 
         let id: Uuid = entity::active_value_to_uuid(active_model.id.clone())
             .ok_or(Error::as_wrong_id("user"))?;
@@ -47,9 +51,48 @@ impl<'ctx> Auth<'ctx> {
             return Err(Error::as_validation("email", "invalid_email"));
         }
 
+        if self.context.sender.is_none() {
+            active_model.email_verified_at = ActiveValue::Set(Some(Utc::now().naive_utc()));
+        }
+
         users::Entity::insert(active_model)
             .exec_without_returning(&self.context.db)
             .await?;
+
+        let user = self.get_by_id(id).await?;
+
+        crate::emails::activate::send(self.context, &user).await?;
+
+        Ok(user)
+    }
+
+    /// Perform activation of the user
+    pub async fn activate(&self, user_action_id: Uuid) -> AppResult<users::Model> {
+        let tx = self.context.db.begin().await.unwrap();
+
+        let user_action = UserActions::new(self.context).with_connection(&tx);
+
+        let (action, user) = user_action.get_by_id(user_action_id).await?;
+
+        if action.action != "activate-email" {
+            return Err(Error::as_not_found("wrong_user_action"));
+        }
+
+        if user.email_verified_at.is_some() {
+            return Err(Error::as_not_found("email_already_verified"));
+        }
+
+        let id = user.id;
+
+        let mut active_model: users::ActiveModel = user.into();
+
+        active_model.email_verified_at = ActiveValue::Set(Some(Utc::now().naive_utc()));
+
+        active_model.update(&tx).await?;
+
+        user_action.delete(user_action_id).await?;
+
+        tx.commit().await?;
 
         self.get_by_id(id).await
     }

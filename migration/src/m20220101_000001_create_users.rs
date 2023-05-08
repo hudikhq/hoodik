@@ -24,6 +24,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Users::Pubkey).string())
                     .col(ColumnDef::new(Users::Fingerprint).string())
                     .col(ColumnDef::new(Users::EncryptedPrivateKey).string())
+                    .col(ColumnDef::new(Users::EmailVerifiedAt).timestamp())
                     .col(ColumnDef::new(Users::CreatedAt).timestamp().not_null())
                     .col(ColumnDef::new(Users::UpdatedAt).timestamp().not_null())
                     .to_owned(),
@@ -49,6 +50,7 @@ pub enum Users {
     Pubkey,
     Fingerprint,
     EncryptedPrivateKey,
+    EmailVerifiedAt,
     CreatedAt,
     UpdatedAt,
 }

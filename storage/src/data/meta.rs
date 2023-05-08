@@ -16,6 +16,8 @@ pub struct Meta {
     /// Checksum of the currently uploading chunk
     /// this is used for verifying the integrity of the chunk
     pub checksum: Option<String>,
+    /// Tells us what checksum function was used to generate the checksum
+    pub checksum_function: Option<String>,
     /// Secret key to encrypt the data when before saving it
     /// this is optional and it can be done on the client
     /// side so the key is never sent to the backend.
@@ -52,9 +54,15 @@ impl Validation for Meta {
 }
 
 impl Meta {
-    pub fn into_tuple(self) -> AppResult<(i32, String, Option<String>)> {
+    pub fn into_tuple(self) -> AppResult<(i32, String, String, Option<String>)> {
         let data = self.validate()?;
 
-        Ok((data.chunk.unwrap(), data.checksum.unwrap(), data.key_hex))
+        Ok((
+            data.chunk.unwrap(),
+            data.checksum.unwrap_or_default(),
+            data.checksum_function
+                .unwrap_or_else(|| "sha256".to_string()),
+            data.key_hex,
+        ))
     }
 }

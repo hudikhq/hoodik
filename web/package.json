@@ -8,13 +8,14 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:unit": "vitest run --testNamePattern 'UNIT:'",
-    "test:e2e": "vitest run --testNamePattern 'E2E:'",
+    "test:e2e": "NODE_TLS_REJECT_UNAUTHORIZED=0 vitest run --testNamePattern 'E2E:'",
     "test:watch": "vitest",
     "type-check": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@aws-crypto/sha256-browser": "^4.0.0",
     "@mdi/js": "^7.2.96",
     "@openpgp/asmcrypto.js": "^2.3.3-0",
     "@vueuse/core": "^10.1.0",

@@ -86,6 +86,7 @@ impl CreateUser {
             pubkey: ActiveValue::Set(data.pubkey.unwrap()),
             fingerprint: ActiveValue::Set(data.fingerprint.unwrap()),
             encrypted_private_key: ActiveValue::Set(data.encrypted_private_key),
+            email_verified_at: ActiveValue::Set(None),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
         })
