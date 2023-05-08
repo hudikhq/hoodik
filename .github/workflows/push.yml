@@ -63,5 +63,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.vars.outputs.tags }} , ${{ secrets.DOCKER_USERNAME }}/hoodik:latest
+          tags: ${{ steps.vars.outputs.tags }} ${{ secrets.DOCKER_USERNAME }}/hoodik:latest
           labels: ${{ steps.meta.outputs.labels }}
