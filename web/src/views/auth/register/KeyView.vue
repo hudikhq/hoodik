@@ -48,7 +48,7 @@ const init = async () => {
       console.debug(values)
       register.set(values)
 
-      router.push('/auth/register/two-factor')
+      router.push({ name: 'register-two-factor' })
     }
   }
 }
@@ -115,7 +115,7 @@ init()
           <div class="text-sm font-medium text-brownish-500 dark:text-brownish-400">
             Already have an account?
             <router-link
-              to="/auth/login"
+              :to="{ name: 'login' }"
               class="text-primary-700 hover:underline dark:text-primary-500"
               >Login</router-link
             >

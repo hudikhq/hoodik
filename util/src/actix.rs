@@ -10,8 +10,8 @@ pub fn path_var<T: FromStr>(req: &HttpRequest, name: &str) -> AppResult<T> {
             Ok(v) => v,
             Err(_) => {
                 return Err(Error::BadRequest(format!(
-                    "path_attribute_not_found:{name}",
-                )))
+                    "path_attribute_cannot_be_parsed:{name}",
+                )));
             }
         },
         None => {
@@ -31,7 +31,7 @@ pub fn query_var<T: FromStr>(req: &HttpRequest, name: &str) -> AppResult<T> {
             Ok(v) => v,
             Err(_) => {
                 return Err(Error::BadRequest(format!(
-                    "query_attribute_not_found:{name}",
+                    "query_attribute_cannot_be_parsed:{name}",
                 )))
             }
         },

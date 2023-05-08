@@ -490,7 +490,7 @@ impl Config {
 
     /// Try loading the app url from env
     fn parse_client_url(app_url: &Option<String>) -> Option<String> {
-        if let Ok(client_app_url) = env_var("CLIENT_APP_URL") {
+        if let Ok(client_app_url) = env_var("APP_CLIENT_URL") {
             Some(client_app_url)
         } else {
             app_url.clone()

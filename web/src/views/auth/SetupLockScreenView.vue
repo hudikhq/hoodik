@@ -16,7 +16,7 @@ const crypto = cryptoStore()
 const config = ref()
 
 if (cryptfns.hasEncryptedPrivateKey()) {
-  router.push('/auth/decrypt')
+  router.push({ name: 'decrypt' })
 }
 
 config.value = {
@@ -38,7 +38,7 @@ config.value = {
     const privateKey = crypto.keypair?.input
 
     if (!privateKey) {
-      return router.push('/auth/login')
+      return router.push({ name: 'login' })
     }
 
     await cryptfns.encryptPrivateKeyAndStore(privateKey, values.password)
@@ -46,10 +46,10 @@ config.value = {
     if (values.logout === true) {
       login.logout(crypto)
 
-      return router.push('/auth/lock')
+      return router.push({ name: 'lock' })
     }
 
-    return router.push('/')
+    return router.push({ name: 'home' })
   }
 }
 </script>

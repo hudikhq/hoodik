@@ -122,16 +122,16 @@ export async function ensureAuthenticated(
         }
       } catch (e) {
         console.info(`Moving to login after failed attempt to get self: ${e}`)
-        router.push('/auth/login')
+        router.push({ name: 'login' })
       }
     }
 
     if (cryptfns.hasEncryptedPrivateKey()) {
       console.info('Moving to decrypt private key')
-      return router.push('/auth/decrypt')
+      return router.push({ name: 'decrypt' })
     }
 
     console.info('Moving to login')
-    return router.push('/auth/login')
+    return router.push({ name: 'login' })
   }
 }

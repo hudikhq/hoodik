@@ -50,16 +50,16 @@ const init = async () => {
         const response = await register.register(register.createUser)
         console.debug(response)
         register.clear()
-        router.push('/')
+        router.push({ name: 'home' })
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         register.setErrors(error.validation)
         console.log(register.createUser)
 
         if (error?.validation?.email || error?.validation?.password) {
-          router.push('/auth/register')
+          router.push({ name: 'register' })
         } else if (error?.validation?.pubkey || error?.validation?.fingerprint) {
-          router.push('/auth/register/key')
+          router.push({ name: 'register-key' })
         } else if (error?.validation?.token) {
           config.value.initialErrors = register.errors
         } else {
@@ -121,7 +121,7 @@ init()
           <div class="text-sm font-medium text-brownish-500 dark:text-brownish-400">
             Already have an account?
             <router-link
-              to="/auth/login"
+              :to="{ name: 'login' }"
               class="text-primary-700 hover:underline dark:text-primary-500"
               >Login</router-link
             >
