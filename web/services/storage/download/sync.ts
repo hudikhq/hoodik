@@ -109,8 +109,6 @@ export async function downloadEncryptedChunk(
 
     if (done) {
       downloaded = true
-      // const checksum = cryptfns.sha256.digest(data)
-      // console.log(`Downloaded chunk (${data.length} B) ${chunk} of ${file.chunks} - ${checksum}`)
       return data
     }
   }

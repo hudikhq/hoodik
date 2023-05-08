@@ -13,7 +13,7 @@ async function getUser(sendKey = false) {
   const password = 'some-not-so-weak-password!!1'
 
   const createUser: CreateUser = {
-    email: `test-${rng()}@test.com`,
+    email: `tibor+${rng()}@hudik.eu`,
     password,
     pubkey: keypair.publicKey as string,
     fingerprint: await crypto.rsa.getFingerprint(keypair.publicKey as string)

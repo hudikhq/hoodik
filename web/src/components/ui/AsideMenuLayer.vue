@@ -47,7 +47,7 @@ const asideLgCloseClick = (event: Event) => {
 
 const logoutAction = async () => {
   await loginStore.logout(cryptoStore, true)
-  router.push('/auth/login')
+  router.push({ name: 'login' })
 }
 </script>
 

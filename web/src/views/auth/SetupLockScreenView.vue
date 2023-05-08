@@ -9,6 +9,7 @@ import { store as cryptoStore } from '!/crypto'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
 import * as cryptfns from '!/cryptfns'
+import * as logger from '!/logger'
 
 const login = store()
 const router = useRouter()
@@ -16,7 +17,7 @@ const crypto = cryptoStore()
 const config = ref()
 
 if (cryptfns.hasEncryptedPrivateKey()) {
-  router.push('/auth/decrypt')
+  router.push({ name: 'decrypt' })
 }
 
 config.value = {
@@ -33,12 +34,12 @@ config.value = {
       .oneOf([yup.ref('password')], 'Passwords do not match')
   }),
   onSubmit: async (values: { password: string; logout: boolean }) => {
-    console.debug(values)
+    logger.debug(values)
 
     const privateKey = crypto.keypair?.input
 
     if (!privateKey) {
-      return router.push('/auth/login')
+      return router.push({ name: 'login' })
     }
 
     await cryptfns.encryptPrivateKeyAndStore(privateKey, values.password)
@@ -46,10 +47,10 @@ config.value = {
     if (values.logout === true) {
       login.logout(crypto)
 
-      return router.push('/auth/lock')
+      return router.push({ name: 'lock' })
     }
 
-    return router.push('/')
+    return router.push({ name: 'home' })
   }
 }
 </script>

@@ -16,6 +16,7 @@ pub struct Model {
     pub pubkey: String,
     pub fingerprint: String,
     pub encrypted_private_key: Option<String>,
+    pub email_verified_at: Option<NaiveDateTime>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }

@@ -21,23 +21,11 @@ export const store = defineStore('queue', () => {
    * Start all the depending queues and setup worker listeners
    */
   async function start(files: FilesStore, upload: UploadStore, download: DownloadStore) {
-    if (!uploading.value) {
-      uploading.value = await upload.start(files, store())
-    }
-
-    if (!downloading.value) {
-      downloading.value = await download.start(files, store())
-    }
-
     if (uploadWorkerListenerActive.value === false) {
       if ('UPLOAD' in window) {
-        window.UPLOAD.postMessage({ type: 'ping' })
+        uploadWorkerListenerActive.value = true
 
         window.UPLOAD.onmessage = async (event) => {
-          if (event.data.type === 'pong') {
-            uploadWorkerListenerActive.value = true
-          }
-
           if (event.data.type === 'upload-progress') {
             await uploadMessage(files, upload, event.data.response)
           }
@@ -47,12 +35,10 @@ export const store = defineStore('queue', () => {
 
     if (downloadWorkerListenerActive.value === false) {
       if ('DOWNLOAD' in window) {
-        window.UPLOAD.postMessage({ type: 'ping' })
+        downloadWorkerListenerActive.value = true
 
         window.DOWNLOAD.onmessage = async (event) => {
-          if (event.data.type === 'pong') {
-            downloadWorkerListenerActive.value = true
-          }
+          downloadWorkerListenerActive.value = true
 
           if (event.data.type === 'download-progress') {
             await handleDownloadProgressMessage(files, download, event.data.response)
@@ -63,6 +49,14 @@ export const store = defineStore('queue', () => {
           }
         }
       }
+    }
+
+    if (!uploading.value) {
+      uploading.value = await upload.start(files, store())
+    }
+
+    if (!downloading.value) {
+      downloading.value = await download.start(files, store())
     }
   }
 

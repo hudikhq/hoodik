@@ -30,9 +30,8 @@ const init = () => {
     onSubmit: async (values: Credentials) => {
       try {
         await login.withCredentials(crypto, values)
-        router.push('/')
+        router.push({ name: 'home' })
       } catch (err) {
-        console.error(err)
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
         authenticationError.value = error.description
@@ -82,7 +81,7 @@ init()
           <AppButton :form="form" type="submit">Login</AppButton>
 
           <router-link
-            to="/auth/login/private-key"
+            :to="{ name: 'login-private-key' }"
             class="float-right rounded-md text-green-200 py-2 px-4 border border-green-300"
           >
             Login With Private Key
@@ -91,7 +90,7 @@ init()
           <div class="text-sm font-medium text-brownish-500 dark:text-brownish-400">
             Don't have an account yet?
             <router-link
-              to="/auth/register"
+              :to="{ name: 'register' }"
               class="text-primary-700 hover:underline dark:text-primary-500"
               >Create an Account</router-link
             >

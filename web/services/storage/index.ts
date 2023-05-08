@@ -341,6 +341,9 @@ export const store = defineStore('filesStore', () => {
   }
 })
 
+/**
+ * Do a full text search through the files and folders
+ */
 export async function search(query: string, kp: KeyPair): Promise<ListAppFile[]> {
   const results = await Promise.all(
     (
@@ -353,8 +356,6 @@ export async function search(query: string, kp: KeyPair): Promise<ListAppFile[]>
       }
     })
   )
-
-  console.log(results)
 
   return results
 }

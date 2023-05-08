@@ -22,7 +22,7 @@ const skipIndexes = computed<number[]>(() => {
     <ol class="flex items-center space-x-2">
       <li>
         <BaseButton
-          to="/directory"
+          :to="{ name: 'files' }"
           label="/"
           :xs="true"
           color="lightDark"
@@ -33,7 +33,7 @@ const skipIndexes = computed<number[]>(() => {
       <template v-for="(parent, index) in props.parents" v-bind:key="index">
         <li v-if="skipIndexes.indexOf(index) === -1">
           <BaseButton
-            :to="`/directory/${parent.id}`"
+            :to="{ name: 'files', params: { file_id: parent.id } }"
             :xs="true"
             color="lightDark"
             :label="`${parent.metadata?.name || '...'}/`"

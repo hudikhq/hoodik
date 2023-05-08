@@ -11,7 +11,7 @@ const props = defineProps<{
   iconSize?: number
   href?: string
   target?: string
-  to?: string | RouteLocation
+  to?: RouteLocation
   type?: string
   color?: ColorType
   as?: string

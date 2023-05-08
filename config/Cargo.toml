@@ -22,6 +22,7 @@ uuid = "^1"
 rustls = "^0.20"
 rustls-pemfile = "^1"
 rcgen = "^0.10"
+log = "^0.4"
 chrono = { version = "0.4.23", features = ["serde"] }
 error = { path = "../error" }
 clap = { version = "^4", features = ["string"] }

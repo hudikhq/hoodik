@@ -111,7 +111,7 @@ async fn test_creating_file_and_uploading_chunks() {
 
     let mut uploaded = vec![];
     for (i, chunk) in data.into_iter().enumerate() {
-        println!("chunk: {}", i);
+        // println!("chunk: {}", i);
         let checksum = cryptfns::sha256::digest(chunk.as_slice());
         let uri = format!(
             "/api/storage/{}?checksum={}&chunk={}",

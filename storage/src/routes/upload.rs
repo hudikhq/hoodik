@@ -38,8 +38,12 @@ pub(crate) async fn upload(
     let authenticated = Authenticated::try_from(&req)?;
     let file_id: String = util::actix::path_var(&req, "file_id")?;
     let file_id = Uuid::from_str(&file_id)?;
-    let (chunk, checksum, key_hex) = meta.into_inner().into_tuple()?;
-    let body_checksum = cryptfns::sha256::digest(request_body.as_ref());
+    let (chunk, checksum, checksum_function, key_hex) = meta.into_inner().into_tuple()?;
+
+    let body_checksum = match checksum_function.as_str() {
+        "crc16" => cryptfns::crc::crc16_digest(&request_body),
+        _ => cryptfns::sha256::digest(request_body.as_ref()),
+    };
 
     // Encrypting the payload if the encryption key is provided
     if let Some(key) = key_hex {

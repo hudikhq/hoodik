@@ -115,7 +115,11 @@ const sizes = computed(() => {
         <TableCheckboxCell v-if="!props.hideCheckbox" v-model="checked" />
       </div>
 
-      <router-link class="font-bold" :to="`/directory/${file.id}`" v-if="isDir">
+      <router-link
+        class="font-bold"
+        :to="{ name: 'files', params: { file_id: file.id } }"
+        v-if="isDir"
+      >
         <TruncatedSpan :middle="fileName.length > 50" :text="fileName" />
       </router-link>
       <a

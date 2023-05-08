@@ -1,6 +1,7 @@
 import * as cryptfns from '../../cryptfns'
 import { utcStringFromLocal } from '../..'
 import { MAX_UPLOAD_RETRIES } from '../constants'
+import * as logger from '!/logger'
 
 import type { AppFile, UploadAppFile, UploadChunkResponseMessage } from 'types'
 import type Api from '../../api'
@@ -20,22 +21,24 @@ export async function uploadChunk(
     if (!file.metadata?.key) {
       throw new Error(`File ${file.id} is missing key`)
     }
-
+    // const encrypted = data
     const encrypted = await cryptfns.aes.encrypt(data, file.metadata.key)
-    const checksum = await cryptfns.sha256.digest(encrypted)
+    // const checksum = await cryptfns.sha256.digest(encrypted) // this is slower then crc16
+    const checksum = await cryptfns.wasm.crc16_digest(encrypted)
 
     if (!encrypted.byteLength) {
       throw new Error(`Failed encrypting chunk ${chunk} / ${file.chunks} of ${file.metadata?.name}`)
     }
 
-    // console.log(
-    //   'Worker',
-    //   `Uploading chunk (${encrypted.length} B) ${chunk} / ${file.chunks} of ${file.metadata?.name} - upload attempt ${attempt} (checksum: ${checksum})`
-    // )
+    logger.debug(
+      'Worker',
+      `Uploading chunk (${encrypted.length} B) ${chunk} / ${file.chunks} of ${file.metadata?.name} - upload attempt ${attempt} (checksum: ${checksum})`
+    )
 
     const query = {
       chunk,
-      checksum
+      checksum,
+      checksum_function: 'crc16'
     }
 
     const headers = {
@@ -63,7 +66,7 @@ export async function uploadChunk(
       ...response.body
     }
 
-    // console.log(
+    // logger.debug(
     //   'Worker',
     //   `Done uploading chunk (${encrypted.length} B) ${chunk} / ${file.chunks} of ${file.metadata?.name}`
     // )
@@ -73,7 +76,7 @@ export async function uploadChunk(
     // If we get checksum error, most likely the data was corrupted during transfer
     // we wont retry indefinitely, but we will try a few times
     if (error.validation?.checksum && attempt < MAX_UPLOAD_RETRIES) {
-      console.warn(
+      logger.warn(
         'Worker',
         `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.metadata?.name}, failed checksum, retrying...`
       )
@@ -82,12 +85,12 @@ export async function uploadChunk(
 
     // The chunk was already uploaded, so we can just return the file
     if (error.validation?.chunk === 'chunk_already_exists') {
-      console.warn(
+      logger.warn(
         'Worker',
         `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.metadata?.name}, chunk already exist, skipping...`
       )
     } else {
-      console.error(
+      logger.error(
         'Worker',
         `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.metadata?.name}, either some unexpected error, or too many failed checksum tries, aborting.`,
         err

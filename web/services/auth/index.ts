@@ -5,6 +5,7 @@ import * as register from './register'
 import Cookies from 'js-cookie'
 import * as lscache from 'lscache'
 import type { NavigationFailure, Router } from 'vue-router'
+import * as logger from '!/logger'
 
 export { login, register }
 
@@ -114,24 +115,24 @@ export async function ensureAuthenticated(
   if (!hasAuthentication(store)) {
     if (maybeCouldMakeRequests()) {
       try {
-        console.info('Trying to call self')
+        logger.info('Trying to call self')
         await store.self(crypto)
 
         if (crypto.keypair.input) {
           return
         }
       } catch (e) {
-        console.info(`Moving to login after failed attempt to get self: ${e}`)
-        router.push('/auth/login')
+        logger.info(`Moving to login after failed attempt to get self: ${e}`)
+        router.push({ name: 'login' })
       }
     }
 
     if (cryptfns.hasEncryptedPrivateKey()) {
-      console.info('Moving to decrypt private key')
-      return router.push('/auth/decrypt')
+      logger.info('Moving to decrypt private key')
+      return router.push({ name: 'decrypt' })
     }
 
-    console.info('Moving to login')
-    return router.push('/auth/login')
+    logger.info('Moving to login')
+    return router.push({ name: 'login' })
   }
 }
