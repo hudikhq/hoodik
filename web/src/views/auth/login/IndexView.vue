@@ -32,7 +32,6 @@ const init = () => {
         await login.withCredentials(crypto, values)
         router.push({ name: 'home' })
       } catch (err) {
-        console.error(err)
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
         authenticationError.value = error.description

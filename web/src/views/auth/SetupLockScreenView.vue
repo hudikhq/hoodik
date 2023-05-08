@@ -9,6 +9,7 @@ import { store as cryptoStore } from '!/crypto'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
 import * as cryptfns from '!/cryptfns'
+import * as logger from '!/logger'
 
 const login = store()
 const router = useRouter()
@@ -33,7 +34,7 @@ config.value = {
       .oneOf([yup.ref('password')], 'Passwords do not match')
   }),
   onSubmit: async (values: { password: string; logout: boolean }) => {
-    console.debug(values)
+    logger.debug(values)
 
     const privateKey = crypto.keypair?.input
 

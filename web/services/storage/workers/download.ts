@@ -1,5 +1,6 @@
 import type Api from '../../api'
 import * as cryptfns from '../../cryptfns'
+// import * as logger from '!/logger'
 
 import type { DownloadProgressFunction, ListAppFile } from 'types'
 
@@ -33,7 +34,7 @@ export async function downloadAndDecryptStream(
         return
       }
 
-      const data = await downloadChunk(api, file, chunk as number)
+      const data = await downloadChunk(self.SWApi || api, file, chunk as number)
       if (data) {
         if (progress) {
           await progress(file, data.length)
@@ -97,7 +98,7 @@ export async function downloadEncryptedChunk(
     if (done) {
       downloaded = true
       // const checksum = cryptfns.sha256.digest(data)
-      // console.log(`Downloaded chunk (${data.length} B) ${chunk} of ${file.chunks} - ${checksum}`)
+      // logger.debug(`Downloaded chunk (${data.length} B) ${chunk} of ${file.chunks} - ${checksum}`)
       return data
     }
   }

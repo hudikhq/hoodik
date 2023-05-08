@@ -4,7 +4,10 @@ import router from './router'
 import { createPinia } from '!/init'
 import { store as style } from '!/style'
 import { lightModeKey, styleKey } from '@/config'
+import { greeting } from '!/logger'
+import * as logger from '!/logger'
 
+greeting()
 // @ts-ignore
 import { serviceWorkerFile } from 'virtual:vite-plugin-service-worker'
 
@@ -17,7 +20,7 @@ try {
     })
   }
 } catch (error) {
-  console.error('Registration failed', error)
+  logger.error('Registration failed', error)
 }
 
 import './css/main.css'

@@ -37,14 +37,11 @@ const init = () => {
       password: yup.string().required('Password is required')
     }),
     onSubmit: async (values: Credentials) => {
-      console.debug(values)
-
       try {
         await login.withPin(crypto, values.password)
 
         router.push({ name: 'home' })
       } catch (err) {
-        console.error(err)
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
         authenticationError.value = error.description

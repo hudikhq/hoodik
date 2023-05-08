@@ -1,6 +1,7 @@
 import Api from '../api'
 import { FileMetadata } from './metadata'
 import * as cryptfns from '../cryptfns'
+import * as logger from '!/logger'
 
 import type {
   AppFile,
@@ -33,7 +34,7 @@ export async function create(
   try {
     encrypted_metadata = await metadata.encrypt(keypair.publicKey as string)
   } catch (e) {
-    console.log(e)
+    logger.error(e)
   }
 
   const createFile: EncryptedCreateFile = {

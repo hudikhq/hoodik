@@ -10,6 +10,7 @@ import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import QRCodeComponent from 'qrcode.vue'
 import type { CreateUser } from 'types'
+import * as logger from '!/logger'
 
 const register = store()
 const router = useRouter()
@@ -43,18 +44,17 @@ const init = async () => {
       token: yup.string().required('Two factor token is required')
     }),
     onSubmit: async (values: Partial<CreateUser>) => {
-      console.log(values)
+      logger.debug(values)
       register.set(values)
 
       try {
         const response = await register.register(register.createUser)
-        console.debug(response)
+
         register.clear()
         router.push({ name: 'home' })
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         register.setErrors(error.validation)
-        console.log(register.createUser)
 
         if (error?.validation?.email || error?.validation?.password) {
           router.push({ name: 'register' })

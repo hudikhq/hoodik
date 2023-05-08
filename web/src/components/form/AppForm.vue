@@ -26,13 +26,11 @@ const submit = form.handleSubmit(async (values, ctx: SubmissionContext<typeof va
 let waiter: ReturnType<typeof setTimeout> | null = null
 const debouncedFn = () => {
   if (waiter) {
-    console.log('have waiter')
     return
   }
 
   waiter = setTimeout(() => {
     if (!form?.isSubmitting?.value) {
-      console.log('posting')
       submit()
     }
 

@@ -11,6 +11,7 @@ import { ref } from 'vue'
 import type { ErrorResponse } from '!/api'
 import * as cryptfns from '!/cryptfns'
 import type { PrivateKeyLogin } from 'types'
+import * as logger from '!/logger'
 
 const login = store()
 const router = useRouter()
@@ -43,7 +44,7 @@ const init = () => {
         })
     }),
     onSubmit: async (values: PrivateKeyLogin) => {
-      console.debug(values)
+      logger.debug(values)
 
       try {
         await login.withPrivateKey(crypto, values)

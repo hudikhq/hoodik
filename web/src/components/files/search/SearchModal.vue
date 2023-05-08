@@ -45,7 +45,7 @@ const init = () => {
       try {
         results.value = await search(values.query, props.keypair)
       } catch (err) {
-        console.error(err)
+        // do nothing
       }
     }
   }

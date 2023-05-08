@@ -15,7 +15,7 @@
     "release:all": "turbo run wasm-pack && turbo run build && turbo run release",
     "wasm-pack": "turbo run wasm-pack",
     "watch": "turbo run test:watch",
-    "start": "turbo run dev",
+    "start": "turbo run wasm-pack && turbo run dev",
     "e2e": "./e2e",
     "unit": "turbo run wasm-pack && turbo run test:unit",
     "tc": "turbo run type-check",

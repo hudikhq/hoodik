@@ -14,6 +14,8 @@ import type { store as cryptoStore } from '../crypto'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Authenticated, AuthenticatedJwt, Credentials, KeyPair, PrivateKeyLogin } from 'types'
+import { useRouter } from 'vue-router'
+import * as logger from '!/logger'
 
 interface PrivateKeyRequest {
   fingerprint: string
@@ -84,11 +86,11 @@ export const store = defineStore('login', () => {
     const apiTransfer = new Api().toJson()
 
     if ('UPLOAD' in window) {
-      console.log('Sending auth to upload worker')
+      logger.debug('Sending auth to upload worker')
       window.UPLOAD.postMessage({ type: 'auth', apiTransfer })
     }
     if ('DOWNLOAD' in window) {
-      console.log('Sending auth to download worker')
+      logger.debug('Sending auth to download worker')
       window.DOWNLOAD.postMessage({ type: 'auth', apiTransfer })
     }
   }
@@ -142,26 +144,39 @@ export const store = defineStore('login', () => {
    */
   async function setupRefresh(): Promise<void> {
     const expires = authenticated.value?.session.expires_at
+    const lastUpdated = authenticated.value?.session.updated_at
 
     if (!expires) {
       return
     }
 
     const expiresAt = localDateFromUtcString(expires)
+    const now = new Date().getTime()
 
-    const leftSeconds = (expiresAt.getTime() - new Date().getTime()) / 1000
+    let age = 0
 
-    if (leftSeconds > 30) {
+    if (lastUpdated) {
+      const lastUpdatedAt = localDateFromUtcString(lastUpdated)
+      age = (now - lastUpdatedAt.getTime()) / 1000
+    }
+
+    const refreshAnyway = age > 120
+
+    const untilExpire = (expiresAt.getTime() - now) / 1000
+
+    if (untilExpire > 120 && !refreshAnyway) {
       return
     }
 
     try {
-      console.info('Attempting to refresh the session')
+      logger.info('Attempting to refresh the session')
       await refresh()
     } catch (e) {
-      console.error(`Error when attempting to refresh session: ${e}`)
+      logger.error(`Error when attempting to refresh session: ${e}`)
 
       clear()
+
+      useRouter().push({ name: 'login' })
     }
   }
 

@@ -45,8 +45,6 @@ const verify = async () => {
     const _error = err as ErrorResponse<any>
     error.value = _error.description
     working.value = false
-
-    console.error(err)
   }
 }
 

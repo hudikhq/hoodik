@@ -2,6 +2,7 @@ import { meta } from '..'
 import * as sync from './sync'
 import { FileMetadata } from '../metadata'
 import { defineStore } from 'pinia'
+import * as logger from '!/logger'
 
 import type {
   DownloadAppFile,
@@ -24,7 +25,7 @@ export const store = defineStore('download', () => {
   async function start(storage: FilesStore, queue: QueueStore): Promise<IntervalType> {
     active.value = true
 
-    console.log('Starting download queue')
+    logger.debug('Starting download queue')
 
     const tracker = (file: DownloadAppFile, chunkBytes: number) =>
       progress(storage, file, chunkBytes)
@@ -95,7 +96,7 @@ export const store = defineStore('download', () => {
     const index = running.value.findIndex((f) => f.id === file.id)
 
     if (index === -1) {
-      console.log(`File ${file.metadata?.name} not found in the downloading list, adding...`)
+      logger.debug(`File ${file.metadata?.name} not found in the downloading list, adding...`)
 
       // File hasn't been found in the downloading list so we add it
       running.value.push(file)
@@ -107,7 +108,7 @@ export const store = defineStore('download', () => {
     // If the file has been finished, we will remove it from the downloading list
     // and move it to the done list
     if (file.downloadedBytes >= (file.size || 0)) {
-      console.log(
+      logger.debug(
         `File ${file.metadata?.name} has finished downloading, pushing to the done list...`
       )
 

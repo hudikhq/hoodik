@@ -9,6 +9,7 @@ import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import type { CreateUser } from 'types'
+import * as logger from '!/logger'
 
 const register = store()
 const router = useRouter()
@@ -45,7 +46,7 @@ const init = async () => {
         .oneOf([true], 'You must confirm that you have stored your private key')
     }),
     onSubmit: (values: Partial<CreateUser>) => {
-      console.debug(values)
+      logger.debug(values)
       register.set(values)
 
       router.push({ name: 'register-two-factor' })
