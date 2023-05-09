@@ -89,20 +89,17 @@ const copy = () => {
     <div :class="wrapperClass">
       <Field v-model="model" :name="name" v-slot="{ field }">
         <textarea
-          v-if="textarea && typeof field === 'string'"
+          v-if="textarea && typeof field.value === 'string'"
           ref="input"
+          v-model="field.value"
           :id="name"
           :rows="rows"
           :cols="cols"
-          v-bind="field"
           @input="update"
           @change="change"
           @blur="change"
           @keyup.enter="update"
           :class="componentClass"
-          :placeholder="placeholder || ''"
-          :disabled="!!disabled || !!form.isSubmitting.value"
-          :autofocus="!!props.autofocus"
         ></textarea>
         <input
           v-else
@@ -122,6 +119,6 @@ const copy = () => {
     <div v-if="help" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
       {{ help }}
     </div>
-    <ErrorMessage :name="name" class="text-xs text-red-700 dark:text-red-500" />
+    <ErrorMessage :name="name" class="text-xs text-redish-700 dark:text-redish-500" />
   </div>
 </template>

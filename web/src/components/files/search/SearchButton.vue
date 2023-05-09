@@ -37,7 +37,7 @@ onMounted(() => {
 <template>
   <BaseButton
     :icon="mdiMagnify"
-    color="lightDark"
+    color="light"
     :small="true"
     :label="label"
     @click="emits('search')"

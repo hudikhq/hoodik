@@ -26,6 +26,7 @@ interface PrivateKeyRequest {
 export const store = defineStore('login', () => {
   const _authenticated = ref<Authenticated | null>(null)
   const _refresher = ref()
+  const _refreshing = ref(false)
 
   const authenticated = computed<Authenticated | null>(() => _authenticated.value)
 
@@ -168,10 +169,17 @@ export const store = defineStore('login', () => {
       return
     }
 
+    if (_refreshing.value) {
+      return
+    }
+
     try {
       logger.info('Attempting to refresh the session')
+      _refreshing.value = true
       await refresh()
+      _refreshing.value = false
     } catch (e) {
+      _refreshing.value = false
       logger.error(`Error when attempting to refresh session: ${e}`)
 
       clear()

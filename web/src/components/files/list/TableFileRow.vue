@@ -168,7 +168,7 @@ const sizes = computed(() => {
     <div class="hidden xl:block" :class="sizes.buttons">
       <BaseButton
         v-if="file.metadata?.thumbnail"
-        color="lightDark"
+        color="light"
         :icon="mdiEye"
         small
         @click="emits('preview', file)"
@@ -176,7 +176,7 @@ const sizes = computed(() => {
       />
       <BaseButton
         v-else
-        color="lightDark"
+        color="light"
         :icon="mdiDownload"
         small
         @click="emits('download', file)"
@@ -195,7 +195,7 @@ const sizes = computed(() => {
     <div class="xl:hidden" :class="sizes.buttons">
       <BaseButton
         v-if="!hideDelete"
-        color="lightDark"
+        color="light"
         :icon="mdiDotsVertical"
         small
         class="ml-2"

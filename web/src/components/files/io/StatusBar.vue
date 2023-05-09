@@ -179,7 +179,7 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
     <div class="shadow rounded-sm outline-1">
       <div class="flex gap-2 overflow-auto bg-brownish-50 dark:bg-brownish-800" v-show="showTable">
         <BaseButton
-          color="lightDark"
+          color="light"
           :label="`All (${totalItems})`"
           :xs="true"
           :outline="true"
@@ -189,7 +189,7 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
           :active="!tab"
         />
         <BaseButton
-          color="lightDark"
+          color="light"
           :label="`Active (${activeItems})`"
           :xs="true"
           :outline="true"
@@ -199,7 +199,7 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
           :active="tab === 'running'"
         />
         <BaseButton
-          color="lightDark"
+          color="light"
           :label="`Pending (${pendingItems})`"
           :xs="true"
           :outline="true"
@@ -209,7 +209,7 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
           :active="tab === 'waiting'"
         />
         <BaseButton
-          color="lightDark"
+          color="light"
           :label="`Done (${doneItems})`"
           :xs="true"
           :outline="true"
@@ -219,7 +219,7 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
           :active="tab === 'done'"
         />
         <BaseButton
-          color="lightDark"
+          color="light"
           :label="`Failed (${failedItems})`"
           :xs="true"
           :outline="true"

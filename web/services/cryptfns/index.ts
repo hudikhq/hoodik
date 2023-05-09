@@ -8,7 +8,7 @@ import * as wasm from './wasm'
 
 export { rsa, aes, sha256, uint8, wasm }
 
-const ENCRYPTED_PRIVATE_KEY_LOCAL_STORAGE = 'encrypted-secret'
+const ENCRYPTED_PRIVATE_KEY_LOCAL_STORAGE = 'SAVED-ENCRYPTED-PRIVATE-KEY'
 
 /**
  * Convert input string into hashed tokens

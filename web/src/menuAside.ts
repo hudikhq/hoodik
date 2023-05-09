@@ -1,27 +1,15 @@
-import {
-  // mdiAccountCircle,
-  mdiMonitor
-  // mdiGithub,
-  // mdiLock,
-  // mdiAlertCircle,
-  // mdiSquareEditOutline,
-  // mdiTable,
-  // mdiViewList,
-  // mdiTelevisionGuide,
-  // mdiResponsive,
-  // mdiPalette,
-  // mdiReact
-} from '@mdi/js'
+import { mdiMonitor } from '@mdi/js'
+import type { RouteLocation } from 'vue-router'
 
 export interface AsideMenuItemType {
-  to: string
+  to: RouteLocation
   icon: string
   label: string
 }
 
 export default [
   {
-    to: '/',
+    to: { name: 'files' },
     icon: mdiMonitor,
     label: 'My Files'
   }

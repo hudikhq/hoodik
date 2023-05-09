@@ -68,7 +68,7 @@ const speed = computed(() => {
       title="Cancel the transfer"
       :icon="mdiClose"
       small
-      color="lightDark"
+      color="light"
       :noBorder="true"
       :outline="false"
       @click="emits('remove', file, props.type)"

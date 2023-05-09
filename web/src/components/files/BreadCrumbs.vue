@@ -25,7 +25,7 @@ const skipIndexes = computed<number[]>(() => {
           :to="{ name: 'files' }"
           label="/"
           :xs="true"
-          color="lightDark"
+          color="light"
           :disabled="!props.parents || !props.parents.length"
         />
       </li>
@@ -35,7 +35,7 @@ const skipIndexes = computed<number[]>(() => {
           <BaseButton
             :to="{ name: 'files', params: { file_id: parent.id } }"
             :xs="true"
-            color="lightDark"
+            color="light"
             :label="`${parent.metadata?.name || '...'}/`"
             :disabled="parent.id === props.parentId"
           />

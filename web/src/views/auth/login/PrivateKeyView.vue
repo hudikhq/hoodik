@@ -12,6 +12,7 @@ import type { ErrorResponse } from '!/api'
 import * as cryptfns from '!/cryptfns'
 import type { PrivateKeyLogin } from 'types'
 import * as logger from '!/logger'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 const login = store()
 const router = useRouter()
@@ -77,18 +78,18 @@ init()
           />
           <AppCheckbox label="Remember me" :form="form" name="remember" />
 
-          <p v-if="authenticationError" class="text-sm text-red-400">
+          <p v-if="authenticationError" class="text-sm text-redish-400">
             {{ authenticationError }}
           </p>
 
-          <AppButton :form="form" type="submit">Login</AppButton>
+          <AppButton color="info" :form="form" type="submit">Login</AppButton>
 
-          <router-link
+          <BaseButton
             :to="{ name: 'login' }"
-            class="float-right rounded-md text-green-200 py-2 px-4 border border-green-300"
-          >
-            Login With Email and Password
-          </router-link>
+            color="light"
+            label="Login With Email and Password"
+            class="float-right"
+          />
 
           <div class="text-sm font-medium text-brownish-500 dark:text-brownish-400">
             Don't have an account yet?

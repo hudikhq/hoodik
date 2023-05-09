@@ -24,9 +24,9 @@ const authenticationError = ref<string | null>(null)
 const init = () => {
   if (!cryptfns.hasEncryptedPrivateKey()) {
     hasAuth.value = false
-    return setTimeout(() => {
-      router.push({ name: 'login', replace: true })
-    }, 5000)
+    // return setTimeout(() => {
+    //   router.push({ name: 'login', replace: true })
+    // }, 5000)
   }
 
   config.value = {
@@ -67,7 +67,7 @@ init()
 
         <router-link
           :to="{ name: 'login' }"
-          class="float-right rounded-md text-red-200 py-2 px-4 border border-red-300"
+          class="float-right rounded-md text-redish-200 py-2 px-4 border border-redish-300"
         >
           Login
         </router-link>
@@ -87,7 +87,7 @@ init()
           />
           <AppCheckbox label="Remember me" :form="form" name="remember" />
 
-          <p v-if="authenticationError" class="text-sm text-red-400">
+          <p v-if="authenticationError" class="text-sm text-redish-400">
             {{ authenticationError }}
           </p>
 

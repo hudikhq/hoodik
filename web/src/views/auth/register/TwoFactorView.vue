@@ -48,7 +48,7 @@ const init = async () => {
       register.set(values)
 
       try {
-        const response = await register.register(register.createUser)
+        await register.register(register.createUser)
 
         register.clear()
         router.push({ name: 'home' })
@@ -108,14 +108,15 @@ init()
           <AppField :form="form" label="Your two factor secret" name="secret" :allow-copy="true" />
           <AppField :rows="28" :form="form" label="Enter your two factor token" name="token" />
 
-          <AppButton type="submit"> Register with Two Factor </AppButton>
+          <AppButton color="info" type="submit"> Register with Two Factor </AppButton>
 
           <AppButton
+            color="light"
             type="button"
             @click="() => config.onSubmit(form.values)"
-            class="float-right rounded-md text-green-200 py-2 px-4 border border-green-300"
+            class="float-right"
           >
-            Skip and Register
+            Skip
           </AppButton>
 
           <div class="text-sm font-medium text-brownish-500 dark:text-brownish-400">

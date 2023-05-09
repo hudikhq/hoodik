@@ -5,7 +5,7 @@ export interface NavBarItem {
   label?: string
   isCurrentUser?: boolean
   isDesktopNoLabel?: boolean
-  isToggleLightDark?: boolean
+  isTogglelight?: boolean
   isDivider?: boolean
   to?: string
   isLogout?: boolean
@@ -20,7 +20,7 @@ export default [
     icon: mdiThemeLightDark,
     label: 'Light/Dark',
     isDesktopNoLabel: true,
-    isToggleLightDark: true
+    isTogglelight: true
   },
   {
     icon: mdiLock,
