@@ -11,7 +11,7 @@ const props = defineProps<{
   iconSize?: number
   href?: string
   target?: string
-  to?: RouteLocation
+  to?: RouteLocation | { name: string }
   type?: string
   color?: ColorType
   as?: string
@@ -74,7 +74,7 @@ const componentClass = computed(() => {
     'duration-150',
     props.disabled ? 'cursor-not-allowed' : 'cursor-pointer',
     props.roundedFull ? 'rounded-full' : 'rounded',
-    getButtonColor(props.color || 'white', !!props.outline, !props.disabled, !!props.active)
+    getButtonColor(props.color || 'light', !!props.outline, !props.disabled, !!props.active)
   ]
 
   if (!props.noBorder) {

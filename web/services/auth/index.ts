@@ -11,7 +11,7 @@ export { login, register }
 
 const CSRF_COOKIE_NAME = 'X-CSRF-TOKEN'
 const JWT_TOKEN_STORE_NAME = 'JWT-TOKEN'
-const PRIVATE_KEY_STORE_NAME = 'PRIVATE-KEY'
+const PRIVATE_KEY_STORE_NAME = 'ENCRYPTED-PRIVATE-KEY'
 
 /**
  * Shortcut to figure out if we can make requests

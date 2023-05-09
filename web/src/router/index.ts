@@ -73,7 +73,7 @@ const router = createRouter({
       path: '/auth/activate-email/:token',
       name: 'activate-email',
       meta: { title: 'Create Account - Verify Email' },
-      component: () => import('../views/auth/VerifyEmail.vue')
+      component: () => import('../views/auth/VerifyEmailView.vue')
     }
   ]
 })

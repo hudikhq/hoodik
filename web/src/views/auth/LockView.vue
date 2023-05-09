@@ -11,30 +11,33 @@ import { useRouter } from 'vue-router'
 import { ref } from 'vue'
 import { hasAuthentication } from '!/auth'
 import { AppButton } from '@/components/form'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 const login = store()
 const crypto = cryptoStore()
 const router = useRouter()
-const hasAuth = ref(true)
-const locked = ref(false)
+const state = ref<undefined | 'secured' | 'unauthenticated' | 'authenticated'>()
 
-const logout = async () => {
+const logout = () => {
   if (!cryptfns.hasEncryptedPrivateKey() && hasAuthentication(login)) {
+    state.value = 'authenticated'
+
     return setTimeout(() => {
       router.push({ name: 'setup-lock-screen', replace: true })
     }, 5000)
   } else if (!cryptfns.hasEncryptedPrivateKey()) {
-    hasAuth.value = false
+    state.value = 'unauthenticated'
+
     return setTimeout(() => {
       router.push({ name: 'login', replace: true })
     }, 5000)
   }
 
-  locked.value = true
+  state.value = 'secured'
 
   try {
     if (hasAuthentication(login)) {
-      await login.logout(crypto)
+      login.logout(crypto)
     }
   } catch (e) {
     //
@@ -51,11 +54,11 @@ const deletePrivateKey = () => {
 <template>
   <LayoutGuest v-if="login && crypto">
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
-      <CardBox :class="`${cardClass} text-center`" v-if="!locked && hasAuth">
+      <CardBox :class="`${cardClass} text-center`" v-if="state === 'authenticated'">
         <h1 class="text-2xl text-white mb-5">Account Locked</h1>
 
         <div class="flex items-start">
-          <div class="flex items-center h-5">
+          <div class="flex items-center mb-4">
             <p class="text-sm">
               Looks like you don't have your private key stored locally. You will be automatically
               redirected to the setup lock screen page in a few seconds.
@@ -63,31 +66,22 @@ const deletePrivateKey = () => {
           </div>
         </div>
 
-        <router-link
-          :to="{ name: 'setup-lock-screen' }"
-          class="float-right rounded-md text-green-200 py-2 px-4 border border-green-300"
-        >
-          Setup Lock Screen
-        </router-link>
+        <BaseButton :to="{ name: 'setup-lock-screen' }" label="Setup Lock Screen" />
       </CardBox>
-      <CardBox :class="`${cardClass} text-center`" v-else-if="!locked && !hasAuth">
+
+      <CardBox :class="`${cardClass} text-center`" v-if="state === 'unauthenticated'">
         <div class="flex items-start">
-          <div class="flex items-center h-5">
-            <p class="text-sm">
+          <div class="flex items-center mb-4">
+            <p class="text-sm block">
               You are not authenticated, you will be automatically redirected to the login page in a
               few seconds.
             </p>
           </div>
         </div>
 
-        <router-link
-          :to="{ name: 'login' }"
-          class="float-right rounded-md text-green-200 py-2 px-4 border border-green-300"
-        >
-          Login
-        </router-link>
+        <BaseButton :to="{ name: 'login' }" label="login" />
       </CardBox>
-      <CardBox :class="`${cardClass} text-center`" v-else>
+      <CardBox :class="`${cardClass} text-center`" v-if="state === 'secured'">
         <div class="h-5 text-center">
           <p class="text-sm">
             Your private key is encrypted, all other data has been deleted and your account has been
@@ -96,22 +90,13 @@ const deletePrivateKey = () => {
         </div>
 
         <div class="text-center mt-10 mb-10">
-          <BaseIcon :path="mdiLock" size="150" w="w-50" h="h-50" class="text-red-200" />
+          <BaseIcon :path="mdiLock" size="150" w="w-50" h="h-50" class="text-greeny-400" />
         </div>
 
-        <router-link
-          :to="{ name: 'decrypt' }"
-          class="float-left rounded-md text-green-200 py-2 px-4 border border-green-300"
-        >
-          Unlock Account
-        </router-link>
+        <BaseButton :to="{ name: 'decrypt' }" class="float-left" label="Unlock" />
 
-        <AppButton
-          @click="deletePrivateKey"
-          type="button"
-          class="float-right rounded-md text-red-200 py-2 px-4 border border-red-300"
-        >
-          Delete Encrypted Private Key
+        <AppButton @click="deletePrivateKey" type="button" class="float-right" color="danger">
+          Forget account
         </AppButton>
       </CardBox>
     </SectionFullScreen>

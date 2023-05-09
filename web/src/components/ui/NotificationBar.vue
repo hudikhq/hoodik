@@ -46,7 +46,7 @@ const hasRightSlot = computed(() => slots.right)
         <span class="text-center md:text-left md:py-2"><slot /></span>
       </div>
       <slot v-if="hasRightSlot" name="right" />
-      <BaseButton v-else :icon="mdiClose" small rounded-full color="white" @click="dismiss" />
+      <BaseButton v-else :icon="mdiClose" small rounded-full color="light" @click="dismiss" />
     </BaseLevel>
   </div>
 </template>

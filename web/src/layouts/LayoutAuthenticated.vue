@@ -35,7 +35,7 @@ router.beforeEach(async () => {
 })
 
 const menuClick = (event: Event, item: NavBarItem) => {
-  if (item.isToggleLightDark) {
+  if (item.isTogglelight) {
     styleStore.setDarkMode()
   }
 }
@@ -78,6 +78,15 @@ const menuClick = (event: Event, item: NavBarItem) => {
         @aside-lg-close-click="isAsideLgActive = false"
       />
       <SearchModal :keypair="crypto.keypair" v-model="isSearchModalActive" />
+
+      <div
+        v-if="!loginStore.authenticated?.user?.email_verified_at"
+        class="block bg-redish-100 dark:bg-redish-950 text-redish-950 dark:text-redish-100 rounded-lg p-4 mx-1 xl:mx-6 mt-9"
+      >
+        You account is not activated, please check your email for the activation link, it might end
+        up in spam folder, so check that too.
+      </div>
+
       <slot :authenticated="loginStore.authenticated" :keypair="crypto.keypair" />
 
       <StatusBar />

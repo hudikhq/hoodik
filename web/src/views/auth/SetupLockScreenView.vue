@@ -55,13 +55,13 @@ config.value = {
 }
 </script>
 <template>
-  <LayoutAuthenticatedWithLoader>
+  <LayoutAuthenticatedWithLoader clear>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass">
         <h1 class="text-2xl text-white mb-5">Setup Lock Screen</h1>
         <div class="flex items-start">
-          <div class="flex items-center h-5">
-            <p class="text-sm text-brownish-800 dark:text-brownish-500">
+          <div class="flex items-center">
+            <p class="text-sm">
               Your private key will be encrypted and stored locally so the next time you come back
               you can decrypt it and access your files with a simple pin/password.
             </p>

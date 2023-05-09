@@ -17,6 +17,7 @@ export interface User {
   encrypted_private_key?: string
   created_at: string
   updated_at: string
+  email_verified_at?: string
 }
 
 export interface Session {

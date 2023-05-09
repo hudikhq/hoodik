@@ -60,7 +60,7 @@ window.addEventListener('keydown', (e) => {
         <BaseButton
           v-if="hasCancel"
           :icon="mdiClose"
-          color="whiteDark"
+          color="dark"
           small
           rounded-full
           @click.prevent="cancel"

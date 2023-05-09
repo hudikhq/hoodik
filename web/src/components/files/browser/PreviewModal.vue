@@ -93,7 +93,7 @@ watch(
       />
     </div>
     <div class="flex justify-center p-3" v-if="props.modelValue">
-      <BaseButton color="lightDark" :icon="mdiDownload" small @click="download" label="Download" />
+      <BaseButton color="light" :icon="mdiDownload" small @click="download" label="Download" />
       <BaseButton
         label="Delete"
         v-if="!hideDelete"

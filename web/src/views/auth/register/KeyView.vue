@@ -69,9 +69,9 @@ init()
         <AppForm v-else :config="config" class="mt-8 space-y-6" v-slot="{ form }">
           <div class="flex items-start">
             <div class="flex items-center h-5">
-              <p class="text-sm text-red-500 dark:text-red-400">
+              <p class="text-sm text-redish-500 dark:text-redish-400">
                 <strong>This is the last time we'll show you your key!</strong> Store it somewhere
-                safe.
+                safe. You will need this to login or recover your account.
               </p>
             </div>
           </div>
@@ -83,29 +83,9 @@ init()
             name="unencrypted_private_key"
             class-add="text-xs"
             :allow-copy="true"
-            help="This is your private key. It is used to encrypt and decrypt your files. You should copy it and save it somewhere safe. You will need it to login or recover your account."
           />
           <AppCheckbox
-            label="Encrypt and store my private key"
-            :form="form"
-            name="store_private_key"
-          />
-          <div class="flex items-start">
-            <div class="flex items-center h-5 mb-1">
-              <p v-if="form.values.store_private_key" class="text-sm text-green-400">
-                Your private key will be encrypted with your password and then it will be sent and
-                stored on the backend server. This will allow you to login simply with your email
-                and password.
-              </p>
-              <p v-else class="text-sm text-red-400">
-                Not storing your private key on the server means you have to protect it yourself.
-                Every time you login you will have to enter your private key in order to be able to
-                access your files.
-              </p>
-            </div>
-          </div>
-          <AppCheckbox
-            label="I have stored my private key, we can move on"
+            label="I have stored my private key"
             :form="form"
             name="i_have_stored_my_private_key"
           />

@@ -41,8 +41,10 @@ const onChange = (e: Event) => {
         <input :id="name" type="checkbox" v-bind="field" :checked="!!form.values[name]" />
       </Field>
       <span class="check" />
-      <span class="pl-2">{{ label }}</span>
-      <ErrorMessage :name="name" class="text-sm text-red-700 dark:text-red-500 ml-2" />
+      <span class="pl-2 sm:block">
+        {{ label }}
+      </span>
     </label>
+    <ErrorMessage :name="name" class="block text-sm text-redish-700 dark:text-redish-500 ml-2" />
   </div>
 </template>

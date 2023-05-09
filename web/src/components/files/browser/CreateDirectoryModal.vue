@@ -57,7 +57,7 @@ init()
       @cancel="$emit('cancel')"
       :form="form"
     >
-      <p v-if="errorMessage" class="text-sm text-red-900 dark:text-red-200">
+      <p v-if="errorMessage" class="text-sm text-redish-900 dark:text-redish-200">
         {{ errorMessage }}
       </p>
 

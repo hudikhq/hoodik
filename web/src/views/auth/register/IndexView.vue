@@ -88,7 +88,7 @@ init()
             :form="form"
             name="i_take_all_the_responsibility"
           />
-          <AppButton type="submit">Next</AppButton>
+          <AppButton color="info" type="submit">Next</AppButton>
 
           <div class="text-sm font-medium text-brownish-500 dark:text-brownish-400">
             Already have an account?

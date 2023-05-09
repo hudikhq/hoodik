@@ -22,7 +22,7 @@ const emits = defineEmits(['remove'])
       title="Remove from the list"
       :icon="mdiClose"
       small
-      color="lightDark"
+      color="light"
       :noBorder="true"
       :outline="false"
       @click="emits('remove', file, props.type)"
