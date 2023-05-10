@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { store as style } from '!/style.js'
+import { watch } from 'vue'
 const styleStore = style()
 
-defineProps({
+const props = defineProps({
+  visible: Boolean,
   zIndex: {
     type: String,
     default: 'z-50'
@@ -13,6 +15,17 @@ defineProps({
   }
 })
 
+watch(
+  () => props.visible,
+  (value) => {
+    if (value) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'auto'
+    }
+  }
+)
+
 const emit = defineEmits(['overlay-click'])
 
 const overlayClick = (event: Event) => {
@@ -22,6 +35,7 @@ const overlayClick = (event: Event) => {
 
 <template>
   <div
+    v-show="visible"
     :class="[type, zIndex]"
     class="items-center flex-col justify-center overflow-hidden fixed inset-0"
   >

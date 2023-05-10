@@ -14,9 +14,9 @@ const label = computed(() => {
   let label = 'Search'
 
   if (os === 'macos') {
-    label += ' (⌘ + K)'
+    label += ' (⌘K)'
   } else if (os === 'windows' || os === 'linux') {
-    label += ' (Ctrl + K)'
+    label += ' (Ctrl+K)'
   }
 
   return label

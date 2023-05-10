@@ -58,13 +58,13 @@ const scroll = () => {
 onMounted(() => {
   setTimeout(() => {
     scroll()
-  }, 1000)
+  }, 250)
 })
 
 watch(fileId, () => {
   setTimeout(() => {
     scroll()
-  }, 1000)
+  }, 250)
 })
 </script>
 
@@ -72,7 +72,7 @@ watch(fileId, () => {
   <LayoutAuthenticatedWithLoader>
     <FileBrowser :parentId="parentId" :hide-delete="false" v-slot="{ storage, loading, on }">
       <SectionMain>
-        <CardBox rounded="rounded-md" class="mb-2 px-0 py-0 mt-4" has-table>
+        <CardBox rounded="rounded-md" class="mb-2 px-0 py-0" has-table>
           <div class="w-full border-y-0">
             <div class="float-left p-2">
               <BreadCrumbs :parents="storage.parents" :parentId="parentId" />

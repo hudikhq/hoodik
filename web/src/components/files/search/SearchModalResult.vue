@@ -10,7 +10,7 @@ const props = defineProps<{
 }>()
 
 const emits = defineEmits<{
-  (event: 'clicked'): void
+  (event: 'clicked', file: ListAppFile): void
 }>()
 
 const url = computed(() => {
@@ -59,11 +59,23 @@ const fileSize = computed(() => {
   <router-link
     class="p-2 flex hover:bg-brownish-200 hover:dark:bg-brownish-800 border-b-[1px] border-brownish-50 dark:border-brownish-700"
     :to="url"
-    @click="emits('clicked')"
+    @click="emits('clicked', props.file)"
   >
     <div class="w-1/12 pt-2">
-      <BaseIcon v-if="props.file.mime === 'dir'" :path="mdiFolderOutline" :size="30" />
-      <BaseIcon v-else :path="mdiFileOutline" :size="30" />
+      <img
+        v-if="props.file.metadata?.thumbnail"
+        :src="props.file.metadata?.thumbnail"
+        :alt="name"
+        class="w-10 h-10 rounded-md"
+      />
+      <BaseIcon
+        v-else-if="props.file.mime === 'dir'"
+        :path="mdiFolderOutline"
+        :size="28"
+        w="w-8"
+        h="h-8"
+      />
+      <BaseIcon v-else :path="mdiFileOutline" :size="28" w="w-8" h="h-8" />
     </div>
     <div class="w-7/12 text-left">
       <div class="w-full text-left truncate">

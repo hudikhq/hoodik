@@ -2,7 +2,7 @@
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
-import { AppForm, AppField, AppButton, AppCheckbox } from '@/components/form'
+import { AppForm, AppField, AppButton } from '@/components/form'
 import * as yup from 'yup'
 import { store } from '!/auth/login'
 import { store as cryptoStore } from '!/crypto'
@@ -76,7 +76,6 @@ init()
             placeholder="Paste your private key here"
             help="Your private key will never be sent to the server, we will only use it to generate fingerprint and sign your requests to try and authenticate you"
           />
-          <AppCheckbox label="Remember me" :form="form" name="remember" />
 
           <p v-if="authenticationError" class="text-sm text-redish-400">
             {{ authenticationError }}

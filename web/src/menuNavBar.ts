@@ -1,4 +1,4 @@
-import { mdiLock, mdiThemeLightDark } from '@mdi/js'
+import { mdiLock } from '@mdi/js'
 
 export interface NavBarItem {
   icon?: string
@@ -16,12 +16,6 @@ export interface NavBarItem {
 }
 
 export default [
-  {
-    icon: mdiThemeLightDark,
-    label: 'Light/Dark',
-    isDesktopNoLabel: true,
-    isTogglelight: true
-  },
   {
     icon: mdiLock,
     label: 'Lock',
