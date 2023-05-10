@@ -153,7 +153,7 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
 </script>
 <template>
   <div
-    class="fixed bottom-0 shadow-lg right-0"
+    class="fixed bottom-0 shadow-lg right-0 z-[45]"
     :class="{
       'w-full xl:w-2/5': showTable
     }"

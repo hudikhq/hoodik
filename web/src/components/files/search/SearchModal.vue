@@ -79,13 +79,11 @@ watch(
       </Field>
     </AppForm>
 
-    <div
-      class="w-full max-h-60 overflow-y-scroll mt-4 text-center"
-      v-if="searched && !results.length"
-    >
-      No results
+    <div class="w-full h-72 overflow-y-scroll mt-4 text-center" v-if="!results.length">
+      <span v-if="searched"> No results </span>
+      <span v-else> Start typing to search </span>
     </div>
-    <div class="w-full max-h-60 overflow-y-scroll mt-4" v-else>
+    <div class="w-full h-72 overflow-y-scroll mt-4" v-else>
       <SearchModalResult
         v-for="file in results"
         :key="file.id"
