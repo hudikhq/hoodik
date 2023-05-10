@@ -7,6 +7,7 @@ import DeleteMultipleModal from '@/components/files/browser/DeleteMultipleModal.
 import ActionsModal from '@/components/files/browser/ActionsModal.vue'
 import CreateDirectoryModal from '@/components/files/browser/CreateDirectoryModal.vue'
 import DeleteModal from '@/components/files/browser/DeleteModal.vue'
+import DetailsModal from '@/components/files/browser/DetailsModal.vue'
 import UploadButton from '@/components/files/browser/UploadButton.vue'
 import { ref, watch, onMounted } from 'vue'
 import type { ListAppFile } from 'types'
@@ -26,6 +27,7 @@ const helper = ref<Helper>(new Helper(crypto.keypair, storage))
 const openBrowseWindow = ref(false)
 const isModalCreateDirActive = ref(false)
 const isModalDeleteMultipleActive = ref(false)
+const detailsView = ref<ListAppFile>()
 const singleRemove = ref<ListAppFile>()
 const actionFile = ref<ListAppFile>()
 const previewFile = ref<ListAppFile>()
@@ -37,6 +39,14 @@ const previewFile = ref<ListAppFile>()
  */
 const actions = (file: ListAppFile) => {
   actionFile.value = file
+}
+
+/**
+ * Opens a modal to confirm removing a single file
+ */
+const details = (file: ListAppFile) => {
+  actionFile.value = undefined
+  detailsView.value = file
 }
 
 /**
@@ -108,8 +118,15 @@ onMounted(() => {
 <template>
   <UploadButton v-model="openBrowseWindow" :dir="storage.dir" :kp="crypto.keypair" />
   <CreateDirectoryModal v-model="isModalCreateDirActive" @cancel="isModalCreateDirActive = false" />
-  <ActionsModal v-model="actionFile" @remove="remove" @download="download" @preview="preview" />
+  <ActionsModal
+    v-model="actionFile"
+    @remove="remove"
+    @download="download"
+    @preview="preview"
+    @details="details"
+  />
   <DeleteModal v-model="singleRemove" :storage="storage" :kp="crypto.keypair" />
+  <DetailsModal v-model="detailsView" :storage="storage" :kp="crypto.keypair" />
   <DeleteMultipleModal
     v-model="isModalDeleteMultipleActive"
     :storage="storage"
@@ -121,6 +138,7 @@ onMounted(() => {
     :kp="crypto.keypair"
     @download="download"
     @remove="remove"
+    @details="details"
   />
 
   <slot
@@ -130,12 +148,13 @@ onMounted(() => {
     :download="Download"
     :loading="storage.loading"
     :on="{
-      remove: remove,
-      download: download,
-      actions: actions,
-      preview: preview,
-      browse: browse,
-      directory: directory,
+      remove,
+      download,
+      actions,
+      preview,
+      browse,
+      directory,
+      details,
       'remove-all': removeAll,
       'select-one': storage.selectOne,
       'select-all': storage.selectAll

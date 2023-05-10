@@ -23,11 +23,18 @@ const props = defineProps({
     type: String,
     default: '',
     required: false
+  },
+  flex: {
+    type: Boolean,
+    default: true
   }
 })
 
 const spanClass = computed(
-  () => `inline-flex justify-center items-center ${props.w} ${props.h} ${props.class}`
+  () =>
+    `${props.flex ? 'inline-flex' : ''} justify-center items-center ${props.w} ${props.h} ${
+      props.class
+    }`
 )
 
 const iconSize = computed(() => props.size ?? 16)

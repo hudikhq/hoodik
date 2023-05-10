@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { mdiTrashCan, mdiEye, mdiDownload, mdiDotsVertical } from '@mdi/js'
+import { mdiDotsVertical } from '@mdi/js'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import TruncatedSpan from '@/components/ui/TruncatedSpan.vue'
 import { formatPrettyDate, formatSize } from '!'
 import type { ListAppFile } from 'types'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const props = defineProps<{
   file: ListAppFile
@@ -27,6 +30,7 @@ const props = defineProps<{
 const emits = defineEmits<{
   (event: 'actions', file: ListAppFile): void
   (event: 'remove', file: ListAppFile): void
+  (event: 'details', file: ListAppFile): void
   (event: 'preview', file: ListAppFile): void
   (event: 'download', file: ListAppFile): void
   (event: 'select-one', value: boolean, file: ListAppFile): void
@@ -96,9 +100,50 @@ const sizes = computed(() => {
     type: `${border} ${props.sizes.type}`,
     createdAt: `${border} ${props.sizes.createdAt}`,
     uploadedAt: `${border} ${props.sizes.uploadedAt}`,
-    buttons: `${border} ${props.sizes.buttons} text-right`
+    buttons: `${props.sizes.buttons} text-right`
   }
 })
+
+const clicks = ref(0)
+const timer = ref()
+
+/**
+ * Click listener
+ * that handles single and double clicks
+ */
+const click = () => {
+  clicks.value++
+  if (clicks.value === 1) {
+    timer.value = setTimeout(() => {
+      clicks.value = 0
+      singleClick()
+    }, 200)
+  } else {
+    clearTimeout(timer.value)
+    clicks.value = 0
+    doubleClick()
+  }
+}
+
+const singleClick = () => {
+  if (isDir.value) {
+    router.push({ name: 'files', params: { file_id: props.file.id } })
+  } else {
+    detailsOrPreview()
+  }
+}
+
+const detailsOrPreview = () => {
+  if (props.file.finished_upload_at && props.file.metadata?.thumbnail) {
+    emits('preview', props.file)
+  } else {
+    emits('details', props.file)
+  }
+}
+
+const doubleClick = () => {
+  checked.value = !checked.value
+}
 </script>
 
 <template>
@@ -110,37 +155,19 @@ const sizes = computed(() => {
       [sharedClass]: true
     }"
   >
-    <div :class="sizes.name" :title="fileName">
-      <div :class="sizes.checkbox">
-        <TableCheckboxCell v-if="!props.hideCheckbox" v-model="checked" />
-      </div>
+    <div :class="sizes.checkbox">
+      <TableCheckboxCell v-if="!props.hideCheckbox" v-model="checked" />
+    </div>
 
-      <router-link
-        class="font-bold"
-        :to="{ name: 'files', params: { file_id: file.id } }"
-        v-if="isDir"
-      >
-        <TruncatedSpan :middle="fileName.length > 50" :text="fileName" />
-      </router-link>
-      <a
-        class="font-bold"
-        href="#"
-        @click="emits('preview', file)"
-        v-else-if="file.metadata?.thumbnail"
-      >
-        <img
-          v-if="file.metadata?.thumbnail"
-          :src="file.metadata?.thumbnail"
-          :alt="fileName"
-          class="h-6 mr-2 mb-1 inline-block"
-        />
-        <div class="inline-block">
-          <TruncatedSpan :middle="fileName.length > 50" :text="fileName" />
-        </div>
-      </a>
-      <span v-else>
-        <TruncatedSpan :middle="fileName.length > 50" :text="fileName" />
-      </span>
+    <div :class="`${sizes.name} cursor-pointer prevent-select`" :title="fileName" @click="click">
+      <img
+        v-if="file.metadata?.thumbnail"
+        :src="file.metadata?.thumbnail"
+        :alt="fileName"
+        class="w-6 h-6 mr-2 rounded-md"
+      />
+
+      <TruncatedSpan :middle="fileName.length > 50" :text="fileName" />
     </div>
 
     <div :class="sizes.size" :title="fileSize">
@@ -165,44 +192,33 @@ const sizes = computed(() => {
       />
     </div>
 
-    <div class="hidden xl:block" :class="sizes.buttons">
+    <div :class="sizes.buttons">
       <BaseButton
-        v-if="file.metadata?.thumbnail"
-        color="light"
-        :icon="mdiEye"
-        small
-        @click="emits('preview', file)"
-        :disabled="!props.file.id || !file.finished_upload_at"
-      />
-      <BaseButton
-        v-else
-        color="light"
-        :icon="mdiDownload"
-        small
-        @click="emits('download', file)"
-        :disabled="!props.file.id || isDir || !file.finished_upload_at"
-      />
-      <BaseButton
-        v-if="!hideDelete"
-        color="danger"
-        :icon="mdiTrashCan"
-        small
-        class="ml-2"
-        @click="emits('remove', file)"
-        :disabled="!props.file.id"
-      />
-    </div>
-    <div class="xl:hidden" :class="sizes.buttons">
-      <BaseButton
-        v-if="!hideDelete"
-        color="light"
+        class="ml-2 sm:hidden float-right"
+        color="dark"
         :icon="mdiDotsVertical"
         small
-        class="ml-2"
+        @click="emits('actions', file)"
+        :disabled="!props.file.id"
+      />
+      <BaseButton
+        class="ml-2 hidden sm:block float-right"
+        color="dark"
+        :icon="mdiDotsVertical"
+        small
         @click="emits('actions', file)"
         :disabled="!props.file.id"
       />
     </div>
+
+    <!-- <ActionsButtons
+        v-if="props.file.id"
+        :file="props.file"
+        :hide-delete="props.hideDelete"
+        @remove="emits('remove', file)"
+        @download="emits('download', file)"
+        @preview="emits('preview', file)"
+      /> -->
   </div>
 
   <div
@@ -216,3 +232,10 @@ const sizes = computed(() => {
     }"
   ></div>
 </template>
+<style lang="css">
+.prevent-select {
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+</style>

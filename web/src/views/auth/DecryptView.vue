@@ -2,7 +2,7 @@
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
-import { AppForm, AppField, AppButton, AppCheckbox } from '@/components/form'
+import { AppForm, AppField, AppButton } from '@/components/form'
 import * as yup from 'yup'
 import { store } from '!/auth/login'
 import { store as cryptoStore } from '!/crypto'
@@ -85,22 +85,12 @@ init()
             placeholder="********"
             :autofocus="true"
           />
-          <AppCheckbox label="Remember me" :form="form" name="remember" />
 
           <p v-if="authenticationError" class="text-sm text-redish-400">
             {{ authenticationError }}
           </p>
 
           <AppButton color="info" :form="form" type="submit">Unlock</AppButton>
-
-          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-400">
-            Not your account?
-            <router-link
-              :to="{ name: 'register' }"
-              class="text-primary-700 hover:underline dark:text-primary-500"
-              >Create an Account</router-link
-            >
-          </div>
         </AppForm>
       </CardBox>
     </SectionFullScreen>

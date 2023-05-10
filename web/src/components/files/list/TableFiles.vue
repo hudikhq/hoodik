@@ -23,6 +23,7 @@ const props = defineProps<{
 const emits = defineEmits<{
   (event: 'actions', file: ListAppFile): void
   (event: 'download', file: ListAppFile): void
+  (event: 'details', file: ListAppFile): void
   (event: 'preview', file: ListAppFile): void
   (event: 'remove', file: ListAppFile): void
   (event: 'browse'): void
@@ -107,12 +108,12 @@ watch(
 const borderClass = 'sm:border-l-2 sm:border-brownish-50 sm:dark:border-brownish-900'
 
 const sizes = {
-  checkbox: 'w-10',
-  name: 'w-10/12 p-2 pt-3 sm:w-7/12 xl:w-5/12 flex',
+  checkbox: 'pl-2 pt-3 w-10',
+  name: 'w-10/12 p-2 pt-3 sm:w-7/12 xl:w-6/12 flex',
   size: 'hidden p-2 pt-3 md:block md:w-2/12 xl:w-1/12',
   type: 'hidden p-2 pt-3 xl:block xl:w-1/12',
   createdAt: 'hidden p-2 pt-3 sm:block sm:w-4/12 lg:w-3/12 xl:w-2/12',
-  uploadedAt: 'hidden p-2 pt-3 xl:block xl:w-2/12',
+  uploadedAt: 'hidden p-2 pt-3 xl:block xl:w-1/12',
   buttons: 'w-2/12 p-2 sm:w-1/12'
 }
 </script>
@@ -154,11 +155,11 @@ const sizes = {
   </div>
 
   <div class="w-full flex rounded-t-lg bg-brownish-100 dark:bg-brownish-950">
-    <div :class="`${sizes.name}`">
-      <div :class="sizes.checkbox">
-        <TableCheckboxCell v-model="checked" v-if="!props.hideCheckbox" />
-      </div>
+    <div :class="sizes.checkbox">
+      <TableCheckboxCell v-model="checked" v-if="!props.hideCheckbox" />
+    </div>
 
+    <div :class="`${sizes.name}`">
       <span>Name</span>
     </div>
 
@@ -178,7 +179,7 @@ const sizes = {
       <span>Uploaded</span>
     </div>
 
-    <div :class="`${sizes.buttons} ${borderClass}`"></div>
+    <div :class="`${sizes.buttons}`"></div>
   </div>
 
   <div
@@ -200,6 +201,7 @@ const sizes = {
         :highlighted="props.searchedFileId === file.id"
         @actions="(f: ListAppFile) => emits('actions', f)"
         @remove="(f: ListAppFile) => emits('remove', f)"
+        @details="(f: ListAppFile) => emits('details', f)"
         @preview="(f: ListAppFile) => emits('preview', f)"
         @download="(f: ListAppFile) => emits('download', f)"
         @select-one="(v: boolean, f: ListAppFile) => emits('select-one', v, f)"
