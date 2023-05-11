@@ -65,12 +65,6 @@ where
             }
         };
 
-        if !authenticated.refresh_token_matches(&refresh_token) {
-            let res = req.error_response(AppError::Unauthorized("expired".to_string()));
-
-            return ok(res.map_into_right_body()).boxed_local();
-        }
-
         let ctx = context.clone();
         let first_fut = get_cookies(ctx, authenticated, refresh_token);
         let fut = self.service.call(req);

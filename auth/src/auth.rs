@@ -200,7 +200,7 @@ impl<'ctx> Auth<'ctx> {
             id: ActiveValue::Set(id),
             user_id: ActiveValue::Set(user.id),
             device_id: ActiveValue::Set(Uuid::new_v4().to_string()),
-            refresh: ActiveValue::Set(Uuid::new_v4().to_string()),
+            refresh: ActiveValue::Set(Some(Uuid::new_v4().to_string())),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
             expires_at: ActiveValue::Set(expires_at.naive_utc()),
@@ -237,7 +237,7 @@ impl<'ctx> Auth<'ctx> {
             id: ActiveValue::Set(existing.id),
             user_id: ActiveValue::Set(existing.user_id),
             device_id: ActiveValue::Set(existing.device_id.clone()),
-            refresh: ActiveValue::Set(Uuid::new_v4().to_string()),
+            refresh: ActiveValue::Set(Some(Uuid::new_v4().to_string())),
             created_at: ActiveValue::Set(session.created_at),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
             expires_at: ActiveValue::Set(expires_at),
@@ -254,7 +254,7 @@ impl<'ctx> Auth<'ctx> {
             id: ActiveValue::Set(session.id),
             user_id: ActiveValue::Set(session.user_id),
             device_id: ActiveValue::Set(session.device_id.clone()),
-            refresh: ActiveValue::Set(Uuid::new_v4().to_string()),
+            refresh: ActiveValue::Set(Some(Uuid::new_v4().to_string())),
             created_at: ActiveValue::Set(session.created_at),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
             expires_at: ActiveValue::Set(Utc::now().naive_utc()),
@@ -281,11 +281,13 @@ impl<'ctx> Auth<'ctx> {
         let cookie = Cookie::build(self.context.config.get_session_cookie(), jwt).path("/");
         let mut jwt = self.make_cookie(cookie)?;
 
-        let cookie = Cookie::build(
-            self.context.config.get_refresh_cookie(),
-            session.refresh.clone(),
-        )
-        .path(crate::REFRESH_PATH);
+        let refresh = session
+            .refresh
+            .clone()
+            .ok_or_else(|| Error::Unauthorized("cannot_build_refresh_token".to_string()))?;
+
+        let cookie = Cookie::build(self.context.config.get_refresh_cookie(), refresh)
+            .path(crate::REFRESH_PATH);
         let mut refresh = self.make_cookie(cookie)?;
 
         if destroy {

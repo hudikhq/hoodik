@@ -13,10 +13,6 @@ impl Authenticated {
     pub fn is_expired(&self) -> bool {
         self.session.expires_at.timestamp() < chrono::Utc::now().timestamp()
     }
-
-    pub fn refresh_token_matches(&self, refresh_token: &str) -> bool {
-        self.session.refresh.as_str() == refresh_token
-    }
 }
 
 impl TryFrom<&HttpRequest> for Authenticated {

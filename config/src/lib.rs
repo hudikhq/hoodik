@@ -89,19 +89,6 @@ pub struct Config {
     /// default: generates a random secret
     pub jwt_secret: String,
 
-    /// USE_COOKIES This tells us if we should use cookies or not.
-    /// Turning this on if you wish to use the API only with your custom
-    /// frontend application that might benefit from this way of authentication.
-    /// But generally, for most of the modern frontend applications JWT is the way to go.
-    ///
-    /// Note: Even when using cookies, JWT will still be generated, but it will be ignored  
-    /// when authenticating requests.
-    ///
-    /// *optional*
-    ///
-    /// default: false
-    pub use_cookies: bool,
-
     /// COOKIE_DOMAIN: If the backend is working by using cookies and not JWT this will be used as the cookie domain.
     /// it automatically defaults to be the same as the APP_URL
     ///
@@ -151,8 +138,8 @@ pub struct Config {
     /// *possible values: Lax, Strict, None*
     pub cookie_same_site: String,
 
-    /// LONG_TERM_SESSION_DURATION_DAYS: This tells us how long the long term session should last
-    /// in days if the user chooses the option to be remembered by the system.
+    /// LONG_TERM_SESSION_DURATION_DAYS: This tells us for how long
+    /// will the session be refreshed if the user is not using the application.
     ///
     /// *optional*
     ///
@@ -219,7 +206,6 @@ impl Config {
             app_url: Some("http://localhost:5443".to_string()),
             client_url: Some("http://localhost:5443".to_string()),
             jwt_secret: uuid::Uuid::new_v4().to_string(),
-            use_cookies: false,
             cookie_domain: None,
             session_cookie: "hoodik_session".to_string(),
             refresh_cookie: "hoodik_refresh".to_string(),
@@ -313,7 +299,6 @@ impl Config {
             client_url,
             app_url,
             jwt_secret,
-            use_cookies,
             cookie_domain,
             session_cookie,
             refresh_cookie,
@@ -404,7 +389,6 @@ impl Config {
             app_url,
             client_url,
             jwt_secret,
-            use_cookies,
             cookie_domain,
             session_cookie,
             refresh_cookie,

@@ -191,7 +191,7 @@ async fn test_retrieve_authenticated_session_by_token_and_csrf() {
     let authenticated = response.unwrap();
     let session = authenticated.session.clone();
 
-    let response = auth.get_by_refresh(&session.refresh).await;
+    let response = auth.get_by_refresh(&session.refresh.unwrap()).await;
 
     if let Err(e) = response {
         panic!("Errored: {:#?}", e);
