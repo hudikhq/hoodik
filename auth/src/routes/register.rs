@@ -4,18 +4,14 @@ use error::AppResult;
 
 use crate::{
     auth::Auth,
-    data::{
-        authenticated::{Authenticated, AuthenticatedJwt},
-        create_user::CreateUser,
-    },
-    jwt,
+    data::{authenticated::Authenticated, create_user::CreateUser},
 };
 
 /// Register a new user
 ///
 /// Request: [crate::data::create_user::CreateUser]
 ///
-/// Response: [AuthenticatedJwt]
+/// Response: [Authenticated]
 #[route("/api/auth/register", method = "POST")]
 pub(crate) async fn register(
     context: web::Data<Context>,
@@ -26,14 +22,12 @@ pub(crate) async fn register(
     let user = auth.register(data.into_inner()).await?;
     let session = auth.generate_session(&user, true).await?;
     let authenticated = Authenticated { user, session };
-    let jwt = jwt::generate(&authenticated, &context.config.jwt_secret)?;
 
     let mut response = HttpResponse::Created();
 
-    if context.config.use_cookies {
-        let cookie = auth.manage_cookie(&authenticated.session, false).await?;
-        response.cookie(cookie);
-    }
+    let (jwt, refresh) = auth.manage_cookies(&authenticated, false).await?;
+    response.cookie(jwt);
+    response.cookie(refresh);
 
-    Ok(response.json(AuthenticatedJwt { authenticated, jwt }))
+    Ok(response.json(authenticated))
 }

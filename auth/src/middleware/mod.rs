@@ -1,34 +1,32 @@
-pub(crate) mod extractor;
-pub mod load;
 pub mod verify;
 
 #[cfg(test)]
 mod test {
-    use crate::middleware::{load::Load, verify::Verify};
+    use super::verify::Verify;
     use actix_web::{web, App};
 
     #[test]
     fn test_wrap_in_app() {
-        let load = Load::new();
-        let verify = Verify::new();
+        let verify = Verify::default();
+        let refresh = Verify::new_refresh();
 
         let _app = App::new()
-            .wrap(load)
             .wrap(verify)
+            .wrap(refresh)
             .service(web::resource("/").to(|| async { "Hello world!" }));
     }
 
     #[test]
     fn test_wrap_in_cfg() {
-        let load = Load::new();
-        let verify = Verify::new();
+        let verify = Verify::new_refresh();
+        let refresh = Verify::new_refresh();
 
         let _app = App::new().configure(|cfg| {
             cfg.service(
                 web::resource("/")
                     .to(|| async { "Hello world!" })
-                    .wrap(load)
-                    .wrap(verify),
+                    .wrap(verify)
+                    .wrap(refresh),
             );
         });
     }

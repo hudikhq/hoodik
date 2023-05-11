@@ -23,7 +23,7 @@ pub fn generate(authenticated: &Authenticated, secret: &str) -> AppResult<String
     let exp = authenticated.session.expires_at.timestamp();
 
     let claims = Claims {
-        sub: String::from(&authenticated.session.token),
+        sub: String::from(&authenticated.session.id.to_string()),
         email: String::from(&authenticated.user.email),
         iat: Utc::now().timestamp(),
         authenticated: authenticated.clone(),
@@ -44,10 +44,13 @@ pub fn extract(claims: &str, secret: &str) -> AppResult<Authenticated> {
         error!("Generating unsecure JWT without secret set!");
     }
 
+    let mut validator = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::HS256);
+    validator.validate_exp = false;
+
     jsonwebtoken::decode::<Claims>(
         claims,
         &jsonwebtoken::DecodingKey::from_secret(secret.as_bytes()),
-        &jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::HS256),
+        &validator,
     )
     .map_err(Error::from)
     .map(|data| data.claims.authenticated)

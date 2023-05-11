@@ -1,12 +1,13 @@
 use actix_web::{http::StatusCode, test};
-use auth::data::{authenticated::AuthenticatedJwt, create_user::CreateUser};
+use auth::{data::create_user::CreateUser, extract_cookies};
 use hoodik::server;
 use storage::data::app_file::AppFile;
 
 const CHUNKS: usize = 5;
+const CHUNK_SIZE_BYTES: i32 = 1024 * 1024;
 
 fn create_byte_chunks() -> (Vec<Vec<u8>>, i64, String) {
-    let one_chunk_size = storage::CHUNK_SIZE_BYTES as usize;
+    let one_chunk_size = CHUNK_SIZE_BYTES as usize;
     let mut byte_chunks = vec![];
     let mut body = vec![];
 
@@ -53,10 +54,9 @@ async fn test_creating_file_and_uploading_chunks() {
         })
         .to_request();
 
-    let body = test::call_and_read_body(&mut app, req).await;
-    let authenticated_jwt: AuthenticatedJwt = serde_json::from_slice(&body).unwrap();
-    let jwt = format!("Bearer {}", authenticated_jwt.jwt.clone());
-    let csrf = authenticated_jwt.authenticated.session.csrf.clone();
+    let resp = test::call_service(&mut app, req).await;
+    let (jwt, _) = extract_cookies(&resp.headers());
+    let jwt = jwt.unwrap();
 
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
@@ -71,16 +71,12 @@ async fn test_creating_file_and_uploading_chunks() {
         })
         .to_request();
 
-    let body = test::call_and_read_body(&mut app, req).await;
-    let authenticated_jwt: AuthenticatedJwt = serde_json::from_slice(&body).unwrap();
-    let jwt1 = format!("Bearer {}", authenticated_jwt.jwt.clone());
-    let csrf1 = authenticated_jwt.authenticated.session.csrf.clone();
+    let resp = test::call_service(&mut app, req).await;
+    let (second_jwt, _) = extract_cookies(&resp.headers());
+    let second_jwt = second_jwt.unwrap();
 
     let (data, size, checksum) = create_byte_chunks();
-    assert_eq!(
-        data.len(),
-        size as usize / storage::CHUNK_SIZE_BYTES as usize
-    );
+    assert_eq!(data.len(), size as usize / CHUNK_SIZE_BYTES as usize);
 
     let random_file = storage::data::create_file::CreateFile {
         encrypted_metadata: Some("encrypted-gibberish".to_string()),
@@ -96,8 +92,7 @@ async fn test_creating_file_and_uploading_chunks() {
 
     let req = test::TestRequest::post()
         .uri("/api/storage")
-        .append_header(("Authorization", jwt.clone()))
-        .append_header(("X-CSRF-Token", csrf.clone()))
+        .cookie(jwt.clone())
         .set_json(&random_file)
         .to_request();
 
@@ -111,6 +106,7 @@ async fn test_creating_file_and_uploading_chunks() {
 
     let mut uploaded = vec![];
     for (i, chunk) in data.into_iter().enumerate() {
+        println!("chunk: {}", i);
         // println!("chunk: {}", i);
         let checksum = cryptfns::sha256::digest(chunk.as_slice());
         let uri = format!(
@@ -120,9 +116,8 @@ async fn test_creating_file_and_uploading_chunks() {
 
         let req = test::TestRequest::post()
             .uri(uri.as_str())
+            .cookie(jwt.clone())
             .append_header(("Content-Type", "application/octet-stream"))
-            .append_header(("Authorization", jwt.clone()))
-            .append_header(("X-CSRF-Token", csrf.clone()))
             .set_payload(chunk)
             .to_request();
 
@@ -142,8 +137,7 @@ async fn test_creating_file_and_uploading_chunks() {
 
     let req = test::TestRequest::get()
         .uri(format!("/api/storage/{}", &file.id).as_str())
-        .append_header(("Authorization", jwt.clone()))
-        .append_header(("X-CSRF-Token", csrf.clone()))
+        .cookie(jwt.clone())
         .to_request();
 
     let contents = test::call_and_read_body(&mut app, req).await.to_vec();
@@ -165,8 +159,7 @@ async fn test_creating_file_and_uploading_chunks() {
     // Other user cannot see the file metadata
     let req = test::TestRequest::get()
         .uri(format!("/api/storage/{}/metadata", &file.id).as_str())
-        .append_header(("Authorization", jwt1.clone()))
-        .append_header(("X-CSRF-Token", csrf1.clone()))
+        .cookie(second_jwt)
         .set_json(&random_file)
         .to_request();
 
@@ -176,8 +169,7 @@ async fn test_creating_file_and_uploading_chunks() {
     // Owner can see it
     let req = test::TestRequest::get()
         .uri(format!("/api/storage/{}/metadata", &file.id).as_str())
-        .append_header(("Authorization", jwt.clone()))
-        .append_header(("X-CSRF-Token", csrf.clone()))
+        .cookie(jwt.clone())
         .set_json(&random_file)
         .to_request();
 

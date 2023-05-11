@@ -13,7 +13,7 @@ use crate::{contract::StorageProvider, repository::Repository, storage::Storage}
 #[route(
     "/api/storage/{file_id}/metadata",
     method = "GET",
-    wrap = "Verify::csrf_header_default()"
+    wrap = "Verify::default()"
 )]
 pub(crate) async fn metadata(
     req: HttpRequest,

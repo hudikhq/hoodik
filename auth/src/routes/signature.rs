@@ -3,10 +3,7 @@ use context::Context;
 use error::AppResult;
 
 use crate::{
-    auth::Auth,
-    contract::AuthProviderContract,
-    data::{authenticated::AuthenticatedJwt, signature::Signature},
-    jwt,
+    auth::Auth, contract::AuthProviderContract, data::signature::Signature,
     providers::signature::SignatureProvider,
 };
 
@@ -14,7 +11,7 @@ use crate::{
 ///
 /// Request: [crate::data::signature::Signature]
 ///
-/// Response: [crate::data::authenticated::AuthenticatedJwt]
+/// Response: [crate::data::authenticated::Authenticated]
 #[route("/api/auth/signature", method = "POST")]
 pub(crate) async fn signature(
     context: web::Data<Context>,
@@ -25,14 +22,13 @@ pub(crate) async fn signature(
     let provider = SignatureProvider::new(&auth, data.into_inner());
 
     let authenticated = provider.authenticate().await?;
-    let jwt = jwt::generate(&authenticated, &context.config.jwt_secret)?;
 
     let mut response = HttpResponse::Ok();
 
-    if context.config.use_cookies {
-        let cookie = auth.manage_cookie(&authenticated.session, false).await?;
-        response.cookie(cookie);
-    }
+    let (jwt, refresh) = auth.manage_cookies(&authenticated, false).await?;
 
-    Ok(response.json(AuthenticatedJwt { authenticated, jwt }))
+    response.cookie(jwt);
+    response.cookie(refresh);
+
+    Ok(response.json(authenticated))
 }

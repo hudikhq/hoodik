@@ -18,7 +18,7 @@ pub mod middleware {
     //!
     //! Collection of all the middleware used in the application pulled
     //! from various packages we depend on.
-    pub use ::auth::middleware::{load::Load, verify::Verify};
+    pub use ::auth::middleware::verify::Verify;
 }
 
 pub mod routes {
@@ -51,11 +51,6 @@ pub fn app(
         InitError = (),
     >,
 > {
-    let auth_middleware = middleware::Load::new_with(&context)
-        .add_ignore("/api/auth/register".to_string())
-        .add_ignore("/api/auth/login".to_string())
-        .add_ignore("/api/auth/signature".to_string());
-
     App::new()
         // Set the maximum payload size to 1.2x of a single file chunk
         // we are expecting to be uploaded
@@ -64,7 +59,6 @@ pub fn app(
         ))
         .app_data(web::Data::new(context))
         // Authentication load middleware that only sets it up on the app
-        .wrap(auth_middleware)
         .wrap(cors::setup())
         .configure(configure)
         .route(

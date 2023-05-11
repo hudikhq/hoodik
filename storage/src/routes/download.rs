@@ -16,11 +16,7 @@ use crate::{contract::StorageProvider, repository::Repository, storage::Storage}
 /// Response: [actix_files::NamedFile]
 ///  - Content-Type: application/octet-stream
 ///  - File Name will be the original file name
-#[route(
-    "/api/storage/{file_id}",
-    method = "GET",
-    wrap = "Verify::csrf_header_default()"
-)]
+#[route("/api/storage/{file_id}", method = "GET", wrap = "Verify::default()")]
 pub(crate) async fn download(
     req: HttpRequest,
     context: web::Data<Context>,
@@ -87,11 +83,7 @@ pub(crate) async fn download(
 
 /// Get head response for a file this will give all the header
 /// information, but no file content.
-#[route(
-    "/api/storage/{file_id}",
-    method = "HEAD",
-    wrap = "Verify::csrf_header_default()"
-)]
+#[route("/api/storage/{file_id}", method = "HEAD", wrap = "Verify::default()")]
 pub(crate) async fn head(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let authenticated = Authenticated::try_from(&req)?;

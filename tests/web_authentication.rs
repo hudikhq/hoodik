@@ -1,19 +1,20 @@
 use std::str::FromStr;
 
-use actix_web::{cookie, http::StatusCode, test};
+use actix_web::{cookie::Expiration, http::StatusCode, test};
 use auth::{
     auth::Auth,
     data::{
-        authenticated::AuthenticatedJwt, create_user::CreateUser, credentials::Credentials,
+        authenticated::Authenticated, create_user::CreateUser, credentials::Credentials,
         signature::Signature,
     },
+    extract_cookies,
 };
 use context::SenderContract;
 use hoodik::server;
 
 #[actix_web::test]
 async fn test_registration_and_login() {
-    let mut context = context::Context::mock_sqlite().await;
+    let context = context::Context::mock_sqlite().await;
 
     let private = cryptfns::rsa::private::generate().unwrap();
     let public = cryptfns::rsa::public::from_private(&private).unwrap();
@@ -69,95 +70,62 @@ async fn test_registration_and_login() {
         .to_request();
 
     let resp = test::call_service(&mut app, req).await;
+    let (jwt, refresh) = extract_cookies(&resp.headers());
 
     assert_eq!(resp.status(), StatusCode::OK);
 
-    let response: AuthenticatedJwt = serde_json::from_slice(&test::read_body(resp).await).unwrap();
-    let jwt = format!("Bearer {}", response.jwt.clone());
+    let _response: Authenticated = serde_json::from_slice(&test::read_body(resp).await).unwrap();
 
     let req = test::TestRequest::post()
         .uri("/api/auth/refresh")
-        .append_header(("Authorization", jwt.clone()))
-        .append_header(("X-CSRF-Token", response.authenticated.session.csrf.clone()))
+        .cookie(jwt.unwrap())
+        .cookie(refresh.unwrap())
         .to_request();
 
     let resp = test::call_service(&mut app, req).await;
+    let status = resp.status();
 
-    assert_eq!(resp.status(), StatusCode::OK);
+    let (jwt, _refresh) = extract_cookies(&resp.headers());
 
-    let response: AuthenticatedJwt = serde_json::from_slice(&test::read_body(resp).await).unwrap();
-    let jwt = format!("Bearer {}", response.jwt.clone());
+    // let body = test::read_body(resp).await;
+    // let body_str = String::from_utf8_lossy(&body).to_string();
+    // println!("{:#?}", body_str);
+
+    assert_eq!(status, StatusCode::OK);
 
     let req = test::TestRequest::post()
         .uri("/api/auth/self")
-        .append_header(("Authorization", jwt.clone()))
-        .append_header(("X-CSRF-Token", response.authenticated.session.csrf.clone()))
+        .cookie(jwt.clone().unwrap())
         .to_request();
 
     let resp = test::call_service(&mut app, req).await;
+    let status = resp.status();
 
-    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(status, StatusCode::OK);
 
     let req = test::TestRequest::post()
         .uri("/api/auth/logout")
-        .append_header(("Authorization", jwt.clone()))
-        .append_header(("X-CSRF-Token", response.authenticated.session.csrf.clone()))
+        .cookie(jwt.clone().unwrap())
         .to_request();
 
     let resp = test::call_service(&mut app, req).await;
+    let (jwt, refresh) = extract_cookies(&resp.headers());
 
     assert_eq!(resp.status(), StatusCode::NO_CONTENT);
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/self")
-        .append_header(("Authorization", jwt.clone()))
-        .append_header(("X-CSRF-Token", response.authenticated.session.csrf.clone()))
-        .to_request();
+    match jwt.unwrap().expires().unwrap() {
+        Expiration::DateTime(dt) => {
+            assert!(dt.unix_timestamp() < chrono::Utc::now().timestamp());
+        }
+        _ => panic!("Expected DateTime"),
+    }
 
-    // let resp = test::call_service(&mut app, req).await;
-    // let body = test::read_body(resp).await;
-    // let body_str = String::from_utf8_lossy(&body).to_string();
-
-    let resp = test::try_call_service(&mut app, req).await;
-
-    assert!(resp.is_err());
-
-    // Doing a quick check if the cookie will be placed onto the response
-    // if we are using cookies for authentication.
-    context.config.use_cookies = true;
-
-    let mut app = test::init_service(server::app(context.clone())).await;
-
-    let req = test::TestRequest::post()
-        .uri("/api/auth/login")
-        .set_json(&Credentials {
-            email: Some("john@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            remember: Some(true),
-            token: None,
-        })
-        .to_request();
-
-    let resp = test::call_service(&mut app, req).await;
-
-    assert_eq!(resp.status(), StatusCode::OK);
-
-    assert!(resp.headers().get("Set-Cookie").is_some());
-
-    let response: AuthenticatedJwt = serde_json::from_slice(&test::read_body(resp).await).unwrap();
-
-    let req = test::TestRequest::post()
-        .uri("/api/auth/self")
-        .cookie(cookie::Cookie::new(
-            context.config.get_cookie_name(),
-            response.authenticated.session.token.clone(),
-        ))
-        .append_header(("X-CSRF-Token", response.authenticated.session.csrf.clone()))
-        .to_request();
-
-    let resp = test::call_service(&mut app, req).await;
-
-    assert_eq!(resp.status(), StatusCode::OK);
+    match refresh.unwrap().expires().unwrap() {
+        Expiration::DateTime(dt) => {
+            assert!(dt.unix_timestamp() < chrono::Utc::now().timestamp());
+        }
+        _ => panic!("Expected DateTime"),
+    }
 }
 
 #[actix_web::test]
@@ -202,15 +170,6 @@ async fn test_register_and_verify_user_email() {
 
     let req = test::TestRequest::post()
         .uri(format!("/api/auth/activate-email/{id}").as_str())
-        .set_json(&CreateUser {
-            email: Some("john@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-        })
         .to_request();
 
     let resp = test::call_service(&mut app, req).await;

@@ -10,7 +10,7 @@ use crate::{data::query::Query, repository::Repository};
 /// Request: [crate::data::query::Query]
 ///
 /// Response: [crate::data::response::Response]
-#[route("/api/storage", method = "GET", wrap = "Verify::csrf_header_default()")]
+#[route("/api/storage", method = "GET", wrap = "Verify::default()")]
 pub(crate) async fn index(
     req: HttpRequest,
     context: web::Data<Context>,

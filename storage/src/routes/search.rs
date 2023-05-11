@@ -10,11 +10,7 @@ use crate::{data::search::Search, repository::Repository};
 /// Request: [crate::data::search::Search]
 ///
 /// Response: [Vec<crate::data::app_file::AppFile>]
-#[route(
-    "/api/storage/search",
-    method = "POST",
-    wrap = "Verify::csrf_header_default()"
-)]
+#[route("/api/storage/search", method = "POST", wrap = "Verify::default()")]
 pub(crate) async fn search(
     req: HttpRequest,
     context: web::Data<Context>,

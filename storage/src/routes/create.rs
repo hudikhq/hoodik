@@ -11,11 +11,7 @@ use crate::{data::create_file::CreateFile, repository::Repository};
 /// Request: [crate::data::create_file::CreateFile]
 ///
 /// Response: [crate::data::app_file::AppFile]
-#[route(
-    "/api/storage",
-    method = "POST",
-    wrap = "Verify::csrf_header_default()"
-)]
+#[route("/api/storage", method = "POST", wrap = "Verify::default()")]
 pub(crate) async fn create(
     req: HttpRequest,
     context: web::Data<Context>,

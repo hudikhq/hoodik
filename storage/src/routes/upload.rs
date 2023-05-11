@@ -23,11 +23,7 @@ use crate::{
 /// **Note**: Chunk data is trusted as is, no validation is done on the content
 /// because the content is encrypted and we cannot ensure it is the correct chunk or data.
 /// Only thing we will do is compare the checksum the uploader gave us for the uploaded chunk
-#[route(
-    "/api/storage/{file_id}",
-    method = "POST",
-    wrap = "Verify::csrf_header_default()"
-)]
+#[route("/api/storage/{file_id}", method = "POST", wrap = "Verify::default()")]
 pub(crate) async fn upload(
     req: HttpRequest,
     context: web::Data<Context>,

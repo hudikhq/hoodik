@@ -13,7 +13,7 @@ use crate::{contract::StorageProvider, repository::Repository, storage::Storage}
 #[route(
     "/api/storage/{file_id}",
     method = "DELETE",
-    wrap = "Verify::csrf_header_default()"
+    wrap = "Verify::default()"
 )]
 pub(crate) async fn delete(
     req: HttpRequest,

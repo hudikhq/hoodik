@@ -108,13 +108,21 @@ pub struct Config {
     /// *optional*
     pub cookie_domain: Option<String>,
 
-    /// COOKIE_NAME This should be the name of the cookie that will be used to store the session
+    /// SESSION_COOKIE This should be the name of the cookie that will be used to store the session
     /// in your browser it is not that important and you probably don't need to set it
     ///
     /// *optional*
     ///
     /// *default: hoodik_session*
-    pub cookie_name: String,
+    pub session_cookie: String,
+
+    /// REFRESH_COOKIE This is the cookie name of the refresh token that will be used to refresh the session
+    /// alongside the session_cookie.
+    ///
+    /// *optional*
+    ///
+    /// *default: hoodik_refresh*
+    pub refresh_cookie: String,
 
     /// COOKIE_HTTP_ONLY This tells us if the cookie is supposed to be http only or not. Http only cookie will
     /// only be seen by the browser and not by the javascript frontend. This is okay and its supposed
@@ -151,14 +159,14 @@ pub struct Config {
     /// default: 30
     pub long_term_session_duration_days: i64,
 
-    /// SHORT_TERM_SESSION_DURATION_MINUTES: This is the period of time that the user will be logged in
+    /// SHORT_TERM_SESSION_DURATION_SECONDS: This is the period of time that the user will be logged in
     /// if he leaves the application (web client).
     /// While the user is browsing the application the session will keep extending for this period of time.
     ///
     /// *optional*
     ///
-    /// default: 5
-    pub short_term_session_duration_minutes: i64,
+    /// default: 300
+    pub short_term_session_duration_seconds: i64,
 
     /// Location of the ssl cert file, this will be loaded and setup on to the server
     /// if you don't provide this, the server will generate a self signed certificate
@@ -213,12 +221,13 @@ impl Config {
             jwt_secret: uuid::Uuid::new_v4().to_string(),
             use_cookies: false,
             cookie_domain: None,
-            cookie_name: "hoodik_session".to_string(),
+            session_cookie: "hoodik_session".to_string(),
+            refresh_cookie: "hoodik_refresh".to_string(),
             cookie_http_only: false,
             cookie_secure: false,
             cookie_same_site: "None".to_string(),
             long_term_session_duration_days: 30,
-            short_term_session_duration_minutes: 5,
+            short_term_session_duration_seconds: 300,
             ssl_cert_file,
             ssl_key_file,
             mailer,
@@ -259,9 +268,12 @@ impl Config {
             Ok(v) => Some(v),
             Err(_) => app_url.clone(),
         };
-        let cookie_name = env_var("COOKIE_NAME")
+        let session_cookie = env_var("SESSION_COOKIE")
             .ok()
             .unwrap_or_else(|| "hoodik_session".to_string());
+        let refresh_cookie = env_var("REFRESH_COOKIE")
+            .ok()
+            .unwrap_or_else(|| "hoodik_refresh".to_string());
         let cookie_http_only = env_var("COOKIE_HTTP_ONLY")
             .ok()
             .map(|c| c.to_lowercase())
@@ -279,10 +291,10 @@ impl Config {
             .unwrap_or_else(|_| "30".to_string())
             .parse()
             .unwrap_or(30);
-        let short_term_session_duration_minutes = env_var("SHORT_TERM_SESSION_DURATION_MINUTES")
-            .unwrap_or_else(|_| "5".to_string())
+        let short_term_session_duration_seconds = env_var("SHORT_TERM_SESSION_DURATION_SECONDS")
+            .unwrap_or_else(|_| "300".to_string())
             .parse()
-            .unwrap_or(5);
+            .unwrap_or(300);
 
         let (ssl_cert_file, ssl_key_file) = Self::parse_ssl_files(&data_dir);
         let mailer = EmailConfig::new(&mut errors);
@@ -303,12 +315,13 @@ impl Config {
             jwt_secret,
             use_cookies,
             cookie_domain,
-            cookie_name,
+            session_cookie,
+            refresh_cookie,
             cookie_http_only,
             cookie_secure,
             cookie_same_site,
             long_term_session_duration_days,
-            short_term_session_duration_minutes,
+            short_term_session_duration_seconds,
             ssl_cert_file,
             ssl_key_file,
             mailer,
@@ -346,9 +359,12 @@ impl Config {
             Ok(v) => Some(v),
             Err(_) => app_url.clone(),
         };
-        let cookie_name = env_var("COOKIE_NAME")
+        let session_cookie = env_var("SESSION_COOKIE")
             .ok()
             .unwrap_or_else(|| "hoodik_session".to_string());
+        let refresh_cookie = env_var("REFRESH_COOKIE")
+            .ok()
+            .unwrap_or_else(|| "hoodik_refresh".to_string());
         let cookie_http_only = env_var("COOKIE_HTTP_ONLY")
             .ok()
             .map(|c| c.to_lowercase())
@@ -366,10 +382,10 @@ impl Config {
             .unwrap_or_else(|_| "30".to_string())
             .parse()
             .unwrap_or(30);
-        let short_term_session_duration_minutes = env_var("SHORT_TERM_SESSION_DURATION_MINUTES")
-            .unwrap_or_else(|_| "5".to_string())
+        let short_term_session_duration_seconds = env_var("SHORT_TERM_SESSION_DURATION_SECONDS")
+            .unwrap_or_else(|_| "300".to_string())
             .parse()
-            .unwrap_or(5);
+            .unwrap_or(300);
 
         let (ssl_cert_file, ssl_key_file) = Self::parse_ssl_files(&data_dir);
         let mailer = EmailConfig::new(&mut errors);
@@ -390,12 +406,13 @@ impl Config {
             jwt_secret,
             use_cookies,
             cookie_domain,
-            cookie_name,
+            session_cookie,
+            refresh_cookie,
             cookie_http_only,
             cookie_secure,
             cookie_same_site,
             long_term_session_duration_days,
-            short_term_session_duration_minutes,
+            short_term_session_duration_seconds,
             ssl_cert_file,
             ssl_key_file,
             mailer,
@@ -574,9 +591,14 @@ impl Config {
         format!("{}:{}", self.address, self.port)
     }
 
-    /// Get the cookie name
-    pub fn get_cookie_name(&self) -> String {
-        self.cookie_name.clone()
+    /// Get the session cookie name
+    pub fn get_session_cookie(&self) -> String {
+        self.session_cookie.clone()
+    }
+
+    /// Get the refresh token cookie name
+    pub fn get_refresh_cookie(&self) -> String {
+        self.refresh_cookie.clone()
     }
 
     /// Get URL of the client application

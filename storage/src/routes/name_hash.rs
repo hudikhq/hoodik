@@ -12,7 +12,7 @@ use crate::{contract::StorageProvider, repository::Repository, storage::Storage}
 #[route(
     "/api/storage/{name_hash}/name-hash",
     method = "GET",
-    wrap = "Verify::csrf_header_default()"
+    wrap = "Verify::default()"
 )]
 pub(crate) async fn name_hash(
     req: HttpRequest,
