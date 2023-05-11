@@ -314,9 +314,7 @@ impl<'ctx> Auth<'ctx> {
             .http_only(self.context.config.cookie_http_only)
             .finish();
 
-        if let Some(domain) = &self.context.config.cookie_domain {
-            cookie.set_domain(domain.clone());
-        }
+        cookie.set_domain(self.context.config.get_cookie_domain());
 
         match self.context.config.cookie_same_site.as_ref() {
             "Lax" => cookie.set_same_site(SameSite::Lax),

@@ -1161,6 +1161,7 @@ dependencies = [
  "rcgen",
  "rustls",
  "rustls-pemfile",
+ "url",
  "uuid",
 ]
 
