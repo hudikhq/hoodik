@@ -153,7 +153,7 @@ pub struct Config {
     ///
     /// *optional*
     ///
-    /// default: 300
+    /// default: 120
     pub short_term_session_duration_seconds: i64,
 
     /// Location of the ssl cert file, this will be loaded and setup on to the server
@@ -214,7 +214,7 @@ impl Config {
             cookie_secure: false,
             cookie_same_site: "None".to_string(),
             long_term_session_duration_days: 30,
-            short_term_session_duration_seconds: 300,
+            short_term_session_duration_seconds: 120,
             ssl_cert_file,
             ssl_key_file,
             mailer,
@@ -270,9 +270,9 @@ impl Config {
             .parse()
             .unwrap_or(30);
         let short_term_session_duration_seconds = env_var("SHORT_TERM_SESSION_DURATION_SECONDS")
-            .unwrap_or_else(|_| "300".to_string())
+            .unwrap_or_else(|_| "120".to_string())
             .parse()
-            .unwrap_or(300);
+            .unwrap_or(120);
 
         let (ssl_cert_file, ssl_key_file) = Self::parse_ssl_files(&data_dir);
         let mailer = EmailConfig::new(&mut errors);
@@ -351,9 +351,9 @@ impl Config {
             .parse()
             .unwrap_or(30);
         let short_term_session_duration_seconds = env_var("SHORT_TERM_SESSION_DURATION_SECONDS")
-            .unwrap_or_else(|_| "300".to_string())
+            .unwrap_or_else(|_| "120".to_string())
             .parse()
-            .unwrap_or(300);
+            .unwrap_or(120);
 
         let (ssl_cert_file, ssl_key_file) = Self::parse_ssl_files(&data_dir);
         let mailer = EmailConfig::new(&mut errors);
@@ -532,22 +532,26 @@ impl Config {
         value
     }
 
+    /// Parse the same site attribute for the cookie and set it to lax if not specified
     pub fn parse_cookie_same_site() -> String {
-        let value = match env_var("COOKIE_SAME_SITE") {
-            Ok(v) => Some(v),
-            Err(_) => None,
-        };
+        let value = env_var("COOKIE_SAME_SITE").ok().map(|v| v.to_lowercase());
 
-        match value {
+        let mut value = match value {
             Some(x) => {
-                if matches!(x.as_str(), "Strict" | "Lax" | "None") {
+                if matches!(x.as_str(), "strict" | "lax" | "none") {
                     x
                 } else {
-                    "Lax".to_string()
+                    "lax".to_string()
                 }
             }
-            _ => "Lax".to_string(),
+            _ => "lax".to_string(),
+        };
+
+        if let Some(f) = value.get_mut(0..1) {
+            f.make_ascii_uppercase();
         }
+
+        value
     }
 
     /// Try to make sense of the SSL_CERT_FILE and SSL_KEY_FILE env variables
