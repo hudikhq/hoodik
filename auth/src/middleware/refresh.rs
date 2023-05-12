@@ -50,7 +50,7 @@ where
 }
 
 #[derive(Clone)]
-pub struct RefreshMiddleware<S> {
+pub(crate) struct RefreshMiddleware<S> {
     pub(crate) service: S,
 }
 
