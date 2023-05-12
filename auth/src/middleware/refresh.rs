@@ -21,7 +21,7 @@ use futures_util::{
 pub(crate) struct Refresh;
 
 impl Refresh {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Refresh
     }
 }
