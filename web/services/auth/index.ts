@@ -71,7 +71,7 @@ export async function ensureAuthenticated(
         }
       } catch (e) {
         logger.info(`Moving to login after failed attempt to get self: ${e}`)
-        router.push({ name: 'login' })
+        return bounce(router, store, crypto)
       }
     }
 
@@ -81,6 +81,23 @@ export async function ensureAuthenticated(
     }
 
     logger.info('Moving to login')
-    return router.push({ name: 'login' })
+    return bounce(router, store, crypto)
   }
+}
+
+/**
+ * One final try to attempt to purge the session and move to login page
+ */
+async function bounce(
+  router: Router,
+  store: ReturnType<typeof login.store>,
+  crypto: ReturnType<typeof cryptoStore>
+) {
+  try {
+    await store.logout(crypto, true)
+  } catch (e) {
+    // do nothing
+  }
+
+  return router.push({ name: 'login' })
 }

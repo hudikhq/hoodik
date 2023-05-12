@@ -102,7 +102,6 @@ export const store = defineStore('login', () => {
    */
   async function setupRefresh(): Promise<void> {
     const expires = authenticated.value?.session.expires_at
-    const lastUpdated = authenticated.value?.session.updated_at
 
     if (!expires) {
       return
@@ -111,18 +110,9 @@ export const store = defineStore('login', () => {
     const expiresAt = localDateFromUtcString(expires)
     const now = new Date().getTime()
 
-    let age = 0
-
-    if (lastUpdated) {
-      const lastUpdatedAt = localDateFromUtcString(lastUpdated)
-      age = (now - lastUpdatedAt.getTime()) / 1000
-    }
-
-    const refreshAnyway = age > 120
-
     const untilExpire = (expiresAt.getTime() - now) / 1000
 
-    if (untilExpire > 120 && !refreshAnyway) {
+    if (untilExpire > 60) {
       return
     }
 

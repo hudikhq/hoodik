@@ -86,9 +86,14 @@ onmessage = async (message: MessageEvent<any>) => {
 /**
  * Handle taking the file in, chunking it and sending it to the backend
  */
-async function handleUploadFile({ transferableFile, metadataJson }: UploadFileMessage) {
+async function handleUploadFile({
+  transferableUploadedChunks,
+  transferableFile,
+  metadataJson
+}: UploadFileMessage) {
   const file = transferableFile as UploadAppFile
   file.metadata = FileMetadata.fromJson(metadataJson)
+  file.uploaded_chunks = transferableUploadedChunks as unknown as number[]
 
   const progress = (
     file: UploadAppFile,
