@@ -49,7 +49,7 @@ impl Template {
         self.data.insert(key.to_string(), value.to_string());
     }
 
-    /// Add additional <head> data into the base email template html
+    /// Add additional `<head>` data into the base email template html
     pub fn register_extra_head_template(&mut self, content: &str) -> AppResult<()> {
         self.base
             .register_template_string("__base_extra_head", content)?;
