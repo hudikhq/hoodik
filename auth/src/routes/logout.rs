@@ -1,23 +1,22 @@
-use actix_web::{route, web, HttpRequest, HttpResponse};
+use actix_web::{route, web, HttpResponse};
 use context::Context;
 use error::AppResult;
 
-use crate::{auth::Auth, data::authenticated::Authenticated, middleware::verify::Verify};
+use crate::{auth::Auth, data::authenticated::Authenticated};
 
 /// Logout user and perform session destroy
-#[route("/api/auth/logout", method = "POST", wrap = "Verify::default()")]
+#[route("/api/auth/logout", method = "POST")]
 pub(crate) async fn logout(
-    req: HttpRequest,
     context: web::Data<Context>,
+    authenticated: Authenticated,
 ) -> AppResult<HttpResponse> {
-    let authenticated = Authenticated::try_from(&req)?;
     let auth = Auth::new(&context);
 
     let authenticated = auth.destroy_session(&authenticated.session).await?;
 
     let mut response = HttpResponse::NoContent();
 
-    let (jwt, refresh) = auth.manage_cookies(&authenticated, true).await?;
+    let (jwt, refresh) = auth.manage_cookies(&authenticated, "logout", true).await?;
     response.cookie(jwt);
     response.cookie(refresh);
 

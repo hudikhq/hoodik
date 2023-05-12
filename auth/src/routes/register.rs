@@ -20,12 +20,15 @@ pub(crate) async fn register(
     let auth = Auth::new(&context);
 
     let user = auth.register(data.into_inner()).await?;
-    let session = auth.generate_session(&user, true).await?;
+    let session = auth.generate_session(&user).await?;
     let authenticated = Authenticated { user, session };
 
     let mut response = HttpResponse::Created();
 
-    let (jwt, refresh) = auth.manage_cookies(&authenticated, false).await?;
+    let (jwt, refresh) = auth
+        .manage_cookies(&authenticated, module_path!(), false)
+        .await?;
+
     response.cookie(jwt);
     response.cookie(refresh);
 

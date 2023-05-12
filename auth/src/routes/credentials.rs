@@ -25,7 +25,9 @@ pub(crate) async fn credentials(
 
     let mut response = HttpResponse::Ok();
 
-    let (jwt, refresh) = auth.manage_cookies(&authenticated, false).await?;
+    let (jwt, refresh) = auth
+        .manage_cookies(&authenticated, module_path!(), false)
+        .await?;
 
     response.cookie(jwt);
     response.cookie(refresh);

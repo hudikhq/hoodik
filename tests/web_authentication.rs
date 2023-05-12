@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, time::Duration};
 
 use actix_web::{cookie::Expiration, http::StatusCode, test};
 use auth::{
@@ -48,7 +48,6 @@ async fn test_registration_and_login() {
         .set_json(&Credentials {
             email: Some("john@doe.com".to_string()),
             password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            remember: Some(true),
             token: None,
         })
         .to_request();
@@ -65,7 +64,6 @@ async fn test_registration_and_login() {
         .set_json(&Signature {
             fingerprint: Some(fingerprint.clone()),
             signature: Some(signature),
-            remember: Some(false),
         })
         .to_request();
 
@@ -180,4 +178,48 @@ async fn test_register_and_verify_user_email() {
     let user = serde_json::from_str::<entity::users::Model>(&body_str).unwrap();
 
     assert!(user.email_verified_at.is_some());
+}
+
+#[actix_web::test]
+async fn test_claims_can_expire() {
+    let mut context = context::Context::mock_sqlite().await;
+    context.config.short_term_session_duration_seconds = 1;
+
+    let private = cryptfns::rsa::private::generate().unwrap();
+    let public = cryptfns::rsa::public::from_private(&private).unwrap();
+    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
+    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
+
+    let encrypted_secret = "some-random-encrypted-secret".to_string();
+
+    let mut app = test::init_service(server::app(context.clone())).await;
+
+    let req = test::TestRequest::post()
+        .uri("/api/auth/register")
+        .set_json(&CreateUser {
+            email: Some("john@doe.com".to_string()),
+            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
+            secret: None,
+            token: None,
+            pubkey: Some(public_string.clone()),
+            fingerprint: Some(fingerprint.clone()),
+            encrypted_private_key: Some(encrypted_secret.clone()),
+        })
+        .to_request();
+
+    let resp = test::call_service(&mut app, req).await;
+    let (jwt, _) = extract_cookies(&resp.headers());
+
+    assert_eq!(resp.status(), StatusCode::CREATED);
+
+    std::thread::sleep(Duration::from_secs(2));
+
+    let req = test::TestRequest::post()
+        .uri("/api/auth/self")
+        .cookie(jwt.clone().unwrap())
+        .to_request();
+
+    let resp = test::try_call_service(&mut app, req).await.unwrap();
+
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
 }

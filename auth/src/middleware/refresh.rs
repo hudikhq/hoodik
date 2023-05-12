@@ -1,29 +1,60 @@
 //! Service wrapper that validates the session and refreshes it if it's expired.
 
+use crate::{
+    auth::Auth,
+    data::{claims::Claims, extractor::Extractor},
+};
 use actix_web::{
     body::{EitherBody, MessageBody},
     cookie::Cookie,
-    dev::{forward_ready, Service, ServiceRequest, ServiceResponse},
+    dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
     http::header::{self, TryIntoHeaderValue},
     web, Error,
 };
 use context::Context;
 use error::{AppResult, Error as AppError};
 use futures_util::{
-    future::{ok, LocalBoxFuture},
+    future::{self, ok, LocalBoxFuture, Ready},
     FutureExt,
 };
 
-use crate::{auth::Auth, data::authenticated::Authenticated};
+pub(crate) struct Refresh;
 
-use super::extractor::Extractor;
+impl Refresh {
+    pub fn new() -> Self {
+        Refresh
+    }
+}
+
+impl Default for Refresh {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<S, B> Transform<S, ServiceRequest> for Refresh
+where
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+    S::Future: 'static,
+    B: MessageBody + 'static,
+{
+    type Response = ServiceResponse<EitherBody<B>>;
+    type Error = Error;
+    type InitError = ();
+    type Transform = RefreshMiddleware<S>;
+    type Future = Ready<Result<Self::Transform, Self::InitError>>;
+
+    fn new_transform(&self, service: S) -> Self::Future {
+        future::ok(RefreshMiddleware { service })
+    }
+}
 
 #[derive(Clone)]
-pub struct VerifyMiddleware<S> {
+pub struct RefreshMiddleware<S> {
     pub(crate) service: S,
 }
 
-impl<S, B> Service<ServiceRequest> for VerifyMiddleware<S>
+impl<S, B> Service<ServiceRequest> for RefreshMiddleware<S>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
     S::Future: 'static,
@@ -47,7 +78,7 @@ where
             }
         };
 
-        let authenticated = match Extractor::default().jwt(context).get(&req) {
+        let claims = match Extractor::default().jwt(context).service_req(&req) {
             Ok(a) => a,
             Err(err) => {
                 let res = req.error_response(err);
@@ -66,7 +97,7 @@ where
         };
 
         let ctx = context.clone();
-        let first_fut = get_cookies(ctx, authenticated, refresh_token);
+        let first_fut = get_cookies(ctx, claims, refresh_token);
         let fut = self.service.call(req);
 
         Box::pin(async move {
@@ -90,14 +121,17 @@ fn set_cookie<B>(res: &mut ServiceResponse<B>, cookie: Cookie<'_>) {
 /// Generate cookies for the session and refresh token.
 async fn get_cookies<'ctx>(
     context: web::Data<Context>,
-    authenticated: Authenticated,
+    claims: Claims,
     refresh_token: String,
 ) -> AppResult<(Cookie<'ctx>, Cookie<'ctx>)> {
     let auth = Auth::new(&context);
+    let authenticated = auth.get_by_device_id(claims.device).await?;
     let authenticated = auth
         .refresh_session(&authenticated.session, &refresh_token)
         .await?;
-    let (jwt, refresh) = auth.manage_cookies(&authenticated, false).await?;
+    let (jwt, refresh) = auth
+        .manage_cookies(&authenticated, module_path!(), false)
+        .await?;
 
     Ok((jwt, refresh))
 }

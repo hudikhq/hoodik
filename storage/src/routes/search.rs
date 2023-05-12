@@ -1,5 +1,5 @@
-use actix_web::{route, web, HttpRequest, HttpResponse};
-use auth::{data::authenticated::Authenticated, middleware::verify::Verify};
+use actix_web::{route, web, HttpResponse};
+use auth::data::claims::Claims;
 use context::Context;
 use error::AppResult;
 
@@ -10,19 +10,18 @@ use crate::{data::search::Search, repository::Repository};
 /// Request: [crate::data::search::Search]
 ///
 /// Response: [Vec<crate::data::app_file::AppFile>]
-#[route("/api/storage/search", method = "POST", wrap = "Verify::default()")]
+#[route("/api/storage/search", method = "POST")]
 pub(crate) async fn search(
-    req: HttpRequest,
+    claims: Claims,
     context: web::Data<Context>,
     data: web::Json<Search>,
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
-    let authenticated = Authenticated::try_from(&req)?;
 
     let data = data.into_inner();
 
     let file = Repository::new(&context.db)
-        .tokens(&authenticated.user)
+        .tokens(claims.sub)
         .search(data)
         .await?;
 

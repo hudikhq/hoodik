@@ -161,9 +161,9 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Get user and session by token
-    pub async fn get_by_device_id(&self, id: &str) -> AppResult<Authenticated> {
+    pub async fn get_by_device_id<T: Into<String>>(&self, id: T) -> AppResult<Authenticated> {
         let result = sessions::Entity::find()
-            .filter(sessions::Column::DeviceId.eq(id))
+            .filter(sessions::Column::DeviceId.eq(id.into()))
             .inner_join(users::Entity)
             .select_also(users::Entity)
             .one(&self.context.db)
@@ -179,20 +179,9 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Generate a new session for a user
-    pub async fn generate_session(
-        &self,
-        user: &users::Model,
-        remember: bool,
-    ) -> AppResult<sessions::Model> {
-        let expires_at = match remember {
-            true => {
-                Utc::now() + Duration::days(self.context.config.long_term_session_duration_days)
-            }
-            false => {
-                Utc::now()
-                    + Duration::seconds(self.context.config.short_term_session_duration_seconds)
-            }
-        };
+    pub async fn generate_session(&self, user: &users::Model) -> AppResult<sessions::Model> {
+        let expires_at =
+            Utc::now() + Duration::seconds(self.context.config.short_term_session_duration_seconds);
 
         let id = entity::Uuid::new_v4();
 
@@ -269,11 +258,12 @@ impl<'ctx> Auth<'ctx> {
     pub async fn manage_cookies(
         &self,
         authenticated: &Authenticated,
+        issuer: &str,
         destroy: bool,
     ) -> AppResult<(Cookie<'static>, Cookie<'static>)> {
         let jwt = match destroy {
             true => "destroyed".to_string(),
-            false => crate::jwt::generate(authenticated, &self.context.config.jwt_secret)?,
+            false => crate::jwt::generate(authenticated, issuer, &self.context.config.jwt_secret)?,
         };
 
         let session = &authenticated.session;

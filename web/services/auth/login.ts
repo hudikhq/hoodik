@@ -1,19 +1,11 @@
 import Api from '../api'
 import * as cryptfns from '../cryptfns'
 import { localDateFromUtcString } from '..'
-import {
-  setJwt,
-  setCsrf,
-  removeJwt,
-  removeCsrf,
-  setPrivateKey,
-  getPrivateKey,
-  removePrivateKey
-} from '.'
+import { setPrivateKey, getPrivateKey, removePrivateKey } from '.'
 import type { store as cryptoStore } from '../crypto'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Authenticated, AuthenticatedJwt, Credentials, KeyPair, PrivateKeyLogin } from 'types'
+import type { Authenticated, Credentials, KeyPair, PrivateKeyLogin } from 'types'
 import { useRouter } from 'vue-router'
 import * as logger from '!/logger'
 
@@ -46,54 +38,19 @@ export const store = defineStore('login', () => {
    */
   function clear() {
     _authenticated.value = null
-    removeJwt()
-    removeCsrf()
     removePrivateKey()
   }
 
   /**
    * Setup the authenticated object after successful authentication event
    */
-  async function setupAuthenticated(body: AuthenticatedJwt, privateKey: string) {
-    const { authenticated, jwt } = body
+  async function setupAuthenticated(authenticated: Authenticated, privateKey: string) {
     const expires = localDateFromUtcString(authenticated.session.expires_at)
-    const csrf = authenticated.session.csrf
 
     await setPrivateKey(privateKey, authenticated.session.device_id as string, expires)
-    setCsrf(csrf, expires)
-    setJwt(jwt, expires)
     set(authenticated)
-    passAuthenticationToWorkersNow()
-    passAuthenticationToWorkers()
 
     _refresher.value = setInterval(() => setupRefresh(), 1000)
-  }
-
-  /**
-   * Sending the new authentication tokens to the workers
-   * so it can communicate with the backend with the latest credentials
-   *
-   * With 1 second delay to ensure the workers are ready
-   */
-  function passAuthenticationToWorkers() {
-    setTimeout(() => passAuthenticationToWorkersNow(), 3000)
-  }
-
-  /**
-   * Sending the new authentication tokens to the workers
-   * so it can communicate with the backend with the latest credentials
-   */
-  function passAuthenticationToWorkersNow() {
-    const apiTransfer = new Api().toJson()
-
-    if ('UPLOAD' in window) {
-      logger.debug('Sending auth to upload worker')
-      window.UPLOAD.postMessage({ type: 'auth', apiTransfer })
-    }
-    if ('DOWNLOAD' in window) {
-      logger.debug('Sending auth to download worker')
-      window.DOWNLOAD.postMessage({ type: 'auth', apiTransfer })
-    }
   }
 
   /**
@@ -193,15 +150,13 @@ export const store = defineStore('login', () => {
    * @throws
    */
   async function refresh(): Promise<Authenticated> {
-    const response = await Api.post<undefined, AuthenticatedJwt>('/api/auth/refresh')
+    const response = await Api.post<undefined, Authenticated>('/api/auth/refresh')
 
-    if (!response.body?.authenticated || !response.body?.jwt) {
+    if (!response.body) {
       throw new Error("No authenticated object found after refresh, can't refresh session")
     }
 
-    const privateKey = await getPrivateKey(
-      response.body?.authenticated?.session?.device_id as string
-    )
+    const privateKey = await getPrivateKey(response.body?.session?.device_id as string)
 
     if (!privateKey) {
       throw new Error(
@@ -209,9 +164,9 @@ export const store = defineStore('login', () => {
       )
     }
 
-    await setupAuthenticated(response.body as AuthenticatedJwt, privateKey)
+    await setupAuthenticated(response.body as Authenticated, privateKey)
 
-    return response.body?.authenticated as Authenticated
+    return response.body as Authenticated
   }
 
   /**
@@ -222,17 +177,17 @@ export const store = defineStore('login', () => {
     store: ReturnType<typeof cryptoStore>,
     credentials: Credentials
   ): Promise<Authenticated> {
-    const response = await Api.post<Credentials, AuthenticatedJwt>(
+    const response = await Api.post<Credentials, Authenticated>(
       '/api/auth/login',
       undefined,
       credentials
     )
 
-    if (!response.body?.authenticated || !response.body?.jwt) {
+    if (!response.body) {
       throw new Error('No authenticated object found after login')
     }
 
-    const { authenticated } = response.body
+    const authenticated = response.body
 
     if (authenticated.user.encrypted_private_key) {
       credentials.privateKey = await cryptfns.rsa.decryptPrivateKey(
@@ -252,7 +207,7 @@ export const store = defineStore('login', () => {
 
     const keypair = await cryptfns.rsa.inputToKeyPair(credentials.privateKey)
 
-    await setupAuthenticated(response.body, keypair.input as string)
+    await setupAuthenticated(authenticated, keypair.input as string)
 
     await store.set(keypair)
 
@@ -300,7 +255,7 @@ export const store = defineStore('login', () => {
     const nonce = cryptfns.createFingerprintNonce(fingerprint)
     const signature = await cryptfns.rsa.sign(kp, nonce)
 
-    const response = await Api.post<PrivateKeyRequest, AuthenticatedJwt>(
+    const response = await Api.post<PrivateKeyRequest, Authenticated>(
       '/api/auth/signature',
       {},
       {
@@ -310,15 +265,15 @@ export const store = defineStore('login', () => {
       }
     )
 
-    if (!response.body?.authenticated || !response.body?.jwt) {
+    if (!response.body) {
       throw new Error('No authenticated object found after private key or pin login')
     }
 
-    await setupAuthenticated(response.body as AuthenticatedJwt, kp.input as string)
+    await setupAuthenticated(response.body as Authenticated, kp.input as string)
 
     await store.set(kp)
 
-    return response.body.authenticated
+    return response.body as Authenticated
   }
 
   return {

@@ -1,5 +1,5 @@
 use actix_web::{route, web, HttpRequest, HttpResponse};
-use auth::{data::authenticated::Authenticated, middleware::verify::Verify};
+use auth::data::claims::Claims;
 use context::Context;
 use entity::Uuid;
 use error::{AppResult, Error};
@@ -10,22 +10,18 @@ use crate::{contract::StorageProvider, repository::Repository, storage::Storage}
 /// Get file metadata by its id
 ///
 /// Response: [crate::data::app_file::AppFile]
-#[route(
-    "/api/storage/{file_id}/metadata",
-    method = "GET",
-    wrap = "Verify::default()"
-)]
+#[route("/api/storage/{file_id}/metadata", method = "GET")]
 pub(crate) async fn metadata(
     req: HttpRequest,
+    claims: Claims,
     context: web::Data<Context>,
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
-    let authenticated = Authenticated::try_from(&req)?;
     let file_id: String = util::actix::path_var(&req, "file_id")?;
     let file_id = Uuid::from_str(&file_id)?;
 
     let mut file = Repository::new(&context.db)
-        .query(&authenticated.user)
+        .query(claims.sub)
         .get(file_id)
         .await?;
 

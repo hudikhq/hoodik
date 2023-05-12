@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use actix_web::{route, web, HttpRequest, HttpResponse};
-use auth::{data::authenticated::Authenticated, middleware::verify::Verify};
+use auth::data::claims::Claims;
 use context::Context;
 use entity::{TransactionTrait, Uuid};
 use error::{AppResult, Error};
@@ -23,15 +23,15 @@ use crate::{
 /// **Note**: Chunk data is trusted as is, no validation is done on the content
 /// because the content is encrypted and we cannot ensure it is the correct chunk or data.
 /// Only thing we will do is compare the checksum the uploader gave us for the uploaded chunk
-#[route("/api/storage/{file_id}", method = "POST", wrap = "Verify::default()")]
+#[route("/api/storage/{file_id}", method = "POST")]
 pub(crate) async fn upload(
     req: HttpRequest,
+    claims: Claims,
     context: web::Data<Context>,
     meta: web::Query<Meta>,
     mut request_body: web::Bytes,
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
-    let authenticated = Authenticated::try_from(&req)?;
     let file_id: String = util::actix::path_var(&req, "file_id")?;
     let file_id = Uuid::from_str(&file_id)?;
     let (chunk, checksum, checksum_function, key_hex) = meta.into_inner().into_tuple()?;
@@ -57,7 +57,7 @@ pub(crate) async fn upload(
     let repository = Repository::new(&connection);
     let storage = Storage::new(&context.config);
 
-    let file = repository.manage(&authenticated.user).file(file_id).await?;
+    let file = repository.manage(claims.sub).file(file_id).await?;
 
     let chunks = file
         .chunks
@@ -75,10 +75,7 @@ pub(crate) async fn upload(
         return Err(Error::as_validation("chunk", "chunk_already_exists"));
     }
 
-    let mut file = repository
-        .manage(&authenticated.user)
-        .increment(&file)
-        .await?;
+    let mut file = repository.manage(claims.sub).increment(&file).await?;
 
     if request_body.is_empty() {
         return Err(Error::BadRequest("no_file_data_received".to_string()));

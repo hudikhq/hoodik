@@ -79,7 +79,6 @@ async fn test_credentials_valid() {
         email: Some("john@doe.com".to_string()),
         password: Some("very-strong-password".to_string()),
         token: None,
-        remember: Some(true),
     };
 
     let credentials_provider = CredentialsProvider::new(&auth, credentials);
@@ -124,7 +123,6 @@ async fn test_credentials_invalid() {
         email: Some("john@doe.com".to_string()),
         password: Some("wrong-password".to_string()),
         token: None,
-        remember: Some(true),
     };
 
     let credentials_provider = CredentialsProvider::new(&auth, credentials);
@@ -171,7 +169,6 @@ async fn test_retrieve_authenticated_session_by_token_and_csrf() {
         email: Some("john@doe.com".to_string()),
         password: Some("very-strong-password".to_string()),
         token: None,
-        remember: Some(true),
     };
 
     let credentials_provider = CredentialsProvider::new(&auth, credentials);
@@ -222,7 +219,6 @@ async fn test_jwt_generate_and_claim() {
         email: Some("john@doe.com".to_string()),
         password: Some("very-strong-password".to_string()),
         token: None,
-        remember: Some(true),
     };
 
     let credentials_provider = CredentialsProvider::new(&auth, credentials);
@@ -241,7 +237,7 @@ async fn test_jwt_generate_and_claim() {
 
     let authenticated = response.unwrap();
 
-    let jwt = crate::jwt::generate(&authenticated, "some-secret").unwrap();
+    let jwt = crate::jwt::generate(&authenticated, module_path!(), "some-secret").unwrap();
 
     let response = crate::jwt::extract(&jwt, "some-secret");
 
@@ -348,12 +344,14 @@ async fn test_set_cookie_for_both() {
         email: Some("john@doe.com".to_string()),
         password: Some("very-strong-password".to_string()),
         token: None,
-        remember: Some(true),
     };
     let credentials_provider = CredentialsProvider::new(&auth, credentials);
     let authenticated = credentials_provider.authenticate().await.unwrap();
 
-    let (jwt, refresh) = auth.manage_cookies(&authenticated, false).await.unwrap();
+    let (jwt, refresh) = auth
+        .manage_cookies(&authenticated, module_path!(), false)
+        .await
+        .unwrap();
 
     let mut res = HttpResponse::Ok();
 

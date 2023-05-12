@@ -7,7 +7,6 @@ pub struct Credentials {
     pub email: Option<String>,
     pub password: Option<String>,
     pub token: Option<String>,
-    pub remember: Option<bool>,
 }
 
 impl Validation for Credentials {
@@ -25,14 +24,9 @@ impl Validation for Credentials {
 }
 
 impl Credentials {
-    pub fn into_tuple(&self) -> AppResult<(String, String, bool, Option<String>)> {
+    pub fn into_tuple(&self) -> AppResult<(String, String, Option<String>)> {
         let data = self.clone().validate()?;
 
-        Ok((
-            data.email.unwrap(),
-            data.password.unwrap(),
-            data.remember.unwrap_or(false),
-            data.token,
-        ))
+        Ok((data.email.unwrap(), data.password.unwrap(), data.token))
     }
 }

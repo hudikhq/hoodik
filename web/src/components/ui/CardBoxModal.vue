@@ -15,7 +15,7 @@ const props = defineProps<{
   buttonLabel?: string
   hasCancel?: boolean
   hideSubmit?: boolean
-  modelValue: string | number | boolean
+  modelValue: boolean | undefined
   form?: FormType
 }>()
 

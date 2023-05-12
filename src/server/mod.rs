@@ -18,7 +18,6 @@ pub mod middleware {
     //!
     //! Collection of all the middleware used in the application pulled
     //! from various packages we depend on.
-    pub use ::auth::middleware::verify::Verify;
 }
 
 pub mod routes {

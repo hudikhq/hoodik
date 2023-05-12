@@ -90,7 +90,7 @@ pub struct Config {
     /// default: generates a random secret
     pub jwt_secret: String,
 
-    /// COOKIE_DOMAIN: If the backend is working by using cookies and not JWT this will be used as the cookie domain.
+    /// APP_COOKIE_DOMAIN: If the backend is working by using cookies and not JWT this will be used as the cookie domain.
     /// it automatically defaults to be the same as the APP_URL
     ///
     /// *optional*
@@ -481,15 +481,13 @@ impl Config {
     /// Try loading the app url from env
     fn parse_cookie_domain(app_url: &str) -> String {
         parse_url(
-            "APP_CLIENT_URL",
-            env_var("APP_CLIENT_URL")
-                .ok()
-                .map(|v| format!("https://{v}")),
+            "APP_COOKIE_DOMAIN",
+            env_var("APP_COOKIE_DOMAIN").ok(),
             app_url,
         )
         .host_str()
-        .unwrap()
-        .to_string()
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "localhost".to_string())
     }
 
     /// Try loading the data_dir from env or arguments
@@ -711,32 +709,38 @@ fn parse_url(name: &str, maybe_value: Option<String>, alternative: &str) -> Url 
     }
 
     let url = Url::parse(alternative)
-        .unwrap_or_else(|_| panic!("Invalid {name} (alternative - {alternative})"));
+        .unwrap_or_else(|_| panic!("Invalid alternative {name} (alternative - {alternative})"));
 
     url.host_str()
-        .unwrap_or_else(|| panic!("Invalid {name} - (invalid host str)"));
+        .unwrap_or_else(|| panic!("Invalid host {name} - (invalid host str)"));
 
     url
 }
 
 #[cfg(test)]
 mod test {
-
     #[test]
     fn test_url_parsing() {
-        let valid = "https://localhost";
+        let valid = "https://google.com";
         let valid_cookie = "localhost";
         let maybe_valid_cookie = "https://localhost:3432";
         let should_fallback = "";
 
-        super::parse_url("valid", Some(valid.to_string()), valid);
-        super::parse_url("valid_cookie", Some(valid_cookie.to_string()), valid);
-        super::parse_url(
+        let parsed = super::parse_url("valid", Some(valid.to_string()), valid);
+        assert_eq!(parsed.to_string(), "https://google.com/");
+
+        let parsed = super::parse_url("valid_cookie", Some(valid_cookie.to_string()), valid);
+        assert_eq!(parsed.host_str().unwrap(), "localhost");
+
+        let parsed = super::parse_url(
             "maybe_valid_cookie",
             Some(maybe_valid_cookie.to_string()),
             valid,
         );
-        super::parse_url("should_fallback", Some(should_fallback.to_string()), valid);
+        assert_eq!(parsed.host_str().unwrap(), "localhost");
+
+        let parsed = super::parse_url("should_fallback", Some(should_fallback.to_string()), valid);
+        assert_eq!(parsed.host_str().unwrap(), "google.com");
     }
 
     #[test]

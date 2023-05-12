@@ -1,4 +1,3 @@
-import { getCsrf, getJwt } from './auth'
 import type { WorkerErrorType } from '../types'
 
 export type Query = {
@@ -213,13 +212,9 @@ export function toQueryValue(
  * @class
  */
 export default class Api {
-  private jwt: string | null
-  private csrf: string | null
   private apiUrl: string
 
-  constructor({ jwt, csrf, apiUrl }: ApiTransfer = {}) {
-    this.jwt = jwt || getJwt()
-    this.csrf = csrf || getCsrf()
+  constructor({ apiUrl }: ApiTransfer = {}) {
     this.apiUrl = apiUrl || getApiUrl()
   }
 
@@ -228,7 +223,7 @@ export default class Api {
    * to pass into the service worker.
    */
   toJson(): ApiTransfer {
-    return { jwt: this.jwt, csrf: this.csrf, apiUrl: this.apiUrl }
+    return { apiUrl: this.apiUrl }
   }
 
   /**
@@ -382,7 +377,7 @@ export default class Api {
 
     const fetchOptions: RequestInit = {
       cache: 'no-cache',
-      credentials: 'omit',
+      credentials: 'include',
       headers: request.headers,
       method,
       mode: 'cors',
@@ -396,17 +391,7 @@ export default class Api {
    * Prepare headers before sending the request
    */
   getHeaders(headers?: Headers): Headers {
-    headers = headers || {}
-
-    if (this.csrf) {
-      headers['X-Csrf-Token'] = this.csrf || ''
-    }
-
-    if (this.jwt) {
-      headers['Authorization'] = `Bearer ${this.jwt || ''}`
-    }
-
-    return headers
+    return headers || {}
   }
 
   /**

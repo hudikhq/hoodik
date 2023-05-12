@@ -26,7 +26,7 @@ self.canceled = {
  * Setup on the self object the API handler
  */
 function handleApiTransfer(apiTransfer?: ApiTransfer) {
-  if (apiTransfer && apiTransfer.jwt && apiTransfer.csrf && apiTransfer.apiUrl) {
+  if (apiTransfer && apiTransfer.apiUrl) {
     logger.debug('Setting the SWApi...', apiTransfer.apiUrl)
 
     const api = new Api(apiTransfer)

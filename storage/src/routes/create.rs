@@ -1,5 +1,5 @@
-use actix_web::{route, web, HttpRequest, HttpResponse};
-use auth::{data::authenticated::Authenticated, middleware::verify::Verify};
+use actix_web::{route, web, HttpResponse};
+use auth::data::claims::Claims;
 use context::Context;
 use entity::{TransactionTrait, Value};
 use error::{AppResult, Error};
@@ -11,18 +11,17 @@ use crate::{data::create_file::CreateFile, repository::Repository};
 /// Request: [crate::data::create_file::CreateFile]
 ///
 /// Response: [crate::data::app_file::AppFile]
-#[route("/api/storage", method = "POST", wrap = "Verify::default()")]
+#[route("/api/storage", method = "POST")]
 pub(crate) async fn create(
-    req: HttpRequest,
+    claims: Claims,
     context: web::Data<Context>,
     data: web::Json<CreateFile>,
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
-    let authenticated = Authenticated::try_from(&req)?;
     let connection = context.db.begin().await?;
     let (create_file, encrypted_metadata, hashed_tokens) = data.into_inner().into_active_model()?;
     let repository = Repository::new(&connection);
-    let manage = repository.manage(&authenticated.user);
+    let manage = repository.manage(claims.sub);
 
     let name_hash = create_file
         .name_hash

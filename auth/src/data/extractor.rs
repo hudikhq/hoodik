@@ -1,10 +1,9 @@
 use std::marker::PhantomData;
 
-use actix_web::dev::ServiceRequest;
+use crate::data::claims::Claims;
+use actix_web::{dev::ServiceRequest, HttpRequest};
 use context::Context;
 use error::AppResult;
-
-use crate::data::authenticated::Authenticated;
 
 pub struct Extractor<'ext, T> {
     extractor: T,
@@ -61,10 +60,21 @@ impl<'ext> Extractor<'ext, Jwt<'ext>> {
         self.extractor.jwt_secret
     }
 
-    /// Extract the authenticated session from the request and verify it.
+    /// Extract the authenticated session from the regular request and verify it.
     ///
     /// It does not verify if the session is expired!
-    pub fn get(&self, req: &ServiceRequest) -> AppResult<Authenticated> {
+    pub fn req(&self, req: &HttpRequest) -> AppResult<Claims> {
+        let cookie = req
+            .cookie(self.cookie_name())
+            .ok_or_else(|| error::Error::Unauthorized("missing_session_token".to_string()))?;
+
+        crate::jwt::extract(cookie.value(), self.jwt_secret())
+    }
+
+    /// Extract the authenticated session from the service request and verify it.
+    ///
+    /// It does not verify if the session is expired!
+    pub fn service_req(&self, req: &ServiceRequest) -> AppResult<Claims> {
         let cookie = req
             .cookie(self.cookie_name())
             .ok_or_else(|| error::Error::Unauthorized("missing_session_token".to_string()))?;

@@ -1,14 +1,12 @@
-use actix_web::{route, HttpRequest, HttpResponse};
+use actix_web::{route, HttpResponse};
 use error::AppResult;
 
-use crate::{data::authenticated::Authenticated, middleware::verify::Verify};
+use crate::data::authenticated::Authenticated;
 
 /// If the user is authenticated, return the user data, this is used once the frontend refreshes
 ///
 /// Response: [crate::data::authenticated::Authenticated]
-#[route("/api/auth/self", method = "POST", wrap = "Verify::default()")]
-pub(crate) async fn authenticated_self(req: HttpRequest) -> AppResult<HttpResponse> {
-    let authenticated = Authenticated::try_from(&req)?;
-
+#[route("/api/auth/self", method = "POST")]
+pub(crate) async fn authenticated_self(authenticated: Authenticated) -> AppResult<HttpResponse> {
     Ok(HttpResponse::Ok().json(authenticated))
 }
