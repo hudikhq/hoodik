@@ -1,3 +1,5 @@
+#![allow(rustdoc::invalid_html_tags)]
+
 /// Email configuration holder,
 /// it can be either SMTP or None.
 ///
