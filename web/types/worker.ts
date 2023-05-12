@@ -15,6 +15,7 @@ export type WorkerErrorType =
  * one by one
  */
 export type UploadFileMessage = {
+  transferableUploadedChunks: Uint16Array
   transferableFile: UploadAppFile
   metadataJson: FileMetadataJson
 }

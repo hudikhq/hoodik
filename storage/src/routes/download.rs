@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use actix_web::{route, web, HttpRequest, HttpResponse};
-use auth::{data::authenticated::Authenticated, middleware::verify::Verify};
+use auth::data::claims::Claims;
 use context::Context;
 use entity::Uuid;
 use error::{AppResult, Error};
@@ -16,23 +16,19 @@ use crate::{contract::StorageProvider, repository::Repository, storage::Storage}
 /// Response: [actix_files::NamedFile]
 ///  - Content-Type: application/octet-stream
 ///  - File Name will be the original file name
-#[route(
-    "/api/storage/{file_id}",
-    method = "GET",
-    wrap = "Verify::csrf_header_default()"
-)]
+#[route("/api/storage/{file_id}", method = "GET")]
 pub(crate) async fn download(
     req: HttpRequest,
+    claims: Claims,
     context: web::Data<Context>,
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
-    let authenticated = Authenticated::try_from(&req)?;
     let file_id: String = util::actix::path_var(&req, "file_id")?;
     let file_id = Uuid::from_str(&file_id)?;
     let chunk = util::actix::query_var::<i32>(&req, "chunk").ok();
 
     let file = Repository::new(&context.db)
-        .query(&authenticated.user)
+        .query(claims.sub)
         .file(file_id)
         .await?;
 
@@ -87,20 +83,19 @@ pub(crate) async fn download(
 
 /// Get head response for a file this will give all the header
 /// information, but no file content.
-#[route(
-    "/api/storage/{file_id}",
-    method = "HEAD",
-    wrap = "Verify::csrf_header_default()"
-)]
-pub(crate) async fn head(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
+#[route("/api/storage/{file_id}", method = "HEAD")]
+pub(crate) async fn head(
+    req: HttpRequest,
+    context: web::Data<Context>,
+    claims: web::Data<Claims>,
+) -> AppResult<HttpResponse> {
     let context = context.into_inner();
-    let authenticated = Authenticated::try_from(&req)?;
     let file_id: String = util::actix::path_var(&req, "file_id")?;
     let file_id = Uuid::from_str(&file_id)?;
     let chunk = util::actix::query_var::<i32>(&req, "chunk").ok();
 
     let file = Repository::new(&context.db)
-        .query(&authenticated.user)
+        .query(claims.sub)
         .file(file_id)
         .await?;
 

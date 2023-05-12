@@ -5,6 +5,7 @@ use std::{
     env::{set_var as set_env_var, var as env_var},
     fs::{self, DirBuilder},
 };
+use url::Url;
 
 pub mod email;
 pub mod ssl;
@@ -64,7 +65,7 @@ pub struct Config {
     /// *optional*
     ///
     /// default: https://{HTTP_ADDRESS}:{HTTP_PORT}
-    pub app_url: Option<String>,
+    pub app_url: String,
 
     /// APP_CLIENT_URL this is the URL of the client application.
     /// This is mostly used while developing and in production this should
@@ -77,7 +78,7 @@ pub struct Config {
     /// *optional*
     ///
     /// default: APP_URL
-    pub client_url: Option<String>,
+    pub client_url: String,
 
     /// JWT_SECRET secret that will be used to sign the JWT tokens
     /// if you don't set this it will generate a random secret every time
@@ -89,32 +90,27 @@ pub struct Config {
     /// default: generates a random secret
     pub jwt_secret: String,
 
-    /// USE_COOKIES This tells us if we should use cookies or not.
-    /// Turning this on if you wish to use the API only with your custom
-    /// frontend application that might benefit from this way of authentication.
-    /// But generally, for most of the modern frontend applications JWT is the way to go.
-    ///
-    /// Note: Even when using cookies, JWT will still be generated, but it will be ignored  
-    /// when authenticating requests.
-    ///
-    /// *optional*
-    ///
-    /// default: false
-    pub use_cookies: bool,
-
-    /// COOKIE_DOMAIN: If the backend is working by using cookies and not JWT this will be used as the cookie domain.
+    /// APP_COOKIE_DOMAIN: If the backend is working by using cookies and not JWT this will be used as the cookie domain.
     /// it automatically defaults to be the same as the APP_URL
     ///
     /// *optional*
-    pub cookie_domain: Option<String>,
+    pub cookie_domain: String,
 
-    /// COOKIE_NAME This should be the name of the cookie that will be used to store the session
+    /// SESSION_COOKIE This should be the name of the cookie that will be used to store the session
     /// in your browser it is not that important and you probably don't need to set it
     ///
     /// *optional*
     ///
     /// *default: hoodik_session*
-    pub cookie_name: String,
+    pub session_cookie: String,
+
+    /// REFRESH_COOKIE This is the cookie name of the refresh token that will be used to refresh the session
+    /// alongside the session_cookie.
+    ///
+    /// *optional*
+    ///
+    /// *default: hoodik_refresh*
+    pub refresh_cookie: String,
 
     /// COOKIE_HTTP_ONLY This tells us if the cookie is supposed to be http only or not. Http only cookie will
     /// only be seen by the browser and not by the javascript frontend. This is okay and its supposed
@@ -143,22 +139,22 @@ pub struct Config {
     /// *possible values: Lax, Strict, None*
     pub cookie_same_site: String,
 
-    /// LONG_TERM_SESSION_DURATION_DAYS: This tells us how long the long term session should last
-    /// in days if the user chooses the option to be remembered by the system.
+    /// LONG_TERM_SESSION_DURATION_DAYS: This tells us for how long
+    /// will the session be refreshed if the user is not using the application.
     ///
     /// *optional*
     ///
     /// default: 30
     pub long_term_session_duration_days: i64,
 
-    /// SHORT_TERM_SESSION_DURATION_MINUTES: This is the period of time that the user will be logged in
+    /// SHORT_TERM_SESSION_DURATION_SECONDS: This is the period of time that the user will be logged in
     /// if he leaves the application (web client).
     /// While the user is browsing the application the session will keep extending for this period of time.
     ///
     /// *optional*
     ///
-    /// default: 5
-    pub short_term_session_duration_minutes: i64,
+    /// default: 120
+    pub short_term_session_duration_seconds: i64,
 
     /// Location of the ssl cert file, this will be loaded and setup on to the server
     /// if you don't provide this, the server will generate a self signed certificate
@@ -208,17 +204,17 @@ impl Config {
             address: "localhost".to_string(),
             data_dir,
             database_url: None,
-            app_url: Some("http://localhost:5443".to_string()),
-            client_url: Some("http://localhost:5443".to_string()),
+            app_url: "http://localhost:5443".to_string(),
+            client_url: "http://localhost:5443".to_string(),
             jwt_secret: uuid::Uuid::new_v4().to_string(),
-            use_cookies: false,
-            cookie_domain: None,
-            cookie_name: "hoodik_session".to_string(),
+            cookie_domain: "localhost:5443".to_string(),
+            session_cookie: "hoodik_session".to_string(),
+            refresh_cookie: "hoodik_refresh".to_string(),
             cookie_http_only: false,
             cookie_secure: false,
             cookie_same_site: "None".to_string(),
             long_term_session_duration_days: 30,
-            short_term_session_duration_minutes: 5,
+            short_term_session_duration_seconds: 120,
             ssl_cert_file,
             ssl_key_file,
             mailer,
@@ -249,19 +245,13 @@ impl Config {
         let app_url = Self::parse_app_url(&address, port);
         let client_url = Self::parse_client_url(&app_url);
         let jwt_secret = env_var("JWT_SECRET").unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
-        let use_cookies = env_var("USE_COOKIES")
-            .ok()
-            .map(|c| c.to_lowercase())
-            .unwrap_or_else(|| "false".to_string())
-            .as_str()
-            == "true";
-        let cookie_domain = match env_var("COOKIE_DOMAIN") {
-            Ok(v) => Some(v),
-            Err(_) => app_url.clone(),
-        };
-        let cookie_name = env_var("COOKIE_NAME")
+        let cookie_domain = Self::parse_cookie_domain(&app_url);
+        let session_cookie = env_var("SESSION_COOKIE")
             .ok()
             .unwrap_or_else(|| "hoodik_session".to_string());
+        let refresh_cookie = env_var("REFRESH_COOKIE")
+            .ok()
+            .unwrap_or_else(|| "hoodik_refresh".to_string());
         let cookie_http_only = env_var("COOKIE_HTTP_ONLY")
             .ok()
             .map(|c| c.to_lowercase())
@@ -279,10 +269,10 @@ impl Config {
             .unwrap_or_else(|_| "30".to_string())
             .parse()
             .unwrap_or(30);
-        let short_term_session_duration_minutes = env_var("SHORT_TERM_SESSION_DURATION_MINUTES")
-            .unwrap_or_else(|_| "5".to_string())
+        let short_term_session_duration_seconds = env_var("SHORT_TERM_SESSION_DURATION_SECONDS")
+            .unwrap_or_else(|_| "120".to_string())
             .parse()
-            .unwrap_or(5);
+            .unwrap_or(120);
 
         let (ssl_cert_file, ssl_key_file) = Self::parse_ssl_files(&data_dir);
         let mailer = EmailConfig::new(&mut errors);
@@ -301,14 +291,14 @@ impl Config {
             client_url,
             app_url,
             jwt_secret,
-            use_cookies,
             cookie_domain,
-            cookie_name,
+            session_cookie,
+            refresh_cookie,
             cookie_http_only,
             cookie_secure,
             cookie_same_site,
             long_term_session_duration_days,
-            short_term_session_duration_minutes,
+            short_term_session_duration_seconds,
             ssl_cert_file,
             ssl_key_file,
             mailer,
@@ -336,19 +326,13 @@ impl Config {
         let app_url = Self::parse_app_url(&address, port);
         let client_url = Self::parse_client_url(&app_url);
         let jwt_secret = env_var("JWT_SECRET").unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
-        let use_cookies = env_var("USE_COOKIES")
-            .ok()
-            .map(|c| c.to_lowercase())
-            .unwrap_or_else(|| "false".to_string())
-            .as_str()
-            == "true";
-        let cookie_domain = match env_var("COOKIE_DOMAIN") {
-            Ok(v) => Some(v),
-            Err(_) => app_url.clone(),
-        };
-        let cookie_name = env_var("COOKIE_NAME")
+        let cookie_domain = Self::parse_cookie_domain(&app_url);
+        let session_cookie = env_var("SESSION_COOKIE")
             .ok()
             .unwrap_or_else(|| "hoodik_session".to_string());
+        let refresh_cookie = env_var("REFRESH_COOKIE")
+            .ok()
+            .unwrap_or_else(|| "hoodik_refresh".to_string());
         let cookie_http_only = env_var("COOKIE_HTTP_ONLY")
             .ok()
             .map(|c| c.to_lowercase())
@@ -366,10 +350,10 @@ impl Config {
             .unwrap_or_else(|_| "30".to_string())
             .parse()
             .unwrap_or(30);
-        let short_term_session_duration_minutes = env_var("SHORT_TERM_SESSION_DURATION_MINUTES")
-            .unwrap_or_else(|_| "5".to_string())
+        let short_term_session_duration_seconds = env_var("SHORT_TERM_SESSION_DURATION_SECONDS")
+            .unwrap_or_else(|_| "120".to_string())
             .parse()
-            .unwrap_or(5);
+            .unwrap_or(120);
 
         let (ssl_cert_file, ssl_key_file) = Self::parse_ssl_files(&data_dir);
         let mailer = EmailConfig::new(&mut errors);
@@ -388,14 +372,14 @@ impl Config {
             app_url,
             client_url,
             jwt_secret,
-            use_cookies,
             cookie_domain,
-            cookie_name,
+            session_cookie,
+            refresh_cookie,
             cookie_http_only,
             cookie_secure,
             cookie_same_site,
             long_term_session_duration_days,
-            short_term_session_duration_minutes,
+            short_term_session_duration_seconds,
             ssl_cert_file,
             ssl_key_file,
             mailer,
@@ -480,21 +464,30 @@ impl Config {
     }
 
     /// Try loading the app url from env
-    fn parse_app_url(address: &str, port: i32) -> Option<String> {
-        if let Ok(app_url) = env_var("APP_URL") {
-            Some(app_url)
-        } else {
-            Some(format!("https://{}:{}", address, port))
-        }
+    fn parse_app_url(address: &str, port: i32) -> String {
+        parse_url(
+            "APP_URL",
+            env_var("APP_URL").ok(),
+            format!("https://{}:{}", address, port).as_str(),
+        )
+        .to_string()
     }
 
     /// Try loading the app url from env
-    fn parse_client_url(app_url: &Option<String>) -> Option<String> {
-        if let Ok(client_app_url) = env_var("APP_CLIENT_URL") {
-            Some(client_app_url)
-        } else {
-            app_url.clone()
-        }
+    fn parse_client_url(app_url: &str) -> String {
+        parse_url("APP_CLIENT_URL", env_var("APP_CLIENT_URL").ok(), app_url).to_string()
+    }
+
+    /// Try loading the app url from env
+    fn parse_cookie_domain(app_url: &str) -> String {
+        parse_url(
+            "APP_COOKIE_DOMAIN",
+            env_var("APP_COOKIE_DOMAIN").ok(),
+            app_url,
+        )
+        .host_str()
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "localhost".to_string())
     }
 
     /// Try loading the data_dir from env or arguments
@@ -539,22 +532,26 @@ impl Config {
         value
     }
 
+    /// Parse the same site attribute for the cookie and set it to lax if not specified
     pub fn parse_cookie_same_site() -> String {
-        let value = match env_var("COOKIE_SAME_SITE") {
-            Ok(v) => Some(v),
-            Err(_) => None,
-        };
+        let value = env_var("COOKIE_SAME_SITE").ok().map(|v| v.to_lowercase());
 
-        match value {
+        let mut value = match value {
             Some(x) => {
-                if matches!(x.as_str(), "Strict" | "Lax" | "None") {
+                if matches!(x.as_str(), "strict" | "lax" | "none") {
                     x
                 } else {
-                    "Lax".to_string()
+                    "lax".to_string()
                 }
             }
-            _ => "Lax".to_string(),
+            _ => "lax".to_string(),
+        };
+
+        if let Some(f) = value.get_mut(0..1) {
+            f.make_ascii_uppercase();
         }
+
+        value
     }
 
     /// Try to make sense of the SSL_CERT_FILE and SSL_KEY_FILE env variables
@@ -574,29 +571,29 @@ impl Config {
         format!("{}:{}", self.address, self.port)
     }
 
-    /// Get the cookie name
-    pub fn get_cookie_name(&self) -> String {
-        self.cookie_name.clone()
+    /// Get the session cookie name
+    pub fn get_cookie_domain(&self) -> String {
+        self.cookie_domain.clone()
+    }
+
+    /// Get the session cookie name
+    pub fn get_session_cookie(&self) -> String {
+        self.session_cookie.clone()
+    }
+
+    /// Get the refresh token cookie name
+    pub fn get_refresh_cookie(&self) -> String {
+        self.refresh_cookie.clone()
     }
 
     /// Get URL of the client application
     pub fn get_client_url(&self) -> String {
-        parse_path(
-            self.client_url
-                .as_ref()
-                .map(|u| u.to_string())
-                .unwrap_or_else(|| self.get_app_url()),
-        )
+        parse_path(self.client_url.clone())
     }
 
     /// Get URL of the client application
     pub fn get_app_url(&self) -> String {
-        parse_path(
-            self.app_url
-                .as_ref()
-                .map(|u| u.to_string())
-                .unwrap_or_else(|| format!("https://{}:{}", &self.address, self.port)),
-        )
+        parse_path(self.app_url.clone())
     }
 
     pub fn get_app_name(&self) -> String {
@@ -702,4 +699,59 @@ fn parse_path(path: String) -> String {
     }
 
     path
+}
+
+/// Helper to parse out url out of the env variables
+fn parse_url(name: &str, maybe_value: Option<String>, alternative: &str) -> Url {
+    if let Some(v) = maybe_value {
+        if !v.is_empty() {
+            return Url::parse(&v).unwrap_or_else(|_| {
+                Url::parse(format!("https://{}", v).as_str())
+                    .unwrap_or_else(|_| panic!("Invalid {name} (alternative - {alternative})"))
+            });
+        }
+    }
+
+    let url = Url::parse(alternative)
+        .unwrap_or_else(|_| panic!("Invalid alternative {name} (alternative - {alternative})"));
+
+    url.host_str()
+        .unwrap_or_else(|| panic!("Invalid host {name} - (invalid host str)"));
+
+    url
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_url_parsing() {
+        let valid = "https://google.com";
+        let valid_cookie = "localhost";
+        let maybe_valid_cookie = "https://localhost:3432";
+        let should_fallback = "";
+
+        let parsed = super::parse_url("valid", Some(valid.to_string()), valid);
+        assert_eq!(parsed.to_string(), "https://google.com/");
+
+        let parsed = super::parse_url("valid_cookie", Some(valid_cookie.to_string()), valid);
+        assert_eq!(parsed.host_str().unwrap(), "localhost");
+
+        let parsed = super::parse_url(
+            "maybe_valid_cookie",
+            Some(maybe_valid_cookie.to_string()),
+            valid,
+        );
+        assert_eq!(parsed.host_str().unwrap(), "localhost");
+
+        let parsed = super::parse_url("should_fallback", Some(should_fallback.to_string()), valid);
+        assert_eq!(parsed.host_str().unwrap(), "google.com");
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_invalid_domain() {
+        let invalid = "/// something ///";
+
+        super::parse_url("invalid", Some(invalid.to_string()), "should not come here");
+    }
 }

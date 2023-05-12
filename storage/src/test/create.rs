@@ -47,7 +47,7 @@ pub async fn create_file<'ctx, T: ConnectionTrait>(
     };
 
     let (am, _, tokens) = file.into_active_model()?;
-    repository.manage(&user).create(am, name, tokens).await
+    repository.manage(user.id).create(am, name, tokens).await
 }
 
 #[async_std::test]
@@ -88,7 +88,7 @@ async fn create_dir_files() {
     assert!(file2.is_err());
 
     let response = repository
-        .manage(&user)
+        .manage(user.id)
         .find(Query {
             dir_id: None,
             ..Default::default()
@@ -99,7 +99,7 @@ async fn create_dir_files() {
     assert_eq!(response.children.len(), 2);
 
     let response = repository
-        .manage(&user)
+        .manage(user.id)
         .find(Query {
             dir_id: Some(dir.id.to_string()),
             ..Default::default()
@@ -111,7 +111,7 @@ async fn create_dir_files() {
     assert_eq!(response.children.len(), 1);
 
     let response = repository
-        .manage(&user)
+        .manage(user.id)
         .find(Query {
             dir_id: Some(file.id.to_string()),
             ..Default::default()
@@ -135,7 +135,7 @@ async fn get_dir_tree_with_right_ordering() {
     let dir_id = dir.id.clone();
     manual.push(dir);
 
-    let response = repository.manage(&user).dir_tree(dir_id).await.unwrap();
+    let response = repository.manage(user.id).dir_tree(dir_id).await.unwrap();
 
     assert_eq!(
         app_file_vec_to_str_vec(&manual),
@@ -163,7 +163,7 @@ async fn get_dir_tree_with_right_ordering() {
         .await
         .unwrap();
 
-    let response = repository.manage(&user).dir_tree(dir3_id).await.unwrap();
+    let response = repository.manage(user.id).dir_tree(dir3_id).await.unwrap();
 
     assert_eq!(
         app_file_vec_to_str_vec(&manual),
@@ -172,7 +172,7 @@ async fn get_dir_tree_with_right_ordering() {
 
     manual.push(dir4);
 
-    let response = repository.manage(&user).dir_tree(dir4_id).await.unwrap();
+    let response = repository.manage(user.id).dir_tree(dir4_id).await.unwrap();
 
     assert_eq!(
         app_file_vec_to_str_vec(&manual),
@@ -232,17 +232,21 @@ async fn get_file_tree_with_right_ordering() {
 
     let ids = manual.iter().map(|f| f.id.clone()).collect::<Vec<_>>();
 
-    let response = repository.manage(&user).file_tree(dir_id).await.unwrap();
+    let response = repository.manage(user.id).file_tree(dir_id).await.unwrap();
 
     for file in response.iter() {
         assert!(ids.contains(&file.id));
     }
 
-    let response = repository.manage(&user).file_tree(file1_id).await.unwrap();
+    let response = repository
+        .manage(user.id)
+        .file_tree(file1_id)
+        .await
+        .unwrap();
 
     assert_eq!(response.iter().next().unwrap().id, file1_id);
 
-    let response = repository.manage(&user).file_tree(dir3_id).await.unwrap();
+    let response = repository.manage(user.id).file_tree(dir3_id).await.unwrap();
 
     assert_eq!(response.iter().next().unwrap().id, dir3_id);
 }

@@ -21,9 +21,7 @@ const authenticationError = ref<string | null>(null)
 
 const init = () => {
   config.value = {
-    initialValues: {
-      remember: false
-    },
+    initialValues: {},
     validationSchema: yup.object().shape({
       email: yup.string().required('Email is required').email('Email is invalid'),
       password: yup.string().required('Password is required')

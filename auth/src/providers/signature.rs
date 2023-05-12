@@ -19,7 +19,7 @@ impl<'ctx> SignatureProvider<'ctx> {
 #[async_trait::async_trait]
 impl<'ctx> AuthProviderContract for SignatureProvider<'ctx> {
     async fn authenticate(&self) -> AppResult<Authenticated> {
-        let (fingerprint, signature, remember) = self.data.into_tuple()?;
+        let (fingerprint, signature) = self.data.into_tuple()?;
 
         let user = match self.auth.get_by_fingerprint(&fingerprint).await {
             Ok(v) => v,
@@ -36,7 +36,7 @@ impl<'ctx> AuthProviderContract for SignatureProvider<'ctx> {
 
         cryptfns::rsa::public::verify(&nonce, &signature, &user.pubkey)?;
 
-        let session = self.auth.generate_session(&user, remember).await?;
+        let session = self.auth.generate_session(&user).await?;
 
         Ok(Authenticated { user, session })
     }

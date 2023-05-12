@@ -40,7 +40,7 @@ pub async fn create_file<'ctx, T: ConnectionTrait>(
     };
 
     let (am, _, tokens) = file.into_active_model()?;
-    repository.manage(&user).create(am, name, tokens).await
+    repository.manage(user.id).create(am, name, tokens).await
 }
 
 #[async_std::test]
@@ -48,7 +48,7 @@ async fn create_token_and_get_it() {
     let context = Context::mock_sqlite().await;
     let repository = Repository::new(&context.db);
     let user = entity::mock::create_user(&context.db, "first@test.com").await;
-    let tokens = repository.tokens(&user);
+    let tokens = repository.tokens(user.id);
 
     let token = cryptfns::tokenizer::Token {
         token: "hello".to_string(),
@@ -75,7 +75,7 @@ async fn create_file_with_tokens() {
         .await
         .unwrap();
 
-    let tokens = repository.tokens(&user).get_tokens(dir.id).await.unwrap();
+    let tokens = repository.tokens(user.id).get_tokens(dir.id).await.unwrap();
 
     assert_eq!(initial_tokens.len(), tokens.len());
 
@@ -110,7 +110,7 @@ async fn create_files_and_try_searching() {
         limit: None,
     };
 
-    let mut results = repository.tokens(&user).search(search).await.unwrap();
+    let mut results = repository.tokens(user.id).search(search).await.unwrap();
 
     let second = results.pop().unwrap();
     let first = results.pop().unwrap();

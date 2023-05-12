@@ -2,7 +2,7 @@ use crate::{
     actions::UserActions,
     data::{authenticated::Authenticated, create_user::CreateUser},
 };
-use actix_web::cookie::{time::OffsetDateTime, Cookie, SameSite};
+use actix_web::cookie::{time::OffsetDateTime, Cookie, CookieBuilder, SameSite};
 use chrono::{Duration, Utc};
 use context::Context;
 use entity::{
@@ -143,10 +143,9 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Get user and session by token and csrf
-    pub async fn get_by_token_and_csrf(&self, token: &str, csrf: &str) -> AppResult<Authenticated> {
+    pub async fn get_by_refresh(&self, refresh: &str) -> AppResult<Authenticated> {
         let result = sessions::Entity::find()
-            .filter(sessions::Column::Token.eq(token))
-            .filter(sessions::Column::Csrf.eq(csrf))
+            .filter(sessions::Column::Refresh.eq(refresh))
             .inner_join(users::Entity)
             .select_also(users::Entity)
             .one(&self.context.db)
@@ -162,27 +161,9 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Get user and session by token
-    pub async fn get_by_device_id(&self, id: &str) -> AppResult<Authenticated> {
+    pub async fn get_by_device_id<T: Into<String>>(&self, id: T) -> AppResult<Authenticated> {
         let result = sessions::Entity::find()
-            .filter(sessions::Column::DeviceId.eq(id))
-            .inner_join(users::Entity)
-            .select_also(users::Entity)
-            .one(&self.context.db)
-            .await
-            .map_err(Error::from)?
-            .ok_or_else(|| Error::Unauthorized("session_not_found".to_string()))?;
-
-        // inner_join makes sure the second parameter options is
-        // always Some so we can unwrap it safely
-        let (session, user) = (result.0, result.1.unwrap());
-
-        Ok(Authenticated { user, session })
-    }
-
-    /// Get user and session by token
-    pub async fn get_by_token(&self, token: &str) -> AppResult<Authenticated> {
-        let result = sessions::Entity::find()
-            .filter(sessions::Column::Token.eq(token))
+            .filter(sessions::Column::DeviceId.eq(id.into()))
             .inner_join(users::Entity)
             .select_also(users::Entity)
             .one(&self.context.db)
@@ -198,20 +179,9 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Generate a new session for a user
-    pub async fn generate_session(
-        &self,
-        user: &users::Model,
-        remember: bool,
-    ) -> AppResult<sessions::Model> {
-        let expires_at = match remember {
-            true => {
-                Utc::now() + Duration::days(self.context.config.long_term_session_duration_days)
-            }
-            false => {
-                Utc::now()
-                    + Duration::minutes(self.context.config.short_term_session_duration_minutes)
-            }
-        };
+    pub async fn generate_session(&self, user: &users::Model) -> AppResult<sessions::Model> {
+        let expires_at =
+            Utc::now() + Duration::seconds(self.context.config.short_term_session_duration_seconds);
 
         let id = entity::Uuid::new_v4();
 
@@ -219,8 +189,7 @@ impl<'ctx> Auth<'ctx> {
             id: ActiveValue::Set(id),
             user_id: ActiveValue::Set(user.id),
             device_id: ActiveValue::Set(Uuid::new_v4().to_string()),
-            token: ActiveValue::Set(Uuid::new_v4().to_string()),
-            csrf: ActiveValue::Set(Uuid::new_v4().to_string()),
+            refresh: ActiveValue::Set(Some(Uuid::new_v4().to_string())),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
             expires_at: ActiveValue::Set(expires_at.naive_utc()),
@@ -238,16 +207,26 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Refresh session, if it's not expired. Refreshing a session will extend the expiration date by 10 minutes.
-    pub async fn refresh_session(&self, session: &sessions::Model) -> AppResult<Authenticated> {
+    pub async fn refresh_session(
+        &self,
+        session: &sessions::Model,
+        refresh_token: &str,
+    ) -> AppResult<Authenticated> {
+        let existing = sessions::Entity::find()
+            .filter(sessions::Column::Id.eq(session.id))
+            .filter(sessions::Column::Refresh.eq(refresh_token))
+            .one(&self.context.db)
+            .await?
+            .ok_or_else(|| Error::Unauthorized("session_not_found".to_string()))?;
+
         let duration = session.expires_at - session.updated_at;
         let expires_at = Utc::now().naive_utc() + duration;
 
         let active_model = sessions::ActiveModel {
-            id: ActiveValue::Set(session.id),
-            user_id: ActiveValue::Set(session.user_id),
-            device_id: ActiveValue::Set(session.device_id.clone()),
-            token: ActiveValue::Set(Uuid::new_v4().to_string()),
-            csrf: ActiveValue::Set(Uuid::new_v4().to_string()),
+            id: ActiveValue::Set(existing.id),
+            user_id: ActiveValue::Set(existing.user_id),
+            device_id: ActiveValue::Set(existing.device_id.clone()),
+            refresh: ActiveValue::Set(Some(Uuid::new_v4().to_string())),
             created_at: ActiveValue::Set(session.created_at),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
             expires_at: ActiveValue::Set(expires_at),
@@ -264,8 +243,7 @@ impl<'ctx> Auth<'ctx> {
             id: ActiveValue::Set(session.id),
             user_id: ActiveValue::Set(session.user_id),
             device_id: ActiveValue::Set(session.device_id.clone()),
-            token: ActiveValue::Set(Uuid::new_v4().to_string()),
-            csrf: ActiveValue::Set(Uuid::new_v4().to_string()),
+            refresh: ActiveValue::Set(Some(Uuid::new_v4().to_string())),
             created_at: ActiveValue::Set(session.created_at),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
             expires_at: ActiveValue::Set(Utc::now().naive_utc()),
@@ -277,39 +255,62 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Sets a cookie on the request
-    pub async fn manage_cookie(
+    pub async fn manage_cookies(
         &self,
-        session: &sessions::Model,
+        authenticated: &Authenticated,
+        issuer: &str,
         destroy: bool,
-    ) -> AppResult<Cookie<'static>> {
-        let mut cookie = Cookie::build(
-            self.context.config.cookie_name.clone(),
-            session.token.clone(),
-        )
-        .path("/")
-        .secure(self.context.config.cookie_secure)
-        .http_only(self.context.config.cookie_http_only)
-        .finish();
+    ) -> AppResult<(Cookie<'static>, Cookie<'static>)> {
+        let jwt = match destroy {
+            true => "destroyed".to_string(),
+            false => crate::jwt::generate(authenticated, issuer, &self.context.config.jwt_secret)?,
+        };
 
-        if let Some(domain) = &self.context.config.cookie_domain {
-            cookie.set_domain(domain.clone());
+        let session = &authenticated.session;
+
+        let cookie = Cookie::build(self.context.config.get_session_cookie(), jwt).path("/");
+        let mut jwt = self.make_cookie(cookie)?;
+
+        let refresh = session
+            .refresh
+            .clone()
+            .ok_or_else(|| Error::Unauthorized("cannot_build_refresh_token".to_string()))?;
+
+        let cookie = Cookie::build(self.context.config.get_refresh_cookie(), refresh)
+            .path(crate::REFRESH_PATH);
+        let mut refresh = self.make_cookie(cookie)?;
+
+        if destroy {
+            jwt.set_expires(OffsetDateTime::from_unix_timestamp(0).unwrap());
+            refresh.set_expires(OffsetDateTime::from_unix_timestamp(0).unwrap());
+
+            return Ok((jwt, refresh));
         }
+
+        let timestamp = session.expires_at.timestamp();
+        jwt.set_expires(OffsetDateTime::from_unix_timestamp(timestamp).unwrap());
+
+        let timestamp =
+            Utc::now() + Duration::days(self.context.config.long_term_session_duration_days);
+        refresh.set_expires(OffsetDateTime::from_unix_timestamp(timestamp.timestamp()).unwrap());
+
+        Ok((jwt, refresh))
+    }
+
+    /// Set configuration parameters for cookie security
+    fn make_cookie(&self, cookie: CookieBuilder<'static>) -> AppResult<Cookie<'static>> {
+        let mut cookie = cookie
+            .secure(self.context.config.cookie_secure)
+            .http_only(self.context.config.cookie_http_only)
+            .finish();
+
+        cookie.set_domain(self.context.config.get_cookie_domain());
 
         match self.context.config.cookie_same_site.as_ref() {
             "Lax" => cookie.set_same_site(SameSite::Lax),
             "Strict" => cookie.set_same_site(SameSite::Strict),
             _ => cookie.set_same_site(SameSite::None),
         };
-
-        // If we are not destroying the cookie we will set
-        // The proper expiration time on it, but if we are
-        // We will set it to 1970-01-01
-        if !destroy {
-            let timestamp = session.expires_at.timestamp();
-            cookie.set_expires(OffsetDateTime::from_unix_timestamp(timestamp).unwrap());
-        } else {
-            cookie.set_expires(OffsetDateTime::from_unix_timestamp(0).unwrap());
-        }
 
         Ok(cookie)
     }

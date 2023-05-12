@@ -3,10 +3,7 @@ use context::Context;
 use error::AppResult;
 
 use crate::{
-    auth::Auth,
-    contract::AuthProviderContract,
-    data::{authenticated::AuthenticatedJwt, credentials::Credentials},
-    jwt,
+    auth::Auth, contract::AuthProviderContract, data::credentials::Credentials,
     providers::credentials::CredentialsProvider,
 };
 
@@ -14,7 +11,7 @@ use crate::{
 ///
 /// Request: [crate::data::credentials::Credentials]
 ///
-/// Response: [crate::data::authenticated::AuthenticatedJwt]
+/// Response: [crate::data::authenticated::Authenticated]
 #[route("/api/auth/login", method = "POST")]
 pub(crate) async fn credentials(
     context: web::Data<Context>,
@@ -25,14 +22,15 @@ pub(crate) async fn credentials(
     let provider = CredentialsProvider::new(&auth, data.into_inner());
 
     let authenticated = provider.authenticate().await?;
-    let jwt = jwt::generate(&authenticated, &context.config.jwt_secret)?;
 
     let mut response = HttpResponse::Ok();
 
-    if context.config.use_cookies {
-        let cookie = auth.manage_cookie(&authenticated.session, false).await?;
-        response.cookie(cookie);
-    }
+    let (jwt, refresh) = auth
+        .manage_cookies(&authenticated, module_path!(), false)
+        .await?;
 
-    Ok(response.json(AuthenticatedJwt { authenticated, jwt }))
+    response.cookie(jwt);
+    response.cookie(refresh);
+
+    Ok(response.json(authenticated))
 }

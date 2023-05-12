@@ -11,7 +11,7 @@ const storage = storageStore()
 const crypto = cryptoStore()
 
 const props = defineProps<{
-  modelValue: string | number | boolean
+  modelValue?: boolean | undefined
 }>()
 const emit = defineEmits(['update:modelValue', 'cancel', 'confirm'])
 

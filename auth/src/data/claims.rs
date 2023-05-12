@@ -1,0 +1,98 @@
+use std::pin::Pin;
+
+use actix_web::{web, FromRequest, HttpRequest};
+use context::Context;
+use entity::Uuid;
+use error::Error;
+use futures_util::Future;
+use serde::{Deserialize, Serialize};
+
+use super::{authenticated::Authenticated, extractor::Extractor};
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Claims {
+    /// Issuer - authentication service provider
+    pub iss: String,
+    /// Subject - user id
+    pub sub: Uuid,
+    /// Expires at
+    pub exp: i64,
+    /// Issued at
+    pub iat: i64,
+    /// Authenticated device id
+    pub device: String,
+}
+
+impl From<&Authenticated> for Claims {
+    fn from(authenticated: &Authenticated) -> Self {
+        Self {
+            iss: String::from("fresh"),
+            sub: authenticated.user.id,
+            exp: authenticated.session.expires_at.timestamp(),
+            iat: chrono::Utc::now().timestamp(),
+            device: authenticated.session.device_id.clone(),
+        }
+    }
+}
+
+impl Claims {
+    pub fn set_iss<T: Into<String>>(mut self, iss: T) -> Self {
+        self.iss = iss.into();
+
+        self
+    }
+
+    pub fn is_expired(&self) -> bool {
+        self.exp < chrono::Utc::now().timestamp()
+    }
+
+    pub fn is_valid(&self) -> bool {
+        !self.is_expired()
+    }
+}
+
+impl TryFrom<&HttpRequest> for Claims {
+    type Error = Error;
+
+    fn try_from(req: &HttpRequest) -> Result<Self, Error> {
+        let context = match req.app_data::<web::Data<Context>>() {
+            Some(c) => c,
+            None => {
+                return Err(Error::Unauthorized(
+                    "auth::data::claims|no_context".to_string(),
+                ));
+            }
+        };
+
+        Extractor::default()
+            .jwt(context)
+            .req(req)
+            .map_err(|_| Error::Unauthorized("auth::data::claims|no_claims".to_string()))
+    }
+}
+
+impl FromRequest for Claims {
+    type Error = Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self, Error>>>>;
+
+    fn from_request(req: &actix_web::HttpRequest, _: &mut actix_web::dev::Payload) -> Self::Future {
+        let claims = match Claims::try_from(req) {
+            Ok(c) => c,
+            Err(e) => return Box::pin(async { Err(e) }),
+        };
+
+        if claims.is_expired() {
+            return Box::pin(async {
+                Err(Error::Unauthorized(
+                    "auth::data::claims|expired".to_string(),
+                ))
+            });
+        }
+
+        Box::pin(async move { Ok(claims) })
+    }
+
+    fn extract(req: &actix_web::HttpRequest) -> Self::Future {
+        Self::from_request(req, &mut actix_web::dev::Payload::None)
+    }
+}

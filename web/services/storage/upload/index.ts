@@ -277,10 +277,26 @@ export async function upload(file: UploadAppFile, progress?: UploadProgressFunct
     await progress(file, false)
   }
 
-  const workers = [...new Array(file.chunks)].map((_, chunk) => {
-    return async () => {
-      // Skip already uploaded chunks
-      if (file.uploaded_chunks?.includes(chunk)) {
+  const workers = [...new Array(file.chunks)]
+    .filter((_, c) => {
+      return !file.uploaded_chunks?.includes(c)
+    })
+    .map((_, chunk) => {
+      return async () => {
+        // Skip already uploaded chunks
+        if (file.uploaded_chunks?.includes(chunk)) {
+          if (progress) {
+            const storedChunks = file.uploaded_chunks?.length || 0
+            await progress(file, storedChunks === file.chunks)
+          }
+
+          return file
+        }
+
+        const data = await sliceChunk(file.file as File, chunk)
+
+        file = await sync.uploadChunk(file, data, chunk)
+
         if (progress) {
           const storedChunks = file.uploaded_chunks?.length || 0
           await progress(file, storedChunks === file.chunks)
@@ -288,19 +304,7 @@ export async function upload(file: UploadAppFile, progress?: UploadProgressFunct
 
         return file
       }
-
-      const data = await sliceChunk(file.file as File, chunk)
-
-      file = await sync.uploadChunk(file, data, chunk)
-
-      if (progress) {
-        const storedChunks = file.uploaded_chunks?.length || 0
-        await progress(file, storedChunks === file.chunks)
-      }
-
-      return file
-    }
-  })
+    })
 
   while (workers.length) {
     const batch = workers.splice(0, 1)

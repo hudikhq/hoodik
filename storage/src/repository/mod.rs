@@ -6,8 +6,8 @@ use crate::data::app_file::AppFile;
 
 use self::{manage::Manage, query::Query, tokens::Tokens};
 use entity::{
-    files, user_files, users, ColumnTrait, ConnectionTrait, EntityTrait, Expr, IntoCondition,
-    JoinType, QueryFilter, QuerySelect, RelationTrait, Uuid, Value,
+    files, user_files, ColumnTrait, ConnectionTrait, EntityTrait, Expr, IntoCondition, JoinType,
+    QueryFilter, QuerySelect, RelationTrait, Uuid, Value,
 };
 use error::{AppResult, Error};
 use std::fmt::Display;
@@ -30,36 +30,27 @@ where
     T: ConnectionTrait,
 {
     /// Query files from any user perspective
-    pub fn query<'repository>(
-        &'repository self,
-        user: &'repository users::Model,
-    ) -> Query<'repository, T>
+    pub fn query<'repository>(&'repository self, user_id: Uuid) -> Query<'repository, T>
     where
         Self: 'repository,
     {
-        Query::<'repository>::new(self, user)
+        Query::<'repository>::new(self, user_id)
     }
 
     /// Manage files from the owners perspective
-    pub fn manage<'repository>(
-        &'repository self,
-        owner: &'repository users::Model,
-    ) -> Manage<'repository, T>
+    pub fn manage<'repository>(&'repository self, owner_id: Uuid) -> Manage<'repository, T>
     where
         Self: 'repository,
     {
-        Manage::<'repository>::new(self, owner)
+        Manage::<'repository>::new(self, owner_id)
     }
 
     /// Manage files from the owners perspective
-    pub fn tokens<'repository>(
-        &'repository self,
-        user: &'repository users::Model,
-    ) -> Tokens<'repository, T>
+    pub fn tokens<'repository>(&'repository self, user_id: Uuid) -> Tokens<'repository, T>
     where
         Self: 'repository,
     {
-        Tokens::<'repository>::new(self, user)
+        Tokens::<'repository>::new(self, user_id)
     }
 
     /// Get the inner database connection

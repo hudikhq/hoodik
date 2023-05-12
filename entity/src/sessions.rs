@@ -11,8 +11,8 @@ pub struct Model {
     pub id: Uuid,
     pub user_id: Uuid,
     pub device_id: String,
-    pub token: String,
-    pub csrf: String,
+    #[serde(skip_serializing)]
+    pub refresh: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub expires_at: NaiveDateTime,

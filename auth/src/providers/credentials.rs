@@ -19,7 +19,7 @@ impl<'ctx> CredentialsProvider<'ctx> {
 #[async_trait::async_trait]
 impl<'ctx> AuthProviderContract for CredentialsProvider<'ctx> {
     async fn authenticate(&self) -> AppResult<Authenticated> {
-        let (email, password, remember, token) = self.data.into_tuple()?;
+        let (email, password, token) = self.data.into_tuple()?;
 
         let user = match self.auth.get_by_email(&email).await {
             Ok(v) => v,
@@ -46,7 +46,7 @@ impl<'ctx> AuthProviderContract for CredentialsProvider<'ctx> {
             }
         }
 
-        let session = self.auth.generate_session(&user, remember).await?;
+        let session = self.auth.generate_session(&user).await?;
 
         Ok(Authenticated { user, session })
     }
