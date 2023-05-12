@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use actix_web::{http::header, HttpResponse};
 use chrono::{Duration, Utc};
 use context::{Context, SenderContract};
 use log::debug;
@@ -78,7 +79,6 @@ async fn test_credentials_valid() {
         email: Some("john@doe.com".to_string()),
         password: Some("very-strong-password".to_string()),
         token: None,
-        remember: Some(true),
     };
 
     let credentials_provider = CredentialsProvider::new(&auth, credentials);
@@ -99,7 +99,7 @@ async fn test_credentials_valid() {
 
     let authenticated = response.unwrap();
 
-    assert!(authenticated.session.expires_at > (Utc::now() + Duration::minutes(20)).naive_utc());
+    assert!(authenticated.session.expires_at > (Utc::now() + Duration::minutes(1)).naive_utc());
     assert_eq!(authenticated.user.id, user.id);
 }
 
@@ -123,7 +123,6 @@ async fn test_credentials_invalid() {
         email: Some("john@doe.com".to_string()),
         password: Some("wrong-password".to_string()),
         token: None,
-        remember: Some(true),
     };
 
     let credentials_provider = CredentialsProvider::new(&auth, credentials);
@@ -170,7 +169,6 @@ async fn test_retrieve_authenticated_session_by_token_and_csrf() {
         email: Some("john@doe.com".to_string()),
         password: Some("very-strong-password".to_string()),
         token: None,
-        remember: Some(true),
     };
 
     let credentials_provider = CredentialsProvider::new(&auth, credentials);
@@ -190,9 +188,7 @@ async fn test_retrieve_authenticated_session_by_token_and_csrf() {
     let authenticated = response.unwrap();
     let session = authenticated.session.clone();
 
-    let response = auth
-        .get_by_token_and_csrf(&session.token, &session.csrf)
-        .await;
+    let response = auth.get_by_refresh(&session.refresh.unwrap()).await;
 
     if let Err(e) = response {
         panic!("Errored: {:#?}", e);
@@ -223,7 +219,6 @@ async fn test_jwt_generate_and_claim() {
         email: Some("john@doe.com".to_string()),
         password: Some("very-strong-password".to_string()),
         token: None,
-        remember: Some(true),
     };
 
     let credentials_provider = CredentialsProvider::new(&auth, credentials);
@@ -242,7 +237,7 @@ async fn test_jwt_generate_and_claim() {
 
     let authenticated = response.unwrap();
 
-    let jwt = crate::jwt::generate(&authenticated, "some-secret").unwrap();
+    let jwt = crate::jwt::generate(&authenticated, module_path!(), "some-secret").unwrap();
 
     let response = crate::jwt::extract(&jwt, "some-secret");
 
@@ -323,4 +318,55 @@ async fn test_activate_user() {
 
     assert_eq!(activated_user.email, "john@doe.com");
     assert!(activated_user.email_verified_at.is_some());
+}
+
+#[async_std::test]
+async fn test_set_cookie_for_both() {
+    let context = Context::mock_sqlite().await;
+    let context = Context::add_mock_sender(context);
+    let auth = create_lib(&context);
+
+    let (pubkey, fingerprint) = get_pubkey_and_fingerprint();
+
+    let create_user = CreateUser {
+        email: Some("john@doe.com".to_string()),
+        password: Some("very-strong-password".to_string()),
+        secret: None,
+        pubkey,
+        fingerprint,
+        encrypted_private_key: Some("encrypted-gibberish".to_string()),
+        token: None,
+    };
+
+    auth.register(create_user).await.unwrap();
+
+    let credentials = Credentials {
+        email: Some("john@doe.com".to_string()),
+        password: Some("very-strong-password".to_string()),
+        token: None,
+    };
+    let credentials_provider = CredentialsProvider::new(&auth, credentials);
+    let authenticated = credentials_provider.authenticate().await.unwrap();
+
+    let (jwt, refresh) = auth
+        .manage_cookies(&authenticated, module_path!(), false)
+        .await
+        .unwrap();
+
+    let mut res = HttpResponse::Ok();
+
+    res.cookie(jwt.clone());
+    res.cookie(refresh.clone());
+
+    let res = res.finish();
+
+    let mut headers = res.headers().get_all(header::SET_COOKIE);
+
+    assert!(headers.len() == 2);
+
+    let res_jwt = headers.next().unwrap();
+    let res_refresh = headers.next().unwrap();
+
+    assert_eq!(res_jwt.to_str().unwrap(), jwt.to_string());
+    assert_eq!(res_refresh.to_str().unwrap(), refresh.to_string());
 }

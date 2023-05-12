@@ -6,7 +6,7 @@ import type { FormType } from '../form'
 
 const props = defineProps<{
   title?: string
-  modelValue: string | number | boolean
+  modelValue: boolean | undefined
   form?: FormType
 }>()
 

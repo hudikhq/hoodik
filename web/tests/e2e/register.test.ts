@@ -24,12 +24,9 @@ async function getUser(sendKey = false) {
     createUser.unencrypted_private_key = keypair.input as string
   }
 
-  const {
-    authenticated: { user },
-    jwt
-  } = await register.register(createUser)
+  const { user } = await register.register(createUser)
 
-  return { user, jwt, password, privateKey: keypair.input as string }
+  return { user, password, privateKey: keypair.input as string }
 }
 
 export async function getUserWithKey() {

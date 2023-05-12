@@ -2,13 +2,7 @@
 
 set -e
 
-export ENV_FILE=./.env.e2e
-
-cargo test --test web_authentication -- --nocapture
-
-cargo test --test storage -- --nocapture
-
-cargo test --test email -- --nocapture
+./rust-e2e
 
 cargo run -- -c ./.env.e2e &
 

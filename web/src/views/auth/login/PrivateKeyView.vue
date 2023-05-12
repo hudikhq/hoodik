@@ -23,10 +23,7 @@ const authenticationError = ref<string | null>(null)
 
 const init = () => {
   config.value = {
-    initialValues: {
-      privateKey: '',
-      remember: false
-    },
+    initialValues: {},
     validationSchema: yup.object().shape({
       privateKey: yup
         .string()

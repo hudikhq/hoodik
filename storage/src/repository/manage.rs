@@ -5,9 +5,9 @@ use std::{cmp::Ordering, fmt::Display, str::FromStr};
 
 use chrono::Utc;
 use entity::{
-    files, user_files, users, ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait,
-    EntityTrait, Expr, IntoCondition, JoinType, Order, QueryFilter, QueryOrder, QuerySelect,
-    RelationTrait, Statement, Uuid, Value,
+    files, user_files, ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait,
+    Expr, IntoCondition, JoinType, Order, QueryFilter, QueryOrder, QuerySelect, RelationTrait,
+    Statement, Uuid, Value,
 };
 use error::{AppResult, Error};
 
@@ -17,23 +17,23 @@ use super::Repository;
 
 pub struct Manage<'repository, T: ConnectionTrait> {
     repository: &'repository Repository<'repository, T>,
-    owner: &'repository users::Model,
+    owner_id: Uuid,
 }
 
 impl<'repository, T> Manage<'repository, T>
 where
     T: ConnectionTrait,
 {
-    pub fn new(
-        repository: &'repository Repository<'repository, T>,
-        owner: &'repository users::Model,
-    ) -> Self {
-        Self { repository, owner }
+    pub fn new(repository: &'repository Repository<'repository, T>, owner_id: Uuid) -> Self {
+        Self {
+            repository,
+            owner_id,
+        }
     }
 
     /// Get any kind of file for the owner
     pub async fn get(&self, id: Uuid) -> AppResult<AppFile> {
-        let file = self.repository.by_id(id, self.owner.id).await?;
+        let file = self.repository.by_id(id, self.owner_id).await?;
 
         if !file.is_owner {
             return Err(Error::BadRequest("file_not_found".to_string()));
@@ -44,7 +44,7 @@ where
 
     /// Alias to get the file metadata for the owner
     pub async fn file(&self, id: Uuid) -> AppResult<AppFile> {
-        let file = self.repository.by_id(id, self.owner.id).await?;
+        let file = self.repository.by_id(id, self.owner_id).await?;
 
         if file.is_dir() {
             return Err(Error::BadRequest("file_not_found".to_string()));
@@ -55,7 +55,7 @@ where
 
     /// Alias to get directory metadata for the owner
     pub async fn dir(&self, id: Uuid) -> AppResult<AppFile> {
-        let file = self.repository.by_id(id, self.owner.id).await?;
+        let file = self.repository.by_id(id, self.owner_id).await?;
 
         if file.is_file() {
             return Err(Error::NotFound("directory_not_found".to_string()));
@@ -97,7 +97,7 @@ where
             query = query.order_by(column, order);
         }
 
-        let user_id = self.owner.id;
+        let user_id = self.owner_id;
 
         query
             .join(
@@ -156,7 +156,7 @@ where
             })
             .collect();
 
-        let user_id = self.owner.id;
+        let user_id = self.owner_id;
 
         let mut results = files::Entity::find()
             .filter(files::Column::Id.is_in(ids))
@@ -227,7 +227,7 @@ where
             })
             .collect::<Vec<Uuid>>();
 
-        let user_id = self.owner.id;
+        let user_id = self.owner_id;
         let mut results = files::Entity::find()
             .filter(files::Column::Id.is_in(ids))
             .join(
@@ -270,7 +270,7 @@ where
     where
         V: Into<Value> + Display + Clone,
     {
-        let user_id = self.owner.id;
+        let user_id = self.owner_id;
 
         let mut query = files::Entity::find().filter(files::Column::NameHash.eq(hash.clone()));
 
@@ -328,7 +328,7 @@ where
         // and if the current user is the owner of that directory.
         if let Some(file_id) = create_file.file_id.clone().into_value() {
             if file_id.to_string().as_str() != "NULL" {
-                let parent = self.repository.by_id(file_id, self.owner.id).await?;
+                let parent = self.repository.by_id(file_id, self.owner_id).await?;
 
                 if !parent.is_owner || !parent.is_dir() {
                     return Err(Error::BadRequest("parent_directory_not_found".to_string()));
@@ -349,7 +349,7 @@ where
             .ok_or(Error::NotFound("file_not_found".to_string()))?;
 
         self.repository
-            .tokens(self.owner)
+            .tokens(self.owner_id)
             .upsert(&file, hashed_tokens)
             .await?;
 
@@ -358,7 +358,7 @@ where
         let user_file = user_files::ActiveModel {
             id: ActiveValue::Set(id),
             file_id: ActiveValue::Set(file.id),
-            user_id: ActiveValue::Set(self.owner.id),
+            user_id: ActiveValue::Set(self.owner_id),
             is_owner: ActiveValue::Set(true),
             encrypted_metadata: ActiveValue::Set(encrypted_metadata.to_string()),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
@@ -380,7 +380,7 @@ where
     /// Increment the chunks stored for the given file and mark the file as uploaded
     /// if all the chunks are uploaded.
     pub async fn increment(&self, file: &AppFile) -> AppResult<AppFile> {
-        if !file.is_owner || file.user_id != self.owner.id || file.is_dir() {
+        if !file.is_owner || file.user_id != self.owner_id || file.is_dir() {
             return Err(Error::NotFound("file_not_found".to_string()));
         }
 

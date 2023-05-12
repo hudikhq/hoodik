@@ -6,7 +6,6 @@ use validr::*;
 pub struct Signature {
     pub fingerprint: Option<String>,
     pub signature: Option<String>,
-    pub remember: Option<bool>,
 }
 
 impl Validation for Signature {
@@ -16,13 +15,9 @@ impl Validation for Signature {
 }
 
 impl Signature {
-    pub fn into_tuple(&self) -> AppResult<(String, String, bool)> {
+    pub fn into_tuple(&self) -> AppResult<(String, String)> {
         let data = self.clone().validate()?;
 
-        Ok((
-            data.fingerprint.unwrap(),
-            data.signature.unwrap(),
-            data.remember.unwrap_or(false),
-        ))
+        Ok((data.fingerprint.unwrap(), data.signature.unwrap()))
     }
 }

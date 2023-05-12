@@ -2,71 +2,19 @@ import * as cryptfns from '../cryptfns'
 import type { store as cryptoStore } from '../crypto'
 import * as login from './login'
 import * as register from './register'
-import Cookies from 'js-cookie'
 import * as lscache from 'lscache'
 import type { NavigationFailure, Router } from 'vue-router'
 import * as logger from '!/logger'
 
 export { login, register }
 
-const CSRF_COOKIE_NAME = 'X-CSRF-TOKEN'
-const JWT_TOKEN_STORE_NAME = 'JWT-TOKEN'
 const PRIVATE_KEY_STORE_NAME = 'ENCRYPTED-PRIVATE-KEY'
 
 /**
  * Shortcut to figure out if we can make requests
  */
 export function maybeCouldMakeRequests(): boolean {
-  return !!getCsrf() && !!getJwt()
-}
-
-/**
- * Load the CSRF token from the cookie
- */
-export function getCsrf(): string | null {
-  return Cookies.get(CSRF_COOKIE_NAME) || null
-}
-
-/**
- * Set the CSRF token into cookie
- */
-export function setCsrf(csrf: string, expires: Date) {
-  Cookies.set(CSRF_COOKIE_NAME, csrf, {
-    path: '/',
-    sameSite: 'lax',
-    // domain: import.meta.env.APP_COOKIE_DOMAIN,
-    expires,
-    secure: window.location.protocol.startsWith('https')
-  })
-}
-
-/**
- * Remove csrf cookie
- */
-export function removeCsrf() {
-  Cookies.remove(CSRF_COOKIE_NAME)
-}
-
-/**
- * Load the JWT token from the cookie
- */
-export function getJwt(): string | null {
-  return lscache.get(JWT_TOKEN_STORE_NAME) || null
-}
-
-/**
- * Set the JWT token into cookie
- */
-export function setJwt(jwt: string, expires: Date) {
-  const ex = expires.getTime() - new Date().getTime()
-  lscache.set(JWT_TOKEN_STORE_NAME, jwt, ex)
-}
-
-/**
- * Remove the JWT token
- */
-export function removeJwt(): void {
-  return lscache.remove(JWT_TOKEN_STORE_NAME)
+  return true
 }
 
 /**
@@ -123,7 +71,7 @@ export async function ensureAuthenticated(
         }
       } catch (e) {
         logger.info(`Moving to login after failed attempt to get self: ${e}`)
-        router.push({ name: 'login' })
+        return bounce(router, store, crypto)
       }
     }
 
@@ -133,6 +81,23 @@ export async function ensureAuthenticated(
     }
 
     logger.info('Moving to login')
-    return router.push({ name: 'login' })
+    return bounce(router, store, crypto)
   }
+}
+
+/**
+ * One final try to attempt to purge the session and move to login page
+ */
+async function bounce(
+  router: Router,
+  store: ReturnType<typeof login.store>,
+  crypto: ReturnType<typeof cryptoStore>
+) {
+  try {
+    await store.logout(crypto, true)
+  } catch (e) {
+    // do nothing
+  }
+
+  return router.push({ name: 'login' })
 }

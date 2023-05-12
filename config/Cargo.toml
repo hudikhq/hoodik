@@ -17,6 +17,7 @@ path = "src/lib.rs"
 mock = []
 
 [dependencies]
+url = "^2"
 dotenv = "^0.15"
 uuid = "^1"
 rustls = "^0.20"

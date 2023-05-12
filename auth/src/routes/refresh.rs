@@ -1,40 +1,14 @@
-use actix_web::{route, web, HttpRequest, HttpResponse};
-use context::Context;
+use actix_web::HttpResponse;
 use error::AppResult;
 
-use crate::{
-    auth::Auth,
-    data::authenticated::{Authenticated, AuthenticatedJwt},
-    jwt,
-    middleware::verify::Verify,
-};
+use crate::data::authenticated::Authenticated;
 
-/// Refresh a session to authenticated user
+/// This route behaves same as the [crate::routes::authenticated_self] route,
+/// but it is used to refresh the JWT token because it is used only
+/// with a refresh token and not with a JWT token and specific configuration
+/// of the middleware.
 ///
-/// Response: [crate::data::authenticated::AuthenticatedJwt]
-#[route(
-    "/api/auth/refresh",
-    method = "POST",
-    wrap = "Verify::csrf_header_default()"
-)]
-pub(crate) async fn refresh(
-    req: HttpRequest,
-    context: web::Data<Context>,
-) -> AppResult<HttpResponse> {
-    let authenticated = Authenticated::try_from(&req)?;
-    let auth = Auth::new(&context);
-
-    crate::middleware::extractor::remove_authenticated_session(&authenticated.session.token).await;
-
-    let authenticated = auth.refresh_session(&authenticated.session).await?;
-    let jwt = jwt::generate(&authenticated, &context.config.jwt_secret)?;
-
-    let mut response = HttpResponse::Ok();
-
-    if context.config.use_cookies {
-        let cookie = auth.manage_cookie(&authenticated.session, false).await?;
-        response.cookie(cookie);
-    }
-
-    Ok(response.json(AuthenticatedJwt { authenticated, jwt }))
+/// Response: [crate::data::authenticated::Authenticated]
+pub(crate) async fn refresh(authenticated: Authenticated) -> AppResult<HttpResponse> {
+    Ok(HttpResponse::Ok().json(authenticated))
 }

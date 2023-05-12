@@ -5,9 +5,8 @@ use std::cmp::Ordering;
 
 use cryptfns::tokenizer::Token;
 use entity::{
-    file_tokens, files, tokens, user_files, users, ActiveValue, ColumnTrait, ConnectionTrait,
-    EntityTrait, Expr, IntoCondition, JoinType, QueryFilter, QueryOrder, QuerySelect,
-    RelationTrait, Uuid,
+    file_tokens, files, tokens, user_files, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait,
+    Expr, IntoCondition, JoinType, QueryFilter, QueryOrder, QuerySelect, RelationTrait, Uuid,
 };
 use error::AppResult;
 
@@ -17,18 +16,18 @@ use super::Repository;
 
 pub struct Tokens<'repository, T: ConnectionTrait> {
     repository: &'repository Repository<'repository, T>,
-    user: &'repository users::Model,
+    user_id: Uuid,
 }
 
 impl<'repository, T> Tokens<'repository, T>
 where
     T: ConnectionTrait,
 {
-    pub fn new(
-        repository: &'repository Repository<'repository, T>,
-        user: &'repository users::Model,
-    ) -> Self {
-        Self { repository, user }
+    pub fn new(repository: &'repository Repository<'repository, T>, user_id: Uuid) -> Self {
+        Self {
+            repository,
+            user_id,
+        }
     }
 
     /// Link file with given tokens
@@ -169,13 +168,14 @@ where
 
         let tokens = cryptfns::tokenizer::from_vec(hashed_tokens)?;
 
-        let user_id = self.user.id;
+        // let user_id = self.user_id;
         let mut query = files::Entity::find();
 
         if let Some(file_id) = file_id {
             query = query.filter(files::Column::FileId.eq(file_id));
         }
 
+        let user_id = self.user_id;
         let mut query = query
             .inner_join(tokens::Entity)
             .join(
