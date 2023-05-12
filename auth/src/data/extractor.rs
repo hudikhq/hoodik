@@ -5,14 +5,14 @@ use actix_web::{dev::ServiceRequest, HttpRequest};
 use context::Context;
 use error::AppResult;
 
-pub struct Extractor<'ext, T> {
+pub(crate) struct Extractor<'ext, T> {
     extractor: T,
     _p: &'ext PhantomData<()>,
 }
 
-pub struct Useless;
-pub struct Refresh<'ext>(&'ext str);
-pub struct Jwt<'ext> {
+pub(crate) struct Useless;
+pub(crate) struct Refresh<'ext>(&'ext str);
+pub(crate) struct Jwt<'ext> {
     cookie_name: &'ext str,
     jwt_secret: &'ext str,
 }
@@ -33,7 +33,7 @@ impl Default for Extractor<'_, Useless> {
 }
 
 impl<'ext> Extractor<'ext, Useless> {
-    pub fn jwt(self, ctx: &'ext Context) -> Extractor<'ext, Jwt<'ext>> {
+    pub(crate) fn jwt(self, ctx: &'ext Context) -> Extractor<'ext, Jwt<'ext>> {
         Extractor {
             extractor: Jwt {
                 cookie_name: &ctx.config.session_cookie,
@@ -43,7 +43,7 @@ impl<'ext> Extractor<'ext, Useless> {
         }
     }
 
-    pub fn refresh(self, ctx: &'ext Context) -> Extractor<'ext, Refresh<'ext>> {
+    pub(crate) fn refresh(self, ctx: &'ext Context) -> Extractor<'ext, Refresh<'ext>> {
         Extractor {
             extractor: Refresh(&ctx.config.refresh_cookie),
             _p: &PhantomData,
@@ -63,7 +63,7 @@ impl<'ext> Extractor<'ext, Jwt<'ext>> {
     /// Extract the authenticated session from the regular request and verify it.
     ///
     /// It does not verify if the session is expired!
-    pub fn req(&self, req: &HttpRequest) -> AppResult<Claims> {
+    pub(crate) fn req(&self, req: &HttpRequest) -> AppResult<Claims> {
         let cookie = req
             .cookie(self.cookie_name())
             .ok_or_else(|| error::Error::Unauthorized("missing_session_token".to_string()))?;
@@ -74,7 +74,7 @@ impl<'ext> Extractor<'ext, Jwt<'ext>> {
     /// Extract the authenticated session from the service request and verify it.
     ///
     /// It does not verify if the session is expired!
-    pub fn service_req(&self, req: &ServiceRequest) -> AppResult<Claims> {
+    pub(crate) fn service_req(&self, req: &ServiceRequest) -> AppResult<Claims> {
         let cookie = req
             .cookie(self.cookie_name())
             .ok_or_else(|| error::Error::Unauthorized("missing_session_token".to_string()))?;
@@ -89,7 +89,7 @@ impl<'ext> Extractor<'ext, Refresh<'ext>> {
     }
 
     /// Extract the refresh token from the request.
-    pub fn get(&self, req: &ServiceRequest) -> AppResult<String> {
+    pub(crate) fn get(&self, req: &ServiceRequest) -> AppResult<String> {
         let cookie = req
             .cookie(self.cookie_name())
             .ok_or_else(|| error::Error::Unauthorized("missing_refresh_token".to_string()))?;

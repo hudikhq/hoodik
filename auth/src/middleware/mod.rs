@@ -1,4 +1,4 @@
-pub mod refresh;
+pub(crate) mod refresh;
 
 #[cfg(test)]
 mod test {
