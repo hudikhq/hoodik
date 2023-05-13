@@ -1,9 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { store as loginStore } from './login'
 import * as crypto from '../cryptfns'
 import { default as Api, type InnerValidationErrors } from '../api'
-import type { Authenticated, CreateUser, User } from 'types'
+import type { Authenticated, CreateUser, CryptoStore, LoginStore, User } from 'types'
 
 export const store = defineStore('register', () => {
   const _createUser = ref<CreateUser>({
@@ -63,17 +62,20 @@ export const store = defineStore('register', () => {
    * Make post request to create new user
    * @throws
    */
-  async function postRegistration(data: CreateUser, privateKey?: string): Promise<Authenticated> {
+  async function postRegistration(
+    data: CreateUser,
+    privateKey: string,
+    login: LoginStore,
+    store: CryptoStore
+  ): Promise<Authenticated> {
     const response = await Api.post<CreateUser, Authenticated>(
       '/api/auth/register',
       undefined,
       data
     )
 
-    if (privateKey) {
-      const login = loginStore()
-      login.setupAuthenticated(response.body as Authenticated, privateKey)
-    }
+    login.setupAuthenticated(response.body as Authenticated, privateKey)
+    await store.set(privateKey)
 
     return response.body as Authenticated
   }
@@ -82,10 +84,14 @@ export const store = defineStore('register', () => {
    * Generate keypair and register new user
    * @throws
    */
-  async function register(data: CreateUser): Promise<Authenticated> {
-    const privateKey = data.unencrypted_private_key
+  async function register(
+    data: CreateUser,
+    login: LoginStore,
+    store: CryptoStore
+  ): Promise<Authenticated> {
+    const privateKey = data.unencrypted_private_key as string
 
-    if (data.unencrypted_private_key && data.store_private_key) {
+    if (data.unencrypted_private_key) {
       data.encrypted_private_key = await crypto.rsa.protectPrivateKey(
         data.unencrypted_private_key as string,
         data.password as string
@@ -95,7 +101,7 @@ export const store = defineStore('register', () => {
       delete data.unencrypted_private_key
     }
 
-    return postRegistration(data, privateKey)
+    return postRegistration(data, privateKey, login, store)
   }
 
   /**
