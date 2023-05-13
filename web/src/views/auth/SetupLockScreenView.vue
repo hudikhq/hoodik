@@ -50,7 +50,7 @@ config.value = {
       return router.push({ name: 'lock' })
     }
 
-    return router.push({ name: 'home' })
+    return router.push({ name: 'files' })
   }
 }
 </script>

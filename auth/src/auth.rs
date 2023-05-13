@@ -200,7 +200,12 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Generate a new session for a user
-    pub async fn generate_session(&self, user: &users::Model) -> AppResult<sessions::Model> {
+    pub async fn generate_session(
+        &self,
+        user: &users::Model,
+        user_agent: &str,
+        ip: &str,
+    ) -> AppResult<sessions::Model> {
         let expires_at =
             Utc::now() + Duration::seconds(self.context.config.short_term_session_duration_seconds);
 
@@ -210,6 +215,8 @@ impl<'ctx> Auth<'ctx> {
             id: ActiveValue::Set(id),
             user_id: ActiveValue::Set(user.id),
             device_id: ActiveValue::Set(Uuid::new_v4()),
+            ip: ActiveValue::Set(ip.to_string()),
+            user_agent: ActiveValue::Set(user_agent.to_string()),
             refresh: ActiveValue::Set(Some(Uuid::new_v4())),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
@@ -237,6 +244,8 @@ impl<'ctx> Auth<'ctx> {
             id: ActiveValue::Set(session.id),
             user_id: ActiveValue::Set(session.user_id),
             device_id: ActiveValue::Set(session.device_id),
+            ip: ActiveValue::Set(session.ip.clone()),
+            user_agent: ActiveValue::Set(session.user_agent.clone()),
             refresh: ActiveValue::Set(Some(Uuid::new_v4())),
             created_at: ActiveValue::Set(session.created_at),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
@@ -255,6 +264,8 @@ impl<'ctx> Auth<'ctx> {
             id: ActiveValue::Set(session.id),
             user_id: ActiveValue::Set(session.user_id),
             device_id: ActiveValue::Set(session.device_id),
+            ip: ActiveValue::Set(session.ip.clone()),
+            user_agent: ActiveValue::Set(session.user_agent.clone()),
             refresh: ActiveValue::Set(None),
             created_at: ActiveValue::Set(session.created_at),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),

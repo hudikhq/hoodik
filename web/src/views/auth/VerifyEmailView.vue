@@ -86,7 +86,7 @@ verify()
           <span class="text-redish-400">{{ error }}</span>
         </p>
 
-        <router-link :to="{ name: 'home' }" class="underline hover:no-underline">
+        <router-link :to="{ name: 'files' }" class="underline hover:no-underline">
           Go home.
         </router-link>
       </CardBox>

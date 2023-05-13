@@ -16,8 +16,18 @@ pub fn generate_key() -> CryptoResult<Vec<u8>> {
     Ok(random_key)
 }
 
-/// Encrypt the data with given key and iv
+/// Exposing the AES encrypt function
 pub fn encrypt(key: Vec<u8>, plaintext: Vec<u8>) -> CryptoResult<Vec<u8>> {
+    encrypt_aead(key, plaintext)
+}
+
+/// Exposing the AES decrypt function
+pub fn decrypt(key: Vec<u8>, ciphertext: Vec<u8>) -> CryptoResult<Vec<u8>> {
+    decrypt_aead(key, ciphertext)
+}
+
+/// Encrypt the data with given key and iv ASCON_AEAD
+fn encrypt_aead(key: Vec<u8>, plaintext: Vec<u8>) -> CryptoResult<Vec<u8>> {
     let (key, nonce) = split_key_nonce(key);
 
     let key = Key::<Ascon128a>::from_slice(key.as_ref());
@@ -28,8 +38,8 @@ pub fn encrypt(key: Vec<u8>, plaintext: Vec<u8>) -> CryptoResult<Vec<u8>> {
         .map_err(Error::from)
 }
 
-/// Decrypt the data with given key and iv
-pub fn decrypt(key: Vec<u8>, ciphertext: Vec<u8>) -> CryptoResult<Vec<u8>> {
+/// Decrypt the data with given key and iv ASCON_AEAD
+fn decrypt_aead(key: Vec<u8>, ciphertext: Vec<u8>) -> CryptoResult<Vec<u8>> {
     let (key, nonce) = split_key_nonce(key);
 
     let key = Key::<Ascon128a>::from_slice(key.as_ref());

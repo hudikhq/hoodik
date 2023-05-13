@@ -94,10 +94,14 @@ pub(crate) async fn upload(
     }
 
     if file.chunks == file.chunks_stored {
-        file = Repository::new(&context.db)
+        let mut finished_file = Repository::new(&context.db)
             .manage(claims.sub)
             .finish(&file)
             .await?;
+
+        finished_file.chunks_stored = file.chunks_stored;
+        finished_file.uploaded_chunks = file.uploaded_chunks;
+        file = finished_file;
     }
 
     Ok(HttpResponse::Ok().json(file))

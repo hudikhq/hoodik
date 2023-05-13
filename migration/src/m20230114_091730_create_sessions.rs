@@ -22,6 +22,8 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Sessions::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(Sessions::UserId).uuid().not_null())
                     .col(ColumnDef::new(Sessions::DeviceId).uuid().not_null())
+                    .col(ColumnDef::new(Sessions::Ip).string().not_null())
+                    .col(ColumnDef::new(Sessions::UserAgent).string().not_null())
                     .col(ColumnDef::new(Sessions::Refresh).uuid())
                     .col(ColumnDef::new(Sessions::CreatedAt).timestamp().not_null())
                     .col(ColumnDef::new(Sessions::UpdatedAt).timestamp().not_null())
@@ -47,6 +49,8 @@ pub enum Sessions {
     Id,
     UserId,
     DeviceId,
+    Ip,
+    UserAgent,
     Refresh,
     CreatedAt,
     UpdatedAt,

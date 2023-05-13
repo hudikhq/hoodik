@@ -29,7 +29,7 @@ const init = () => {
     onSubmit: async (values: Credentials) => {
       try {
         await login.withCredentials(crypto, values)
-        router.push({ name: 'home' })
+        router.push({ name: 'files' })
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
