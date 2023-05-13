@@ -36,7 +36,7 @@ pub async fn client(
         }
     }
 
-    let path: Vec<&str> = filename.split(".").collect();
+    let path: Vec<&str> = filename.split('.').collect();
 
     if path.len() == 1 {
         return HttpResponse::Ok()
