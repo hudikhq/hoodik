@@ -188,15 +188,15 @@ async fn test_retrieve_authenticated_session_by_token_and_csrf() {
     let authenticated = response.unwrap();
     let session = authenticated.session.clone();
 
-    let response = auth.get_by_refresh(&session.refresh.unwrap()).await;
+    let response = auth.get_by_refresh(session.refresh.unwrap()).await;
 
     if let Err(e) = response {
         panic!("Errored: {:#?}", e);
     }
 
-    let authenticated = response.unwrap();
+    let _authenticated = response.unwrap();
 
-    println!("{:#?}", authenticated);
+    // println!("{:#?}", authenticated);
 }
 
 #[async_std::test]
@@ -349,7 +349,7 @@ async fn test_set_cookie_for_both() {
     let authenticated = credentials_provider.authenticate().await.unwrap();
 
     let (jwt, refresh) = auth
-        .manage_cookies(&authenticated, module_path!(), false)
+        .manage_cookies(&authenticated, module_path!())
         .await
         .unwrap();
 

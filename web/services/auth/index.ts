@@ -63,24 +63,24 @@ export async function ensureAuthenticated(
   if (!hasAuthentication(store)) {
     if (maybeCouldMakeRequests()) {
       try {
-        logger.info('Trying to call self')
+        logger.debug('Trying to call self')
         await store.self(crypto)
 
         if (crypto.keypair.input) {
           return
         }
       } catch (e) {
-        logger.info(`Moving to login after failed attempt to get self: ${e}`)
+        logger.debug(`Moving to login after failed attempt to get self: ${e}`)
         return bounce(router, store, crypto)
       }
     }
 
     if (cryptfns.hasEncryptedPrivateKey()) {
-      logger.info('Moving to decrypt private key')
+      logger.debug('Moving to decrypt private key')
       return router.push({ name: 'decrypt' })
     }
 
-    logger.info('Moving to login')
+    logger.debug('Moving to login')
     return bounce(router, store, crypto)
   }
 }

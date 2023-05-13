@@ -223,6 +223,8 @@ mod tests {
         file.write_all(content.as_bytes()).unwrap();
     }
 
+    const PRINT_STUFF: bool = false;
+
     const TEST_PRIVATE_KEY: &str = "-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAsMvjT2NZNqJo/3AYHH3RIm5fwmOXabbYxduvtNp33JQQZSPu
 S+bbqe97jJXVIRUaEPWf05sCwctmFvxcL77FtWLCxaU8TYz4K59LAPcGLGuQO3Hl
@@ -292,11 +294,18 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
     fn get_rsa_key_size() {
         let private = private::generate().unwrap();
 
-        println!("KeySize from generated: {}", private.size() * 8);
+        if PRINT_STUFF {
+            println!("KeySize from generated: {}", private.size() * 8);
 
-        println!(
-            "KeySize from test private key: {}",
-            private::from_str(TEST_PRIVATE_KEY).unwrap().size() * 8
+            println!(
+                "KeySize from test private key: {}",
+                private::from_str(TEST_PRIVATE_KEY).unwrap().size() * 8
+            );
+        }
+
+        assert_eq!(
+            private::from_str(TEST_PRIVATE_KEY).unwrap().size() * 8,
+            2048
         );
     }
 
@@ -337,7 +346,9 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
 
         let signature = private::sign(TEST_SIGNATURE_MESSAGE, TEST_PRIVATE_KEY).unwrap();
 
-        println!("signature\n{}", &signature);
+        if PRINT_STUFF {
+            println!("signature\n{}", &signature);
+        }
 
         public::verify(TEST_SIGNATURE_MESSAGE, &signature, TEST_PUBLIC_KEY).unwrap();
     }
@@ -362,8 +373,10 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
 
         let encrypted = public::encrypt(TEST_ENCRYPTION_MESSAGE, &public_key_string).unwrap();
 
-        println!("encrypted");
-        println!("{}", &encrypted);
+        if PRINT_STUFF {
+            println!("encrypted");
+            println!("{}", &encrypted);
+        }
 
         assert_ne!(TEST_ENCRYPTION_MESSAGE, encrypted);
 
@@ -383,8 +396,10 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
         let message = "hello world";
         let encrypted = public::encrypt_oaep(message, &public_key_string).unwrap();
 
-        println!("encrypted oaep");
-        println!("{}", &encrypted);
+        if PRINT_STUFF {
+            println!("encrypted oaep");
+            println!("{}", &encrypted);
+        }
 
         assert_ne!(message, encrypted);
 

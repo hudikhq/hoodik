@@ -45,6 +45,9 @@ const onChange = (e: Event) => {
         {{ label }}
       </span>
     </label>
-    <ErrorMessage :name="name" class="block text-sm text-redish-700 dark:text-redish-500 ml-2" />
+    <ErrorMessage
+      :name="name"
+      class="block text-sm text-redish-700 dark:text-redish-500 ml-2 mb-[-1rem]"
+    />
   </div>
 </template>

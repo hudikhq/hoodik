@@ -1,8 +1,9 @@
 use std::marker::PhantomData;
 
 use crate::data::claims::Claims;
-use actix_web::{dev::ServiceRequest, HttpRequest};
+use actix_web::HttpRequest;
 use context::Context;
+use entity::Uuid;
 use error::AppResult;
 
 pub(crate) struct Extractor<'ext, T> {
@@ -70,17 +71,6 @@ impl<'ext> Extractor<'ext, Jwt<'ext>> {
 
         crate::jwt::extract(cookie.value(), self.jwt_secret())
     }
-
-    /// Extract the authenticated session from the service request and verify it.
-    ///
-    /// It does not verify if the session is expired!
-    pub(crate) fn service_req(&self, req: &ServiceRequest) -> AppResult<Claims> {
-        let cookie = req
-            .cookie(self.cookie_name())
-            .ok_or_else(|| error::Error::Unauthorized("missing_session_token".to_string()))?;
-
-        crate::jwt::extract(cookie.value(), self.jwt_secret())
-    }
 }
 
 impl<'ext> Extractor<'ext, Refresh<'ext>> {
@@ -89,11 +79,12 @@ impl<'ext> Extractor<'ext, Refresh<'ext>> {
     }
 
     /// Extract the refresh token from the request.
-    pub(crate) fn get(&self, req: &ServiceRequest) -> AppResult<String> {
+    pub(crate) fn req(&self, req: &HttpRequest) -> AppResult<Uuid> {
         let cookie = req
             .cookie(self.cookie_name())
             .ok_or_else(|| error::Error::Unauthorized("missing_refresh_token".to_string()))?;
 
-        Ok(cookie.value().to_string())
+        Uuid::parse_str(cookie.value())
+            .map_err(|_| error::Error::Unauthorized("invalid_refresh_token".to_string()))
     }
 }

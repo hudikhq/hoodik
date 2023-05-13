@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AppForm, AppField, AppButton, AppCheckbox } from '@/components/form'
+import { AppForm, AppField, AppButton } from '@/components/form'
 import * as yup from 'yup'
 import { zxcvbn } from '@zxcvbn-ts/core'
 import { store } from '!/auth/register'
@@ -37,11 +37,7 @@ const init = () => {
       confirm_password: yup
         .string()
         .required('Please confirm your password')
-        .oneOf([yup.ref('password')], 'Passwords do not match'),
-      i_take_all_the_responsibility: yup
-        .bool()
-        .required('Checkbox must be accepted')
-        .oneOf([true], 'Checkbox must be accepted')
+        .oneOf([yup.ref('password')], 'Passwords do not match')
     }),
     onSubmit: async (values: Partial<CreateUser>) => {
       logger.debug(values)
@@ -82,11 +78,6 @@ init()
             label="Confirm your password"
             name="confirm_password"
             placeholder="*********"
-          />
-          <AppCheckbox
-            label="I take all the responsibility"
-            :form="form"
-            name="i_take_all_the_responsibility"
           />
           <AppButton color="info" type="submit">Next</AppButton>
 

@@ -10,12 +10,13 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
     pub user_id: Uuid,
-    pub device_id: String,
+    pub device_id: Uuid,
     #[serde(skip_serializing)]
-    pub refresh: Option<String>,
+    pub refresh: Option<Uuid>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub expires_at: NaiveDateTime,
+    pub deleted_at: Option<NaiveDateTime>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

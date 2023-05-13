@@ -16,7 +16,7 @@ pub(crate) async fn logout(
 
     let mut response = HttpResponse::NoContent();
 
-    let (jwt, refresh) = auth.manage_cookies(&authenticated, "logout", true).await?;
+    let (jwt, refresh) = auth.manage_cookies(&authenticated, "logout").await?;
     response.cookie(jwt);
     response.cookie(refresh);
 
