@@ -22,7 +22,7 @@ export async function uploadChunk(
       throw new Error(`File ${file.id} is missing key`)
     }
     // const encrypted = data
-    const encrypted = await cryptfns.aes.encrypt(data, file.metadata.key)
+    const encrypted = await cryptfns.worker.encrypt(data, file.metadata.key)
     // const checksum = await cryptfns.sha256.digest(encrypted) // this is slower then crc16
     const checksum = await cryptfns.wasm.crc16_digest(encrypted)
 
@@ -39,6 +39,7 @@ export async function uploadChunk(
       chunk,
       checksum,
       checksum_function: 'crc16'
+      // key_hex: cryptfns.uint8.toHex(file.metadata.key)
     }
 
     const headers = {

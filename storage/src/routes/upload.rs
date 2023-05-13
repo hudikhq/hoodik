@@ -3,11 +3,14 @@ use std::str::FromStr;
 use actix_web::{route, web, HttpRequest, HttpResponse};
 use auth::data::claims::Claims;
 use context::Context;
-use entity::{TransactionTrait, Uuid};
+use entity::Uuid;
 use error::{AppResult, Error};
 
 use crate::{
-    contract::StorageProvider, data::meta::Meta, repository::Repository, storage::Storage,
+    contract::StorageProvider,
+    data::meta::Meta,
+    repository::{cached::get_file, Repository},
+    storage::Storage,
 };
 
 /// Method to upload file chunks to the server
@@ -53,11 +56,11 @@ pub(crate) async fn upload(
         return Err(Error::as_validation("checksum", &error));
     }
 
-    let connection = context.db.begin().await?;
-    let repository = Repository::new(&connection);
     let storage = Storage::new(&context.config);
 
-    let file = repository.manage(claims.sub).file(file_id).await?;
+    let mut file = get_file(&context, claims.sub, file_id)
+        .await
+        .ok_or_else(|| Error::NotFound("file_not_found".to_string()))?;
 
     let chunks = file
         .chunks
@@ -75,8 +78,6 @@ pub(crate) async fn upload(
         return Err(Error::as_validation("chunk", "chunk_already_exists"));
     }
 
-    let mut file = repository.manage(claims.sub).increment(&file).await?;
-
     if request_body.is_empty() {
         return Err(Error::BadRequest("no_file_data_received".to_string()));
     }
@@ -85,14 +86,19 @@ pub(crate) async fn upload(
 
     if file.is_file() {
         let filename = file.get_filename().unwrap();
-        file.uploaded_chunks = Some(
-            Storage::new(&context.config)
-                .get_uploaded_chunks(&filename)
-                .await?,
-        );
+        let chunks = Storage::new(&context.config)
+            .get_uploaded_chunks(&filename)
+            .await?;
+        file.chunks_stored = Some(chunks.len() as i32);
+        file.uploaded_chunks = Some(chunks);
     }
 
-    connection.commit().await?;
+    if file.chunks == file.chunks_stored {
+        file = Repository::new(&context.db)
+            .manage(claims.sub)
+            .finish(&file)
+            .await?;
+    }
 
     Ok(HttpResponse::Ok().json(file))
 }

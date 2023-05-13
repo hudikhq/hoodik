@@ -5,15 +5,7 @@ const router = createRouter({
   history: createWebHistory(`/`),
   routes: [
     {
-      path: '/',
-      name: 'home',
-      meta: { title: 'Home' },
-      redirect: () => {
-        return '/directory'
-      }
-    },
-    {
-      path: '/directory/:file_id?',
+      path: '/:file_id?',
       name: 'files',
       meta: {
         files: true,

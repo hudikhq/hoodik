@@ -6,6 +6,8 @@ import type Api from './stores/api'
 declare global {
   interface Window {
     UPLOAD: Worker
+    UPLOAD_SECOND: Worker
+    UPLOAD_THIRD: Worker
     DOWNLOAD: Worker
     CRYPTO: Worker
     SWApi: Api
