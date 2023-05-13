@@ -7,6 +7,7 @@
 use actix_web::{
     body::{BoxBody, EitherBody},
     dev::{ServiceFactory, ServiceRequest, ServiceResponse},
+    middleware::Logger,
     web, App, HttpServer,
 };
 use config::ssl::SslConfig as _;
@@ -57,7 +58,6 @@ pub fn app(
             (storage::CHUNK_SIZE_BYTES as f32 * 1.2) as usize,
         ))
         .app_data(web::Data::new(context))
-        // Authentication load middleware that only sets it up on the app
         .wrap(cors::setup())
         .configure(configure)
         .route(
@@ -90,7 +90,7 @@ pub async fn engage(context: Context) -> AppResult<()> {
     let bind_address = context.config.get_full_bind_address();
     let config = context.config.build_rustls_config()?;
 
-    HttpServer::new(move || app(context.clone()))
+    HttpServer::new(move || app(context.clone()).wrap(Logger::default()))
         .bind_rustls(&bind_address, config)?
         .run()
         .await

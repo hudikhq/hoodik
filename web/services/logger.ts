@@ -1,39 +1,39 @@
 /**
  * Regular logging function passed to the logger service
  */
-function log(...args: any[]) {
-  console.log(...args)
-}
+const log = (function () {
+  return Function.prototype.bind.call(console.log, console)
+})()
 
 /**
  * Regular logging function passed to the logger service
  */
-function info(...args: any[]) {
-  console.info(...args)
-}
+const info = (function () {
+  return Function.prototype.bind.call(console.log, console)
+})()
 
 /**
  * Regular logging function passed to the logger service
  */
-function warn(...args: any[]) {
-  console.warn(...args)
-}
+const warn = (function () {
+  return Function.prototype.bind.call(console.log, console)
+})()
 
 /**
  * Regular logging function passed to the logger service
  */
-function error(...args: any[]) {
-  console.error(...args)
-}
+const error = (function () {
+  return Function.prototype.bind.call(console.log, console)
+})()
 
 /**
  * Regular logging function passed to the logger service
  */
-function debug(...args: any[]) {
+const debug = (function () {
   if (import.meta.env.DEV) {
-    console.log(...args)
+    return Function.prototype.bind.call(console.log, console)
   }
-}
+})()
 
 /**
  * Some ascii art for the logger when in production

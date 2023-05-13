@@ -121,7 +121,7 @@ export const store = defineStore('login', () => {
     }
 
     try {
-      logger.info('Attempting to refresh the session')
+      logger.debug('Attempting to refresh the session')
       _refreshing.value = true
       await refresh()
       _refreshing.value = false

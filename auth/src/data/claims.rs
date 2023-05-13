@@ -20,7 +20,7 @@ pub struct Claims {
     /// Issued at
     pub iat: i64,
     /// Authenticated device id
-    pub device: String,
+    pub device: Uuid,
 }
 
 impl From<&Authenticated> for Claims {
@@ -30,7 +30,7 @@ impl From<&Authenticated> for Claims {
             sub: authenticated.user.id,
             exp: authenticated.session.expires_at.timestamp(),
             iat: chrono::Utc::now().timestamp(),
-            device: authenticated.session.device_id.clone(),
+            device: authenticated.session.device_id,
         }
     }
 }

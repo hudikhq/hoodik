@@ -130,6 +130,7 @@ impl<'ctx> Auth<'ctx> {
     pub async fn validate(&self, id: Uuid) -> AppResult<()> {
         let session = sessions::Entity::find()
             .filter(sessions::Column::Id.eq(id))
+            .filter(sessions::Column::DeletedAt.is_null())
             .one(&self.context.db)
             .await
             .map_err(Error::from)?
@@ -142,10 +143,10 @@ impl<'ctx> Auth<'ctx> {
         Ok(())
     }
 
-    /// Get user and session by token and csrf
-    pub async fn get_by_refresh(&self, refresh: &str) -> AppResult<Authenticated> {
+    /// Get user and session by session id, session does not have to be valid
+    pub async fn get_by_session_id(&self, id: Uuid) -> AppResult<Authenticated> {
         let result = sessions::Entity::find()
-            .filter(sessions::Column::Refresh.eq(refresh))
+            .filter(sessions::Column::Id.eq(id))
             .inner_join(users::Entity)
             .select_also(users::Entity)
             .one(&self.context.db)
@@ -160,10 +161,30 @@ impl<'ctx> Auth<'ctx> {
         Ok(Authenticated { user, session })
     }
 
-    /// Get user and session by token
-    pub async fn get_by_device_id<T: Into<String>>(&self, id: T) -> AppResult<Authenticated> {
+    /// Get user and session by refresh token, session must be valid
+    pub async fn get_by_refresh(&self, refresh: Uuid) -> AppResult<Authenticated> {
         let result = sessions::Entity::find()
-            .filter(sessions::Column::DeviceId.eq(id.into()))
+            .filter(sessions::Column::Refresh.eq(refresh))
+            .filter(sessions::Column::DeletedAt.is_null())
+            .inner_join(users::Entity)
+            .select_also(users::Entity)
+            .one(&self.context.db)
+            .await
+            .map_err(Error::from)?
+            .ok_or_else(|| Error::Unauthorized("session_not_found".to_string()))?;
+
+        // inner_join makes sure the second parameter options is
+        // always Some so we can unwrap it safely
+        let (session, user) = (result.0, result.1.unwrap());
+
+        Ok(Authenticated { user, session })
+    }
+
+    /// Get user and session by device id, session must be valid
+    pub async fn get_by_device_id(&self, device_id: Uuid) -> AppResult<Authenticated> {
+        let result = sessions::Entity::find()
+            .filter(sessions::Column::DeviceId.eq(device_id))
+            .filter(sessions::Column::DeletedAt.is_null())
             .inner_join(users::Entity)
             .select_also(users::Entity)
             .one(&self.context.db)
@@ -188,11 +209,12 @@ impl<'ctx> Auth<'ctx> {
         let active_model = sessions::ActiveModel {
             id: ActiveValue::Set(id),
             user_id: ActiveValue::Set(user.id),
-            device_id: ActiveValue::Set(Uuid::new_v4().to_string()),
-            refresh: ActiveValue::Set(Some(Uuid::new_v4().to_string())),
+            device_id: ActiveValue::Set(Uuid::new_v4()),
+            refresh: ActiveValue::Set(Some(Uuid::new_v4())),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
             expires_at: ActiveValue::Set(expires_at.naive_utc()),
+            deleted_at: ActiveValue::NotSet,
         };
 
         sessions::Entity::insert(active_model)
@@ -207,34 +229,24 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Refresh session, if it's not expired. Refreshing a session will extend the expiration date by 10 minutes.
-    pub async fn refresh_session(
-        &self,
-        session: &sessions::Model,
-        refresh_token: &str,
-    ) -> AppResult<Authenticated> {
-        let existing = sessions::Entity::find()
-            .filter(sessions::Column::Id.eq(session.id))
-            .filter(sessions::Column::Refresh.eq(refresh_token))
-            .one(&self.context.db)
-            .await?
-            .ok_or_else(|| Error::Unauthorized("session_not_found".to_string()))?;
-
-        let duration = session.expires_at - session.updated_at;
-        let expires_at = Utc::now().naive_utc() + duration;
+    pub async fn refresh_session(&self, session: &sessions::Model) -> AppResult<Authenticated> {
+        let expires_at = Utc::now().naive_utc()
+            + Duration::seconds(self.context.config.short_term_session_duration_seconds);
 
         let active_model = sessions::ActiveModel {
-            id: ActiveValue::Set(existing.id),
-            user_id: ActiveValue::Set(existing.user_id),
-            device_id: ActiveValue::Set(existing.device_id.clone()),
-            refresh: ActiveValue::Set(Some(Uuid::new_v4().to_string())),
+            id: ActiveValue::Set(session.id),
+            user_id: ActiveValue::Set(session.user_id),
+            device_id: ActiveValue::Set(session.device_id),
+            refresh: ActiveValue::Set(Some(Uuid::new_v4())),
             created_at: ActiveValue::Set(session.created_at),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
             expires_at: ActiveValue::Set(expires_at),
+            deleted_at: ActiveValue::NotSet,
         };
 
         active_model.update(&self.context.db).await?;
 
-        self.get_by_device_id(&session.device_id).await
+        self.get_by_device_id(session.device_id).await
     }
 
     /// Perform the logout action
@@ -242,16 +254,17 @@ impl<'ctx> Auth<'ctx> {
         let active_model = sessions::ActiveModel {
             id: ActiveValue::Set(session.id),
             user_id: ActiveValue::Set(session.user_id),
-            device_id: ActiveValue::Set(session.device_id.clone()),
-            refresh: ActiveValue::Set(Some(Uuid::new_v4().to_string())),
+            device_id: ActiveValue::Set(session.device_id),
+            refresh: ActiveValue::Set(None),
             created_at: ActiveValue::Set(session.created_at),
             updated_at: ActiveValue::Set(Utc::now().naive_utc()),
             expires_at: ActiveValue::Set(Utc::now().naive_utc()),
+            deleted_at: ActiveValue::Set(Some(Utc::now().naive_utc())),
         };
 
-        active_model.update(&self.context.db).await?;
+        let session = active_model.update(&self.context.db).await?;
 
-        self.get_by_device_id(&session.device_id).await
+        self.get_by_session_id(session.id).await
     }
 
     /// Sets a cookie on the request
@@ -259,22 +272,27 @@ impl<'ctx> Auth<'ctx> {
         &self,
         authenticated: &Authenticated,
         issuer: &str,
-        destroy: bool,
     ) -> AppResult<(Cookie<'static>, Cookie<'static>)> {
+        let destroy =
+            authenticated.session.deleted_at.is_some() || authenticated.session.refresh.is_none();
+
+        let mut refresh = authenticated
+            .session
+            .refresh
+            .map(|r| r.to_string())
+            .unwrap_or_else(|| "destroyed".to_string());
+
+        if destroy && &refresh != "destroyed" {
+            refresh = "destroyed".to_string();
+        }
+
         let jwt = match destroy {
             true => "destroyed".to_string(),
             false => crate::jwt::generate(authenticated, issuer, &self.context.config.jwt_secret)?,
         };
 
-        let session = &authenticated.session;
-
         let cookie = Cookie::build(self.context.config.get_session_cookie(), jwt).path("/");
         let mut jwt = self.make_cookie(cookie)?;
-
-        let refresh = session
-            .refresh
-            .clone()
-            .ok_or_else(|| Error::Unauthorized("cannot_build_refresh_token".to_string()))?;
 
         let cookie = Cookie::build(self.context.config.get_refresh_cookie(), refresh)
             .path(crate::REFRESH_PATH);
@@ -287,7 +305,7 @@ impl<'ctx> Auth<'ctx> {
             return Ok((jwt, refresh));
         }
 
-        let timestamp = session.expires_at.timestamp();
+        let timestamp = authenticated.session.expires_at.timestamp();
         jwt.set_expires(OffsetDateTime::from_unix_timestamp(timestamp).unwrap());
 
         let timestamp =

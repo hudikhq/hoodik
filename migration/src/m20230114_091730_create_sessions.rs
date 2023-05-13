@@ -21,11 +21,12 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(ColumnDef::new(Sessions::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(Sessions::UserId).uuid().not_null())
-                    .col(ColumnDef::new(Sessions::DeviceId).string().not_null())
-                    .col(ColumnDef::new(Sessions::Refresh).string().not_null())
+                    .col(ColumnDef::new(Sessions::DeviceId).uuid().not_null())
+                    .col(ColumnDef::new(Sessions::Refresh).uuid())
                     .col(ColumnDef::new(Sessions::CreatedAt).timestamp().not_null())
                     .col(ColumnDef::new(Sessions::UpdatedAt).timestamp().not_null())
                     .col(ColumnDef::new(Sessions::ExpiresAt).timestamp().not_null())
+                    .col(ColumnDef::new(Sessions::DeletedAt).timestamp())
                     .foreign_key(&mut foreign_key)
                     .to_owned(),
             )
@@ -50,4 +51,5 @@ pub enum Sessions {
     CreatedAt,
     UpdatedAt,
     ExpiresAt,
+    DeletedAt,
 }

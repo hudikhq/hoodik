@@ -25,9 +25,7 @@ pub(crate) async fn register(
 
     let mut response = HttpResponse::Created();
 
-    let (jwt, refresh) = auth
-        .manage_cookies(&authenticated, module_path!(), false)
-        .await?;
+    let (jwt, refresh) = auth.manage_cookies(&authenticated, module_path!()).await?;
 
     response.cookie(jwt);
     response.cookie(refresh);

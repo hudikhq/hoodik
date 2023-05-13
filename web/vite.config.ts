@@ -30,6 +30,9 @@ export default defineConfig({
       filename: 'pwa.js',
       manifestFilename: 'hoodik.webmanifest',
       injectRegister: 'auto',
+      workbox: {
+        navigateFallback: '/index.html'
+      },
       manifest: {
         name: 'Hoodik - End 2 End Encrypted File Storage',
         short_name: 'Hoodik',
