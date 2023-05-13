@@ -32,6 +32,8 @@ const error = (function () {
 const debug = (function () {
   if (import.meta.env.DEV) {
     return Function.prototype.bind.call(console.log, console)
+  } else {
+    return function () {}
   }
 })()
 
