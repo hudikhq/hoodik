@@ -31,7 +31,25 @@ export default defineConfig({
       manifestFilename: 'hoodik.webmanifest',
       injectRegister: 'auto',
       workbox: {
-        navigateFallback: '/index.html'
+        navigateFallback: '/index.html',
+        runtimeCaching: [
+          {
+            urlPattern: new RegExp('^https://fonts.(?:googleapis|gstatic).com/(.*)'),
+            handler: 'CacheFirst'
+          },
+          {
+            urlPattern: ({ url }) => {
+              return url.pathname.startsWith('/assets')
+            },
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'assets',
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          }
+        ]
       },
       manifest: {
         name: 'Hoodik - End 2 End Encrypted File Storage',

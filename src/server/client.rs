@@ -36,7 +36,14 @@ pub async fn client(
         }
     }
 
-    return HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(_DEFAULT);
+    let path: Vec<&str> = filename.split(".").collect();
+
+    if path.len() == 1 {
+        return HttpResponse::Ok()
+            .content_type("text/html; charset=utf-8")
+            .body(_DEFAULT);
+    }
+
+    log::warn!("Client: Not found: {}", filename);
+    HttpResponse::NotFound().finish()
 }

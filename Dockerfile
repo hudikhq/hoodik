@@ -7,7 +7,7 @@ RUN apt update && apt install curl libpq-dev clang llvm pkg-config nettle-dev li
 
 COPY ./target/release/hoodik /usr/local/bin
 
-ENV RUST_LOG="hoodik=debug,auth=debug,error=debug,entity=debug,storage=debug,context=debug,util=debug,cryptfns=debug"
+ENV RUST_LOG="hoodik=debug,auth=debug,error=debug,entity=debug,storage=debug,context=debug,util=debug,cryptfns=debug,actix_web=debug"
 
 CMD /usr/local/bin/hoodik -a 0.0.0.0 -p 5443
 
