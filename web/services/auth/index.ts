@@ -94,6 +94,7 @@ async function bounce(
   crypto: ReturnType<typeof cryptoStore>
 ) {
   try {
+    await crypto.clear()
     await store.logout(crypto, true)
   } catch (e) {
     // do nothing

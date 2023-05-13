@@ -2,11 +2,12 @@ import * as rsa from './rsa'
 import * as aes from './aes'
 import * as uint8 from './uint8'
 import * as sha256 from './sha256'
+import * as worker from './worker'
 import * as lscache from 'lscache'
 
 import * as wasm from './wasm'
 
-export { rsa, aes, sha256, uint8, wasm }
+export { rsa, aes, sha256, uint8, wasm, worker }
 
 const ENCRYPTED_PRIVATE_KEY_LOCAL_STORAGE = 'SAVED-ENCRYPTED-PRIVATE-KEY'
 

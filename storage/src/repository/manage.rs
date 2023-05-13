@@ -1,6 +1,5 @@
 //! Repository module for manipulating with files in the database
 //! this module should only be used by the owner of the file
-
 use std::{cmp::Ordering, fmt::Display, str::FromStr};
 
 use chrono::Utc;
@@ -402,6 +401,28 @@ where
             id: ActiveValue::Set(file.id),
             chunks_stored: ActiveValue::Set(Some(chunks_stored + 1)),
             finished_upload_at: ActiveValue::Set(finished_upload_at),
+            ..Default::default()
+        }
+        .update(self.repository.connection())
+        .await?;
+
+        self.repository.by_id(file.id, file.user_id).await
+    }
+
+    /// Finish the upload of a file by setting the finished_upload_at field
+    pub async fn finish(&self, file: &AppFile) -> AppResult<AppFile> {
+        if !file.is_owner || file.user_id != self.owner_id || file.is_dir() {
+            return Err(Error::NotFound("file_not_found".to_string()));
+        }
+
+        let chunks = file
+            .chunks
+            .ok_or(Error::BadRequest("file_has_no_chunks".to_string()))?;
+
+        files::ActiveModel {
+            id: ActiveValue::Set(file.id),
+            chunks_stored: ActiveValue::Set(Some(chunks)),
+            finished_upload_at: ActiveValue::Set(Some(Utc::now().naive_utc())),
             ..Default::default()
         }
         .update(self.repository.connection())

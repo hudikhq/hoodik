@@ -2,6 +2,7 @@ import { downloadAndDecryptStream } from './services/storage/workers'
 import { FileMetadata } from './services/storage/metadata'
 import { uploadFile } from './services/storage/workers/file'
 import Api, { ErrorResponse, type ApiTransfer } from './services/api'
+import * as cryptfns from './services/cryptfns'
 import * as logger from '!/logger'
 
 import type {
@@ -44,6 +45,16 @@ onmessage = async (message: MessageEvent<any>) => {
     postMessage({ type: 'pong' })
   }
 
+  // Crypto messages
+  if (message.data?.type === 'encrypt' || message.data?.type === 'decrypt') {
+    handleCrypto(
+      message.data.type,
+      message.data.message.id,
+      message.data.message.data,
+      message.data.message.key
+    )
+  }
+
   // Creating api maker with the updated credentials received
   // from the main browser thread that has access to JWT and CSRF
   if (message.data?.type === 'auth') {
@@ -81,6 +92,30 @@ onmessage = async (message: MessageEvent<any>) => {
 
     handleDownloadFile(message.data.message)
   }
+}
+
+/**
+ * Handle crypto messages that either ask the worker to encrypt or decrypt
+ * the data using the key provided.
+ */
+async function handleCrypto(
+  type: 'encrypt' | 'decrypt',
+  id: string,
+  data: Uint8Array,
+  key: Uint8Array
+) {
+  logger.debug('In worker, handling crypto', type, id)
+
+  const fn = type === 'encrypt' ? cryptfns.aes.encrypt : cryptfns.aes.decrypt
+
+  const result = await fn(data, key)
+
+  logger.debug('In worker, handling crypto, posting message', type, id)
+
+  postMessage({
+    type,
+    message: { id, result }
+  })
 }
 
 /**
