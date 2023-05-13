@@ -3,6 +3,8 @@ import type { store as downloadStore } from '../services/storage/download'
 import type { store as uploadStore } from '../services/storage/upload'
 import type { store as filesStore } from '../services/storage'
 import type { store as queueStore } from '../services/queue'
+import type { store as cryptoStore } from '../services/crypto'
+import type { store as loginStore } from '../services/auth/login'
 import type { AppFile, ListAppFile, UploadAppFile, DownloadAppFile } from './file'
 
 export * from './create'
@@ -17,6 +19,8 @@ export type UploadStore = ReturnType<typeof uploadStore>
 export type DownloadStore = ReturnType<typeof downloadStore>
 export type FilesStore = ReturnType<typeof filesStore>
 export type QueueStore = ReturnType<typeof queueStore>
+export type LoginStore = ReturnType<typeof loginStore>
+export type CryptoStore = ReturnType<typeof cryptoStore>
 
 export interface Parameters extends Query {
   dir_id?: string | null

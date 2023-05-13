@@ -2,6 +2,8 @@
 import { AppForm, AppField, AppButton } from '@/components/form'
 import * as yup from 'yup'
 import { store } from '!/auth/register'
+import { store as loginStore } from '!/auth/login'
+import { store as cryptoStore } from '!/crypto'
 import { useRouter } from 'vue-router'
 import { computed, ref } from 'vue'
 import type { ErrorResponse } from '!/api'
@@ -13,6 +15,8 @@ import type { CreateUser } from 'types'
 import * as logger from '!/logger'
 
 const register = store()
+const login = loginStore()
+const crypto = cryptoStore()
 const router = useRouter()
 
 const config = ref()
@@ -48,7 +52,7 @@ const init = async () => {
       register.set(values)
 
       try {
-        await register.register(register.createUser)
+        await register.register(register.createUser, login, crypto)
 
         register.clear()
         router.push({ name: 'files' })

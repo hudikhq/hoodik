@@ -16,7 +16,11 @@ export const store = defineStore('crypto', () => {
   /**
    * Set the external keypair value into the internal one
    */
-  async function set(keypair: KeyPair) {
+  async function set(keypair: KeyPair | string) {
+    if (typeof keypair === 'string') {
+      keypair = await rsa.inputToKeyPair(keypair)
+    }
+
     if (keypair.input) {
       const kp = await rsa.inputToKeyPair(keypair.input)
       KeyPair.value = kp
