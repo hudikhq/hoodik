@@ -5,5 +5,5 @@ use error::AppResult;
 pub trait AuthProviderContract {
     /// Authentication method that has to be implemented on the providers
     /// that will handle their own authentication methods
-    async fn authenticate(&self) -> AppResult<Authenticated>;
+    async fn authenticate(&self, user_agent: &str, ip: &str) -> AppResult<Authenticated>;
 }

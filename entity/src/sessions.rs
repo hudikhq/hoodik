@@ -11,6 +11,8 @@ pub struct Model {
     pub id: Uuid,
     pub user_id: Uuid,
     pub device_id: Uuid,
+    pub ip: String,
+    pub user_agent: String,
     #[serde(skip_serializing)]
     pub refresh: Option<Uuid>,
     pub created_at: NaiveDateTime,

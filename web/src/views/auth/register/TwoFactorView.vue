@@ -51,7 +51,7 @@ const init = async () => {
         await register.register(register.createUser)
 
         register.clear()
-        router.push({ name: 'home' })
+        router.push({ name: 'files' })
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         register.setErrors(error.validation)

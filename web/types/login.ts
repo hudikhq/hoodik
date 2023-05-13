@@ -18,6 +18,8 @@ export interface Session {
   id: string
   user_id: string
   device_id?: string
+  ip: string
+  user_agent: string
   created_at: string
   updated_at: string
   expires_at: string

@@ -1,6 +1,10 @@
 import { encrypt as aesEncrypt, decrypt as aesDecrypt } from './aes'
 import * as logger from '!/logger'
-import { MAX_WORKERS, MAX_WAIT_FOR_WORKER_MS } from '!/storage/constants'
+import {
+  ENABLE_CRYPTO_WORKERS,
+  MAX_CRYPTO_WORKERS,
+  MAX_WAIT_FOR_CRYPTO_WORKER_MS
+} from '!/storage/constants'
 
 // @ts-ignore
 import { serviceWorkerFile } from 'virtual:vite-plugin-service-worker'
@@ -25,7 +29,7 @@ const __results = new Map<string, Uint8Array>()
  * to have a web worker available to us.
  */
 async function getWorker(): Promise<number | undefined> {
-  if (__workers.length >= MAX_WORKERS) {
+  if (__workers.length >= MAX_CRYPTO_WORKERS) {
     if (lastUsed < __workers.length) {
       const index = lastUsed
       lastUsed++
@@ -69,7 +73,7 @@ async function getWorker(): Promise<number | undefined> {
  * Setup the workers pool
  */
 async function setupWorkers() {
-  for (let i = 0; i < MAX_WORKERS; i++) {
+  for (let i = 0; i < MAX_CRYPTO_WORKERS; i++) {
     await setupSingleWorker(i)
   }
 }
@@ -147,7 +151,7 @@ function postMessage(
 
       const now = new Date().getTime()
 
-      if (now - started > MAX_WAIT_FOR_WORKER_MS) {
+      if (now - started > MAX_WAIT_FOR_CRYPTO_WORKER_MS) {
         clearInterval(interval)
         reject(new Error('Timeout waiting for worker to respond'))
       }
@@ -160,7 +164,7 @@ function postMessage(
  * attempt to offload it to the web worker, if it fails, use the main thread
  */
 export async function encrypt(plaintext: Uint8Array, key: Uint8Array): Promise<Uint8Array> {
-  const index = await getWorker()
+  const index = ENABLE_CRYPTO_WORKERS ? await getWorker() : undefined
 
   if (typeof index !== 'undefined') {
     return postMessage(index, 'encrypt', plaintext, key)
@@ -174,10 +178,10 @@ export async function encrypt(plaintext: Uint8Array, key: Uint8Array): Promise<U
  * attempt to offload it to the web worker, if it fails, use the main thread
  */
 export async function decrypt(ciphertext: Uint8Array, key: Uint8Array): Promise<Uint8Array> {
-  const worker = await getWorker()
+  const index = ENABLE_CRYPTO_WORKERS ? await getWorker() : undefined
 
-  if (worker) {
-    return postMessage(worker, 'decrypt', ciphertext, key)
+  if (typeof index !== 'undefined') {
+    return postMessage(index, 'decrypt', ciphertext, key)
   }
 
   return aesDecrypt(ciphertext, key)

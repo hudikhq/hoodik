@@ -9,6 +9,19 @@ import type { AppFile, UploadAppFile } from '../../../types'
 
 /**
  * Upload a single file chunk
+ *
+ * This is a fallback version of upload and in case the upload worker
+ * is not available, this method will be used instead.
+ *
+ * NOTICE: This is a less safe method of uploading since it assumes
+ * that the missing worker means older browser is being used, so
+ * it also assumes slower system is used and it offloads the encryption
+ * process to the server. Which means it will send the encryption key
+ * to server to encrypt the data before its being stored.
+ *
+ * The key is kept only in memory and is never saved anywhere on the server,
+ * but still... If the connection is not secure it is possible the key could be
+ * intercepted.
  */
 export async function uploadChunk(
   file: UploadAppFile,
@@ -20,17 +33,18 @@ export async function uploadChunk(
     throw new Error(`File ${file.id} is missing key`)
   }
 
-  // const encrypted = data
-  const encrypted = await cryptfns.aes.encrypt(data, file.metadata?.key)
+  const encrypted = data
+  // const encrypted = await cryptfns.aes.encrypt(data, file.metadata?.key)
   // const checksum = await cryptfns.sha256.digest(encrypted)
   const checksum = await cryptfns.wasm.crc16_digest(encrypted)
 
   // Data can be encrypted also on the server, but this method is less secure
-  // const key_hex = cryptfns.uint8.toHex(file.metadata.key)
+  const key_hex = cryptfns.uint8.toHex(file.metadata.key)
   const query: Query = {
     chunk,
     checksum,
-    checksum_function: 'crc16'
+    checksum_function: 'crc16',
+    key_hex
   }
 
   const headers = {

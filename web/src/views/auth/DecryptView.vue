@@ -40,7 +40,7 @@ const init = () => {
       try {
         await login.withPin(crypto, values.password)
 
-        router.push({ name: 'home' })
+        router.push({ name: 'files' })
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}

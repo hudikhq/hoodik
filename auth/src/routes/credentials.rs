@@ -1,4 +1,4 @@
-use actix_web::{route, web, HttpResponse};
+use actix_web::{route, web, HttpRequest, HttpResponse};
 use context::Context;
 use error::AppResult;
 
@@ -14,14 +14,16 @@ use crate::{
 /// Response: [crate::data::authenticated::Authenticated]
 #[route("/api/auth/login", method = "POST")]
 pub(crate) async fn credentials(
+    req: HttpRequest,
     context: web::Data<Context>,
     data: web::Json<Credentials>,
 ) -> AppResult<HttpResponse> {
     let auth = Auth::new(&context);
+    let (user_agent, ip) = util::actix::extract_ip_ua(&req);
 
     let provider = CredentialsProvider::new(&auth, data.into_inner());
 
-    let authenticated = provider.authenticate().await?;
+    let authenticated = provider.authenticate(&user_agent, &ip).await?;
 
     let mut response = HttpResponse::Ok();
 

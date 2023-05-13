@@ -91,7 +91,7 @@ async fn test_credentials_valid() {
 
     let user = response.unwrap();
 
-    let response = credentials_provider.authenticate().await;
+    let response = credentials_provider.authenticate("n/a", "127.0.0.1").await;
 
     if let Err(e) = response {
         panic!("Errored: {:#?}", e);
@@ -135,7 +135,7 @@ async fn test_credentials_invalid() {
 
     let _user = response.unwrap();
 
-    let response = credentials_provider.authenticate().await;
+    let response = credentials_provider.authenticate("n/a", "127.0.0.1").await;
 
     if let Err(e) = &response {
         debug!("Errored: {:#?}", e);
@@ -179,7 +179,7 @@ async fn test_retrieve_authenticated_session_by_token_and_csrf() {
         panic!("Errored: {:#?}", e);
     }
 
-    let response = credentials_provider.authenticate().await;
+    let response = credentials_provider.authenticate("n/a", "127.0.0.1").await;
 
     if let Err(e) = response {
         panic!("Errored: {:#?}", e);
@@ -229,7 +229,7 @@ async fn test_jwt_generate_and_claim() {
         panic!("Errored: {:#?}", e);
     }
 
-    let response = credentials_provider.authenticate().await;
+    let response = credentials_provider.authenticate("n/a", "127.0.0.1").await;
 
     if let Err(e) = response {
         panic!("Errored: {:#?}", e);
@@ -346,7 +346,10 @@ async fn test_set_cookie_for_both() {
         token: None,
     };
     let credentials_provider = CredentialsProvider::new(&auth, credentials);
-    let authenticated = credentials_provider.authenticate().await.unwrap();
+    let authenticated = credentials_provider
+        .authenticate("n/a", "127.0.0.1")
+        .await
+        .unwrap();
 
     let (jwt, refresh) = auth
         .manage_cookies(&authenticated, module_path!())
