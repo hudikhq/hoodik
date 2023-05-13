@@ -90,9 +90,13 @@ pub async fn engage(context: Context) -> AppResult<()> {
     let bind_address = context.config.get_full_bind_address();
     let config = context.config.build_rustls_config()?;
 
-    HttpServer::new(move || app(context.clone()).wrap(Logger::default()))
-        .bind_rustls(&bind_address, config)?
-        .run()
-        .await
-        .map_err(Error::from)
+    HttpServer::new(move || {
+        app(context.clone()).wrap(Logger::new(
+            "%a \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %T",
+        ))
+    })
+    .bind_rustls(&bind_address, config)?
+    .run()
+    .await
+    .map_err(Error::from)
 }

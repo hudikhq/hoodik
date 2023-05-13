@@ -688,6 +688,12 @@ fn parse_log(matches: Option<&ArgMatches>) {
             }
         }
     }
+
+    if env_var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "debug");
+    }
+
+    println!("RUST_LOG={}", env_var("RUST_LOG").unwrap());
 }
 
 /// Remove the leading slash from the path
