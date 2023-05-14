@@ -3,7 +3,7 @@ import type { store as cryptoStore } from '../crypto'
 import * as login from './login'
 import * as register from './register'
 import * as lscache from 'lscache'
-import type { NavigationFailure, Router } from 'vue-router'
+import type { NavigationFailure, RouteLocationNormalizedLoaded, Router } from 'vue-router'
 import * as logger from '!/logger'
 
 export { login, register }
@@ -57,31 +57,32 @@ export function hasAuthentication(store: ReturnType<typeof login.store>) {
  */
 export async function ensureAuthenticated(
   router: Router,
+  route: RouteLocationNormalizedLoaded,
   store: ReturnType<typeof login.store>,
   crypto: ReturnType<typeof cryptoStore>
 ): Promise<void | NavigationFailure> {
   if (!hasAuthentication(store)) {
+    logger.debug('No authenticated in the store')
+
     if (maybeCouldMakeRequests()) {
+      logger.debug('Trying to call refresh')
+
       try {
-        logger.debug('Trying to call self')
-        await store.self(crypto)
+        await store.refresh()
 
         if (crypto.keypair.input) {
           return
         }
       } catch (e) {
-        logger.debug(`Moving to login after failed attempt to get self: ${e}`)
-        return bounce(router, store, crypto)
+        return bounce(router, route, store, crypto)
       }
     }
 
     if (cryptfns.hasEncryptedPrivateKey()) {
-      logger.debug('Moving to decrypt private key')
-      return router.push({ name: 'decrypt' })
+      return decrypt(router, route)
     }
 
-    logger.debug('Moving to login')
-    return bounce(router, store, crypto)
+    return bounce(router, route, store, crypto)
   }
 }
 
@@ -90,8 +91,10 @@ export async function ensureAuthenticated(
  */
 async function bounce(
   router: Router,
+  route: RouteLocationNormalizedLoaded,
   store: ReturnType<typeof login.store>,
-  crypto: ReturnType<typeof cryptoStore>
+  crypto: ReturnType<typeof cryptoStore>,
+  e?: Error
 ) {
   try {
     await crypto.clear()
@@ -100,5 +103,28 @@ async function bounce(
     // do nothing
   }
 
-  return router.push({ name: 'login' })
+  if (e) {
+    logger.debug(`Moving to login after error: ${e}`)
+  } else {
+    logger.debug('Moving to login')
+  }
+
+  if (route.name !== 'login') {
+    router.push({ name: 'login', replace: true })
+  } else {
+    logger.debug('Already on login page, doing nothing')
+  }
+}
+
+/**
+ * Push the user to decrypt page
+ */
+async function decrypt(router: Router, route: RouteLocationNormalizedLoaded) {
+  if (route.name === 'decrypt') {
+    logger.debug('Already on decrypt page, doing nothing')
+    return
+  }
+
+  logger.debug('Moving to decrypt private key')
+  router.push({ name: 'decrypt', replace: true })
 }

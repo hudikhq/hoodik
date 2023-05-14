@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { mdiForwardburger, mdiBackburger, mdiMenu } from '@mdi/js'
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import menuAside from '@/menuAside'
 import menuNavBar, { type NavBarItem } from '@/menuNavBar'
 import { store as style } from '!/style'
@@ -19,9 +19,10 @@ import SearchModal from '@/components/files/search/SearchModal.vue'
 const crypto = cryptoStore()
 const styleStore = style()
 const router = useRouter()
+const route = useRoute()
 const loginStore = login()
 
-await ensureAuthenticated(router, loginStore, crypto)
+await ensureAuthenticated(router, route, loginStore, crypto)
 
 const layoutAsidePadding = 'xl:pl-60'
 
@@ -53,6 +54,7 @@ const menuClick = (event: Event, item: NavBarItem) => {
       class="pt-16 min-h-screen w-screen transition-position lg:w-auto bg-white dark:bg-brownish-800 dark:text-brownish-100"
     >
       <NavBar
+        v-if="loginStore.authenticated"
         :menu="menuNavBar"
         :class="[layoutAsidePadding, { 'ml-60 lg:ml-0': isAsideMobileExpanded }]"
         @menu-click="menuClick"
@@ -71,6 +73,7 @@ const menuClick = (event: Event, item: NavBarItem) => {
         </NavBarItemPlain>
       </NavBar>
       <AsideMenu
+        v-if="loginStore.authenticated"
         :is-aside-mobile-expanded="isAsideMobileExpanded"
         :is-aside-lg-active="isAsideLgActive"
         :menu="menuAside"
@@ -80,7 +83,7 @@ const menuClick = (event: Event, item: NavBarItem) => {
       <SearchModal :keypair="crypto.keypair" v-model="isSearchModalActive" />
 
       <div
-        v-if="!loginStore.authenticated?.user?.email_verified_at"
+        v-if="loginStore.authenticated && !loginStore.authenticated?.user?.email_verified_at"
         class="block bg-redish-100 dark:bg-redish-950 text-redish-950 dark:text-redish-100 rounded-lg p-4 mx-1 xl:mx-6"
       >
         You account is not activated, please check your email for the activation link, it might end
@@ -89,7 +92,7 @@ const menuClick = (event: Event, item: NavBarItem) => {
 
       <slot :authenticated="loginStore.authenticated" :keypair="crypto.keypair" />
 
-      <StatusBar />
+      <StatusBar v-if="loginStore.authenticated" />
     </div>
   </div>
 </template>

@@ -18,9 +18,11 @@ const opacity = computed(() => {
   >
     <img src="/android-chrome-192x192.png" alt="logo" />
 
-    <div class="working">
-      Working<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
-    </div>
+    <slot>
+      <div class="working">
+        Working<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
+      </div>
+    </slot>
   </div>
 </template>
 <style scoped lang="css">

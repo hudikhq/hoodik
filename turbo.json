@@ -8,6 +8,13 @@
       "cache": false,
       "persistent": true
     },
+    "preview": {
+      "dependsOn": [
+        "wasm-pack"
+      ],
+      "cache": false,
+      "persistent": true
+    },
     "dev": {
       "dependsOn": [
         "wasm-pack"

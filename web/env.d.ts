@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 /// <reference path="cryptfns/cryptfns.d.ts" />
+/// <reference types="vite-plugin-pwa/client" />
 
 import type Api from './stores/api'
 

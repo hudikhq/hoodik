@@ -30,9 +30,11 @@ pub async fn client(
 
     for (path, contents) in _CLIENT {
         if path == filename {
-            return HttpResponse::Ok()
-                .content_type(content_type(&filename))
-                .body(contents);
+            let content_type = content_type(&filename);
+
+            log::debug!("Client: {} -> {}", filename, content_type);
+
+            return HttpResponse::Ok().content_type(content_type).body(contents);
         }
     }
 
@@ -40,10 +42,12 @@ pub async fn client(
 
     if path.len() == 1 {
         return HttpResponse::Ok()
+            .insert_header(("Cache-Control", "no-cache"))
             .content_type("text/html; charset=utf-8")
             .body(_DEFAULT);
     }
 
     log::warn!("Client: Not found: {}", filename);
+
     HttpResponse::NotFound().finish()
 }

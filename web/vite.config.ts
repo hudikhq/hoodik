@@ -31,7 +31,7 @@ export default defineConfig({
       manifestFilename: 'hoodik.webmanifest',
       injectRegister: 'auto',
       workbox: {
-        navigateFallback: '/index.html',
+        // navigateFallback: '/index.html',
         runtimeCaching: [
           {
             urlPattern: new RegExp('^https://fonts.(?:googleapis|gstatic).com/(.*)'),

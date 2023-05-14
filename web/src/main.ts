@@ -6,10 +6,13 @@ import { store as style } from '!/style'
 import { lightModeKey, styleKey } from '@/config'
 import { greeting } from '!/logger'
 import * as logger from '!/logger'
+import './css/main.css'
 
 greeting()
+
 // @ts-ignore
 import { serviceWorkerFile } from 'virtual:vite-plugin-service-worker'
+import { registerSW } from 'virtual:pwa-register'
 
 try {
   if ('Worker' in window) {
@@ -23,8 +26,7 @@ try {
   logger.error('Registration failed', error)
 }
 
-import './css/main.css'
-
+registerSW({ immediate: true })
 const pinia = createPinia()
 
 /* Create Vue app */
