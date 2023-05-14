@@ -4,29 +4,40 @@ import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import { AppForm, AppField, AppButton } from '@/components/form'
 import * as yup from 'yup'
-import { store } from '!/auth/login'
+import { store as loginStore } from '!/auth/login'
 import { store as cryptoStore } from '!/crypto'
+import { pk } from '!/auth'
 import { useRouter } from 'vue-router'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { ErrorResponse } from '!/api'
-import * as cryptfns from '!/cryptfns'
 import type { Credentials } from 'types'
 
-const login = store()
+const login = loginStore()
 const router = useRouter()
 const crypto = cryptoStore()
-
-const hasAuth = ref(true)
 
 const config = ref()
 const authenticationError = ref<string | null>(null)
 
+/**
+ * Email of the account that has stored private key with pin
+ */
+const email = computed(() => {
+  const e = pk.getPinEmail()
+
+  return e || undefined
+})
+
+/**
+ * Forget the stored private key and redirect to login page
+ */
+const forget = async () => {
+  pk.clearPin()
+}
+
 const init = () => {
-  if (!cryptfns.hasEncryptedPrivateKey()) {
-    hasAuth.value = false
-    // return setTimeout(() => {
-    //   router.push({ name: 'login', replace: true })
-    // }, 5000)
+  if (!pk.hasPin()) {
+    return router.push({ name: 'login', replace: true })
   }
 
   config.value = {
@@ -55,26 +66,15 @@ init()
 <template>
   <LayoutGuest>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
-      <CardBox :class="`${cardClass} text-center`" v-if="!config">
-        <div class="flex items-start">
-          <div class="flex items-center h-5">
-            <p class="text-sm">
-              You don't have lock screen setup yet. You will be redirected to the login page in
-              couple of seconds to authenticate and then you can setup your lock screen.
-            </p>
-          </div>
-        </div>
-
-        <router-link
-          :to="{ name: 'login' }"
-          class="float-right rounded-md text-redish-200 py-2 px-4 border border-redish-300"
-        >
-          Login
-        </router-link>
-      </CardBox>
-
-      <CardBox :class="cardClass" v-else>
+      <CardBox :class="cardClass" v-if="config">
         <h1 class="text-2xl text-white mb-5">Unlock Your Account</h1>
+        <p>
+          You are about to unlock an account of <strong>{{ email }}</strong> if this isn't you,
+          please go to
+          <router-link :to="{ name: 'login' }" @click="forget" class="regular-link"
+            >login.</router-link
+          >
+        </p>
 
         <AppForm :config="config" class="mt-8 space-y-6" v-slot="{ form }">
           <AppField

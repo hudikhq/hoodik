@@ -14,28 +14,22 @@ const router = createRouter({
       component: FilesView
     },
     {
-      path: '/auth/setup-lock-screen',
+      path: '/auth/pin/lock',
+      name: 'lock',
+      meta: { title: 'Account Locked' },
+      component: () => import('../views/auth/pin/IndexView.vue')
+    },
+    {
+      path: '/auth/pin/setup-lock-screen',
       name: 'setup-lock-screen',
       meta: { title: 'Setup Lock Screen' },
-      component: () => import('../views/auth/SetupLockScreenView.vue')
+      component: () => import('../views/auth/pin/SetupLockScreenView.vue')
     },
     {
       path: '/auth/decrypt',
       name: 'decrypt',
       meta: { title: 'Decrypt Private Key' },
-      component: () => import('../views/auth/DecryptView.vue')
-    },
-    {
-      path: '/auth/lock',
-      name: 'lock',
-      meta: { title: 'Account Locked' },
-      component: () => import('../views/auth/LockView.vue')
-    },
-    {
-      path: '/auth/login/private-key',
-      name: 'login-private-key',
-      meta: { title: 'Login' },
-      component: () => import('../views/auth/login/PrivateKeyView.vue')
+      component: () => import('../views/auth/pin/DecryptView.vue')
     },
     {
       path: '/auth/login',
@@ -54,6 +48,12 @@ const router = createRouter({
       name: 'register-key',
       meta: { title: 'Create Account - Your Private Key' },
       component: () => import('../views/auth/register/KeyView.vue')
+    },
+    {
+      path: '/auth/login/private-key',
+      name: 'login-private-key',
+      meta: { title: 'Login' },
+      component: () => import('../views/auth/login/PrivateKeyView.vue')
     },
     {
       path: '/auth/register/two-factor',

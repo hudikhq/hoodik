@@ -30,6 +30,7 @@ export interface Credentials {
   password: string
   token?: string
   privateKey?: string
+  remember?: boolean
 }
 
 export interface PrivateKeyLogin {

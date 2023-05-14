@@ -2,7 +2,7 @@
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
-import { AppForm, AppField, AppButton } from '@/components/form'
+import { AppForm, AppField, AppButton, AppCheckbox } from '@/components/form'
 import * as yup from 'yup'
 import { store } from '!/auth/login'
 import { store as cryptoStore } from '!/crypto'
@@ -21,7 +21,9 @@ const authenticationError = ref<string | null>(null)
 
 const init = () => {
   config.value = {
-    initialValues: {},
+    initialValues: {
+      remember: false
+    },
     validationSchema: yup.object().shape({
       email: yup.string().required('Email is required').email('Email is invalid'),
       password: yup.string().required('Password is required')
@@ -71,6 +73,7 @@ init()
               class-add="text-sm"
             />
           </div>
+          <AppCheckbox label="Remember me" :form="form" name="remember" />
 
           <p v-if="authenticationError" class="text-sm text-redish-400">
             {{ authenticationError }}

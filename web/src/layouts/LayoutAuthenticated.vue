@@ -4,8 +4,8 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import menuAside from '@/menuAside'
 import menuNavBar, { type NavBarItem } from '@/menuNavBar'
-import { store as style } from '!/style'
-import { store as login } from '!/auth/login'
+import { store as styleStore } from '!/style'
+import { store as loginStore } from '!/auth/login'
 import { ensureAuthenticated } from '!/auth'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import NavBar from '@/components/ui/NavBar.vue'
@@ -16,13 +16,14 @@ import { store as cryptoStore } from '!/crypto'
 import SearchButton from '@/components/files/search/SearchButton.vue'
 import SearchModal from '@/components/files/search/SearchModal.vue'
 
-const crypto = cryptoStore()
-const styleStore = style()
 const router = useRouter()
 const route = useRoute()
-const loginStore = login()
 
-await ensureAuthenticated(router, route, loginStore, crypto)
+const crypto = cryptoStore()
+const style = styleStore()
+const login = loginStore()
+
+await ensureAuthenticated(router, route)
 
 const layoutAsidePadding = 'xl:pl-60'
 
@@ -37,7 +38,7 @@ router.beforeEach(async () => {
 
 const menuClick = (event: Event, item: NavBarItem) => {
   if (item.isTogglelight) {
-    styleStore.setDarkMode()
+    style.setDarkMode()
   }
 }
 </script>
@@ -45,7 +46,7 @@ const menuClick = (event: Event, item: NavBarItem) => {
 <template>
   <div
     :class="{
-      dark: styleStore.darkMode,
+      dark: style.darkMode,
       'overflow-hidden lg:overflow-visible': isAsideMobileExpanded
     }"
   >
@@ -54,7 +55,7 @@ const menuClick = (event: Event, item: NavBarItem) => {
       class="pt-16 min-h-screen w-screen transition-position lg:w-auto bg-white dark:bg-brownish-800 dark:text-brownish-100"
     >
       <NavBar
-        v-if="loginStore.authenticated"
+        v-if="login.authenticated"
         :menu="menuNavBar"
         :class="[layoutAsidePadding, { 'ml-60 lg:ml-0': isAsideMobileExpanded }]"
         @menu-click="menuClick"
@@ -73,7 +74,7 @@ const menuClick = (event: Event, item: NavBarItem) => {
         </NavBarItemPlain>
       </NavBar>
       <AsideMenu
-        v-if="loginStore.authenticated"
+        v-if="login.authenticated"
         :is-aside-mobile-expanded="isAsideMobileExpanded"
         :is-aside-lg-active="isAsideLgActive"
         :menu="menuAside"
@@ -83,16 +84,16 @@ const menuClick = (event: Event, item: NavBarItem) => {
       <SearchModal :keypair="crypto.keypair" v-model="isSearchModalActive" />
 
       <div
-        v-if="loginStore.authenticated && !loginStore.authenticated?.user?.email_verified_at"
+        v-if="login.authenticated && !login.authenticated?.user?.email_verified_at"
         class="block bg-redish-100 dark:bg-redish-950 text-redish-950 dark:text-redish-100 rounded-lg p-4 mx-1 xl:mx-6"
       >
         You account is not activated, please check your email for the activation link, it might end
         up in spam folder, so check that too.
       </div>
 
-      <slot :authenticated="loginStore.authenticated" :keypair="crypto.keypair" />
+      <slot :authenticated="login.authenticated" :keypair="crypto.keypair" />
 
-      <StatusBar v-if="loginStore.authenticated" />
+      <StatusBar v-if="login.authenticated" />
     </div>
   </div>
 </template>

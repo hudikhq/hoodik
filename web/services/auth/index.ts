@@ -1,54 +1,25 @@
-import * as cryptfns from '../cryptfns'
-import type { store as cryptoStore } from '../crypto'
 import * as login from './login'
 import * as register from './register'
-import * as lscache from 'lscache'
+import * as pk from './pk'
 import type { NavigationFailure, RouteLocationNormalizedLoaded, Router } from 'vue-router'
 import * as logger from '!/logger'
+import type { CryptoStore, LoginStore } from 'types'
 
-export { login, register }
+import { store as cryptoStore } from '!/crypto'
 
-const PRIVATE_KEY_STORE_NAME = 'ENCRYPTED-PRIVATE-KEY'
+export { login, register, pk }
 
 /**
  * Shortcut to figure out if we can make requests
  */
 export function maybeCouldMakeRequests(): boolean {
-  return true
-}
-
-/**
- * Get the private key from storage and decrypt it
- */
-export async function getPrivateKey(deviceId: string): Promise<string | null> {
-  const privateKey = lscache.get(PRIVATE_KEY_STORE_NAME) || null
-
-  if (!privateKey) {
-    return null
-  }
-
-  return cryptfns.aes.decryptString(privateKey, deviceId)
-}
-
-/**
- * Set the private key in storage and encrypt it
- */
-export async function setPrivateKey(privateKey: string, deviceId: string, expires: Date) {
-  const ex = expires.getTime() - new Date().getTime()
-  lscache.set(PRIVATE_KEY_STORE_NAME, await cryptfns.aes.encryptString(privateKey, deviceId), ex)
-}
-
-/**
- * Remove the private key
- */
-export function removePrivateKey(): void {
-  return lscache.remove(PRIVATE_KEY_STORE_NAME)
+  return pk.hasRememberMe()
 }
 
 /**
  * Do we have authentication currently loaded?
  */
-export function hasAuthentication(store: ReturnType<typeof login.store>) {
+export function hasAuthentication(store: LoginStore) {
   return !!store.authenticated
 }
 
@@ -57,18 +28,23 @@ export function hasAuthentication(store: ReturnType<typeof login.store>) {
  */
 export async function ensureAuthenticated(
   router: Router,
-  route: RouteLocationNormalizedLoaded,
-  store: ReturnType<typeof login.store>,
-  crypto: ReturnType<typeof cryptoStore>
+  route: RouteLocationNormalizedLoaded
 ): Promise<void | NavigationFailure> {
-  if (!hasAuthentication(store)) {
+  const store = login.store()
+  const crypto = cryptoStore()
+
+  const authenticated = store.authenticated
+
+  console.log(authenticated)
+
+  if (!authenticated) {
     logger.debug('No authenticated in the store')
 
     if (maybeCouldMakeRequests()) {
       logger.debug('Trying to call refresh')
 
       try {
-        await store.refresh()
+        await store.refresh(crypto)
 
         if (crypto.keypair.input) {
           return
@@ -78,7 +54,7 @@ export async function ensureAuthenticated(
       }
     }
 
-    if (cryptfns.hasEncryptedPrivateKey()) {
+    if (pk.hasPin()) {
       return decrypt(router, route)
     }
 
@@ -92,13 +68,17 @@ export async function ensureAuthenticated(
 async function bounce(
   router: Router,
   route: RouteLocationNormalizedLoaded,
-  store: ReturnType<typeof login.store>,
-  crypto: ReturnType<typeof cryptoStore>,
+  store: LoginStore,
+  crypto: CryptoStore,
   e?: Error
 ) {
   try {
     await crypto.clear()
-    await store.logout(crypto, true)
+    await pk.clearRememberMe()
+
+    // we are not doing the full logout in case the user
+    // has a pin encrypted private key set.
+    await store.logout(crypto, false)
   } catch (e) {
     // do nothing
   }

@@ -9,6 +9,13 @@ import type { ErrorResponse } from './api'
 const DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
 
 /**
+ * Async/Await setTimeout
+ */
+export function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
  * Get the OS of the user
  */
 export function os() {

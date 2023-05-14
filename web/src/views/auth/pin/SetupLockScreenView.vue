@@ -2,29 +2,28 @@
 import LayoutAuthenticatedWithLoader from '@/layouts/LayoutAuthenticatedWithLoader.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
-import { AppForm, AppField, AppButton, AppCheckbox } from '@/components/form'
+import { AppForm, AppField, AppButton } from '@/components/form'
 import * as yup from 'yup'
-import { store } from '!/auth/login'
+import { pk } from '!/auth'
+import { store as loginStore } from '!/auth/login'
 import { store as cryptoStore } from '!/crypto'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
-import * as cryptfns from '!/cryptfns'
 import * as logger from '!/logger'
 
-const login = store()
+const login = loginStore()
 const router = useRouter()
 const crypto = cryptoStore()
 const config = ref()
 
-if (cryptfns.hasEncryptedPrivateKey()) {
-  router.push({ name: 'decrypt' })
+if (pk.hasPin()) {
+  router.push({ name: 'decrypt', replace: true })
 }
 
 config.value = {
   initialValues: {
     password: '',
-    confirm_password: '',
-    logout: false
+    confirm_password: ''
   },
   validationSchema: yup.object().shape({
     password: yup.string().required('Password is required').min(4),
@@ -42,15 +41,13 @@ config.value = {
       return router.push({ name: 'login' })
     }
 
-    await cryptfns.encryptPrivateKeyAndStore(privateKey, values.password)
+    await pk.pinEncryptAndStore(
+      privateKey,
+      values.password,
+      login.authenticated?.user?.email as string
+    )
 
-    if (values.logout === true) {
-      login.logout(crypto)
-
-      return router.push({ name: 'lock' })
-    }
-
-    return router.push({ name: 'files' })
+    return router.push({ name: 'files', replace: true })
   }
 }
 </script>
@@ -84,7 +81,6 @@ config.value = {
             name="confirm_password"
             placeholder="******"
           />
-          <AppCheckbox label="Logout after set" :form="form" name="logout" />
 
           <AppButton :form="form" type="submit">Encrypt and store</AppButton>
         </AppForm>
