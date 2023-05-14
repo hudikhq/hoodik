@@ -6,3 +6,11 @@
 @import '_progress.css';
 @import '_scrollbars.css';
 @import '_table.css';
+
+.regular-link {
+  @apply underline;
+}
+
+.regular-link:hover {
+  text-decoration: none;
+}

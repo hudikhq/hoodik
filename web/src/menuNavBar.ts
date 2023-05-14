@@ -1,4 +1,5 @@
 import { mdiLock } from '@mdi/js'
+import type { RouteLocation } from 'vue-router'
 
 export interface NavBarItem {
   icon?: string
@@ -7,7 +8,7 @@ export interface NavBarItem {
   isDesktopNoLabel?: boolean
   isTogglelight?: boolean
   isDivider?: boolean
-  to?: string
+  to?: RouteLocation
   isLogout?: boolean
   isUpload?: boolean
   isCreateDirectory?: boolean
@@ -20,6 +21,6 @@ export default [
     icon: mdiLock,
     label: 'Lock',
     isDesktopNoLabel: true,
-    to: '/auth/lock'
+    to: { name: 'lock' }
   }
 ] as NavBarItem[]

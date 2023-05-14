@@ -12,7 +12,6 @@ greeting()
 
 // @ts-ignore
 import { serviceWorkerFile } from 'virtual:vite-plugin-service-worker'
-// import { registerSW } from 'virtual:pwa-register'
 
 try {
   if ('Worker' in window) {
@@ -26,7 +25,6 @@ try {
   logger.error('Registration failed', error)
 }
 
-// registerSW({ immediate: true })
 const pinia = createPinia()
 
 /* Create Vue app */
