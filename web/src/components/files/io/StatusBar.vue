@@ -150,6 +150,12 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
     download.failed = download.failed.filter((item) => item.id !== file.id)
   }
 }
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && showTable.value) {
+    showTable.value = false
+  }
+})
 </script>
 <template>
   <div

@@ -3,6 +3,7 @@ import { mdiDotsVertical } from '@mdi/js'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import TruncatedSpan from '@/components/ui/TruncatedSpan.vue'
+import ActionsDropdown from '../browser/ActionsDropdown.vue'
 import { formatPrettyDate, formatSize } from '!'
 import type { ListAppFile } from 'types'
 import { computed, ref } from 'vue'
@@ -189,6 +190,7 @@ const doubleClick = () => {
         :max="100"
         :value="progressValue"
         v-else-if="props.file.mime !== 'dir'"
+        title="Uploading... If you stop the upload, or it gets interrupted simply select the same file again and it will continue where it left off"
       />
     </div>
 
@@ -201,24 +203,16 @@ const doubleClick = () => {
         @click="emits('actions', file)"
         :disabled="!props.file.id"
       />
-      <BaseButton
+      <ActionsDropdown
         class="ml-2 hidden sm:block float-right"
-        color="dark"
-        :icon="mdiDotsVertical"
-        small
-        @click="emits('actions', file)"
+        :model-value="props.file"
         :disabled="!props.file.id"
+        @remove="(f: ListAppFile) => emits('remove', f)"
+        @details="(f: ListAppFile) => emits('details', f)"
+        @preview="(f: ListAppFile) => emits('preview', f)"
+        @download="(f: ListAppFile) => emits('download', f)"
       />
     </div>
-
-    <!-- <ActionsButtons
-        v-if="props.file.id"
-        :file="props.file"
-        :hide-delete="props.hideDelete"
-        @remove="emits('remove', file)"
-        @download="emits('download', file)"
-        @preview="emits('preview', file)"
-      /> -->
   </div>
 
   <div

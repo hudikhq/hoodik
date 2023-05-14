@@ -74,7 +74,7 @@ export const store = defineStore('register', () => {
       data
     )
 
-    login.setupAuthenticated(response.body as Authenticated, privateKey)
+    login.setupAuthenticated(response.body as Authenticated, privateKey, store)
     await store.set(privateKey)
 
     return response.body as Authenticated
