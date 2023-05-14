@@ -12,6 +12,7 @@
     "test:unit": "./rust-unit",
     "release": "cargo build --release",
     "alias-commands": "Below this line ###########################################",
+    "preview": "turbo run wasm-pack && turbo run build && turbo run preview",
     "release:all": "turbo run wasm-pack && turbo run build && turbo run release",
     "release:front": "turbo run wasm-pack && turbo run build && turbo run release --filter=hoodik-web",
     "start:front": "turbo run wasm-pack && turbo run dev --filter=hoodik-web",
