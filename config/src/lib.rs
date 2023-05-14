@@ -51,7 +51,7 @@ pub struct Config {
     /// *required*
     pub data_dir: String,
 
-    /// URL connection info for Postgres database
+    /// DATABASE_URL connection info for Postgres database
     ///
     /// *optional*
     ///
@@ -156,7 +156,7 @@ pub struct Config {
     /// default: 120
     pub short_term_session_duration_seconds: i64,
 
-    /// Location of the ssl cert file, this will be loaded and setup on to the server
+    /// SSL_CERT_FILE: Location of the ssl cert file, this will be loaded and setup on to the server
     /// if you don't provide this, the server will generate a self signed certificate
     /// and place them in the /tmp directory. This is not recommended for production.
     ///
@@ -165,7 +165,7 @@ pub struct Config {
     /// default: DATA_DIR/hoodik.crt.pem
     pub ssl_cert_file: String,
 
-    /// Location of the ssl key file, this will be loaded and setup on to the server
+    /// SSL_KEY_FILE: Location of the ssl key file, this will be loaded and setup on to the server
     /// if you don't provide this, the server will generate a self signed certificate
     /// and place them in the /tmp directory. This is not recommended for production.
     ///
@@ -558,10 +558,16 @@ impl Config {
     pub fn parse_ssl_files(data_dir: &Option<String>) -> (String, String) {
         let data_dir = data_dir.clone().unwrap_or_else(|| "/tmp".to_string());
 
-        let ssl_cert_file =
-            env_var("SSL_CERT_FILE").unwrap_or_else(|_| format!("{}/hoodik.crt.pem", &data_dir));
-        let ssl_key_file =
-            env_var("SSL_KEY_FILE").unwrap_or_else(|_| format!("{}/hoodik.key.pem", &data_dir));
+        let mut ssl_cert_file = env_var("SSL_CERT_FILE").unwrap_or_default();
+        let mut ssl_key_file = env_var("SSL_KEY_FILE").unwrap_or_default();
+
+        if ssl_cert_file.is_empty() {
+            ssl_cert_file = format!("{}/hoodik.crt.pem", &data_dir);
+        }
+
+        if ssl_key_file.is_empty() {
+            ssl_key_file = format!("{}/hoodik.key.pem", &data_dir);
+        }
 
         (ssl_cert_file, ssl_key_file)
     }
