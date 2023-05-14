@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { store as style } from '!/style'
 import { store as login } from '!/auth/login'
 import { ensureAuthenticated } from '!/auth'
@@ -8,9 +8,10 @@ import { store as cryptoStore } from '!/crypto'
 const crypto = cryptoStore()
 const styleStore = style()
 const router = useRouter()
+const route = useRoute()
 const loginStore = login()
 
-await ensureAuthenticated(router, loginStore, crypto)
+await ensureAuthenticated(router, route)
 </script>
 
 <template>

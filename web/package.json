@@ -18,6 +18,7 @@
     "@aws-crypto/sha256-browser": "^4.0.0",
     "@mdi/js": "^7.2.96",
     "@openpgp/asmcrypto.js": "^2.3.3-0",
+    "@vueuse/components": "^10.1.2",
     "@vueuse/core": "^10.1.0",
     "@zxcvbn-ts/core": "^2.2.1",
     "assert": "^2.0.0",
