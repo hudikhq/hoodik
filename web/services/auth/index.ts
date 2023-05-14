@@ -33,11 +33,7 @@ export async function ensureAuthenticated(
   const store = login.store()
   const crypto = cryptoStore()
 
-  const authenticated = store.authenticated
-
-  console.log(authenticated)
-
-  if (!authenticated) {
+  if (!store.authenticated) {
     logger.debug('No authenticated in the store')
 
     if (maybeCouldMakeRequests()) {
