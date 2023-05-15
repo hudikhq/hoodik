@@ -12,7 +12,7 @@ use crate::{data::create_file::CreateFile, repository::Repository};
 ///
 /// Response: [crate::data::app_file::AppFile]
 #[route("/api/storage", method = "POST")]
-pub async fn create(
+pub(crate) async fn create(
     claims: Claims,
     context: web::Data<Context>,
     data: web::Json<CreateFile>,

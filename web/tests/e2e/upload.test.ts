@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { getUserWithKey } from './register.test'
 import { utcStringFromLocal } from '../../services'
 import { CreateFile } from '../../types'
-import { CHUNK_SIZE_BYTES } from '../../services/storage/constants'
+import { CHUNK_SIZE_BYTES } from '../../services/constants'
 
 describe('Upload a file', () => {
   it('E2E: Can upload a file', async () => {

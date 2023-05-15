@@ -21,7 +21,7 @@ fn content_type(filename: &str) -> &str {
 
 /// Catch all requests that don't match any internal routes and forward them to the frontend
 #[get("/{filename:.*}")]
-pub async fn client(
+pub(crate) async fn client(
     _context: web::Data<Context>,
     _req: HttpRequest,
     info: web::Path<String>,

@@ -11,7 +11,7 @@ use crate::{data::search::Search, repository::Repository};
 ///
 /// Response: [Vec<crate::data::app_file::AppFile>]
 #[route("/api/storage/search", method = "POST")]
-pub async fn search(
+pub(crate) async fn search(
     claims: Claims,
     context: web::Data<Context>,
     data: web::Json<Search>,

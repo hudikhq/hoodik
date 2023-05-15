@@ -13,7 +13,7 @@ use crate::{
 ///
 /// Response: [crate::data::authenticated::Authenticated]
 #[route("/api/auth/login", method = "POST")]
-pub async fn credentials(
+pub(crate) async fn credentials(
     req: HttpRequest,
     context: web::Data<Context>,
     data: web::Json<Credentials>,

@@ -28,7 +28,7 @@ use crate::{
 /// because the content is encrypted and we cannot ensure it is the correct chunk or data.
 /// Only thing we will do is compare the checksum the uploader gave us for the uploaded chunk
 #[route("/api/storage/{file_id}", method = "POST")]
-pub async fn upload(
+pub(crate) async fn upload(
     req: HttpRequest,
     claims: Claims,
     context: web::Data<Context>,

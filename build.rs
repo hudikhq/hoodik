@@ -6,11 +6,11 @@ use std::{
 
 /// If no dist dir is available, we will just write an empty client
 fn handle_no_dist(client_out_file: &mut File) -> io::Result<()> {
-    writeln!(client_out_file, "pub const _DEFAULT: &[u8] = &[];",)?;
+    writeln!(client_out_file, "pub(crate) const _DEFAULT: &[u8] = &[];",)?;
 
     writeln!(
         client_out_file,
-        "pub const _CLIENT: [(&str, &[u8]); 0] = [];",
+        "pub(crate) const _CLIENT: [(&str, &[u8]); 0] = [];",
     )?;
 
     Ok(())
@@ -27,12 +27,12 @@ fn main() -> io::Result<()> {
 
     writeln!(
         client_out_file,
-        "pub const _DEFAULT: &[u8] = include_bytes!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/web/dist/index.html\"));",
+        "pub(crate) const _DEFAULT: &[u8] = include_bytes!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/web/dist/index.html\"));",
     )?;
 
     writeln!(
         client_out_file,
-        "pub const _CLIENT: [(&str, &[u8]); {}] = [",
+        "pub(crate) const _CLIENT: [(&str, &[u8]); {}] = [",
         count_files(&client_dist_dir)?
     )?;
 

@@ -15,7 +15,7 @@ pub mod signature;
 
 /// Register the authentication routes
 /// on to the application server
-pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
+pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(action::action);
     cfg.service(authenticated_self::authenticated_self);
     cfg.service(credentials::credentials);
