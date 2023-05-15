@@ -1,5 +1,6 @@
 export * from './chunk'
-export * from './download'
+export * from './downloadChunks'
+// export * from './download'
 
 import Api from '../../api'
 

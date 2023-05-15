@@ -1,6 +1,6 @@
 import * as cryptfns from '../../cryptfns'
 import { utcStringFromLocal } from '../..'
-import { MAX_UPLOAD_RETRIES } from '../constants'
+import { MAX_UPLOAD_RETRIES } from '../../constants'
 import * as logger from '!/logger'
 
 import type { AppFile, UploadAppFile, UploadChunkResponseMessage } from 'types'
@@ -25,6 +25,7 @@ export async function uploadChunk(
     const encrypted = await cryptfns.worker.encrypt(data, file.metadata.key)
     // const checksum = await cryptfns.sha256.digest(encrypted) // this is slower then crc16
     const checksum = await cryptfns.wasm.crc16_digest(encrypted)
+    // const checksum = ''
 
     if (!encrypted.byteLength) {
       throw new Error(`Failed encrypting chunk ${chunk} / ${file.chunks} of ${file.metadata?.name}`)

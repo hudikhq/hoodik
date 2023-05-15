@@ -32,6 +32,7 @@ tokenizers = { version = "^0.13", default-features = false, features = [
   "unstable_wasm",
 ] }
 crc = "^3"
+chacha20poly1305 = "0.10.1"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires

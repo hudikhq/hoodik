@@ -117,7 +117,7 @@ export class FileMetadata {
       }
     }
 
-    // Only the AES key is encrypted with RSA public key
+    // Only the key is encrypted with RSA public key
     if (encrypted.key) {
       encrypted.key = await cryptfns.rsa.encryptMessage(encrypted.key, publicKey)
     }
@@ -144,10 +144,10 @@ export class FileMetadata {
       const decryptedAesKey = await cryptfns.rsa.decryptMessage(keypair, encryptedAesKey)
       const key = cryptfns.aes.keyFromStringJson(decryptedAesKey)
 
-      // Decrypt the AES key with RSA private key
+      // Decrypt the key with RSA private key
       const decrypted: FileMetadataJson = {}
 
-      // Decrypt the rest of the metadata with AES key
+      // Decrypt the rest of the metadata with key
       for (const k in encrypted) {
         if (k !== 'key' && encrypted[k] !== undefined && encrypted[k] !== null) {
           decrypted[k] = await cryptfns.aes.decryptString(encrypted[k], key)

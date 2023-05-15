@@ -30,6 +30,10 @@ export const store = defineStore('queue', () => {
             await uploadMessage(files, upload, event.data.response)
           }
         }
+
+        setTimeout(() => {
+          window.UPLOAD.postMessage({ type: 'ping', name: 'UPLOAD' })
+        }, 100)
       }
     }
 
@@ -48,6 +52,10 @@ export const store = defineStore('queue', () => {
             await handleDownloadCompletedMessage(event.data.response)
           }
         }
+
+        setTimeout(() => {
+          window.DOWNLOAD.postMessage({ type: 'ping', name: 'DOWNLOAD' })
+        }, 100)
       }
     }
 

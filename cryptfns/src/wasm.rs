@@ -1,4 +1,5 @@
 use crate::aes;
+use crate::chacha;
 use crate::rsa;
 use crate::rsa::PublicKeyParts;
 
@@ -116,6 +117,21 @@ pub fn aes_encrypt(key: Vec<u8>, plaintext: Vec<u8>) -> Option<Vec<u8>> {
 #[wasm_bindgen]
 pub fn aes_decrypt(key: Vec<u8>, ciphertext: Vec<u8>) -> Option<Vec<u8>> {
     aes::decrypt(key, ciphertext).ok()
+}
+
+#[wasm_bindgen]
+pub fn chacha_generate_key() -> Option<Vec<u8>> {
+    chacha::generate_key().ok()
+}
+
+#[wasm_bindgen]
+pub fn chacha_encrypt(key: Vec<u8>, plaintext: Vec<u8>) -> Option<Vec<u8>> {
+    chacha::encrypt(key, plaintext).ok()
+}
+
+#[wasm_bindgen]
+pub fn chacha_decrypt(key: Vec<u8>, ciphertext: Vec<u8>) -> Option<Vec<u8>> {
+    chacha::decrypt(key, ciphertext).ok()
 }
 
 #[wasm_bindgen]

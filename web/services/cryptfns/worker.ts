@@ -1,16 +1,23 @@
-import { encrypt as aesEncrypt, decrypt as aesDecrypt } from './aes'
+import { encrypt as _encrypt, decrypt as _decrypt } from './aes'
 import * as logger from '!/logger'
 import {
   ENABLE_CRYPTO_WORKERS,
   MAX_CRYPTO_WORKERS,
   MAX_WAIT_FOR_CRYPTO_WORKER_MS
-} from '!/storage/constants'
+} from '!/constants'
 
 // @ts-ignore
 import { serviceWorkerFile } from 'virtual:vite-plugin-service-worker'
 import { uuidv4 } from '..'
 
+/**
+ * Lets us know did we already do the setup so we can skip for the next time
+ */
 let __triedSetup = false
+
+/**
+ * Keeps the rotation of the workers, so each new job gets the worker that was waiting the longest
+ */
 let lastUsed = 0
 
 /**
@@ -86,7 +93,7 @@ async function setupSingleWorker(index: number): Promise<void> {
   return new Promise((resolve) => {
     const worker = new Worker(serviceWorkerFile, {
       type: 'module',
-      name: `Hoodik Crypto Worker ${index}`
+      name: `Hoodik Crypto Worker ${index} - parent: ${self.__IDENTITY || 'unknown'}`
     })
 
     worker.onmessage = async (event) => {
@@ -170,7 +177,7 @@ export async function encrypt(plaintext: Uint8Array, key: Uint8Array): Promise<U
     return postMessage(index, 'encrypt', plaintext, key)
   }
 
-  return aesEncrypt(plaintext, key)
+  return _encrypt(plaintext, key)
 }
 
 /**
@@ -184,5 +191,21 @@ export async function decrypt(ciphertext: Uint8Array, key: Uint8Array): Promise<
     return postMessage(index, 'decrypt', ciphertext, key)
   }
 
-  return aesDecrypt(ciphertext, key)
+  return _decrypt(ciphertext, key)
+}
+
+/**
+ * Terminate all the running workers when we don't need
+ * them anymore.
+ */
+export function terminate() {
+  while (__workers.length) {
+    const worker = __workers.pop()
+
+    if (worker) {
+      worker.terminate()
+    }
+  }
+
+  __results.clear()
 }

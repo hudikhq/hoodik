@@ -3,7 +3,7 @@ import { uploadChunk } from './chunk'
 import type { UploadAppFile } from 'types'
 import type { ErrorResponse } from '../../api'
 import type Api from '../../api'
-import { CHUNK_SIZE_BYTES, CONCURRENT_CHUNKS_UPLOAD } from '../constants'
+import { CHUNK_SIZE_BYTES, CONCURRENT_CHUNKS_UPLOAD } from '../../constants'
 
 /**
  * Run chunked file upload from start to end in the worker

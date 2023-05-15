@@ -10,7 +10,7 @@ import {
   CHUNK_SIZE_BYTES,
   FILES_UPLOADING_AT_ONE_TIME,
   KEEP_FINISHED_UPLOADS_FOR_MINUTES
-} from '../constants'
+} from '../../constants'
 import * as logger from '!/logger'
 
 import type {
