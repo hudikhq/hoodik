@@ -10,7 +10,7 @@ use crate::{auth::Auth, data::extractor::Extractor};
 /// Once both of those are present, it will refresh the session and return the new session.
 ///
 /// Response: [crate::data::authenticated::Authenticated]
-pub async fn refresh(req: HttpRequest) -> AppResult<HttpResponse> {
+pub(crate) async fn refresh(req: HttpRequest) -> AppResult<HttpResponse> {
     let context = req
         .app_data::<web::Data<Context>>()
         .ok_or_else(|| Error::InternalError("missing_context".to_string()))?;

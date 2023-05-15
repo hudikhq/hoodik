@@ -11,7 +11,7 @@ use crate::{contract::StorageProvider, repository::Repository, storage::Storage}
 /// Delete a file or directory by its id
 /// Also, deletes recursively all files and directories inside the directory
 #[route("/api/storage/{file_id}", method = "DELETE")]
-pub async fn delete(
+pub(crate) async fn delete(
     req: HttpRequest,
     claims: Claims,
     context: web::Data<Context>,

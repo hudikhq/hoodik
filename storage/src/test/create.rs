@@ -14,7 +14,7 @@ fn app_file_vec_to_str_vec(files: &[AppFile]) -> Vec<String> {
         .collect()
 }
 
-pub async fn create_file<'ctx, T: ConnectionTrait>(
+pub(crate) async fn create_file<'ctx, T: ConnectionTrait>(
     repository: &'ctx Repository<'ctx, T>,
     user: &users::Model,
     name: &str,

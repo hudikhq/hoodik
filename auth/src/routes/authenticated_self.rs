@@ -7,6 +7,6 @@ use crate::data::authenticated::Authenticated;
 ///
 /// Response: [crate::data::authenticated::Authenticated]
 #[route("/api/auth/self", method = "POST")]
-pub async fn authenticated_self(authenticated: Authenticated) -> AppResult<HttpResponse> {
+pub(crate) async fn authenticated_self(authenticated: Authenticated) -> AppResult<HttpResponse> {
     Ok(HttpResponse::Ok().json(authenticated))
 }

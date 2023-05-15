@@ -11,7 +11,7 @@ use crate::{contract::StorageProvider, repository::Repository, storage::Storage}
 ///
 /// Response: [crate::data::app_file::AppFile]
 #[route("/api/storage/{file_id}/metadata", method = "GET")]
-pub async fn metadata(
+pub(crate) async fn metadata(
     req: HttpRequest,
     claims: Claims,
     context: web::Data<Context>,

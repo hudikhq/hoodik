@@ -14,7 +14,10 @@ use crate::auth::Auth;
 ///
 /// Response: [entity::users::Model]
 #[route("/api/auth/{action}/{id}", method = "POST")]
-pub async fn action(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
+pub(crate) async fn action(
+    req: HttpRequest,
+    context: web::Data<Context>,
+) -> AppResult<HttpResponse> {
     let auth = Auth::new(&context);
     let action: String = util::actix::path_var(&req, "action")?;
     let id: Uuid = util::actix::path_var(&req, "id")?;

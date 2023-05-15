@@ -13,7 +13,7 @@ use crate::{
 ///
 /// Response: [Authenticated]
 #[route("/api/auth/register", method = "POST")]
-pub async fn register(
+pub(crate) async fn register(
     req: HttpRequest,
     context: web::Data<Context>,
     data: web::Json<CreateUser>,

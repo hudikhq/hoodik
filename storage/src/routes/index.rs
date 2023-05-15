@@ -13,7 +13,7 @@ use crate::{
 ///
 /// Response: [crate::data::response::Response]
 #[route("/api/storage", method = "GET")]
-pub async fn index(
+pub(crate) async fn index(
     claims: Claims,
     context: web::Data<Context>,
     data: web::Query<Query>,

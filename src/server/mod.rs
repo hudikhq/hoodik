@@ -28,6 +28,8 @@ pub mod routes {
     //! from various packages we depend on.
     pub use auth::routes as auth_routes;
     pub use storage::routes as storage_routes;
+
+    pub use auth::routes::signature::signature;
 }
 
 pub mod client;

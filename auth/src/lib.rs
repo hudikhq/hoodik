@@ -7,10 +7,11 @@ pub mod providers;
 pub mod routes;
 
 mod emails;
-#[cfg(test)]
-mod test;
 
 pub(crate) const REFRESH_PATH: &str = "/api/auth/refresh";
+
+#[cfg(test)]
+mod test;
 
 #[cfg(feature = "mock")]
 /// Extract cookies from response headers
