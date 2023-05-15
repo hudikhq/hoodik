@@ -22,7 +22,7 @@ export const CHUNK_SIZE_BYTES = 1024 * 1024 * 4
  *
  * @experimental
  */
-export const ENABLE_CRYPTO_WORKERS = true
+export const ENABLE_CRYPTO_WORKERS = false
 
 /**
  * The maximum number of workers to spawn for the crypto jobs
