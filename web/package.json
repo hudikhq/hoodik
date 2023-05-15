@@ -35,6 +35,7 @@
     "qrcode.vue": "^3.3.4",
     "scrollmonitor": "^1.2.11",
     "stream-browserify": "^3.0.0",
+    "threads": "^1.7.0",
     "util": "^0.12.5",
     "vee-validate": "^4.8.4",
     "vue": "^3.2.47",

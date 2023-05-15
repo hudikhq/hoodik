@@ -35,7 +35,11 @@ impl Validation for Meta {
     fn rules(&self) -> Vec<Rule<Self>> {
         vec![
             rule_required!(chunk),
-            rule_required!(checksum),
+            // rule_required!(checksum),
+            rule_in!(
+                checksum_function,
+                vec!["crc16".to_string(), "sha256".to_string()]
+            ),
             Rule::new("chunk", |obj: &Self, error| {
                 if let Some(v) = obj.chunk {
                     if v < 0 {
@@ -54,14 +58,13 @@ impl Validation for Meta {
 }
 
 impl Meta {
-    pub fn into_tuple(self) -> AppResult<(i32, String, String, Option<String>)> {
+    pub fn into_tuple(self) -> AppResult<(i32, Option<String>, Option<String>, Option<String>)> {
         let data = self.validate()?;
 
         Ok((
             data.chunk.unwrap(),
-            data.checksum.unwrap_or_default(),
-            data.checksum_function
-                .unwrap_or_else(|| "sha256".to_string()),
+            data.checksum.clone(),
+            data.checksum_function.clone(),
             data.key_hex,
         ))
     }

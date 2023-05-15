@@ -1,4 +1,4 @@
-import { PREVIEW_MIME_TYPES, IMAGE_THUMBNAIL_SIZE_PX } from '../constants'
+import { PREVIEW_MIME_TYPES, IMAGE_THUMBNAIL_SIZE_PX } from '../../constants'
 
 /**
  * Take the selected file and create a thumbnail from it

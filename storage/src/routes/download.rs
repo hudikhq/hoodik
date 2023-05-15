@@ -6,16 +6,19 @@ use context::Context;
 use entity::Uuid;
 use error::{AppResult, Error};
 
-use crate::{contract::StorageProvider, repository::Repository, storage::Storage};
+use crate::{
+    contract::StorageProvider,
+    repository::{cached::get_file, Repository},
+    storage::Storage,
+};
 
 /// Get file content by its id
 ///
 /// Request:
-///  - Query: chunk: i32 - if omitted, first chunk will be downloaded
+///  - Query: chunk: i32 - if omitted, file be streamed until its completely downloaded
 ///
-/// Response: [actix_files::NamedFile]
+/// Response: [actix_web::web::Bytes]
 ///  - Content-Type: application/octet-stream
-///  - File Name will be the original file name
 #[route("/api/storage/{file_id}", method = "GET")]
 pub(crate) async fn download(
     req: HttpRequest,
@@ -27,42 +30,15 @@ pub(crate) async fn download(
     let file_id = Uuid::from_str(&file_id)?;
     let chunk = util::actix::query_var::<i32>(&req, "chunk").ok();
 
-    let file = Repository::new(&context.db)
-        .query(claims.sub)
-        .file(file_id)
-        .await?;
+    let file = get_file(&context, claims.sub, file_id)
+        .await
+        .ok_or_else(|| Error::NotFound("file_not_found".to_string()))?;
 
     let filename = file
         .get_filename()
         .ok_or(Error::NotFound("file_not_found".to_string()))?;
 
     let storage = Storage::new(&context.config);
-
-    let mut files = vec![];
-
-    if let Some(c) = chunk {
-        let fs_file = storage
-            .get(&filename, c)
-            .await
-            .map_err(|_| error::Error::NotFound("file_not_found".to_string()))?;
-
-        files.push(fs_file);
-    } else {
-        let chunks = storage
-            .get_uploaded_chunks(&filename)
-            .await
-            .map_err(|_| error::Error::NotFound("file_not_found".to_string()))?;
-
-        // check that all the chunks are available
-        for chunk in chunks {
-            let fs_file = storage
-                .get(&filename, chunk)
-                .await
-                .map_err(|_| error::Error::NotFound("file_not_found".to_string()))?;
-
-            files.push(fs_file);
-        }
-    }
 
     let streamer = storage.stream(&filename, chunk).await;
 

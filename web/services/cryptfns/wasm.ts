@@ -15,6 +15,9 @@ import {
   aes_generate_key,
   aes_encrypt,
   aes_decrypt,
+  chacha_generate_key,
+  chacha_encrypt,
+  chacha_decrypt,
   text_into_hashed_tokens
 } from '../../node_modules/cryptfns/cryptfns.js'
 
@@ -48,5 +51,8 @@ export {
   aes_generate_key,
   aes_encrypt,
   aes_decrypt,
+  chacha_generate_key,
+  chacha_encrypt,
+  chacha_decrypt,
   text_into_hashed_tokens
 }

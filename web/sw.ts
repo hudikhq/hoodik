@@ -42,6 +42,8 @@ onmessage = async (message: MessageEvent<any>) => {
 
   // Handle ping messages from the main thread
   if (message.data?.type === 'ping') {
+    self.__IDENTITY = message.data?.name || undefined
+
     postMessage({ type: 'pong' })
   }
 

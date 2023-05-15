@@ -5,6 +5,7 @@ use auth::data::claims::Claims;
 use context::Context;
 use entity::Uuid;
 use error::{AppResult, Error};
+use log::warn;
 
 use crate::{
     contract::StorageProvider,
@@ -39,9 +40,10 @@ pub(crate) async fn upload(
     let file_id = Uuid::from_str(&file_id)?;
     let (chunk, checksum, checksum_function, key_hex) = meta.into_inner().into_tuple()?;
 
-    let body_checksum = match checksum_function.as_str() {
-        "crc16" => cryptfns::crc::crc16_digest(&request_body),
-        _ => cryptfns::sha256::digest(request_body.as_ref()),
+    let body_checksum = match checksum_function.as_ref().map(|s| s.as_str()) {
+        Some("crc16") => Some(cryptfns::crc::crc16_digest(&request_body)),
+        Some("sha256") => Some(cryptfns::sha256::digest(request_body.as_ref())),
+        _ => None,
     };
 
     // Encrypting the payload if the encryption key is provided
@@ -51,9 +53,17 @@ pub(crate) async fn upload(
         request_body = web::Bytes::from(encrypted);
     }
 
-    if checksum != body_checksum {
-        let error = format!("checksum_mismatch: {checksum} != {body_checksum}");
-        return Err(Error::as_validation("checksum", &error));
+    if let Some(body_checksum) = body_checksum {
+        if checksum.as_ref() != Some(&body_checksum) {
+            let error = format!(
+                "checksum_mismatch: '{}' != '{}'",
+                checksum.unwrap_or_default(),
+                body_checksum
+            );
+            return Err(Error::as_validation("checksum", &error));
+        }
+    } else {
+        warn!("Not validating uploaded chunk checksum");
     }
 
     let storage = Storage::new(&context.config);

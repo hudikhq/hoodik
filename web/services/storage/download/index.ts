@@ -14,7 +14,7 @@ import type {
 } from '../../../types'
 import type { KeyPair } from 'types'
 import { errorIntoWorkerError, localDateFromUtcString, utcStringFromLocal, uuidv4 } from '../..'
-import { FILES_DOWNLOADING_AT_ONE_TIME, KEEP_FINISHED_DOWNLOADS_FOR_MINUTES } from '../constants'
+import { FILES_DOWNLOADING_AT_ONE_TIME, KEEP_FINISHED_DOWNLOADS_FOR_MINUTES } from '../../constants'
 import { ref } from 'vue'
 import { startFileDownload } from '../workers'
 

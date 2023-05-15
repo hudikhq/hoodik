@@ -1,52 +1,41 @@
 use crate::error::{CryptoResult, Error};
-use ascon_aead::aead::{Aead, KeyInit};
-use ascon_aead::{Ascon128a, Key, Nonce};
+use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, Key, KeyInit, Nonce};
 
-const KEY_LENGTH: usize = 16;
-const NONCE_LENGTH: usize = 16;
+const KEY_LENGTH: usize = 32;
+const NONCE_LENGTH: usize = 12;
 
 /// Generate random key with nonce for encryption/decryption
 pub fn generate_key() -> CryptoResult<Vec<u8>> {
     let mut random_key = vec![
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     ];
     getrandom::getrandom(&mut random_key)?;
 
     Ok(random_key)
 }
 
-/// Exposing the AES encrypt function
+/// Simple encrypt of the plaintext using chacha-poly1305
 pub fn encrypt(key: Vec<u8>, plaintext: Vec<u8>) -> CryptoResult<Vec<u8>> {
-    encrypt_aead(key, plaintext)
-}
+    let (key, nonce) = split_key_nonce(key.clone());
+    let key = Key::from_slice(&key);
+    let nonce = Nonce::from_slice(&nonce);
+    let cipher = ChaCha20Poly1305::new(&key);
 
-/// Exposing the AES decrypt function
-pub fn decrypt(key: Vec<u8>, ciphertext: Vec<u8>) -> CryptoResult<Vec<u8>> {
-    decrypt_aead(key, ciphertext)
-}
-
-/// Encrypt the data with given key and iv ASCON_AEAD
-fn encrypt_aead(key: Vec<u8>, plaintext: Vec<u8>) -> CryptoResult<Vec<u8>> {
-    let (key, nonce) = split_key_nonce(key);
-
-    let key = Key::<Ascon128a>::from_slice(key.as_ref());
-    let nonce = Nonce::<Ascon128a>::from_slice(nonce.as_ref());
-
-    Ascon128a::new(key)
-        .encrypt(nonce, plaintext.as_ref())
+    cipher
+        .encrypt(&nonce, plaintext.as_ref())
         .map_err(Error::from)
 }
 
-/// Decrypt the data with given key and iv ASCON_AEAD
-fn decrypt_aead(key: Vec<u8>, ciphertext: Vec<u8>) -> CryptoResult<Vec<u8>> {
-    let (key, nonce) = split_key_nonce(key);
+/// Simple decrypt of the ciphertext using chacha-poly1305
+pub fn decrypt(key: Vec<u8>, ciphertext: Vec<u8>) -> CryptoResult<Vec<u8>> {
+    let (key, nonce) = split_key_nonce(key.clone());
+    let key = Key::from_slice(&key);
+    let nonce = Nonce::from_slice(&nonce);
+    let cipher = ChaCha20Poly1305::new(&key);
 
-    let key = Key::<Ascon128a>::from_slice(key.as_ref());
-    let nonce = Nonce::<Ascon128a>::from_slice(nonce.as_ref());
-
-    Ascon128a::new(key)
-        .decrypt(nonce, ciphertext.as_ref())
+    cipher
+        .decrypt(&nonce, ciphertext.as_ref())
         .map_err(Error::from)
 }
 
@@ -72,7 +61,7 @@ pub fn split_key_nonce(mut input: Vec<u8>) -> (Vec<u8>, Vec<u8>) {
 #[cfg(test)]
 mod test {
     #[test]
-    fn test_aes_encrypt_and_decrypt() {
+    fn test_chacha_encrypt_and_decrypt() {
         let plaintext = b"plaintext message".to_vec();
         let key = b"very secret key.very secret key.".to_vec();
 

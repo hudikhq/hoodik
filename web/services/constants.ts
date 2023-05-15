@@ -22,7 +22,7 @@ export const CHUNK_SIZE_BYTES = 1024 * 1024 * 4
  *
  * @experimental
  */
-export const ENABLE_CRYPTO_WORKERS = false
+export const ENABLE_CRYPTO_WORKERS = true
 
 /**
  * The maximum number of workers to spawn for the crypto jobs
@@ -32,7 +32,7 @@ export const ENABLE_CRYPTO_WORKERS = false
  * Should be >= (CONCURRENT_CHUNKS_UPLOAD + 1) otherwise the upload will block... thats why its still
  * experimental
  */
-export const MAX_CRYPTO_WORKERS = 16
+export const MAX_CRYPTO_WORKERS = 8
 
 /**
  * Maximum amount of time to wait for a worker to respond
@@ -44,15 +44,38 @@ export const MAX_WAIT_FOR_CRYPTO_WORKER_MS = 10000
  * Upload constants
  */
 export const MAX_UPLOAD_RETRIES = 3
-export const CONCURRENT_CHUNKS_UPLOAD = 4 // this is only used when doing it from the worker
+
+/**
+ * Uploading multiple chunks at once, this is only done when
+ * the web worker is uploading your file.
+ */
+export const CONCURRENT_CHUNKS_UPLOAD = 8
+
+/**
+ * Number of files that will be running the upload at the same time,
+ * during testing, best outcome was having only one file running.
+ */
 export const FILES_UPLOADING_AT_ONE_TIME = 1
+
+/**
+ * How long will the finished upload be kept in the status bar
+ */
 export const KEEP_FINISHED_UPLOADS_FOR_MINUTES = 15
 
 /**
  * Download constants
  */
-export const DOWNLOAD_POOL_LIMIT = 1
+export const DOWNLOAD_POOL_LIMIT = 16
+
+/**
+ * Number of files that will be running the upload at the same time,
+ * during testing, best outcome was having only one file running.
+ */
 export const FILES_DOWNLOADING_AT_ONE_TIME = 1
+
+/**
+ * How long will the finished download be kept in the status bar
+ */
 export const KEEP_FINISHED_DOWNLOADS_FOR_MINUTES = 15
 
 /**
