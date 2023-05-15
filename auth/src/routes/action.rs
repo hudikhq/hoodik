@@ -6,18 +6,15 @@ use error::AppResult;
 use crate::auth::Auth;
 
 /// Activation link in the email will point towards frontend application
-/// which you can verify in the [crate::emails::activate]
+/// which you can verify in the `crate::emails::activate`
 ///
 /// The frontend, once the link has been opened will make a HTTP post call to the
 /// backend with the action `activate-email` and the id of the action,
 /// which will verify users account.
 ///
-/// Response: [crate::data::user::User]
+/// Response: [entity::users::Model]
 #[route("/api/auth/{action}/{id}", method = "POST")]
-pub(crate) async fn action(
-    req: HttpRequest,
-    context: web::Data<Context>,
-) -> AppResult<HttpResponse> {
+pub async fn action(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
     let auth = Auth::new(&context);
     let action: String = util::actix::path_var(&req, "action")?;
     let id: Uuid = util::actix::path_var(&req, "id")?;

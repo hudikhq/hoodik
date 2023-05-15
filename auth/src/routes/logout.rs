@@ -6,7 +6,7 @@ use crate::{auth::Auth, data::authenticated::Authenticated};
 
 /// Logout user and perform session destroy
 #[route("/api/auth/logout", method = "POST")]
-pub(crate) async fn logout(
+pub async fn logout(
     context: web::Data<Context>,
     authenticated: Authenticated,
 ) -> AppResult<HttpResponse> {

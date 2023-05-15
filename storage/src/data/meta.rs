@@ -8,6 +8,8 @@ use ::error::AppResult;
 use serde::{Deserialize, Serialize};
 use validr::*;
 
+pub type MetaTuple = (i32, Option<String>, Option<String>, Option<String>);
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Meta {
     /// The chunk number that is being uploaded
@@ -58,7 +60,7 @@ impl Validation for Meta {
 }
 
 impl Meta {
-    pub fn into_tuple(self) -> AppResult<(i32, Option<String>, Option<String>, Option<String>)> {
+    pub fn into_tuple(self) -> AppResult<MetaTuple> {
         let data = self.validate()?;
 
         Ok((

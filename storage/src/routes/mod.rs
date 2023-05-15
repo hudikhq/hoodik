@@ -1,11 +1,11 @@
-mod create;
-mod delete;
-mod download;
-mod index;
-mod metadata;
-mod name_hash;
-mod search;
-mod upload;
+pub mod create;
+pub mod delete;
+pub mod download;
+pub mod index;
+pub mod metadata;
+pub mod name_hash;
+pub mod search;
+pub mod upload;
 
 /// Register the authentication routes
 /// on to the application server

@@ -13,7 +13,7 @@ use crate::{
 ///
 /// Response: [crate::data::authenticated::Authenticated]
 #[route("/api/auth/signature", method = "POST")]
-pub(crate) async fn signature(
+pub async fn signature(
     req: HttpRequest,
     context: web::Data<Context>,
     data: web::Json<Signature>,

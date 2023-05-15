@@ -20,7 +20,7 @@ use crate::{
 /// Response: [actix_web::web::Bytes]
 ///  - Content-Type: application/octet-stream
 #[route("/api/storage/{file_id}", method = "GET")]
-pub(crate) async fn download(
+pub async fn download(
     req: HttpRequest,
     claims: Claims,
     context: web::Data<Context>,
@@ -60,7 +60,7 @@ pub(crate) async fn download(
 /// Get head response for a file this will give all the header
 /// information, but no file content.
 #[route("/api/storage/{file_id}", method = "HEAD")]
-pub(crate) async fn head(
+pub async fn head(
     req: HttpRequest,
     context: web::Data<Context>,
     claims: web::Data<Claims>,
