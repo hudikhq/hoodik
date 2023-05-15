@@ -28,7 +28,7 @@ use crate::{
 /// because the content is encrypted and we cannot ensure it is the correct chunk or data.
 /// Only thing we will do is compare the checksum the uploader gave us for the uploaded chunk
 #[route("/api/storage/{file_id}", method = "POST")]
-pub(crate) async fn upload(
+pub async fn upload(
     req: HttpRequest,
     claims: Claims,
     context: web::Data<Context>,
@@ -40,7 +40,7 @@ pub(crate) async fn upload(
     let file_id = Uuid::from_str(&file_id)?;
     let (chunk, checksum, checksum_function, key_hex) = meta.into_inner().into_tuple()?;
 
-    let body_checksum = match checksum_function.as_ref().map(|s| s.as_str()) {
+    let body_checksum = match checksum_function.as_deref() {
         Some("crc16") => Some(cryptfns::crc::crc16_digest(&request_body)),
         Some("sha256") => Some(cryptfns::sha256::digest(request_body.as_ref())),
         _ => None,

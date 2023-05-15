@@ -10,7 +10,7 @@ use crate::{contract::StorageProvider, repository::Repository, storage::Storage}
 ///
 /// Response: [crate::data::app_file::AppFile]
 #[route("/api/storage/{name_hash}/name-hash", method = "GET")]
-pub(crate) async fn name_hash(
+pub async fn name_hash(
     req: HttpRequest,
     claims: Claims,
     context: web::Data<Context>,

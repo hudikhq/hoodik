@@ -17,25 +17,25 @@ pub fn generate_key() -> CryptoResult<Vec<u8>> {
 
 /// Simple encrypt of the plaintext using chacha-poly1305
 pub fn encrypt(key: Vec<u8>, plaintext: Vec<u8>) -> CryptoResult<Vec<u8>> {
-    let (key, nonce) = split_key_nonce(key.clone());
+    let (key, nonce) = split_key_nonce(key);
     let key = Key::from_slice(&key);
     let nonce = Nonce::from_slice(&nonce);
-    let cipher = ChaCha20Poly1305::new(&key);
+    let cipher = ChaCha20Poly1305::new(key);
 
     cipher
-        .encrypt(&nonce, plaintext.as_ref())
+        .encrypt(nonce, plaintext.as_ref())
         .map_err(Error::from)
 }
 
 /// Simple decrypt of the ciphertext using chacha-poly1305
 pub fn decrypt(key: Vec<u8>, ciphertext: Vec<u8>) -> CryptoResult<Vec<u8>> {
-    let (key, nonce) = split_key_nonce(key.clone());
+    let (key, nonce) = split_key_nonce(key);
     let key = Key::from_slice(&key);
     let nonce = Nonce::from_slice(&nonce);
-    let cipher = ChaCha20Poly1305::new(&key);
+    let cipher = ChaCha20Poly1305::new(key);
 
     cipher
-        .decrypt(&nonce, ciphertext.as_ref())
+        .decrypt(nonce, ciphertext.as_ref())
         .map_err(Error::from)
 }
 

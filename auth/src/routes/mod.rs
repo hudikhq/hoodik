@@ -4,14 +4,14 @@
 
 use actix_web::web;
 
-mod action;
-mod authenticated_self;
-mod credentials;
-mod generate_two_factor;
-mod logout;
-mod refresh;
-mod register;
-mod signature;
+pub mod action;
+pub mod authenticated_self;
+pub mod credentials;
+pub mod generate_two_factor;
+pub mod logout;
+pub mod refresh;
+pub mod register;
+pub mod signature;
 
 /// Register the authentication routes
 /// on to the application server
