@@ -205,15 +205,29 @@ window.addEventListener('keydown', (e) => {
     >
       <div class="absolute top-0 w-full">
         <div class="float-right space-x-4 p-4">
-          <BaseButton v-if="!hideDelete" color="danger" :icon="mdiTrashCan" small @click="remove" />
+          <BaseButton
+            v-if="!hideDelete"
+            color="danger"
+            :icon="mdiTrashCan"
+            small
+            @click="remove"
+            name="preview-remove"
+          />
           <BaseButton
             color="light"
             :icon="mdiInformationSlabCircleOutline"
             small
             @click="details"
+            name="preview-details"
           />
-          <BaseButton color="light" :icon="mdiDownload" small @click="download" />
-          <BaseButton color="light" :icon="mdiClose" small @click="cancel" />
+          <BaseButton
+            color="light"
+            :icon="mdiDownload"
+            small
+            @click="download"
+            name="preview-download"
+          />
+          <BaseButton color="light" :icon="mdiClose" small @click="cancel" name="preview-close" />
         </div>
         <div class="float-left space-x-4 p-4">
           <h1>{{ file.metadata?.name }}</h1>
@@ -224,6 +238,7 @@ window.addEventListener('keydown', (e) => {
         <template v-if="hasPreview">
           <img
             key="original"
+            name="original"
             v-if="imageUrl"
             :src="imageUrl"
             :alt="props.modelValue?.metadata?.name"
@@ -232,6 +247,7 @@ window.addEventListener('keydown', (e) => {
           />
           <img
             key="thumbnail"
+            name="loading-thumbnail"
             v-else
             :src="props.modelValue?.metadata?.thumbnail"
             :alt="props.modelValue?.metadata?.name"

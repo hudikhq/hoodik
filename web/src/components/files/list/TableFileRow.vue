@@ -160,8 +160,13 @@ const doubleClick = () => {
       <TableCheckboxCell v-if="!props.hideCheckbox" v-model="checked" />
     </div>
 
-    <div :class="`${sizes.name} cursor-pointer prevent-select`" :title="fileName" @click="click">
+    <button
+      :class="`${sizes.name} flex justify-start cursor-pointer prevent-select text-left`"
+      :title="fileName"
+      @click="click"
+    >
       <img
+        name="thumbnail"
         v-if="file.metadata?.thumbnail"
         :src="file.metadata?.thumbnail"
         :alt="fileName"
@@ -169,7 +174,7 @@ const doubleClick = () => {
       />
 
       <TruncatedSpan :middle="fileName.length > 50" :text="fileName" />
-    </div>
+    </button>
 
     <div :class="sizes.size" :title="fileSize">
       <span>{{ fileSize || '-' }}</span>

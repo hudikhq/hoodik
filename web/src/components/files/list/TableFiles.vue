@@ -134,6 +134,7 @@ const sizes = {
     />
 
     <BaseButton
+      name="create-dir"
       title="Create directory"
       :iconSize="20"
       :xs="true"
@@ -144,6 +145,7 @@ const sizes = {
     />
 
     <BaseButton
+      name="browse"
       title="Upload files"
       :iconSize="20"
       :xs="true"

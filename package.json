@@ -21,7 +21,8 @@
     "e2e": "./e2e",
     "unit": "turbo run wasm-pack && turbo run test:unit",
     "tc": "turbo run type-check",
-    "all": "turbo run type-check && turbo run test:unit && ./e2e"
+    "all": "turbo run type-check && turbo run test:unit && ./e2e",
+    "cypress:open": "turbo run cypress:open"
   },
   "packageManager": "yarn@1.22.19",
   "devDependencies": {

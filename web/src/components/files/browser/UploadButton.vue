@@ -49,5 +49,12 @@ watch(
 )
 </script>
 <template>
-  <input style="display: none" type="file" ref="input" multiple @change="addFiles" />
+  <input
+    name="upload-file-input"
+    style="display: none"
+    type="file"
+    ref="input"
+    multiple
+    @change="addFiles"
+  />
 </template>
