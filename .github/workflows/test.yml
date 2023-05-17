@@ -52,9 +52,6 @@ jobs:
           mkdir -p /tmp/data
           sudo chmod -R 777 /tmp/data
 
-      - name: Update env.e2e file
-        run: echo "DATA_DIR=$DATA_DIR" >> .env.e2e
-
       - name: Run web E2E test
         run: ./web-e2e
 
