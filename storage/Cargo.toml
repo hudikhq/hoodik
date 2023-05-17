@@ -12,7 +12,6 @@ description = "Application storage service that manages files and folders."
 [dependencies]
 log = "^0.4"
 actix-web = "^4"
-actix-files = "^0.6"
 futures-util = "^0.3"
 validr = "^0.3"
 serde = "^1"

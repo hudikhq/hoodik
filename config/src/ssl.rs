@@ -55,7 +55,7 @@ impl SslConfig for Config {
 
         match (cert_file, key_file) {
             (Some(cert_file), Some(key_file)) => Ok((cert_file, key_file)),
-            (None, None) => {
+            (None, None) | (Some(_), None) | (None, Some(_)) => {
                 let (cert, key) = self.generate_simple_self_signed(vec![self.address.clone()])?;
 
                 let mut cert_file = File::create(&self.ssl_cert_file)?;
@@ -68,9 +68,6 @@ impl SslConfig for Config {
 
                 Ok((cert_file, key_file))
             }
-            _ => Err(Error::from(
-                "Either both cert and key must be provided or none",
-            )),
         }
     }
 }
