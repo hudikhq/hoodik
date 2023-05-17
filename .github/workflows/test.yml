@@ -33,7 +33,7 @@ jobs:
         run: sudo apt-get install curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev -y
 
       - name: Install wasm pack tool
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Install yarn
         run: npm install -g yarn
@@ -46,6 +46,12 @@ jobs:
 
       - name: Install yarn dependencies
         run: yarn install
+
+      - name: Prepare test-data directory
+        run: mkdir ./test-data && chmod 777 ./test-data
+
+      - name: Update the e2e env file
+        run: echo "DATA_DIR=./test-data" >> .env.e2e
 
       - name: E2E test web
         run: ./web-e2e
