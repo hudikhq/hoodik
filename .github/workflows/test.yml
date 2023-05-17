@@ -47,12 +47,16 @@ jobs:
       - name: Install yarn dependencies
         run: yarn install
 
-      - name: Run web E2E
+      - name: Prepare DATA_DIR
         run: |
-          mkdir $PWD/test-data && 
-          chmod 777 $PWD/test-data && 
-          echo "DATA_DIR=$PWD/test-data" >> .env.e2e &&
-          ./web-e2e
+          mkdir -p /tmp/data
+          sudo chmod -R 777 /tmp/data
+
+      - name: Update env.e2e file
+        run: echo "DATA_DIR=$DATA_DIR" >> .env.e2e
+
+      - name: Run web E2E test
+        run: ./web-e2e
 
       - name: Wasm pack cryptfns
         run: yarn workspace @hoodik/cryptfns wasm-pack

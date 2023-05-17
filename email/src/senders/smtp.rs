@@ -51,6 +51,12 @@ impl SenderContract for SmtpSender {
                 email = email.from_mailbox(&self.default_from);
             }
 
+            if email.skip_send() {
+                sent += 1;
+
+                continue;
+            }
+
             let message = email.message()?;
 
             match self.smtp.send(&message) {

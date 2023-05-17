@@ -14,6 +14,7 @@ pub struct Template {
     base_content: bool,
     has_reply_to: bool,
     base_extra_head: bool,
+    skip_send: bool,
     builder: MessageBuilder,
 }
 
@@ -40,6 +41,7 @@ impl Template {
             base_content: false,
             has_reply_to: false,
             base_extra_head: false,
+            skip_send: false,
             builder,
         })
     }
@@ -117,21 +119,21 @@ impl Template {
     }
 
     /// Add a recipient of the email
-    pub fn to(mut self, to: &str) -> AppResult<Self> {
+    pub fn to(self, to: &str) -> AppResult<Self> {
         let mailbox = to
             .parse()
             .map_err(|_| Error::BadRequest(format!("invalid_to_address_provided:{to}")))?;
 
-        self.builder = self.builder.to(mailbox);
-
-        self.has_to = true;
-
-        Ok(self)
+        Ok(self.to_mailbox(&mailbox))
     }
 
     /// Add a recipient to the email
     pub fn to_mailbox(mut self, to: &Mailbox) -> Self {
         self.builder = self.builder.to(to.clone());
+
+        if to.email.domain() == "test.com" {
+            self.skip_send = true;
+        }
 
         self.has_to = true;
 
@@ -148,6 +150,11 @@ impl Template {
     /// Does the current template have a from field defined
     pub fn has_from(&self) -> bool {
         self.has_from
+    }
+
+    /// Is this email marked to not be sent
+    pub fn skip_send(&self) -> bool {
+        self.skip_send
     }
 
     /// Does the current template have a to field defined
