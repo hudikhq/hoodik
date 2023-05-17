@@ -2,6 +2,9 @@
 
 set -e
 
+mkdir /github/workspace/data
+echo "TEST" >> /github/workspace/data/test.txt
+
 cargo run -- -c .env.e2e &
 
 node_modules/.bin/wait-on -t 600000 -i 250 -w 250 https://127.0.0.1:5443/api/liveness || (kill -9 $! && exit 1)
