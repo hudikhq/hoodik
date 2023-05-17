@@ -37,5 +37,6 @@ export default defineConfig({
       return config
       // implement node event listeners here
     }
-  }
+  },
+  video: false
 })

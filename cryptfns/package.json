@@ -1,6 +1,7 @@
 {
   "name": "@hoodik/cryptfns",
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "main": "pkg/cryptfns.js",
   "types": "pkg/cryptfns.d.ts",

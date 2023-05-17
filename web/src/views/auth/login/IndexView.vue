@@ -29,6 +29,10 @@ const init = () => {
       password: yup.string().required('Password is required')
     }),
     onSubmit: async (values: Credentials) => {
+      if (typeof values.token !== 'undefined' && !values.token) {
+        delete values.token
+      }
+
       try {
         await login.withCredentials(crypto, values)
         router.push({ name: 'files' })

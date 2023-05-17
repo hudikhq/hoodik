@@ -3,13 +3,12 @@
   "license-file": "LICENSE.md",
   "name": "hoodik",
   "workspaces": [
+    "hoodik",
     "web",
     "cryptfns"
   ],
   "scripts": {
-    "dev": "cargo run",
-    "COMBINED COMMANDS": "####################",
-    "start": "yarn workspace @hoodik/cryptfns wasm-pack && yarn dev --parallel",
+    "start": "yarn workspace @hoodik/web run dev & yarn workspace @hoodik/hoodik run dev",
     "unit": "yarn workspace @hoodik/cryptfns wasm-pack && yarn workspace @hoodik/web test:unit"
   },
   "packageManager": "yarn@1.22.19",

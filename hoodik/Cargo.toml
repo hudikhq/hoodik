@@ -1,0 +1,36 @@
+[package]
+name = "hoodik"
+version = "0.5.0"
+edition = "2021"
+authors = ["Tibor Hudik <hello@hudik.eu>"]
+readme = "../README.md"
+license-file = "../LICENSE.md"
+description = "Hoodik is a simple, fast and end to end encrypted cloud storage."
+default-run = "hoodik"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "^0.4"
+env_logger = "^0.10"
+actix-web = { version = "^4", features = ["rustls"] }
+actix-cors = "0.6.3"
+reqwest = "^0.11"
+serde = "^1"
+serde_json = "^1"
+
+auth = { path = "../auth" }
+config = { path = "../config" }
+context = { path = "../context" }
+cryptfns = { path = "../cryptfns" }
+entity = { path = "../entity" }
+error = { path = "../error" }
+storage = { path = "../storage" }
+migration = { path = "../migration" }
+
+[dev-dependencies]
+chrono = { version = "0.4.23", features = ["serde"] }
+auth = { path = "../auth", features = ["mock"] }
+email = { path = "../email", features = ["mock"] }
+context = { path = "../context", features = ["mock"] }
+cryptfns = { path = "../cryptfns", features = ["mock"] }
