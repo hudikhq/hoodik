@@ -48,10 +48,10 @@ jobs:
         run: yarn install
 
       - name: Prepare test-data directory
-        run: mkdir ./test-data && chmod 777 ./test-data
+        run: mkdir $PWD/test-data && chmod 777 $PWD/test-data
 
       - name: Update the e2e env file
-        run: echo "DATA_DIR=./test-data" >> .env.e2e
+        run: echo "DATA_DIR=$PWD/test-data" >> .env.e2e
 
       - name: E2E test web
         run: ./web-e2e
