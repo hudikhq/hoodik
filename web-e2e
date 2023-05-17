@@ -2,15 +2,13 @@
 
 set -e
 
-./rust-e2e
 
-cargo run -- -c ./.env.e2e &
+cargo run -- -c .env.e2e &
 
 node_modules/.bin/wait-on -t 600000 -i 250 -w 250 https://127.0.0.1:5443/api/liveness && echo "API is up"
 
-turbo run wasm-pack
-
-(turbo test:e2e) || TEST_EXIT_CODE=$?
+export ENV_FILE="../.env.e2e"
+(yarn workspace @hoodik/web test:e2e) || TEST_EXIT_CODE=$?
 
 kill -9 $!
 

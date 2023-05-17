@@ -12,7 +12,6 @@ pub fn validate_password(password: &str) -> bool {
 
 /// Validate the provided token with the provided secret that it matches
 pub fn validate_otp(secret: &str, token: Option<&String>) -> bool {
-    println!("{:?} {:?}", &secret, &token);
     match token {
         Some(t) => GoogleAuthenticator::new().verify_code(secret, t, 1, 0),
         None => false,

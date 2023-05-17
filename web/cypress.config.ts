@@ -4,6 +4,10 @@ import { resolve } from 'path'
 import { config } from 'dotenv'
 
 function getEnvPath() {
+  if (process.env.ENV_FILE && fs.existsSync(resolve(process.env.ENV_FILE))) {
+    return resolve(process.env.ENV_FILE)
+  }
+
   if (fs.existsSync(resolve('../.env'))) {
     return resolve('../.env')
   }
@@ -18,6 +22,10 @@ function loadDotenv(): { [key: string]: string } {
     config({
       path
     }).parsed || {}
+
+  if (!data.APP_CLIENT_URL) {
+    data.APP_CLIENT_URL = data.APP_URL
+  }
 
   return data
 }

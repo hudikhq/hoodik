@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import * as main from '../../../services'
+import * as main from '../../services'
 
 const EXAMPLE_UTC = '2023-04-07T17:28:17.000000'
 

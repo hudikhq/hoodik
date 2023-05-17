@@ -29,28 +29,35 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Loading the configuration from
-        run: ls -la && cat "$PWD/.env.e2e" && export ENV_FILE="$PWD/.env.e2e" && node --version
-
       - name: Install os dependencies
         run: sudo apt install curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev -y
 
-      - name: Install wasm pack
+      - name: Install wasm pack tool
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Install yarn
         run: npm install -g yarn
 
+      - name: Loading the configuration from
+        run: ls -la && cat "$PWD/.env.e2e" && export ENV_FILE="$PWD/.env.e2e" && node --version
+
+      - name: Unit test Rust
+        run: ./rust-unit
+
+      - name: E2E test Rust
+        run: ./rust-e2e
+
       - name: Install yarn dependencies
         run: yarn install
 
-      - name: Wasm pack
-        run: yarn wasm-pack
+      - name: Wasm pack cryptfns
+        run: yarn workspace @hoodik/cryptfns wasm-pack
 
-      - name: Run unit tests
-        run: yarn unit
+      - name: Unit test web
+        run: yarn workspace @hoodik/web test:unit
 
-      # Some error with fetch is causing this to fail...
-      # All tests pass locally, will debug some other time
-      # - name: Run e2e tests
-      #   run: yarn e2e
+      - name: Build web
+        run: yarn workspace @hoodik/web build
+
+      - name: E2E test web
+        run: ./web-e2e

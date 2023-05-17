@@ -8,21 +8,12 @@
   ],
   "scripts": {
     "dev": "cargo run",
-    "test:watch": "cargo run",
     "test:unit": "./rust-unit",
+    "test:e2e": "./rust-e2e",
     "release": "cargo build --release",
-    "alias-commands": "Below this line ###########################################",
-    "preview": "turbo run wasm-pack && turbo run build && turbo run preview",
-    "release:all": "turbo run wasm-pack && turbo run build && turbo run release",
-    "release:front": "turbo run wasm-pack && turbo run build && turbo run release --filter=hoodik-web",
-    "start:front": "turbo run wasm-pack && turbo run dev --filter=hoodik-web",
-    "start": "turbo run wasm-pack && turbo run dev",
-    "wasm-pack": "turbo run wasm-pack",
-    "e2e": "./e2e",
-    "unit": "turbo run wasm-pack && turbo run test:unit",
-    "tc": "turbo run type-check",
-    "all": "turbo run type-check && turbo run test:unit && ./e2e",
-    "cypress:open": "turbo run cypress:open"
+    "COMBINED COMMANDS": "####################",
+    "start": "yarn workspace @hoodik/cryptfns wasm-pack && yarn dev --parallel",
+    "unit": "yarn workspace @hoodik/cryptfns wasm-pack && yarn workspace @hoodik/web test:unit"
   },
   "packageManager": "yarn@1.22.19",
   "devDependencies": {
