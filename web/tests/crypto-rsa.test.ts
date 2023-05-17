@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { rsa } from '../services/cryptfns'
 import { rsa_generate_private, init } from '../services/cryptfns/wasm'
 
+const printStuff = false
+
 const privatePem = `-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAsMvjT2NZNqJo/3AYHH3RIm5fwmOXabbYxduvtNp33JQQZSPu
 S+bbqe97jJXVIRUaEPWf05sCwctmFvxcL77FtWLCxaU8TYz4K59LAPcGLGuQO3Hl
@@ -60,22 +62,28 @@ describe('Crypto test', () => {
 
     const { input } = await rsa.inputToKeyPair(kp.input as string)
 
-    console.log('PRIVATE:')
-    console.log(kp.input)
-    console.log('PUBLIC:')
-    console.log(kp.publicKey)
+    if (printStuff) {
+      console.log('PRIVATE:')
+      console.log(kp.input)
+      console.log('PUBLIC:')
+      console.log(kp.publicKey)
+    }
 
     expect(input).toBe(kp.input)
 
     const encrypted = await rsa.protectPrivateKey(kp.input as string, '123')
 
-    console.log('ENCRYPTED PRIVATE KEY:')
-    console.log(encrypted)
+    if (printStuff) {
+      console.log('ENCRYPTED PRIVATE KEY:')
+      console.log(encrypted)
+    }
 
     const decrypted = await rsa.decryptPrivateKey(encrypted, '123')
 
-    console.log('DECRYPTED PRIVATE KEY:')
-    console.log(decrypted)
+    if (printStuff) {
+      console.log('DECRYPTED PRIVATE KEY:')
+      console.log(decrypted)
+    }
 
     const fingerprint = await rsa.getFingerprint(input as string)
     const fingerprintDecrypted = await rsa.getFingerprint(decrypted as string)
@@ -106,24 +114,32 @@ describe('Crypto test', () => {
 
     expect(kp2.publicKey).toBe(kp.publicKey)
 
-    console.log('PRIVATE KEY:')
-    console.log(kp.input)
+    if (printStuff) {
+      console.log('PRIVATE KEY:')
+      console.log(kp.input)
+    }
+
     const privateFingerprint = await rsa.getFingerprint(kp.input as string)
     const publicFingerprint = await rsa.getFingerprint(kp.publicKey as string)
 
-    console.log('PRIVATE KEY:')
-    console.log(kp.input)
-    console.log('PUBLIC KEY:')
-    console.log(kp.publicKey)
-    console.log('KEY ID:')
-    console.log(publicFingerprint)
+    if (printStuff) {
+      console.log('PRIVATE KEY:')
+      console.log(kp.input)
+      console.log('PUBLIC KEY:')
+      console.log(kp.publicKey)
+      console.log('KEY ID:')
+      console.log(publicFingerprint)
+    }
 
     expect(privateFingerprint).toBe(publicFingerprint)
     expect(privateFingerprint).toBe(backendFingerprint)
 
     const signature = await rsa.sign(kp, signatureMessage)
-    console.log('SIGNATURE:')
-    console.log(signature)
+
+    if (printStuff) {
+      console.log('SIGNATURE:')
+      console.log(signature)
+    }
 
     expect(await rsa.verify(signature, signatureMessage, publicPem)).toBe(true)
   })
@@ -145,22 +161,32 @@ describe('Crypto test', () => {
   it('UNIT: RSA: can decrypt message from rust backend', async () => {
     const kp = await rsa.inputToKeyPair(privatePem)
 
-    console.log('KEYSIZE:', kp.keySize)
+    if (printStuff) {
+      console.log('KEYSIZE:', kp.keySize)
+    }
 
     const messageBase64 = Buffer.from(encryptionMessage).toString('base64')
-    console.log('MESSAGE IN BASE64:', messageBase64)
+
+    if (printStuff) {
+      console.log('MESSAGE IN BASE64:', messageBase64)
+    }
 
     expect(encryptionMessage).toEqual(Buffer.from(messageBase64, 'base64').toString())
 
     const encryptedJs = await rsa.encryptMessage(encryptionMessage, kp.publicKey as string)
 
-    console.log('ENCRYPTED:', encryptedJs)
+    if (printStuff) {
+      console.log('ENCRYPTED:', encryptedJs)
+    }
 
     const decryptedJs = await rsa.decryptMessage(kp, encryptedJs)
 
     const decryptedRs = await rsa.decryptMessage(kp, encryptedRs)
 
-    console.log(decryptedRs)
+    if (printStuff) {
+      console.log(decryptedRs)
+    }
+
     expect(decryptedRs).toEqual(encryptionMessage)
     expect(decryptedJs).toEqual(encryptionMessage)
   })

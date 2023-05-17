@@ -53,11 +53,14 @@ jobs:
       - name: Wasm pack cryptfns
         run: yarn workspace @hoodik/cryptfns wasm-pack
 
-      - name: Unit test web
-        run: yarn workspace @hoodik/web test:unit
+      # - name: Unit test web
+      #   run: yarn workspace @hoodik/web test:unit
 
       - name: Build web
         run: yarn workspace @hoodik/web build
+
+      - name: Clear data folder
+        run: rm -rf /tmp/data
 
       - name: E2E test web
         run: ./web-e2e

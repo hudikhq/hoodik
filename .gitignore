@@ -2,6 +2,7 @@
 .env
 sqlite.db
 /data/*
+/e2e-data/*
 !/data/.gitkeep
 node_modules
 .DS_Store
