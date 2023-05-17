@@ -414,7 +414,12 @@ impl Config {
             Err(e) => println!("Error creating directory: {:?}", e),
         };
 
-        let metadata = fs::metadata(&self.data_dir).unwrap();
+        let metadata = fs::metadata(&self.data_dir).unwrap_or_else(|e| {
+            panic!(
+                "Got error when attempting to get metadata of a data dir '{}': {}",
+                &self.data_dir, e
+            )
+        });
         let permissions = metadata.permissions();
 
         if permissions.readonly() {
