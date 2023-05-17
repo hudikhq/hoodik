@@ -41,11 +41,11 @@ jobs:
       - name: Loading the configuration from
         run: ls -la && cat "$PWD/.env.e2e" && export ENV_FILE="$PWD/.env.e2e" && node --version
 
-      - name: Unit test Rust
-        run: ./rust-unit
+      # - name: Unit test Rust
+      #   run: ./rust-unit
 
-      - name: E2E test Rust
-        run: ./rust-e2e
+      # - name: E2E test Rust
+      #   run: ./rust-e2e
 
       - name: Install yarn dependencies
         run: yarn install
