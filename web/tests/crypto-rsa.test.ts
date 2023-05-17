@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { rsa } from '../../services/cryptfns'
-import { rsa_generate_private, init } from '../../services/cryptfns/wasm'
+import { rsa } from '../services/cryptfns'
+import { rsa_generate_private, init } from '../services/cryptfns/wasm'
 
 const privatePem = `-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAsMvjT2NZNqJo/3AYHH3RIm5fwmOXabbYxduvtNp33JQQZSPu

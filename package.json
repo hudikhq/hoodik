@@ -8,9 +8,6 @@
   ],
   "scripts": {
     "dev": "cargo run",
-    "test:unit": "./rust-unit",
-    "test:e2e": "./rust-e2e",
-    "release": "cargo build --release",
     "COMBINED COMMANDS": "####################",
     "start": "yarn workspace @hoodik/cryptfns wasm-pack && yarn dev --parallel",
     "unit": "yarn workspace @hoodik/cryptfns wasm-pack && yarn workspace @hoodik/web test:unit"

@@ -55,8 +55,14 @@ jobs:
       - name: Install yarn dependencies
         run: yarn install
 
-      - name: Release all
-        run: yarn release:all
+      - name: Wasm pack cryptfns
+        run: yarn workspace @hoodik/cryptfns wasm-pack
+
+      - name: Build web
+        run: yarn workspace @hoodik/web build
+
+      - name: Build Rust binary
+        run: cargo build --release
 
       - name: Build and push Docker image
         uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
