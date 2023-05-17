@@ -8,8 +8,7 @@
     "cryptfns"
   ],
   "scripts": {
-    "start": "yarn workspace @hoodik/web run dev & yarn workspace @hoodik/hoodik run dev",
-    "unit": "yarn workspace @hoodik/cryptfns wasm-pack && yarn workspace @hoodik/web test:unit"
+    "start": "yarn workspace @hoodik/web run dev & yarn workspace @hoodik/hoodik run dev"
   },
   "packageManager": "yarn@1.22.19",
   "devDependencies": {
