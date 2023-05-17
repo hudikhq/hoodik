@@ -32,11 +32,11 @@ jobs:
       - name: Install os dependencies
         run: sudo apt-get install curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev -y
 
-      # - name: Install wasm pack tool
-      #   run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Install wasm pack tool
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-      # - name: Install yarn
-      #   run: npm install -g yarn
+      - name: Install yarn
+        run: npm install -g yarn
 
       # - name: Unit test Rust
       #   run: ./rust-unit
@@ -44,17 +44,17 @@ jobs:
       # - name: E2E test Rust
       #   run: ./rust-e2e
 
-      # - name: Install yarn dependencies
-      #   run: yarn install
+      - name: Install yarn dependencies
+        run: yarn install
 
-      # - name: Wasm pack cryptfns
-      #   run: yarn workspace @hoodik/cryptfns wasm-pack
+      - name: Wasm pack cryptfns
+        run: yarn workspace @hoodik/cryptfns wasm-pack
 
       # - name: Unit test web
       #   run: yarn workspace @hoodik/web test:unit
 
-      # - name: Build web
-      #   run: yarn workspace @hoodik/web build
+      - name: Build web
+        run: yarn workspace @hoodik/web build
 
       - name: E2E test web
         run: ./web-e2e
