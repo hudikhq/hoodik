@@ -2,8 +2,9 @@
 
 set -e
 
-mkdir /github/workspace/data
-echo "TEST" >> /github/workspace/data/test.txt
+echo $PWD
+mkdir $PWD/data
+echo "TEST" >> $PWD/data/test.txt
 
 cargo run -- -c .env.e2e &
 
