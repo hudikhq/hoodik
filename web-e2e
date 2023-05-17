@@ -4,7 +4,11 @@ set -e
 
 echo $PWD
 mkdir $PWD/data
-echo "TEST" >> $PWD/data/test.txt
+echo "DATA_DIR=$PWD/data" >> $PWD/.env.e2e
+
+cat .env.e2e
+
+exit 1
 
 cargo run -- -c .env.e2e &
 
