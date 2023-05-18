@@ -414,7 +414,12 @@ impl Config {
             Err(e) => println!("Error creating directory: {:?}", e),
         };
 
-        let metadata = fs::metadata(&self.data_dir).unwrap();
+        let metadata = fs::metadata(&self.data_dir).unwrap_or_else(|e| {
+            panic!(
+                "Got error when attempting to get metadata of a data dir '{}': {}",
+                &self.data_dir, e
+            )
+        });
         let permissions = metadata.permissions();
 
         if permissions.readonly() {
@@ -694,12 +699,6 @@ fn parse_log(matches: Option<&ArgMatches>) {
             }
         }
     }
-
-    if env_var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "debug");
-    }
-
-    println!("RUST_LOG={}", env_var("RUST_LOG").unwrap());
 }
 
 /// Remove the leading slash from the path

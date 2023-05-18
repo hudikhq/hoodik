@@ -213,9 +213,20 @@ export function toQueryValue(
  */
 export default class Api {
   private apiUrl: string
+  private attemptRefreshOnFail = false
 
   constructor({ apiUrl }: ApiTransfer = {}) {
     this.apiUrl = apiUrl || getApiUrl()
+  }
+
+  /**
+   * With this flag, the api will do its best to attempt
+   * a refresh of the session in case the request fails
+   */
+  withRefresh(): this {
+    this.attemptRefreshOnFail = true
+
+    return this
   }
 
   /**
@@ -234,7 +245,7 @@ export default class Api {
     query?: Query,
     headers?: Headers
   ): Promise<Response<undefined, R>> {
-    return new Api().make('get', path, query, undefined, headers)
+    return new Api().withRefresh().make('get', path, query, undefined, headers)
   }
 
   /**
@@ -247,7 +258,7 @@ export default class Api {
     body?: B,
     headers?: Headers
   ): Promise<Response<B, R>> {
-    return new Api().make('post', path, query, body, headers)
+    return new Api().withRefresh().make('post', path, query, body, headers)
   }
 
   /**
@@ -260,7 +271,7 @@ export default class Api {
     body?: B,
     headers?: Headers
   ): Promise<Response<B, R>> {
-    return new Api().make('put', path, query, body, headers)
+    return new Api().withRefresh().make('put', path, query, body, headers)
   }
 
   /**
@@ -272,7 +283,7 @@ export default class Api {
     query?: Query,
     headers?: Headers
   ): Promise<Response<undefined, R>> {
-    return new Api().make('delete', path, query, undefined, headers)
+    return new Api().withRefresh().make('delete', path, query, undefined, headers)
   }
 
   /**
@@ -300,7 +311,8 @@ export default class Api {
     path: string,
     query?: Query,
     body?: B,
-    headers?: Headers
+    headers?: Headers,
+    skipRefresh: boolean = false
   ): Promise<Response<B, R>> {
     const { request, fetchOptions } = Api.buildRequest(method, path, query, body, headers, this)
 
@@ -324,6 +336,12 @@ export default class Api {
       /* empty */
     }
 
+    // Here we'll try to refresh the session if the original request fails
+    if (res.status === 401 && skipRefresh !== true) {
+      await this.refresh()
+      return this.make(method, path, query, body, headers, true)
+    }
+
     const responseHeaders: Headers = {}
     res.headers.forEach((value: string, key: string) => (responseHeaders[key] = value))
 
@@ -342,6 +360,17 @@ export default class Api {
     return response
   }
 
+  private async refresh() {
+    try {
+      await this.make('post', '/api/auth/refresh', undefined, undefined, undefined, true)
+    } catch (e) {
+      // Do nothing
+    }
+  }
+
+  /**
+   * Build request parameters
+   */
   static buildRequest<B>(
     method: 'get' | 'post' | 'put' | 'delete',
     path: string,

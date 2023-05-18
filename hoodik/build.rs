@@ -17,7 +17,7 @@ fn handle_no_dist(client_out_file: &mut File) -> io::Result<()> {
 }
 
 fn main() -> io::Result<()> {
-    let client_dist_dir = PathBuf::from("./web/dist");
+    let client_dist_dir = PathBuf::from("../web/dist");
     let out_dir = PathBuf::from("src");
     let mut client_out_file = File::create(out_dir.join("client.rs"))?;
 
@@ -25,9 +25,13 @@ fn main() -> io::Result<()> {
         return handle_no_dist(&mut client_out_file);
     }
 
+    let canonicalize_path = client_dist_dir.canonicalize().unwrap();
+    let str_path = canonicalize_path.to_str().unwrap();
+
     writeln!(
         client_out_file,
-        "pub(crate) const _DEFAULT: &[u8] = include_bytes!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/web/dist/index.html\"));",
+        "pub(crate) const _DEFAULT: &[u8] = include_bytes!(concat!(\"{}\", \"/index.html\"));",
+        str_path
     )?;
 
     writeln!(
@@ -52,8 +56,8 @@ fn main() -> io::Result<()> {
 
                 writeln!(
                     client_out_file,
-                    r#"("{}", include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/web/dist/{}"))),"#,
-                    relative_path, relative_path
+                    r#"("{}", include_bytes!(concat!("{}", "/{}"))),"#,
+                    relative_path, str_path, relative_path
                 )?;
             }
         }

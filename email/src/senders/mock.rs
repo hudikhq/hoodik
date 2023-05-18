@@ -17,6 +17,12 @@ impl MockSender {
     }
 }
 
+impl Default for MockSender {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait::async_trait]
 impl SenderContract for MockSender {
     async fn send(&self, emails: Vec<Template>) -> AppResult<usize> {

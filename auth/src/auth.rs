@@ -41,6 +41,7 @@ impl<'ctx> Auth<'ctx> {
     /// Create a new user
     pub async fn register(&self, data: CreateUser) -> AppResult<users::Model> {
         let email = data.email.clone();
+
         let mut active_model = data.into_active_model()?;
 
         let id: Uuid = entity::active_value_to_uuid(active_model.id.clone())
@@ -302,38 +303,40 @@ impl<'ctx> Auth<'ctx> {
             false => crate::jwt::generate(authenticated, issuer, &self.context.config.jwt_secret)?,
         };
 
-        let cookie = Cookie::build(self.context.config.get_session_cookie(), jwt).path("/");
-        let mut jwt = self.make_cookie(cookie)?;
+        let jwt = self.make_cookie(
+            Cookie::build(self.context.config.get_session_cookie(), jwt).path("/"),
+            destroy,
+        )?;
 
-        let cookie = Cookie::build(self.context.config.get_refresh_cookie(), refresh)
-            .path(crate::REFRESH_PATH);
-        let mut refresh = self.make_cookie(cookie)?;
-
-        if destroy {
-            jwt.set_expires(OffsetDateTime::from_unix_timestamp(0).unwrap());
-            refresh.set_expires(OffsetDateTime::from_unix_timestamp(0).unwrap());
-
-            return Ok((jwt, refresh));
-        }
-
-        let timestamp = authenticated.session.expires_at.timestamp();
-        jwt.set_expires(OffsetDateTime::from_unix_timestamp(timestamp).unwrap());
-
-        let timestamp =
-            Utc::now() + Duration::days(self.context.config.long_term_session_duration_days);
-        refresh.set_expires(OffsetDateTime::from_unix_timestamp(timestamp.timestamp()).unwrap());
+        let refresh = self.make_cookie(
+            Cookie::build(self.context.config.get_refresh_cookie(), refresh)
+                .path(crate::REFRESH_PATH),
+            destroy,
+        )?;
 
         Ok((jwt, refresh))
     }
 
     /// Set configuration parameters for cookie security
-    fn make_cookie(&self, cookie: CookieBuilder<'static>) -> AppResult<Cookie<'static>> {
+    fn make_cookie(
+        &self,
+        cookie: CookieBuilder<'static>,
+        destroy: bool,
+    ) -> AppResult<Cookie<'static>> {
         let mut cookie = cookie
             .secure(self.context.config.cookie_secure)
             .http_only(self.context.config.cookie_http_only)
             .finish();
 
         cookie.set_domain(self.context.config.get_cookie_domain());
+
+        if destroy {
+            cookie.set_expires(OffsetDateTime::from_unix_timestamp(0).unwrap());
+        } else {
+            let timestamp =
+                Utc::now() + Duration::days(self.context.config.long_term_session_duration_days);
+            cookie.set_expires(OffsetDateTime::from_unix_timestamp(timestamp.timestamp()).unwrap());
+        }
 
         match self.context.config.cookie_same_site.as_ref() {
             "Lax" => cookie.set_same_site(SameSite::Lax),

@@ -119,6 +119,7 @@ const copy = () => {
     <div v-if="help" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
       {{ help }}
     </div>
+
     <ErrorMessage
       :name="name"
       class="block text-sm text-redish-700 dark:text-redish-500 ml-2 mb-[-1.25rem]"
