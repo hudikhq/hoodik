@@ -110,7 +110,7 @@ init()
           </Suspense>
 
           <AppField :form="form" label="Your two factor secret" name="secret" :allow-copy="true" />
-          <AppField :rows="28" :form="form" label="Enter your two factor token" name="token" />
+          <AppField :form="form" label="Enter your two factor token" name="token" />
 
           <AppButton color="info" type="submit"> Register with Two Factor </AppButton>
 

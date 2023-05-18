@@ -87,7 +87,7 @@ impl Context {
 
         let config = Config::mock();
 
-        if let Ok(_) = env_logger::try_init() {
+        if env_logger::try_init().is_ok() {
             log::debug!("Log has been initialized");
         }
 

@@ -46,7 +46,7 @@ export async function ensureAuthenticated(
           return
         }
       } catch (e) {
-        return bounce(router, route, store, crypto)
+        return bounce(router, route, crypto)
       }
     }
 
@@ -54,7 +54,7 @@ export async function ensureAuthenticated(
       return decrypt(router, route)
     }
 
-    return bounce(router, route, store, crypto)
+    return bounce(router, route, crypto)
   }
 }
 
@@ -64,17 +64,12 @@ export async function ensureAuthenticated(
 async function bounce(
   router: Router,
   route: RouteLocationNormalizedLoaded,
-  store: LoginStore,
   crypto: CryptoStore,
   e?: Error
 ) {
   try {
     await crypto.clear()
     await pk.clearRememberMe()
-
-    // we are not doing the full logout in case the user
-    // has a pin encrypted private key set.
-    await store.logout(crypto, false)
   } catch (e) {
     // do nothing
   }

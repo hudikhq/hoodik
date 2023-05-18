@@ -1,6 +1,6 @@
-import { FileMetadata } from '../../../services/storage/metadata'
+import { FileMetadata } from '../services/storage/metadata'
 import { describe, it, expect } from 'vitest'
-import * as cryptfns from '../../../services/cryptfns'
+import * as cryptfns from '../services/cryptfns'
 
 describe('Testing the FileMetadata holder', () => {
   it('UNIT: Can be encrypted and decrypted back with given RSA private key', async () => {

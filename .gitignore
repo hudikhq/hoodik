@@ -2,7 +2,7 @@
 .env
 sqlite.db
 /data/*
-!/data/.gitkeep
+/e2e-data/*
 node_modules
 .DS_Store
 .turbo

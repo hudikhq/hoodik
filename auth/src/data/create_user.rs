@@ -70,7 +70,33 @@ impl Validation for CreateUser {
     }
 
     fn modifiers(&self) -> Vec<Modifier<Self>> {
-        vec![modifier_trim!(email), modifier_lowercase!(email)]
+        vec![
+            modifier_trim!(email),
+            modifier_lowercase!(email),
+            Modifier::new("secret", |obj: &mut Self| {
+                if let Some(secret) = &obj.secret {
+                    if secret.is_empty() {
+                        obj.secret = None;
+                    }
+                }
+            }),
+            Modifier::new("token", |obj: &mut Self| {
+                if let Some(token) = &obj.token {
+                    if token.is_empty() {
+                        obj.token = None;
+                    }
+                }
+            }),
+            Modifier::new("secret", |obj: &mut Self| {
+                if obj.secret.is_some() && obj.token.is_none() {
+                    obj.secret = None;
+                }
+
+                if obj.secret.is_none() && obj.token.is_some() {
+                    obj.token = None;
+                }
+            }),
+        ]
     }
 }
 

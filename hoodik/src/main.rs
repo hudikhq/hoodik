@@ -27,10 +27,6 @@ async fn main() -> AppResult<()> {
 
     // Init logger
     env_logger::init();
-    log::info!("Starting server");
-    log::warn!("This is a warning");
-    log::error!("This is a error");
-    log::debug!("This is a debug");
 
     // Start the server
     hoodik::server::engage(context).await

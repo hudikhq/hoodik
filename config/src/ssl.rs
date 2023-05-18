@@ -50,12 +50,12 @@ impl SslConfig for Config {
     }
 
     fn load_or_generate(&self) -> AppResult<(File, File)> {
-        let cert_file = File::open(&self.ssl_cert_file).ok();
-        let key_file = File::open(&self.ssl_key_file).ok();
+        let cert_file = open_file(&self.ssl_cert_file);
+        let key_file = open_file(&self.ssl_key_file);
 
         match (cert_file, key_file) {
             (Some(cert_file), Some(key_file)) => Ok((cert_file, key_file)),
-            (None, None) => {
+            (None, None) | (Some(_), None) | (None, Some(_)) => {
                 let (cert, key) = self.generate_simple_self_signed(vec![self.address.clone()])?;
 
                 let mut cert_file = File::create(&self.ssl_cert_file)?;
@@ -68,9 +68,18 @@ impl SslConfig for Config {
 
                 Ok((cert_file, key_file))
             }
-            _ => Err(Error::from(
-                "Either both cert and key must be provided or none",
-            )),
+        }
+    }
+}
+
+/// Try to open a file, log an error if it happens while trying to open a file
+fn open_file(path: &str) -> Option<File> {
+    match File::open(path) {
+        Ok(f) => Some(f),
+        Err(e) => {
+            log::error!("Error while trying to open a file '{}': {}", path, e);
+
+            None
         }
     }
 }
