@@ -34,15 +34,6 @@ pub mod routes {
     pub use auth::routes as auth_routes;
     pub use storage::routes as storage_routes;
 
-    /// Liveness probe
-    /// Response: {"message": "I am alive"}
-    #[actix_web::route("/api/liveness", method = "ANY")]
-    async fn liveness() -> actix_web::HttpResponse {
-        actix_web::HttpResponse::Ok().json(serde_json::json!({
-            "message": "I am alive"
-        }))
-    }
-
     pub use super::client::client;
 }
 
@@ -73,7 +64,27 @@ pub fn app(
         .app_data(web::Data::new(context))
         .wrap(cors::setup())
         .configure(configure)
-        .service(routes::liveness)
+        .route(
+            "/api/liveness",
+            web::get().to(|| async {
+                actix_web::HttpResponse::Ok()
+                    .json(serde_json::json!({"METHOD": "GET", "message": "I am alive"}))
+            }),
+        )
+        .route(
+            "/api/liveness",
+            web::post().to(|| async {
+                actix_web::HttpResponse::Ok()
+                    .json(serde_json::json!({"METHOD": "POST", "message": "I am alive"}))
+            }),
+        )
+        .route(
+            "/api/liveness",
+            web::head().to(|| async {
+                actix_web::HttpResponse::Ok()
+                    .json(serde_json::json!({"METHOD": "HEAD", "message": "I am alive"}))
+            }),
+        )
         .service(routes::client)
 }
 
