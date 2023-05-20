@@ -5,17 +5,14 @@ use auth::data::claims::Claims;
 use context::Context;
 use entity::Uuid;
 use error::{AppResult, Error};
+use fs::prelude::*;
 
-use crate::{
-    contract::StorageProvider,
-    repository::{cached::get_file, Repository},
-    storage::Storage,
-};
+use crate::repository::{cached::get_file, Repository};
 
 /// Get file content by its id
 ///
 /// Request:
-///  - Query: chunk: i32 - if omitted, file be streamed until its completely downloaded
+///  - Query: chunk: i32 - if omitted, file will be streamed until its completely downloaded
 ///
 /// Response: [actix_web::web::Bytes]
 ///  - Content-Type: application/octet-stream
@@ -38,7 +35,7 @@ pub(crate) async fn download(
         .get_filename()
         .ok_or(Error::NotFound("file_not_found".to_string()))?;
 
-    let storage = Storage::new(&context.config);
+    let storage = Fs::new(&context.config);
 
     let streamer = storage.stream(&filename, chunk).await;
 
@@ -47,9 +44,14 @@ pub(crate) async fn download(
         None => format!("{filename}.enc"),
     };
 
+    let file_size = match chunk {
+        Some(_) => file.size.unwrap_or(1) / file.chunks.unwrap_or(0) as i64,
+        None => file.size.unwrap_or(0),
+    };
+
     Ok(HttpResponse::Ok()
         .insert_header(("Content-Type", "application/octet-stream"))
-        .insert_header(("Content-Length", file.size.unwrap_or(0)))
+        .insert_header(("Content-Length", file_size))
         .insert_header((
             "Content-Disposition",
             format!("attachment; filename=\"{}\"", filename),
@@ -79,7 +81,7 @@ pub(crate) async fn head(
         .get_filename()
         .ok_or(Error::NotFound("file_not_found".to_string()))?;
 
-    let storage = Storage::new(&context.config);
+    let storage = Fs::new(&context.config);
 
     if let Some(c) = chunk {
         let _fs_file = storage

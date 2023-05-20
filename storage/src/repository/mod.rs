@@ -1,7 +1,7 @@
 pub(crate) mod cached;
-pub mod manage;
-pub mod query;
-pub mod tokens;
+pub(crate) mod manage;
+pub(crate) mod query;
+pub(crate) mod tokens;
 
 use crate::data::app_file::AppFile;
 
@@ -13,7 +13,7 @@ use entity::{
 use error::{AppResult, Error};
 use std::fmt::Display;
 
-pub struct Repository<'ctx, T: ConnectionTrait> {
+pub(crate) struct Repository<'ctx, T: ConnectionTrait> {
     connection: &'ctx T,
 }
 
@@ -21,7 +21,7 @@ impl<'ctx, T> Repository<'ctx, T>
 where
     T: ConnectionTrait,
 {
-    pub fn new(connection: &'ctx T) -> Self {
+    pub(crate) fn new(connection: &'ctx T) -> Self {
         Self { connection }
     }
 }
@@ -31,7 +31,7 @@ where
     T: ConnectionTrait,
 {
     /// Query files from any user perspective
-    pub fn query<'repository>(&'repository self, user_id: Uuid) -> Query<'repository, T>
+    pub(crate) fn query<'repository>(&'repository self, user_id: Uuid) -> Query<'repository, T>
     where
         Self: 'repository,
     {
@@ -39,7 +39,7 @@ where
     }
 
     /// Manage files from the owners perspective
-    pub fn manage<'repository>(&'repository self, owner_id: Uuid) -> Manage<'repository, T>
+    pub(crate) fn manage<'repository>(&'repository self, owner_id: Uuid) -> Manage<'repository, T>
     where
         Self: 'repository,
     {
@@ -47,7 +47,7 @@ where
     }
 
     /// Manage files from the owners perspective
-    pub fn tokens<'repository>(&'repository self, user_id: Uuid) -> Tokens<'repository, T>
+    pub(crate) fn tokens<'repository>(&'repository self, user_id: Uuid) -> Tokens<'repository, T>
     where
         Self: 'repository,
     {
@@ -55,12 +55,12 @@ where
     }
 
     /// Get the inner database connection
-    pub fn connection(&self) -> &impl ConnectionTrait {
+    pub(crate) fn connection(&self) -> &impl ConnectionTrait {
         self.connection
     }
 
     /// Load the file from the database by its id
-    pub async fn by_id<V>(&self, id: V, user_id: Uuid) -> AppResult<AppFile>
+    pub(crate) async fn by_id<V>(&self, id: V, user_id: Uuid) -> AppResult<AppFile>
     where
         V: Into<Value> + Display + Clone,
     {

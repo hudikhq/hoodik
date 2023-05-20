@@ -58,7 +58,6 @@ export async function downloadAndDecryptStream(
         data = tg4
       }
 
-      console.log(data.length / 1024 / 1024)
       if (data.length) {
         if (progress) {
           await progress(file, data.length)

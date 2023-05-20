@@ -1,11 +1,11 @@
-use async_trait::async_trait;
+use crate::streamer::Streamer;
 use error::AppResult;
+
+use async_trait::async_trait;
 use tokio::fs::File;
 
-use crate::streamer::Streamer;
-
 #[async_trait]
-pub trait StorageProvider {
+pub trait FsProviderContract {
     /// Check if the chunk already exists in the storage provider
     async fn exists(&self, filename: &str, chunk: i32) -> AppResult<bool>;
 

@@ -5,8 +5,9 @@ use auth::data::claims::Claims;
 use context::Context;
 use entity::{TransactionTrait, Uuid};
 use error::{AppResult, Error};
+use fs::prelude::*;
 
-use crate::{contract::StorageProvider, repository::Repository, storage::Storage};
+use crate::repository::Repository;
 
 /// Delete a file or directory by its id
 /// Also, deletes recursively all files and directories inside the directory
@@ -36,7 +37,7 @@ pub(crate) async fn delete(
         }
 
         if file.is_file() {
-            Storage::new(&context.config)
+            Fs::new(&context.config)
                 .purge(&file.get_filename().unwrap())
                 .await?;
         }

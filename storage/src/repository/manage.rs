@@ -14,7 +14,7 @@ use crate::data::{app_file::AppFile, query::Query as RequestQuery, response::Res
 
 use super::Repository;
 
-pub struct Manage<'repository, T: ConnectionTrait> {
+pub(crate) struct Manage<'repository, T: ConnectionTrait> {
     repository: &'repository Repository<'repository, T>,
     owner_id: Uuid,
 }
@@ -23,26 +23,15 @@ impl<'repository, T> Manage<'repository, T>
 where
     T: ConnectionTrait,
 {
-    pub fn new(repository: &'repository Repository<'repository, T>, owner_id: Uuid) -> Self {
+    pub(crate) fn new(repository: &'repository Repository<'repository, T>, owner_id: Uuid) -> Self {
         Self {
             repository,
             owner_id,
         }
     }
 
-    /// Get any kind of file for the owner
-    pub async fn get(&self, id: Uuid) -> AppResult<AppFile> {
-        let file = self.repository.by_id(id, self.owner_id).await?;
-
-        if !file.is_owner {
-            return Err(Error::BadRequest("file_not_found".to_string()));
-        }
-
-        Ok(file)
-    }
-
     /// Alias to get the file metadata for the owner
-    pub async fn file(&self, id: Uuid) -> AppResult<AppFile> {
+    pub(crate) async fn file(&self, id: Uuid) -> AppResult<AppFile> {
         let file = self.repository.by_id(id, self.owner_id).await?;
 
         if file.is_dir() {
@@ -52,19 +41,8 @@ where
         Ok(file)
     }
 
-    /// Alias to get directory metadata for the owner
-    pub async fn dir(&self, id: Uuid) -> AppResult<AppFile> {
-        let file = self.repository.by_id(id, self.owner_id).await?;
-
-        if file.is_file() {
-            return Err(Error::NotFound("directory_not_found".to_string()));
-        }
-
-        Ok(file)
-    }
-
     /// Find all files that are shared with the user
-    pub async fn find(&self, request_query: RequestQuery) -> AppResult<Response> {
+    pub(crate) async fn find(&self, request_query: RequestQuery) -> AppResult<Response> {
         let mut parents = vec![];
 
         let mut query = files::Entity::find();
@@ -128,7 +106,7 @@ where
     /// Get the directory tree for the owner,
     /// tree is starting with the oldest parent leading all the way up to
     /// the given directory id
-    pub async fn dir_tree(&self, id: Uuid) -> AppResult<Vec<AppFile>> {
+    pub(crate) async fn dir_tree(&self, id: Uuid) -> AppResult<Vec<AppFile>> {
         let sql = r#"
             WITH RECURSIVE file_tree(id, file_id) AS (
                 SELECT id, file_id FROM files WHERE id = ? AND mime = 'dir'
@@ -195,7 +173,7 @@ where
 
     /// Get the file or a directory, if we get a directory we will also
     /// recursively get all the files and directories inside it
-    pub async fn file_tree(&self, id: Uuid) -> AppResult<Vec<AppFile>> {
+    pub(crate) async fn file_tree(&self, id: Uuid) -> AppResult<Vec<AppFile>> {
         let sql = r#"
             WITH RECURSIVE file_tree(id, file_id) AS (
             SELECT id, file_id FROM files WHERE id = ?
@@ -265,7 +243,7 @@ where
     /// Load the file from the database by its name hash and by its parent id
     /// this method can be used to verify if you already have a file with the same name
     /// in the directory. In case the file already exist we can check if we could resume its upload
-    pub async fn by_name<V>(&self, hash: V, parent_id: Option<i32>) -> AppResult<AppFile>
+    pub(crate) async fn by_name<V>(&self, hash: V, parent_id: Option<i32>) -> AppResult<AppFile>
     where
         V: Into<Value> + Display + Clone,
     {
@@ -294,19 +272,8 @@ where
         Ok(AppFile::from((file, user_file)))
     }
 
-    /// Delete a file or directory for the owner
-    pub async fn delete(&self, id: Uuid) -> AppResult<AppFile> {
-        let file = self.get(id).await?;
-
-        files::Entity::delete_by_id(id)
-            .exec(self.repository.connection())
-            .await?;
-
-        Ok(file)
-    }
-
     /// Delete many files or directories for the owner
-    pub async fn delete_many(&self, ids: Vec<Uuid>) -> AppResult<u64> {
+    pub(crate) async fn delete_many(&self, ids: Vec<Uuid>) -> AppResult<u64> {
         let results = files::Entity::delete_many()
             .filter(files::Column::Id.is_in(ids))
             .exec(self.repository.connection())
@@ -317,7 +284,7 @@ where
 
     /// Create a file entry in the database and set the owner with the
     /// sent encrypted_key.
-    pub async fn create(
+    pub(crate) async fn create(
         &self,
         create_file: files::ActiveModel,
         encrypted_metadata: &str,
@@ -376,41 +343,8 @@ where
         Ok(AppFile::from((file, user_file)).is_new(true))
     }
 
-    /// Increment the chunks stored for the given file and mark the file as uploaded
-    /// if all the chunks are uploaded.
-    pub async fn increment(&self, file: &AppFile) -> AppResult<AppFile> {
-        if !file.is_owner || file.user_id != self.owner_id || file.is_dir() {
-            return Err(Error::NotFound("file_not_found".to_string()));
-        }
-
-        let chunks_stored = file
-            .chunks_stored
-            .ok_or(Error::BadRequest("file_has_no_chunks_stored".to_string()))?;
-
-        let chunks = file
-            .chunks
-            .ok_or(Error::BadRequest("file_has_no_chunks".to_string()))?;
-
-        let finished_upload_at = if chunks_stored + 1 == chunks {
-            Some(Utc::now().naive_utc())
-        } else {
-            None
-        };
-
-        files::ActiveModel {
-            id: ActiveValue::Set(file.id),
-            chunks_stored: ActiveValue::Set(Some(chunks_stored + 1)),
-            finished_upload_at: ActiveValue::Set(finished_upload_at),
-            ..Default::default()
-        }
-        .update(self.repository.connection())
-        .await?;
-
-        self.repository.by_id(file.id, file.user_id).await
-    }
-
     /// Finish the upload of a file by setting the finished_upload_at field
-    pub async fn finish(&self, file: &AppFile) -> AppResult<AppFile> {
+    pub(crate) async fn finish(&self, file: &AppFile) -> AppResult<AppFile> {
         if !file.is_owner || file.user_id != self.owner_id || file.is_dir() {
             return Err(Error::NotFound("file_not_found".to_string()));
         }

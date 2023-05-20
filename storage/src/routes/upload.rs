@@ -5,13 +5,11 @@ use auth::data::claims::Claims;
 use context::Context;
 use entity::Uuid;
 use error::{AppResult, Error};
-use log::warn;
+use fs::prelude::*;
 
 use crate::{
-    contract::StorageProvider,
     data::meta::Meta,
     repository::{cached::get_file, Repository},
-    storage::Storage,
 };
 
 /// Method to upload file chunks to the server
@@ -27,6 +25,7 @@ use crate::{
 /// **Note**: Chunk data is trusted as is, no validation is done on the content
 /// because the content is encrypted and we cannot ensure it is the correct chunk or data.
 /// Only thing we will do is compare the checksum the uploader gave us for the uploaded chunk
+/// to verify if we received the payload sender wanted to give us.
 #[route("/api/storage/{file_id}", method = "POST")]
 pub(crate) async fn upload(
     req: HttpRequest,
@@ -35,38 +34,22 @@ pub(crate) async fn upload(
     meta: web::Query<Meta>,
     mut request_body: web::Bytes,
 ) -> AppResult<HttpResponse> {
+    if request_body.is_empty() {
+        return Err(Error::BadRequest("no_file_data_received".to_string()));
+    }
+
     let context = context.into_inner();
     let file_id: String = util::actix::path_var(&req, "file_id")?;
     let file_id = Uuid::from_str(&file_id)?;
     let (chunk, checksum, checksum_function, key_hex) = meta.into_inner().into_tuple()?;
 
-    let body_checksum = match checksum_function.as_deref() {
-        Some("crc16") => Some(cryptfns::crc::crc16_digest(&request_body)),
-        Some("sha256") => Some(cryptfns::sha256::digest(request_body.as_ref())),
-        _ => None,
-    };
+    validate_checksum(checksum, checksum_function, &request_body)?;
 
-    // Encrypting the payload if the encryption key is provided
     if let Some(key) = key_hex {
-        let key = cryptfns::hex::decode(key)?;
-        let encrypted = cryptfns::aes::encrypt(key, request_body.to_vec())?;
-        request_body = web::Bytes::from(encrypted);
+        request_body = encrypt_request_body(&key, request_body)?;
     }
 
-    if let Some(body_checksum) = body_checksum {
-        if checksum.as_ref() != Some(&body_checksum) {
-            let error = format!(
-                "checksum_mismatch: '{}' != '{}'",
-                checksum.unwrap_or_default(),
-                body_checksum
-            );
-            return Err(Error::as_validation("checksum", &error));
-        }
-    } else {
-        warn!("Not validating uploaded chunk checksum");
-    }
-
-    let storage = Storage::new(&context.config);
+    let storage = Fs::new(&context.config);
 
     let mut file = get_file(&context, claims.sub, file_id)
         .await
@@ -88,17 +71,12 @@ pub(crate) async fn upload(
         return Err(Error::as_validation("chunk", "chunk_already_exists"));
     }
 
-    if request_body.is_empty() {
-        return Err(Error::BadRequest("no_file_data_received".to_string()));
-    }
-
     storage.push(&filename, chunk, &request_body).await?;
 
     if file.is_file() {
         let filename = file.get_filename().unwrap();
-        let chunks = Storage::new(&context.config)
-            .get_uploaded_chunks(&filename)
-            .await?;
+        let chunks = storage.get_uploaded_chunks(&filename).await?;
+
         file.chunks_stored = Some(chunks.len() as i32);
         file.uploaded_chunks = Some(chunks);
     }
@@ -115,4 +93,47 @@ pub(crate) async fn upload(
     }
 
     Ok(HttpResponse::Ok().json(file))
+}
+
+/// Run the checksum validation based on the given function
+/// and checksum from the request data.
+fn validate_checksum(
+    checksum: Option<String>,
+    checksum_function: Option<String>,
+    data: &[u8],
+) -> AppResult<()> {
+    let body_checksum = match checksum_function.as_deref() {
+        Some("crc16") => Some(cryptfns::crc::crc16_digest(data)),
+        Some("sha256") => Some(cryptfns::sha256::digest(data)),
+        _ => None,
+    };
+
+    if let Some(body_checksum) = body_checksum.as_deref() {
+        if checksum.as_deref() != Some(body_checksum) {
+            let error = format!(
+                "checksum_mismatch: '{}' != '{}'",
+                checksum.unwrap_or_default(),
+                body_checksum
+            );
+
+            return Err(Error::as_validation("checksum", &error));
+        }
+    } else {
+        log::warn!("Not validating uploaded chunk checksum");
+    }
+
+    Ok(())
+}
+
+/// This is option that will most likely never be used, but its here just in case.
+/// Basically, this takes the key in hex from the uploader and then performs
+/// the encryption of the data on the server.
+///
+/// This is less secure option that might be used in case uploader is
+/// uploading data from a toaster or something else less performant.
+fn encrypt_request_body(key: &str, request_body: web::Bytes) -> AppResult<web::Bytes> {
+    let key = cryptfns::hex::decode(key)?;
+    let encrypted = cryptfns::aes::encrypt(key, request_body.to_vec())?;
+
+    Ok(web::Bytes::from(encrypted))
 }

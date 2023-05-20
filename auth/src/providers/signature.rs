@@ -5,13 +5,13 @@ use crate::{
 };
 use error::{AppResult, Error};
 
-pub struct SignatureProvider<'ctx> {
-    pub auth: &'ctx Auth<'ctx>,
-    pub data: Signature,
+pub(crate) struct SignatureProvider<'ctx> {
+    auth: &'ctx Auth<'ctx>,
+    data: Signature,
 }
 
 impl<'ctx> SignatureProvider<'ctx> {
-    pub fn new(auth: &'ctx Auth, data: Signature) -> Self {
+    pub(crate) fn new(auth: &'ctx Auth, data: Signature) -> Self {
         Self { auth, data }
     }
 }

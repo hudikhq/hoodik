@@ -2,7 +2,7 @@
 
 set -e
 
-echo "DATA_DIR=$PWD/e2e-data" >> $PWD/.env.e2e
+export DATA_DIR=$PWD/e2e-data
 
 cargo build --bin hoodik
 
@@ -15,5 +15,7 @@ export ENV_FILE="../.env.e2e"
 (yarn workspace @hoodik/web test:e2e) || TEST_EXIT_CODE=$?
 
 kill -9 $!
+
+rm -rf $PWD/e2e-data
 
 exit $TEST_EXIT_CODE

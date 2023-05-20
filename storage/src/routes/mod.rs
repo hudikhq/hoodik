@@ -1,3 +1,11 @@
+//! # Storage routes
+//!
+//! This module exposes routes for manipulating your files and folders.
+//! Also it exposes routes for uploading and downloading files.
+//!
+//! TODO: This module exposes routes for sharing files with other users
+//! on the platform.
+
 pub mod create;
 pub mod delete;
 pub mod download;

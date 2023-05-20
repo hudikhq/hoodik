@@ -25,8 +25,9 @@ context = { path = "../context" }
 cryptfns = { path = "../cryptfns" }
 entity = { path = "../entity" }
 error = { path = "../error" }
-storage = { path = "../storage" }
+fs = { path = "../fs" }
 migration = { path = "../migration" }
+storage = { path = "../storage" }
 
 [dev-dependencies]
 chrono = { version = "0.4.23", features = ["serde"] }

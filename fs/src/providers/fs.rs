@@ -6,19 +6,19 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
 };
 
-use crate::{contract::StorageProvider, streamer::Streamer};
+use crate::{contract::FsProviderContract, streamer::Streamer};
 
-pub struct FsProvider<'provider> {
+pub(crate) struct FsProvider<'provider> {
     data_dir: &'provider str,
 }
 
 impl<'provider> FsProvider<'provider> {
-    pub fn new(data_dir: &'provider str) -> Self {
+    pub(crate) fn new(data_dir: &'provider str) -> Self {
         Self { data_dir }
     }
 
     /// Get full path of a file for the chunk
-    pub fn full_path<F: ToString, C: ToString>(&self, filename: F, chunk: C) -> String {
+    fn full_path<F: ToString, C: ToString>(&self, filename: F, chunk: C) -> String {
         format!(
             "{}/{}.{}.part",
             self.data_dir,
@@ -29,7 +29,7 @@ impl<'provider> FsProvider<'provider> {
 
     /// Create the inner streaming method that is then passed into the streamer for
     /// better readeability of the code.
-    pub async fn inner_stream(
+    async fn inner_stream(
         &self,
         filename: &str,
         chunk: Option<i32>,
@@ -71,7 +71,7 @@ impl<'provider> FsProvider<'provider> {
 }
 
 #[async_trait]
-impl<'ctx> StorageProvider for FsProvider<'ctx> {
+impl<'ctx> FsProviderContract for FsProvider<'ctx> {
     async fn exists(&self, filename: &str, chunk: i32) -> AppResult<bool> {
         Ok(std::path::Path::new(self.full_path(filename, chunk).as_str()).exists())
     }

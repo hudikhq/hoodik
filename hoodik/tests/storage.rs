@@ -1,5 +1,8 @@
+#[path = "./helpers.rs"]
+mod helpers;
+
 use actix_web::{http::StatusCode, test};
-use auth::{data::create_user::CreateUser, extract_cookies};
+use auth::data::create_user::CreateUser;
 use hoodik::server;
 use storage::data::app_file::AppFile;
 
@@ -55,7 +58,7 @@ async fn test_creating_file_and_uploading_chunks() {
         .to_request();
 
     let resp = test::call_service(&mut app, req).await;
-    let (jwt, _) = extract_cookies(&resp.headers());
+    let (jwt, _) = helpers::extract_cookies(&resp.headers());
     let jwt = jwt.unwrap();
 
     let req = test::TestRequest::post()
@@ -72,7 +75,7 @@ async fn test_creating_file_and_uploading_chunks() {
         .to_request();
 
     let resp = test::call_service(&mut app, req).await;
-    let (second_jwt, _) = extract_cookies(&resp.headers());
+    let (second_jwt, _) = helpers::extract_cookies(&resp.headers());
     let second_jwt = second_jwt.unwrap();
 
     let (data, size, checksum) = create_byte_chunks();

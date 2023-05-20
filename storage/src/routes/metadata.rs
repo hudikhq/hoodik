@@ -3,9 +3,10 @@ use auth::data::claims::Claims;
 use context::Context;
 use entity::Uuid;
 use error::{AppResult, Error};
+use fs::prelude::*;
 use std::str::FromStr;
 
-use crate::{contract::StorageProvider, repository::Repository, storage::Storage};
+use crate::repository::Repository;
 
 /// Get file metadata by its id
 ///
@@ -32,7 +33,7 @@ pub(crate) async fn metadata(
     if file.is_file() && file.finished_upload_at.is_none() {
         let filename = file.get_filename().unwrap();
         file.uploaded_chunks = Some(
-            Storage::new(&context.config)
+            Fs::new(&context.config)
                 .get_uploaded_chunks(&filename)
                 .await?,
         );

@@ -1,15 +1,20 @@
 [package]
-name = "storage"
+name = "fs"
 version = "0.1.0"
 edition = "2021"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
 readme = "README.md"
 license-file = "../LICENSE.md"
-description = "Application storage service that manages files and folders."
+description = "File system abstraction library"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+config = { path = "../config" }
+context = { path = "../context" }
+entity = { path = "../entity" }
+error = { path = "../error" }
+
 log = "^0.4"
 actix-web = "^4"
 futures-util = "^0.3"
@@ -24,15 +29,6 @@ tokio = "^1"
 async-trait = "^0.1"
 uuid = { version = "1.2.2", features = ["serde", "v4"] }
 cached = "^0.43"
-
-auth = { path = "../auth" }
-config = { path = "../config" }
-context = { path = "../context" }
-cryptfns = { path = "../cryptfns" }
-entity = { path = "../entity" }
-error = { path = "../error" }
-fs = { path = "../fs" }
-util = { path = "../util" }
 
 [dev-dependencies]
 context = { path = "../context", features = ["mock"] }

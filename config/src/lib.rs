@@ -231,8 +231,8 @@ impl Config {
             dotenv(m.try_get_one("CONFIG_PATH").unwrap_or(None).cloned());
         }
 
-        let app_name = env_var("APP_NAME").unwrap_or_else(|_| "Hoodik".to_string());
-        let app_version = env_var("CARGO_PKG_VERSION").unwrap_or_else(|_| "unknown".to_string());
+        let app_name = env_var("APP_NAME").unwrap_or_else(|_| name.to_string());
+        let app_version = version.to_string();
 
         parse_log(matches.as_ref());
 
@@ -613,6 +613,21 @@ impl Config {
 
     pub fn get_app_version(&self) -> String {
         self.app_version.clone()
+    }
+
+    /// Announce the application
+    /// with some configuration options defined
+    pub fn announce(&self) {
+        println!(
+            "Starting {} v{} on {}",
+            self.get_app_name(),
+            self.get_app_version(),
+            self.get_full_bind_address()
+        );
+        println!("-- Using data_dir: {}", self.data_dir);
+        println!("-- Using ssl cert: {}", self.ssl_cert_file,);
+        println!("-- Using ssl key: {}", self.ssl_key_file);
+        println!("------------------------------------------");
     }
 }
 

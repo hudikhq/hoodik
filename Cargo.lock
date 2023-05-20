@@ -1806,6 +1806,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "async-std",
+ "async-trait",
+ "cached",
+ "chrono",
+ "config",
+ "context",
+ "entity",
+ "error",
+ "futures-util",
+ "glob",
+ "log",
+ "mime",
+ "pin-project",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+ "validr",
+]
+
+[[package]]
 name = "futures"
 version = "0.3.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2127,6 +2152,7 @@ dependencies = [
  "entity",
  "env_logger",
  "error",
+ "fs",
  "log",
  "migration",
  "reqwest",
@@ -4295,6 +4321,7 @@ dependencies = [
  "cryptfns",
  "entity",
  "error",
+ "fs",
  "futures-util",
  "glob",
  "log",

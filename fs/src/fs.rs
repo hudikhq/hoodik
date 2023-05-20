@@ -4,18 +4,18 @@ use tokio::fs::File;
 use config::Config;
 use error::AppResult;
 
-use crate::{contract::StorageProvider, providers::fs, streamer::Streamer};
+use crate::{contract::FsProviderContract, providers::fs, streamer::Streamer};
 
-pub struct Storage<'ctx> {
+pub struct Fs<'ctx> {
     config: &'ctx Config,
 }
 
-impl<'ctx> Storage<'ctx> {
+impl<'ctx> Fs<'ctx> {
     pub fn new(config: &'ctx Config) -> Self {
         Self { config }
     }
 
-    fn provider<'provider>(&self) -> impl StorageProvider + 'provider
+    fn provider<'provider>(&self) -> impl FsProviderContract + 'provider
     where
         'ctx: 'provider,
     {
@@ -24,7 +24,7 @@ impl<'ctx> Storage<'ctx> {
 }
 
 #[async_trait]
-impl<'ctx> StorageProvider for Storage<'ctx> {
+impl<'ctx> FsProviderContract for Fs<'ctx> {
     async fn exists(&self, filename: &str, chunk: i32) -> AppResult<bool> {
         self.provider().exists(filename, chunk).await
     }

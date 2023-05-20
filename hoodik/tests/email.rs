@@ -14,11 +14,14 @@ async fn test_send_email_via_smtp() {
     let sender = Sender::new(&config).unwrap().unwrap();
 
     let mut email = sender
-        .template("Testing email", "If you are seeing this, it works!")
+        .template(
+            "Testing email from ./rust-e2e",
+            "If you are seeing this, it works!",
+        )
         .unwrap();
 
     email
-        .register_content_template("This is the content")
+        .register_content_template("If you are seeing this, it works!")
         .unwrap();
 
     sender

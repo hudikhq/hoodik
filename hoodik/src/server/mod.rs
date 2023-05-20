@@ -14,11 +14,16 @@ use config::ssl::SslConfig as _;
 use context::Context;
 use error::{AppResult, Error};
 
+pub mod client;
+pub mod cors;
+
 pub mod middleware {
     //! # Middleware
     //!
     //! Collection of all the middleware used in the application pulled
     //! from various packages we depend on.
+    //!
+    //! Currently, there are no middleware used in the application.
 }
 
 pub mod routes {
@@ -29,13 +34,19 @@ pub mod routes {
     pub use auth::routes as auth_routes;
     pub use storage::routes as storage_routes;
 
-    pub use auth::routes::signature::signature;
+    /// Liveness probe
+    /// Response: {"message": "I am alive"}
+    #[actix_web::route("/api/liveness", method = "ANY")]
+    async fn liveness() -> actix_web::HttpResponse {
+        actix_web::HttpResponse::Ok().json(serde_json::json!({
+            "message": "I am alive"
+        }))
+    }
+
+    pub use super::client::client;
 }
 
-pub mod client;
-pub mod cors;
-
-/// Inject the application features into the server
+/// Inject the application modules into the server
 fn configure(cfg: &mut web::ServiceConfig) {
     auth::routes::configure(cfg);
     storage::routes::configure(cfg);
@@ -54,37 +65,16 @@ pub fn app(
     >,
 > {
     App::new()
-        // Set the maximum payload size to 1.2x of a single file chunk
+        // Set the maximum payload size to 1.1x of a single file chunk
         // we are expecting to be uploaded
         .app_data(web::PayloadConfig::new(
-            (storage::CHUNK_SIZE_BYTES as f32 * 1.2) as usize,
+            (fs::MAX_CHUNK_SIZE_BYTES as f32 * 1.1) as usize,
         ))
         .app_data(web::Data::new(context))
         .wrap(cors::setup())
         .configure(configure)
-        .route(
-            "/api/liveness",
-            web::get().to(|| async {
-                actix_web::HttpResponse::Ok()
-                    .json(serde_json::json!({"METHOD": "GET", "message": "I am alive"}))
-            }),
-        )
-        .route(
-            "/api/liveness",
-            web::post().to(|| async {
-                actix_web::HttpResponse::Ok()
-                    .json(serde_json::json!({"METHOD": "POST", "message": "I am alive"}))
-            }),
-        )
-        .route(
-            "/api/liveness",
-            web::head().to(|| async {
-                actix_web::HttpResponse::Ok()
-                    .json(serde_json::json!({"METHOD": "HEAD", "message": "I am alive"}))
-            }),
-        )
-        // Proxy HTTP requests to frontend
-        .service(client::client)
+        .service(routes::liveness)
+        .service(routes::client)
 }
 
 /// Start the server

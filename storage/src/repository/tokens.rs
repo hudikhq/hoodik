@@ -14,7 +14,7 @@ use crate::data::{app_file::AppFile, search::Search};
 
 use super::Repository;
 
-pub struct Tokens<'repository, T: ConnectionTrait> {
+pub(crate) struct Tokens<'repository, T: ConnectionTrait> {
     repository: &'repository Repository<'repository, T>,
     user_id: Uuid,
 }
@@ -23,7 +23,7 @@ impl<'repository, T> Tokens<'repository, T>
 where
     T: ConnectionTrait,
 {
-    pub fn new(repository: &'repository Repository<'repository, T>, user_id: Uuid) -> Self {
+    pub(crate) fn new(repository: &'repository Repository<'repository, T>, user_id: Uuid) -> Self {
         Self {
             repository,
             user_id,
@@ -31,7 +31,11 @@ where
     }
 
     /// Link file with given tokens
-    pub async fn upsert(&self, file: &files::Model, hashed_tokens: Vec<String>) -> AppResult<u64> {
+    pub(crate) async fn upsert(
+        &self,
+        file: &files::Model,
+        hashed_tokens: Vec<String>,
+    ) -> AppResult<u64> {
         let tokens = cryptfns::tokenizer::from_vec(hashed_tokens)?;
 
         let existing = tokens::Entity::find()
@@ -94,7 +98,12 @@ where
     /// Delete all tokens for a file and then recreate them.
     /// This is used when renaming a file or doing file content update. It is not the most
     /// efficient way to get this done, but it is the easiest.
-    pub async fn rename(&self, file: &files::Model, hashed_tokens: Vec<String>) -> AppResult<u64> {
+    #[allow(dead_code)]
+    pub(crate) async fn rename(
+        &self,
+        file: &files::Model,
+        hashed_tokens: Vec<String>,
+    ) -> AppResult<u64> {
         file_tokens::Entity::delete_many()
             .filter(file_tokens::Column::FileId.eq(file.id))
             .exec(self.repository.connection())
@@ -104,7 +113,8 @@ where
     }
 
     /// Create a new token
-    pub async fn create(&self, token: Token) -> AppResult<tokens::Model> {
+    #[allow(dead_code)]
+    pub(crate) async fn create(&self, token: Token) -> AppResult<tokens::Model> {
         let id = Uuid::new_v4();
 
         let token = tokens::ActiveModel {
@@ -123,7 +133,8 @@ where
     }
 
     /// Get a token by hash
-    pub async fn get(&self, hash: &str) -> AppResult<tokens::Model> {
+    #[allow(dead_code)]
+    pub(crate) async fn get(&self, hash: &str) -> AppResult<tokens::Model> {
         tokens::Entity::find()
             .filter(tokens::Column::Hash.eq(hash))
             .one(self.repository.connection())
@@ -132,7 +143,8 @@ where
     }
 
     /// Get all tokens for a file
-    pub async fn get_tokens(&self, file_id: Uuid) -> AppResult<Vec<Token>> {
+    #[allow(dead_code)]
+    pub(crate) async fn get_tokens(&self, file_id: Uuid) -> AppResult<Vec<Token>> {
         let tokens = file_tokens::Entity::find()
             .inner_join(tokens::Entity)
             .filter(file_tokens::Column::FileId.eq(file_id))
@@ -159,7 +171,7 @@ where
     }
 
     /// Search files based on given tokens and sort by the token weight
-    pub async fn search(&self, search: Search) -> AppResult<Vec<AppFile>> {
+    pub(crate) async fn search(&self, search: Search) -> AppResult<Vec<AppFile>> {
         let (file_id, hashed_tokens, limit, skip) = search.into_tuple();
 
         if hashed_tokens.is_empty() {

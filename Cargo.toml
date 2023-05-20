@@ -1,6 +1,5 @@
 [workspace]
 members = [
-  "hoodik",
   "auth",
   "config",
   "context",
@@ -8,6 +7,8 @@ members = [
   "email",
   "entity",
   "error",
+  "fs",
+  "hoodik",
   "migration",
   "storage",
   "util",

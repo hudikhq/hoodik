@@ -2,10 +2,9 @@ use actix_web::{route, web, HttpResponse};
 use auth::data::claims::Claims;
 use context::Context;
 use error::AppResult;
+use fs::prelude::*;
 
-use crate::{
-    contract::StorageProvider, data::query::Query, repository::Repository, storage::Storage,
-};
+use crate::{data::query::Query, repository::Repository};
 
 /// List files and directories
 ///
@@ -28,9 +27,10 @@ pub(crate) async fn index(
     for file in response.children.iter_mut() {
         if file.is_file() {
             let filename = file.get_filename().unwrap();
-            let chunks = Storage::new(&context.config)
+            let chunks = Fs::new(&context.config)
                 .get_uploaded_chunks(&filename)
                 .await?;
+
             file.chunks_stored = Some(chunks.len() as i32);
             file.uploaded_chunks = Some(chunks);
         }
