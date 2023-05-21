@@ -9,10 +9,11 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(Tokens::Table)
+                    .table(Link::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(Tokens::Id).uuid().not_null().primary_key())
-                    .col(ColumnDef::new(Tokens::Hash).string().not_null())
+                    .col(ColumnDef::new(Link::Id).uuid().not_null().primary_key())
+                    .col(ColumnDef::new(Link::Title).string().not_null())
+                    .col(ColumnDef::new(Link::Text).string().not_null())
                     .to_owned(),
             )
             .await
@@ -20,15 +21,16 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(Tokens::Table).to_owned())
+            .drop_table(Table::drop().table(Link::Table).to_owned())
             .await
     }
 }
 
-// Learn more at https://docs.rs/sea-query#iden
+/// Learn more at https://docs.rs/sea-query#iden
 #[derive(Iden)]
-pub(crate) enum Tokens {
+pub(crate) enum Link {
     Table,
     Id,
-    Hash,
+    Title,
+    Text,
 }

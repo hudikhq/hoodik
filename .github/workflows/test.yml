@@ -3,10 +3,7 @@ name: Test
 on:
   push:
     branches:
-      - "*"
-  pull_request:
-    branches:
-      - master
+      - "*" # All branches
 
 env:
   CARGO_TERM_COLOR: always

@@ -65,7 +65,9 @@ impl<'provider> FsProvider<'provider> {
                 Err(e) => return Some((Err(Error::from(e)), files)),
             };
 
-            Some((Ok(Bytes::from(data)), files))
+            let data = Bytes::from(data);
+
+            Some((Ok(data), files))
         })
     }
 }
