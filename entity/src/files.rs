@@ -34,6 +34,8 @@ pub enum Relation {
     UserFiles,
     #[sea_orm(has_many = "super::file_tokens::Entity")]
     FileTokens,
+    #[sea_orm(has_many = "super::links::Entity")]
+    Links,
 }
 
 pub struct ChildFilesLink;

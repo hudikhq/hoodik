@@ -48,7 +48,7 @@ impl Streamer {
     }
 
     /// Map the inner stream with a custom function
-    pub fn map<T, F>(mut self, f: F) -> Self
+    pub fn map<F>(mut self, f: F) -> Self
     where
         F: FnMut(AppResult<web::Bytes>) -> AppResult<web::Bytes> + 'static,
     {
@@ -59,8 +59,44 @@ impl Streamer {
 
     /// Get the inner stream to pass it to the actix_web::HttpResponse::streaming
     pub fn stream(self) -> impl futures_util::Stream<Item = AppResult<actix_web::web::Bytes>> {
-        let mut map = self.map_fn;
+        self.inner.map(self.map_fn)
+    }
+}
 
-        self.inner.map(move |data| map(data))
+#[cfg(test)]
+mod test {
+    #[tokio::test]
+    async fn test_create_stream() {
+        use super::Streamer;
+        use futures_util::stream::StreamExt;
+
+        let stream = Streamer::new(futures_util::stream::once(async move {
+            Ok(actix_web::web::Bytes::from_static(b"test"))
+        }));
+
+        let mut stream = stream.stream();
+
+        assert_eq!(
+            stream.next().await.unwrap().unwrap(),
+            actix_web::web::Bytes::from_static(b"test")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_map_stream() {
+        use super::Streamer;
+        use futures_util::stream::StreamExt;
+
+        let stream = Streamer::new(futures_util::stream::once(async move {
+            Ok(actix_web::web::Bytes::from_static(b"test"))
+        }))
+        .map(|_data| Ok(actix_web::web::Bytes::from_static(b"test2")));
+
+        let mut stream = stream.stream();
+
+        assert_eq!(
+            stream.next().await.unwrap().unwrap(),
+            actix_web::web::Bytes::from_static(b"test2")
+        );
     }
 }
