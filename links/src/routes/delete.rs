@@ -8,7 +8,7 @@ use crate::repository::Repository;
 
 /// Delete a link by its id. (This won't delete the file)
 ///
-/// Response: -
+/// Response: No Content
 #[route("/api/links/{link_id}", method = "DELETE")]
 pub(crate) async fn delete(
     req: HttpRequest,

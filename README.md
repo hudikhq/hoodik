@@ -51,12 +51,12 @@ The application is currently still in a pre alpha version, it doesn't even have 
 There are some issues that need to be worked out before the app is released in the alpha version:
  - Wasm crypto functions are fast, but not as I wish they were
  - Files cannot be shared
- - No public links can be made with files
+ - ~~No public links can be made with files~~
  - Settings for the users account are non-existent
  - Overall database design is still in the early stages and might change without a migration (still dropping when upgrading)
- - Frontend application has lost testing ability once the app switched to credentials mode of authentication (Jest cannot deal with http only cookies)
- - Currently, its using AES-AEAD encryption for files, that might change and would be a breaking change
- - Files are stored on disk in chunks, that is currently working and it won't change most likely, but.. It might be necessary for performance
+ - ~~Frontend application has lost testing ability once the app switched to credentials mode of authentication (Jest cannot deal with http only cookies)~~
+ - ~~Currently, its using AES-AEAD encryption for files, that might change and would be a breaking change~~
+ - ~~Files are stored on disk in chunks, that is currently working and it won't change most likely, but.. It might be necessary for performance~~
  - ...I don't feel like it being ready yet.
 
 # Installing via docker
