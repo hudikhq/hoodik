@@ -37,9 +37,7 @@ pub(crate) async fn delete(
         }
 
         if file.is_file() {
-            Fs::new(&context.config)
-                .purge(&file.get_filename().unwrap())
-                .await?;
+            Fs::new(&context.config).purge(file).await?;
         }
 
         ids.push(file.id);

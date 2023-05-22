@@ -26,12 +26,15 @@ cryptfns = { path = "../cryptfns" }
 entity = { path = "../entity" }
 error = { path = "../error" }
 fs = { path = "../fs" }
+links = { path = "../links" }
 migration = { path = "../migration" }
 storage = { path = "../storage" }
 
 [dev-dependencies]
 chrono = { version = "0.4.23", features = ["serde"] }
 auth = { path = "../auth", features = ["mock"] }
-email = { path = "../email", features = ["mock"] }
 context = { path = "../context", features = ["mock"] }
 cryptfns = { path = "../cryptfns", features = ["mock"] }
+email = { path = "../email", features = ["mock"] }
+links = { path = "../links", features = ["mock"] }
+storage = { path = "../storage", features = ["mock"] }

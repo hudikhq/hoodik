@@ -319,7 +319,7 @@ where
             .upsert(&file, hashed_tokens)
             .await?;
 
-        let id = uuid::Uuid::new_v4();
+        let id = entity::Uuid::new_v4();
 
         let user_file = user_files::ActiveModel {
             id: ActiveValue::Set(id),

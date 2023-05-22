@@ -15,7 +15,7 @@ pub mod name_hash;
 pub mod search;
 pub mod upload;
 
-/// Register the authentication routes
+/// Register the storage routes
 /// on to the application server
 pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
     cfg.service(create::create);

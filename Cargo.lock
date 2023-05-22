@@ -1639,6 +1639,7 @@ name = "entity"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "cryptfns",
  "error",
  "sea-orm",
  "serde",
@@ -1810,9 +1811,7 @@ name = "fs"
 version = "0.1.0"
 dependencies = [
  "actix-web",
- "async-std",
  "async-trait",
- "cached",
  "chrono",
  "config",
  "context",
@@ -1821,13 +1820,8 @@ dependencies = [
  "futures-util",
  "glob",
  "log",
- "mime",
  "pin-project",
- "serde",
- "serde_json",
  "tokio",
- "uuid",
- "validr",
 ]
 
 [[package]]
@@ -2153,6 +2147,7 @@ dependencies = [
  "env_logger",
  "error",
  "fs",
+ "links",
  "log",
  "migration",
  "reqwest",
@@ -2550,6 +2545,26 @@ name = "linked-hash-map"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0717cef1bc8b636c6e1c1bbdefc09e6322da8a9321966e8928ef80d20f7f770f"
+
+[[package]]
+name = "links"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "auth",
+ "cached",
+ "chrono",
+ "context",
+ "cryptfns",
+ "entity",
+ "error",
+ "fs",
+ "log",
+ "serde",
+ "serde_json",
+ "util",
+ "validr",
+]
 
 [[package]]
 name = "linux-raw-sys"
@@ -4311,27 +4326,18 @@ name = "storage"
 version = "0.1.0"
 dependencies = [
  "actix-web",
- "async-std",
- "async-trait",
  "auth",
  "cached",
  "chrono",
- "config",
  "context",
  "cryptfns",
  "entity",
  "error",
  "fs",
- "futures-util",
- "glob",
  "log",
- "mime",
- "pin-project",
  "serde",
  "serde_json",
- "tokio",
  "util",
- "uuid",
  "validr",
 ]
 

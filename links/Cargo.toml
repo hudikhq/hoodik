@@ -1,11 +1,11 @@
 [package]
-name = "storage"
+name = "links"
 version = "0.1.0"
 edition = "2021"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
 readme = "README.md"
 license-file = "../LICENSE.md"
-description = "Application storage service that manages files and folders."
+description = "Application links service that enables users to share public links to their hosted files"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

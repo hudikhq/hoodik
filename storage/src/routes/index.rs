@@ -26,10 +26,7 @@ pub(crate) async fn index(
 
     for file in response.children.iter_mut() {
         if file.is_file() {
-            let filename = file.get_filename().unwrap();
-            let chunks = Fs::new(&context.config)
-                .get_uploaded_chunks(&filename)
-                .await?;
+            let chunks = Fs::new(&context.config).get_uploaded_chunks(file).await?;
 
             file.chunks_stored = Some(chunks.len() as i32);
             file.uploaded_chunks = Some(chunks);

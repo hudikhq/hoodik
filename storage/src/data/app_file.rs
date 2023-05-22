@@ -1,5 +1,7 @@
 use chrono::NaiveDateTime;
-use entity::{files, user_files, Uuid};
+use entity::{files, user_files, DbErr, FromQueryResult, QueryResult, Uuid};
+use error::{AppResult, Error};
+use fs::prelude::{Filename, IntoFilename};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -21,6 +23,18 @@ pub struct AppFile {
     pub uploaded_chunks: Option<Vec<i32>>,
 }
 
+impl IntoFilename for AppFile {
+    fn filename(&self) -> AppResult<Filename> {
+        if self.is_dir() {
+            return Err(Error::BadRequest(
+                "cannot_get_filename_from_dir".to_string(),
+            ));
+        }
+
+        Ok(Filename::new(self.created_at, self.id))
+    }
+}
+
 impl PartialEq for AppFile {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
@@ -34,18 +48,6 @@ impl AppFile {
 
     pub fn is_dir(&self) -> bool {
         &self.mime == "dir"
-    }
-
-    pub fn get_filename(&self) -> Option<String> {
-        if self.is_file() {
-            Some(format!(
-                "{}-{}",
-                &self.created_at.timestamp(),
-                &self.id.to_string()
-            ))
-        } else {
-            None
-        }
     }
 
     pub fn is_new(mut self, is_new: bool) -> Self {
@@ -76,5 +78,14 @@ impl From<(files::Model, user_files::Model)> for AppFile {
             is_new: false,
             uploaded_chunks: None,
         }
+    }
+}
+
+impl FromQueryResult for AppFile {
+    fn from_query_result(res: &QueryResult, _pre: &str) -> Result<Self, DbErr> {
+        let file = files::Model::from_query_result(res, "file")?;
+        let user_file = user_files::Model::from_query_result(res, "user_file")?;
+
+        Ok(Self::from((file, user_file)))
     }
 }

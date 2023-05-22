@@ -6,7 +6,11 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
 };
 
-use crate::{contract::FsProviderContract, streamer::Streamer};
+use crate::{
+    contract::FsProviderContract,
+    filename::{Filename, IntoFilename},
+    streamer::Streamer,
+};
 
 pub(crate) struct FsProvider<'provider> {
     data_dir: &'provider str,
@@ -18,20 +22,15 @@ impl<'provider> FsProvider<'provider> {
     }
 
     /// Get full path of a file for the chunk
-    fn full_path<F: ToString, C: ToString>(&self, filename: F, chunk: C) -> String {
-        format!(
-            "{}/{}.{}.part",
-            self.data_dir,
-            filename.to_string(),
-            chunk.to_string()
-        )
+    fn full_path<C: ToString>(&self, filename: &Filename, chunk: C) -> String {
+        format!("{}/{}.{}.part", self.data_dir, filename, chunk.to_string())
     }
 
     /// Create the inner streaming method that is then passed into the streamer for
     /// better readeability of the code.
-    async fn inner_stream(
+    async fn inner_stream<T: IntoFilename>(
         &self,
-        filename: &str,
+        filename: &T,
         chunk: Option<i32>,
     ) -> impl futures_util::Stream<Item = AppResult<actix_web::web::Bytes>> {
         let files: Vec<File> = match chunk {
@@ -74,32 +73,38 @@ impl<'provider> FsProvider<'provider> {
 
 #[async_trait]
 impl<'ctx> FsProviderContract for FsProvider<'ctx> {
-    async fn exists(&self, filename: &str, chunk: i32) -> AppResult<bool> {
-        Ok(std::path::Path::new(self.full_path(filename, chunk).as_str()).exists())
+    async fn exists<T: IntoFilename>(&self, filename: &T, chunk: i32) -> AppResult<bool> {
+        Ok(std::path::Path::new(self.full_path(&filename.filename()?, chunk).as_str()).exists())
     }
 
-    async fn get(&self, filename: &str, chunk: i32) -> AppResult<File> {
+    async fn get<T: IntoFilename>(&self, filename: &T, chunk: i32) -> AppResult<File> {
+        let filename = filename.filename()?;
+
         OpenOptions::new()
             .read(true)
             .write(true)
-            .open(self.full_path(filename, chunk))
+            .open(self.full_path(&filename, chunk))
             .await
             .map_err(Error::from)
     }
 
-    async fn all(&self, filename: &str) -> AppResult<Vec<File>> {
-        let chunks = self.get_uploaded_chunks(filename).await?;
+    async fn all<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<File>> {
+        let filename = filename.filename()?;
+
+        let chunks = self.get_uploaded_chunks(&filename).await?;
         let mut files: Vec<File> = vec![];
 
         for chunk in chunks {
-            files.push(self.get(filename, chunk).await?);
+            files.push(self.get(&filename, chunk).await?);
         }
 
         Ok(files)
     }
 
-    async fn push(&self, filename: &str, chunk: i32, data: &[u8]) -> AppResult<()> {
-        let file = File::create(self.full_path(filename, chunk)).await?;
+    async fn push<T: IntoFilename>(&self, filename: &T, chunk: i32, data: &[u8]) -> AppResult<()> {
+        let filename = filename.filename()?;
+
+        let file = File::create(self.full_path(&filename, chunk)).await?;
 
         let mut writer = tokio::io::BufWriter::new(file);
         writer.write_all(data).await?;
@@ -108,8 +113,10 @@ impl<'ctx> FsProviderContract for FsProvider<'ctx> {
         Ok(())
     }
 
-    async fn pull(&self, filename: &str, chunk: i32) -> AppResult<Vec<u8>> {
-        let mut file = File::open(self.full_path(filename, chunk)).await?;
+    async fn pull<T: IntoFilename>(&self, filename: &T, chunk: i32) -> AppResult<Vec<u8>> {
+        let filename = filename.filename()?;
+
+        let mut file = File::open(self.full_path(&filename, chunk)).await?;
 
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).await?;
@@ -117,18 +124,21 @@ impl<'ctx> FsProviderContract for FsProvider<'ctx> {
         Ok(buffer)
     }
 
-    async fn purge(&self, filename: &str) -> AppResult<()> {
-        let chunks = self.get_uploaded_chunks(filename).await?;
+    async fn purge<T: IntoFilename>(&self, filename: &T) -> AppResult<()> {
+        let filename = filename.filename()?;
+
+        let chunks = self.get_uploaded_chunks(&filename).await?;
 
         for chunk in chunks {
-            remove_file(self.full_path(filename, chunk)).await?;
+            remove_file(self.full_path(&filename, chunk)).await?;
         }
 
         Ok(())
     }
 
-    async fn get_uploaded_chunks(&self, filename: &str) -> AppResult<Vec<i32>> {
-        let pattern = self.full_path(filename, "*");
+    async fn get_uploaded_chunks<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<i32>> {
+        let filename = filename.filename()?;
+        let pattern = self.full_path(&filename, "*");
         let paths = glob::glob(&pattern)?;
 
         let mut chunks = Vec::new();
@@ -155,9 +165,14 @@ impl<'ctx> FsProviderContract for FsProvider<'ctx> {
         Ok(chunks)
     }
 
-    async fn stream(&self, filename: &str, chunk: Option<i32>) -> Streamer {
-        let stream = self.inner_stream(filename, chunk).await;
+    async fn stream<T: IntoFilename>(
+        &self,
+        filename: &T,
+        chunk: Option<i32>,
+    ) -> AppResult<Streamer> {
+        let filename = filename.filename()?;
+        let stream = self.inner_stream(&filename, chunk).await;
 
-        Streamer::new(stream)
+        Ok(Streamer::new(stream))
     }
 }

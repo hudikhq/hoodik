@@ -11,26 +11,17 @@ description = "File system abstraction library"
 
 [dependencies]
 config = { path = "../config" }
-context = { path = "../context" }
-entity = { path = "../entity" }
 error = { path = "../error" }
+entity = { path = "../entity" }
 
 log = "^0.4"
 actix-web = "^4"
 futures-util = "^0.3"
-validr = "^0.3"
-serde = "^1"
-serde_json = "^1"
-chrono = "^0.4"
-mime = { version = "^0.3" }
 glob = "^0.3"
 pin-project = "^1"
 tokio = "^1"
 async-trait = "^0.1"
-uuid = { version = "1.2.2", features = ["serde", "v4"] }
-cached = "^0.43"
+chrono = "^0.4"
 
 [dev-dependencies]
 context = { path = "../context", features = ["mock"] }
-entity = { path = "../entity", features = ["mock"] }
-async-std = { version = "^1", features = ["attributes", "tokio1"] }

@@ -31,17 +31,13 @@ pub(crate) async fn download(
         .await
         .ok_or_else(|| Error::NotFound("file_not_found".to_string()))?;
 
-    let filename = file
-        .get_filename()
-        .ok_or(Error::NotFound("file_not_found".to_string()))?;
-
     let storage = Fs::new(&context.config);
 
-    let streamer = storage.stream(&filename, chunk).await;
+    let streamer = storage.stream(&file, chunk).await?;
 
     let filename = match chunk {
-        Some(chunk) => format!("{filename}.part.{chunk}.enc"),
-        None => format!("{filename}.enc"),
+        Some(chunk) => file.filename()?.with_chunk(chunk).with_extension(".enc"),
+        None => file.filename()?.with_extension(".enc"),
     };
 
     let file_size = match chunk {
@@ -77,35 +73,31 @@ pub(crate) async fn head(
         .file(file_id)
         .await?;
 
-    let filename = file
-        .get_filename()
-        .ok_or(Error::NotFound("file_not_found".to_string()))?;
-
     let storage = Fs::new(&context.config);
 
     if let Some(c) = chunk {
         let _fs_file = storage
-            .get(&filename, c)
+            .get(&file, c)
             .await
             .map_err(|_| error::Error::NotFound("file_not_found".to_string()))?;
     } else {
         let chunks = storage
-            .get_uploaded_chunks(&filename)
+            .get_uploaded_chunks(&file)
             .await
             .map_err(|_| error::Error::NotFound("file_not_found".to_string()))?;
 
         // check that all the chunks are available
         for chunk in chunks {
             let _fs_file = storage
-                .get(&filename, chunk)
+                .get(&file, chunk)
                 .await
                 .map_err(|_| error::Error::NotFound("file_not_found".to_string()))?;
         }
     }
 
     let filename = match chunk {
-        Some(chunk) => format!("{filename}.part.{chunk}.enc"),
-        None => format!("{filename}.enc"),
+        Some(chunk) => file.filename()?.with_chunk(chunk).with_extension(".enc"),
+        None => file.filename()?.with_extension(".enc"),
     };
 
     Ok(HttpResponse::NoContent()

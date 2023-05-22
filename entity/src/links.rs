@@ -9,27 +9,60 @@ use serde::{Deserialize, Serialize};
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
+
+    /// User id that created the link.
     pub user_id: Uuid,
+
+    /// File id that the link is for.
     pub file_id: Uuid,
+    /// Signature that the user created when the link was initially created.
+    ///
+    /// The signature is made using a shared file_id
     pub signature: String,
-    pub name: String,
-    pub thumbnail: Option<String>,
+
+    /// Number of times the file has been downloaded,
+    /// this counts every attempt to download the file,
+    /// it doesn't wait for the file to be downloaded in order to increment.
+    pub downloads: i32,
+
+    /// Name of the file encrypted with the link key. If the file is
+    /// renamed after the link is created, that change won't be reflected
+    /// in the link.
+    pub encrypted_name: String,
+
+    /// Link AES key encrypted with the user's public RSA key.
+    /// So the owner of the link can retrieve the link key directly
+    /// from the database entry, everyone else must have it shared with them.
+    pub encrypted_link_key: String,
+
+    /// If the file has a thumbnail it is encrypted with the link key.
+    pub encrypted_thumbnail: Option<String>,
+
+    /// AES key for the file encrypted with a link key.
+    /// This property is not shared outside of the application.
+    /// it is decrypted in memory before the file is downloaded.
     #[serde(skip_serializing)]
     pub encrypted_file_key: Option<String>,
+
+    /// Date when the link was created
     pub created_at: NaiveDateTime,
+
+    /// Date when the link will expire, automated cron job
+    /// will periodically empty out the expired links of all the
+    /// file metadata and encrypted file key.
     pub expires_at: Option<NaiveDateTime>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
-        belongs_to = "super::files::Entity",
-        from = "Column::FileId",
-        to = "super::files::Column::Id",
+        belongs_to = "super::users::Entity",
+        from = "Column::UserId",
+        to = "super::users::Column::Id",
         on_update = "NoAction",
         on_delete = "Cascade"
     )]
-    User,
+    Users,
     #[sea_orm(
         belongs_to = "super::files::Entity",
         from = "Column::FileId",
@@ -37,12 +70,18 @@ pub enum Relation {
         on_update = "NoAction",
         on_delete = "Cascade"
     )]
-    File,
+    Files,
+}
+
+impl Related<super::users::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Users.def()
+    }
 }
 
 impl Related<super::files::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::File.def()
+        Relation::Files.def()
     }
 }
 

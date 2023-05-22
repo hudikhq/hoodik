@@ -59,23 +59,18 @@ pub(crate) async fn upload(
         .chunks
         .ok_or(Error::BadRequest("file_has_no_chunks".to_string()))?;
 
-    let filename = file
-        .get_filename()
-        .ok_or(Error::BadRequest("file_is_dir".to_string()))?;
-
     if chunk > chunks {
         return Err(Error::as_validation("chunk", "chunk_out_of_range"));
     }
 
-    if storage.exists(&filename, chunk).await? {
+    if storage.exists(&file, chunk).await? {
         return Err(Error::as_validation("chunk", "chunk_already_exists"));
     }
 
-    storage.push(&filename, chunk, &request_body).await?;
+    storage.push(&file, chunk, &request_body).await?;
 
     if file.is_file() {
-        let filename = file.get_filename().unwrap();
-        let chunks = storage.get_uploaded_chunks(&filename).await?;
+        let chunks = storage.get_uploaded_chunks(&file).await?;
 
         file.chunks_stored = Some(chunks.len() as i32);
         file.uploaded_chunks = Some(chunks);

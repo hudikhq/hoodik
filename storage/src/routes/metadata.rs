@@ -31,12 +31,7 @@ pub(crate) async fn metadata(
     }
 
     if file.is_file() && file.finished_upload_at.is_none() {
-        let filename = file.get_filename().unwrap();
-        file.uploaded_chunks = Some(
-            Fs::new(&context.config)
-                .get_uploaded_chunks(&filename)
-                .await?,
-        );
+        file.uploaded_chunks = Some(Fs::new(&context.config).get_uploaded_chunks(&file).await?);
     }
 
     Ok(HttpResponse::Ok().json(file))

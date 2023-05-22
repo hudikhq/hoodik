@@ -10,6 +10,13 @@ use url::Url;
 pub mod email;
 pub mod ssl;
 
+#[cfg(feature = "mock")]
+impl Drop for Config {
+    fn drop(&mut self) {
+        self.cleanup();
+    }
+}
+
 /// Config struct that holds all the loaded configuration
 /// from the env and arguments.
 ///
@@ -628,6 +635,15 @@ impl Config {
         println!("-- Using ssl cert: {}", self.ssl_cert_file,);
         println!("-- Using ssl key: {}", self.ssl_key_file);
         println!("------------------------------------------");
+    }
+
+    /// Cleanup the data directory
+    #[cfg(feature = "mock")]
+    pub fn cleanup(&self) {
+        match fs::remove_dir_all(&self.data_dir) {
+            Ok(_) => (),
+            Err(_e) => (),
+        }
     }
 }
 
