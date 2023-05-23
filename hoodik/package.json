@@ -1,8 +1,5 @@
 {
   "name": "@hoodik/hoodik",
   "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "cargo run"
-  }
+  "private": true
 }
