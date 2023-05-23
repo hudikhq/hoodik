@@ -8,12 +8,13 @@ import type { store as loginStore } from '../services/auth/login'
 import type { AppFile, ListAppFile, UploadAppFile, DownloadAppFile } from './file'
 
 export * from './create'
-export * from './file'
-export * from './worker'
-export * from './queue'
-export * from './login'
-export * from './register'
 export * from './cryptfns'
+export * from './file'
+export * from './links'
+export * from './login'
+export * from './queue'
+export * from './register'
+export * from './worker'
 
 export type UploadStore = ReturnType<typeof uploadStore>
 export type DownloadStore = ReturnType<typeof downloadStore>

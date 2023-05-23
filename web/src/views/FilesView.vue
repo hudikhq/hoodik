@@ -70,7 +70,12 @@ watch(fileId, () => {
 
 <template>
   <LayoutAuthenticatedWithLoader>
-    <FileBrowser :parentId="parentId" :hide-delete="false" v-slot="{ storage, loading, on }">
+    <FileBrowser
+      :parentId="parentId"
+      :hide-delete="false"
+      :share="true"
+      v-slot="{ storage, loading, on }"
+    >
       <SectionMain>
         <CardBox rounded="rounded-md" class="mb-2 px-0 py-0" has-table>
           <div class="w-full border-y-0">

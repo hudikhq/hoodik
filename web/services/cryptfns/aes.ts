@@ -128,3 +128,21 @@ export async function decryptString(secret: string, key: string | Key): Promise<
   const result = await decrypt(ciphertext, key)
   return uint8.toUtf8(result)
 }
+
+/**
+ * Take an encrypted string that is supposed to be hex and decrypt it with given aes key
+ */
+export async function decryptFromHex(hex: string, key: Key): Promise<string> {
+  return uint8.toUtf8(await decrypt(uint8.fromHex(hex), key))
+}
+
+/**
+ * Take a string or Uint8Array, encrypt it with given aes key and return it as hex
+ */
+export async function encryptToHex(data: string | Uint8Array, key: Key): Promise<string> {
+  if (typeof data === 'string') {
+    data = uint8.fromUtf8(data)
+  }
+
+  return uint8.toHex(await encrypt(data, key))
+}

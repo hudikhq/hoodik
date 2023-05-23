@@ -16,6 +16,7 @@ import { Helper } from '!/storage/helper'
 const props = defineProps<{
   parentId?: string
   hideDelete?: boolean
+  share?: boolean
 }>()
 
 const Download = downloadStore()

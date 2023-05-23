@@ -289,15 +289,12 @@ export default class Api {
   /**
    * Make get request
    */
-  async download(path: string, query?: Query): Promise<globalThis.Response> {
-    const { request, fetchOptions } = Api.buildRequest(
-      'get',
-      path,
-      query,
-      undefined,
-      undefined,
-      this
-    )
+  async download<T>(
+    path: string,
+    query?: Query,
+    body?: T | undefined
+  ): Promise<globalThis.Response> {
+    const { request, fetchOptions } = Api.buildRequest('get', path, query, body, undefined, this)
 
     return fetch(decodeURIComponent(request.url), fetchOptions)
   }

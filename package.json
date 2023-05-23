@@ -8,7 +8,9 @@
     "cryptfns"
   ],
   "scripts": {
-    "start": "yarn workspace @hoodik/web run dev & cargo run"
+    "start": "yarn workspace @hoodik/web run dev & cargo run",
+    "test:unit": "yarn workspace @hoodik/web run test:unit",
+    "test:watch": "yarn workspace @hoodik/web run test:watch"
   },
   "packageManager": "yarn@1.22.19",
   "devDependencies": {
