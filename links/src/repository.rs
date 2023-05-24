@@ -131,8 +131,8 @@ impl<'ctx> Repository<'ctx> {
         let links = selector
             .filter(links::Column::UserId.eq(user_id))
             .filter(links::Column::ExpiresAt.gt(chrono::Utc::now().naive_utc()))
-            .join(JoinType::LeftJoin, links::Relation::Users.def())
-            .join(JoinType::LeftJoin, links::Relation::Files.def())
+            .join(JoinType::InnerJoin, links::Relation::Users.def())
+            .join(JoinType::InnerJoin, links::Relation::Files.def())
             .into_model::<AppLink>()
             .all(&self.context.db)
             .await?;
@@ -150,8 +150,8 @@ impl<'ctx> Repository<'ctx> {
 
         let app_link = selector
             .filter(links::Column::Id.eq(id))
-            .join(JoinType::LeftJoin, links::Relation::Users.def())
-            .join(JoinType::LeftJoin, links::Relation::Files.def())
+            .join(JoinType::InnerJoin, links::Relation::Users.def())
+            .join(JoinType::InnerJoin, links::Relation::Files.def())
             .into_model::<AppLink>()
             .one(&self.context.db)
             .await?

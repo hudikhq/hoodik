@@ -1,5 +1,5 @@
 use chrono::NaiveDateTime;
-use entity::{files, user_files, DbErr, FromQueryResult, QueryResult, Uuid};
+use entity::{files, links, user_files, DbErr, FromQueryResult, QueryResult, Uuid};
 use error::{AppResult, Error};
 use fs::prelude::{Filename, IntoFilename};
 use serde::{Deserialize, Serialize};
@@ -21,6 +21,7 @@ pub struct AppFile {
     pub finished_upload_at: Option<NaiveDateTime>,
     pub is_new: bool,
     pub uploaded_chunks: Option<Vec<i32>>,
+    pub link: Option<links::Model>,
 }
 
 impl IntoFilename for AppFile {
@@ -77,6 +78,7 @@ impl From<(files::Model, user_files::Model)> for AppFile {
             finished_upload_at: file.finished_upload_at,
             is_new: false,
             uploaded_chunks: None,
+            link: None,
         }
     }
 }

@@ -409,7 +409,6 @@ impl Config {
 
     /// Make sure the data directory exists and create it if not
     fn ensure_data_dir(self) -> Self {
-        println!("Trying to create the data directory: {}", &self.data_dir);
         let mut dir_builder = DirBuilder::new();
 
         match dir_builder.recursive(true).create(&self.data_dir) {

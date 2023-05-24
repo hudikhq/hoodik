@@ -10,7 +10,8 @@
   "scripts": {
     "start": "yarn workspace @hoodik/web run dev & cargo run",
     "test:unit": "yarn workspace @hoodik/web run test:unit",
-    "test:watch": "yarn workspace @hoodik/web run test:watch"
+    "test:watch": "yarn workspace @hoodik/web run test:watch",
+    "type-check": "yarn workspace @hoodik/web run type-check"
   },
   "packageManager": "yarn@1.22.19",
   "devDependencies": {

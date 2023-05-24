@@ -11,7 +11,6 @@ import DetailsModal from '@/components/files/browser/DetailsModal.vue'
 import UploadButton from '@/components/files/browser/UploadButton.vue'
 import { ref, watch, onMounted } from 'vue'
 import type { ListAppFile } from 'types'
-import { Helper } from '!/storage/helper'
 
 const props = defineProps<{
   parentId?: string
@@ -22,8 +21,6 @@ const props = defineProps<{
 const Download = downloadStore()
 const storage = storageStore()
 const crypto = cryptoStore()
-
-const helper = ref<Helper>(new Helper(crypto.keypair, storage))
 
 const openBrowseWindow = ref(false)
 const isModalCreateDirActive = ref(false)
@@ -143,7 +140,6 @@ onMounted(() => {
   />
 
   <slot
-    :helper="helper"
     :parentId="parentId"
     :storage="storage"
     :download="Download"

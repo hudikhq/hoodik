@@ -5,8 +5,8 @@ use std::cmp::Ordering;
 
 use cryptfns::tokenizer::Token;
 use entity::{
-    file_tokens, files, tokens, user_files, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait,
-    Expr, IntoCondition, JoinType, QueryFilter, QueryOrder, QuerySelect, RelationTrait, Uuid,
+    file_tokens, files, tokens, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait,
+    QueryFilter, QueryOrder, QuerySelect, Uuid,
 };
 use error::AppResult;
 
@@ -31,11 +31,7 @@ where
     }
 
     /// Link file with given tokens
-    pub(crate) async fn upsert(
-        &self,
-        file: &files::Model,
-        hashed_tokens: Vec<String>,
-    ) -> AppResult<u64> {
+    pub(crate) async fn upsert(&self, file_id: Uuid, hashed_tokens: Vec<String>) -> AppResult<u64> {
         let tokens = cryptfns::tokenizer::from_vec(hashed_tokens)?;
 
         let existing = tokens::Entity::find()
@@ -57,7 +53,7 @@ where
             if let Some(existing) = existing.iter().find(|t| t.hash == token.token) {
                 links.push(file_tokens::ActiveModel {
                     id: ActiveValue::Set(Uuid::new_v4()),
-                    file_id: ActiveValue::Set(file.id),
+                    file_id: ActiveValue::Set(file_id),
                     token_id: ActiveValue::Set(existing.id),
                     weight: ActiveValue::Set(token.weight as i32),
                 });
@@ -66,7 +62,7 @@ where
 
                 links.push(file_tokens::ActiveModel {
                     id: ActiveValue::Set(Uuid::new_v4()),
-                    file_id: ActiveValue::Set(file.id),
+                    file_id: ActiveValue::Set(file_id),
                     token_id: ActiveValue::Set(id),
                     weight: ActiveValue::Set(token.weight as i32),
                 });
@@ -109,7 +105,7 @@ where
             .exec(self.repository.connection())
             .await?;
 
-        self.upsert(file, hashed_tokens).await
+        self.upsert(file.id, hashed_tokens).await
     }
 
     /// Create a new token
@@ -180,26 +176,17 @@ where
 
         let tokens = cryptfns::tokenizer::from_vec(hashed_tokens)?;
 
-        // let user_id = self.user_id;
-        let mut query = files::Entity::find();
+        let user_id = self.user_id;
+        let mut query = self
+            .repository
+            .selector(user_id, false)
+            .inner_join(tokens::Entity);
 
         if let Some(file_id) = file_id {
             query = query.filter(files::Column::FileId.eq(file_id));
         }
 
-        let user_id = self.user_id;
         let mut query = query
-            .inner_join(tokens::Entity)
-            .join(
-                JoinType::InnerJoin,
-                files::Relation::UserFiles
-                    .def()
-                    .on_condition(move |_left, right| {
-                        Expr::col((right, user_files::Column::UserId))
-                            .eq(user_id)
-                            .into_condition()
-                    }),
-            )
             .filter(
                 tokens::Column::Hash.is_in(
                     tokens
@@ -209,7 +196,6 @@ where
                 ),
             )
             .group_by(files::Column::Id)
-            .select_also(user_files::Entity)
             .order_by_desc(file_tokens::Column::Weight.sum());
 
         if let Some(limit) = limit {
@@ -221,11 +207,9 @@ where
         }
 
         let results = query
+            .into_model::<AppFile>()
             .all(self.repository.connection())
-            .await?
-            .into_iter()
-            .map(|(file, user_file)| AppFile::from((file, user_file.unwrap())))
-            .collect::<Vec<_>>();
+            .await?;
 
         Ok(results)
     }
