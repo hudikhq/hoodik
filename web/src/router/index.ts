@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import FilesView from '../views/FilesView.vue'
+import IndexView from '../views/files/IndexView.vue'
 
 const router = createRouter({
   history: createWebHistory(`/`),
@@ -11,16 +11,34 @@ const router = createRouter({
         files: true,
         title: 'My files'
       },
-      component: FilesView
+      component: IndexView
     },
     {
-      path: '/l/:link_id?',
+      path: '/p/:file_id',
+      name: 'file-preview',
+      meta: {
+        files: true,
+        title: 'File Preview'
+      },
+      component: () => import('../views/files/PreviewView.vue')
+    },
+    {
+      path: '/links',
       name: 'links',
       meta: {
-        files: false,
-        title: 'File'
+        files: true,
+        title: 'Links'
       },
-      component: () => import('../views/auth/pin/IndexView.vue')
+      component: () => import('../views/links/IndexView.vue')
+    },
+    {
+      path: '/l/:link_id',
+      name: 'links-view',
+      meta: {
+        files: true,
+        title: 'File Link'
+      },
+      component: () => import('../views/links/LinkView.vue')
     },
     {
       path: '/auth/pin/lock',

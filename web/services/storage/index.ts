@@ -20,7 +20,7 @@ import type {
 
 export { meta, upload, download, queue }
 
-export const store = defineStore('filesStore', () => {
+export const store = defineStore('files', () => {
   /**
    * Are we loading the files?
    */
@@ -96,7 +96,6 @@ export const store = defineStore('filesStore', () => {
    * Head over to backend and do a lookup for the current directory
    */
   async function find(kp: KeyPair, parentId: string | null): Promise<void> {
-    loading.value = true
     error.value = null
 
     let query = parameters.value
@@ -127,7 +126,6 @@ export const store = defineStore('filesStore', () => {
     })
 
     fileId.value = parentId
-    loading.value = false
   }
 
   /**
@@ -237,6 +235,21 @@ export const store = defineStore('filesStore', () => {
   }
 
   /**
+   * Load file metadata, use the inner storage if the file is found, if not, fetch it from the backend
+   */
+  async function metadata(id: string, kp: KeyPair): Promise<ListAppFile> {
+    const item = getItem(id)
+
+    if (!item) {
+      const item = await meta.get(kp, id)
+
+      addItem(item)
+    }
+
+    return item as ListAppFile
+  }
+
+  /**
    * Remove a single file from the storage
    */
   async function remove(kp: KeyPair, file: Partial<ListAppFile>): Promise<void> {
@@ -322,22 +335,23 @@ export const store = defineStore('filesStore', () => {
     items,
     parameters,
     forDelete,
-    selectOne,
-    selectAll,
-    removeAll,
-    decryptItem,
-    get,
-    find,
-    remove,
-    createDir,
-    hasItem,
-    getItem,
-    takeItem,
-    replaceItem,
-    updateItem,
-    upsertItem,
     addItem,
-    removeItem
+    createDir,
+    decryptItem,
+    find,
+    get,
+    getItem,
+    hasItem,
+    metadata,
+    remove,
+    removeAll,
+    removeItem,
+    replaceItem,
+    selectAll,
+    selectOne,
+    takeItem,
+    updateItem,
+    upsertItem
   }
 })
 

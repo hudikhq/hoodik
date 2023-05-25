@@ -24,10 +24,9 @@ const props = defineProps<{
 const emits = defineEmits<{
   (event: 'actions', file: ListAppFile): void
   (event: 'download', file: ListAppFile): void
-  (event: 'details', file: ListAppFile): void
   (event: 'link', file: ListAppFile): void
-  (event: 'preview', file: ListAppFile): void
   (event: 'remove', file: ListAppFile): void
+  (event: 'details', file: ListAppFile): void
   (event: 'browse'): void
   (event: 'directory'): void
   (event: 'remove-all', files: ListAppFile[], fileId: string | null | undefined): void
@@ -205,11 +204,10 @@ const sizes = {
         :share="props.share"
         :highlighted="props.searchedFileId === file.id"
         @actions="(f: ListAppFile) => emits('actions', f)"
-        @remove="(f: ListAppFile) => emits('remove', f)"
         @details="(f: ListAppFile) => emits('details', f)"
-        @link="(f: ListAppFile) => emits('link', f)"
-        @preview="(f: ListAppFile) => emits('preview', f)"
         @download="(f: ListAppFile) => emits('download', f)"
+        @link="(f: ListAppFile) => emits('link', f)"
+        @remove="(f: ListAppFile) => emits('remove', f)"
         @select-one="(v: boolean, f: ListAppFile) => emits('select-one', v, f)"
       />
     </template>

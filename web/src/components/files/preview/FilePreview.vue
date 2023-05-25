@@ -9,25 +9,26 @@ import {
   mdiInformationSlabCircleOutline
 } from '@mdi/js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
-import OverlayLayer from '@/components/ui/OverlayLayer.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import type { FilesStore, KeyPair, ListAppFile } from 'types'
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 const props = defineProps<{
-  modelValue: ListAppFile | undefined
+  modelValue: ListAppFile
   hideDelete?: boolean
-  storage: FilesStore
+  Storage: FilesStore
   kp: KeyPair
 }>()
 
 const emits = defineEmits<{
-  (event: 'update:modelValue', value: ListAppFile | undefined): void
+  (event: 'update:modelValue', value: ListAppFile): void
   (event: 'download', file: ListAppFile): void
   (event: 'remove', file: ListAppFile): void
   (event: 'details', file: ListAppFile): void
 }>()
 
+const router = useRouter()
 const container = ref()
 const imageUrl = ref<string>()
 const imageW = ref(0)
@@ -37,7 +38,7 @@ const scaleH = ref(0)
 
 const file = computed({
   get: () => props.modelValue,
-  set: (value: ListAppFile | undefined) => emits('update:modelValue', value)
+  set: (value: ListAppFile) => emits('update:modelValue', value)
 })
 
 const hasPreview = computed(() => !!file.value?.metadata?.thumbnail)
@@ -62,7 +63,7 @@ const load = async () => {
   await fitUrl(file.value.metadata?.thumbnail)
 
   if (!file.value.data) {
-    const { data } = await props.storage.get(file.value, props.kp)
+    const { data } = await props.Storage.get(file.value, props.kp)
     file.value.data = data
   }
 
@@ -80,12 +81,11 @@ const load = async () => {
  * Close and destroy the modal.
  */
 const cancel = () => {
-  file.value = undefined
-  imageUrl.value = undefined
-  imageW.value = 0
-  imageH.value = 0
-  scaleW.value = 0
-  scaleH.value = 0
+  router.push({
+    name: 'files',
+    params: { file_id: file.value.file_id },
+    hash: `#${file.value.id}`
+  })
 }
 
 /**
@@ -98,7 +98,7 @@ const download = () => {
 }
 
 /**
- * Remove the file from the storage.
+ * Remove the file from the Storage.
  */
 const remove = () => {
   if (!props.modelValue) return
@@ -106,7 +106,7 @@ const remove = () => {
 }
 
 /**
- * Remove the file from the storage.
+ * Remove the file from the Storage.
  */
 const details = () => {
   if (!props.modelValue) return
@@ -180,7 +180,7 @@ watch(
 )
 
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && props.modelValue) {
+  if (e.key === 'Escape') {
     cancel()
   }
 
@@ -198,103 +198,107 @@ window.addEventListener('keydown', (e) => {
 </script>
 
 <template>
-  <OverlayLayer z-index="z-40" :visible="!!file">
-    <div
-      v-if="file"
-      class="fixed top-0 left-0 flex flex-col items-center justify-center w-full h-full dark:bg-brownish-950 pt-20 pb-20"
-    >
-      <div class="absolute top-0 w-full">
-        <div class="float-right space-x-4 p-4">
-          <BaseButton
-            v-if="!hideDelete"
-            color="danger"
-            :icon="mdiTrashCan"
-            small
-            @click="remove"
-            name="preview-remove"
-          />
-          <BaseButton
-            color="light"
-            :icon="mdiInformationSlabCircleOutline"
-            small
-            @click="details"
-            name="preview-details"
-          />
-          <BaseButton
-            color="light"
-            :icon="mdiDownload"
-            small
-            @click="download"
-            name="preview-download"
-          />
-          <BaseButton color="light" :icon="mdiClose" small @click="cancel" name="preview-close" />
-        </div>
-        <div class="float-left space-x-4 p-4">
-          <h1>{{ file.metadata?.name }}</h1>
-        </div>
+  <div
+    v-if="file"
+    class="fixed top-0 left-0 flex flex-col items-center justify-center w-full h-full dark:bg-brownish-950 pt-20 pb-20"
+  >
+    <div class="absolute top-0 w-full">
+      <div class="float-right space-x-4 p-4">
+        <BaseButton
+          v-if="!hideDelete"
+          color="danger"
+          :icon="mdiTrashCan"
+          small
+          @click="remove"
+          name="preview-remove"
+        />
+        <BaseButton
+          color="light"
+          :icon="mdiInformationSlabCircleOutline"
+          small
+          @click="details"
+          name="preview-details"
+        />
+        <BaseButton
+          color="light"
+          :icon="mdiDownload"
+          small
+          @click="download"
+          name="preview-download"
+        />
+        <BaseButton
+          color="light"
+          :icon="mdiClose"
+          small
+          :to="{ name: 'files', params: { file_id: file.file_id } }"
+          name="preview-close"
+        />
       </div>
-
-      <div ref="container" class="w-[100%] h-[calc(100%+2rem)] image-container">
-        <template v-if="hasPreview">
-          <img
-            key="original"
-            name="original"
-            v-if="imageUrl"
-            :src="imageUrl"
-            :alt="props.modelValue?.metadata?.name"
-            :height="scaleH"
-            :width="scaleW"
-          />
-          <img
-            key="thumbnail"
-            name="loading-thumbnail"
-            v-else
-            :src="props.modelValue?.metadata?.thumbnail"
-            :alt="props.modelValue?.metadata?.name"
-            :height="scaleH"
-            :width="scaleW"
-          />
-        </template>
-        <div class="flex flex-col" v-else>
-          <div class="mb-4 text-center">
-            <BaseIcon :path="mdiFileOutline" :size="75" h="h-75" w="w-75" />
-          </div>
-          <div class="text-center">
-            <span> No preview available 🥲 </span>
-          </div>
-        </div>
+      <div class="float-left space-x-4 p-4">
+        <h1>{{ file.metadata?.name }}</h1>
       </div>
+    </div>
 
-      <div class="absolute bottom-0 w-full">
-        <div class="flex justify-center space-x-4 p-4" v-if="hasPreview">
-          <BaseButton
-            :disabled="!imageUrl || percentage <= 1"
-            color="dark"
-            :icon="mdiMinus"
-            small
-            @click="minus"
-            title="Decrease image size (+)"
-          />
-          <BaseButton
-            :disabled="!imageUrl"
-            color="dark"
-            small
-            @click="fit"
-            title="Fit image to screen (space)"
-            :label="percentage > -1 ? `${percentage}%` : ' '"
-          />
-          <BaseButton
-            :disabled="!imageUrl"
-            color="dark"
-            :icon="mdiPlus"
-            small
-            @click="plus"
-            title="Increase image size (+)"
-          />
+    <div ref="container" class="w-[100%] h-[calc(100%+2rem)] image-container">
+      <template v-if="hasPreview">
+        <img
+          key="original"
+          name="original"
+          v-if="imageUrl"
+          :src="imageUrl"
+          :alt="props.modelValue?.metadata?.name"
+          :height="scaleH"
+          :width="scaleW"
+        />
+        <img
+          key="thumbnail"
+          name="loading-thumbnail"
+          v-else
+          :src="props.modelValue?.metadata?.thumbnail"
+          :alt="props.modelValue?.metadata?.name"
+          :height="scaleH"
+          :width="scaleW"
+        />
+      </template>
+      <div class="flex flex-col" v-else>
+        <div class="mb-4 text-center">
+          <BaseIcon :path="mdiFileOutline" :size="75" h="h-75" w="w-75" />
+        </div>
+        <div class="text-center">
+          <span> No preview available 🥲 </span>
         </div>
       </div>
     </div>
-  </OverlayLayer>
+
+    <div class="absolute bottom-0 w-full">
+      <div class="flex justify-center space-x-4 p-4" v-if="hasPreview">
+        <BaseButton
+          :disabled="!imageUrl || percentage <= 1"
+          color="dark"
+          :icon="mdiMinus"
+          small
+          @click="minus"
+          title="Decrease image size (+)"
+        />
+        <BaseButton
+          :disabled="!imageUrl"
+          color="dark"
+          small
+          @click="fit"
+          title="Fit image to screen (space)"
+          :label="percentage > -1 ? `${percentage}%` : ' '"
+        />
+        <BaseButton
+          :disabled="!imageUrl"
+          color="dark"
+          :icon="mdiPlus"
+          small
+          @click="plus"
+          title="Increase image size (+)"
+        />
+      </div>
+    </div>
+  </div>
 </template>
 <style scoped lang="css">
 .image-container {

@@ -31,11 +31,10 @@ const props = defineProps<{
 
 const emits = defineEmits<{
   (event: 'actions', file: ListAppFile): void
-  (event: 'remove', file: ListAppFile): void
   (event: 'details', file: ListAppFile): void
-  (event: 'link', file: ListAppFile): void
-  (event: 'preview', file: ListAppFile): void
   (event: 'download', file: ListAppFile): void
+  (event: 'link', file: ListAppFile): void
+  (event: 'remove', file: ListAppFile): void
   (event: 'select-one', value: boolean, file: ListAppFile): void
 }>()
 
@@ -138,7 +137,7 @@ const singleClick = () => {
 
 const detailsOrPreview = () => {
   if (props.file.finished_upload_at && props.file.metadata?.thumbnail) {
-    emits('preview', props.file)
+    router.push({ name: 'file-preview', params: { file_id: props.file.id } })
   } else {
     emits('details', props.file)
   }
@@ -175,7 +174,7 @@ const doubleClick = () => {
         class="w-6 h-6 mr-2 rounded-md"
       />
 
-      <TruncatedSpan :middle="fileName.length > 50" :text="fileName" />
+      <TruncatedSpan :text="fileName" />
     </button>
 
     <div :class="sizes.size" :title="fileSize">
@@ -216,11 +215,10 @@ const doubleClick = () => {
         :disabled="!props.file.id"
         :hide-delete="props.hideDelete"
         :share="props.share"
-        @remove="(f: ListAppFile) => emits('remove', f)"
-        @link="(f: ListAppFile) => emits('link', f)"
         @details="(f: ListAppFile) => emits('details', f)"
-        @preview="(f: ListAppFile) => emits('preview', f)"
         @download="(f: ListAppFile) => emits('download', f)"
+        @link="(f: ListAppFile) => emits('link', f)"
+        @remove="(f: ListAppFile) => emits('remove', f)"
       />
     </div>
   </div>

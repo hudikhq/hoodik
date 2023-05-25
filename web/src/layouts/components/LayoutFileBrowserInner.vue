@@ -3,7 +3,6 @@ import { store as downloadStore } from '!/storage/download'
 import { store as storageStore } from '!/storage'
 import { store as cryptoStore } from '!/crypto'
 import { store as linksStore } from '!/links'
-import PreviewModal from '@/components/files/modals/PreviewModal.vue'
 import DeleteMultipleModal from '@/components/files/modals/DeleteMultipleModal.vue'
 import ActionsModal from '@/components/files/modals/ActionsModal.vue'
 import CreateDirectoryModal from '@/components/files/modals/CreateDirectoryModal.vue'
@@ -11,27 +10,30 @@ import DeleteModal from '@/components/files/modals/DeleteModal.vue'
 import LinkModal from '@/components/files/modals/LinkModal.vue'
 import DetailsModal from '@/components/files/modals/DetailsModal.vue'
 import UploadButton from '@/components/files/browser/UploadButton.vue'
-import { ref, watch, onMounted } from 'vue'
-import type { ListAppFile } from 'types'
+import { ref, watch } from 'vue'
+import type { Authenticated, KeyPair, ListAppFile } from 'types'
 
 const props = defineProps<{
   parentId?: string
   hideDelete?: boolean
   share?: boolean
+  clear?: boolean
+  authenticated: Authenticated
+  keypair: KeyPair
 }>()
 
 const Download = downloadStore()
-const storage = storageStore()
-const crypto = cryptoStore()
-const links = linksStore()
+const Storage = storageStore()
+const Crypto = cryptoStore()
+const Links = linksStore()
 
 const openBrowseWindow = ref(false)
 const isModalCreateDirActive = ref(false)
 const isModalDeleteMultipleActive = ref(false)
+
 const detailsView = ref<ListAppFile>()
 const singleRemove = ref<ListAppFile>()
 const actionFile = ref<ListAppFile>()
-const previewFile = ref<ListAppFile>()
 const linkView = ref<ListAppFile>()
 
 /**
@@ -87,14 +89,6 @@ const download = (file: ListAppFile) => {
 }
 
 /**
- * Opens a preview view for certain files
- */
-const preview = (file: ListAppFile) => {
-  actionFile.value = undefined
-  previewFile.value = file
-}
-
-/**
  * Opens the file browser to select files
  */
 const browse = () => {
@@ -117,50 +111,40 @@ const load = async () => {
     file_id = null
   }
 
-  await storage.find(crypto.keypair, file_id)
+  await Storage.find(Crypto.keypair, file_id)
 }
 
 watch(
   () => props.parentId,
-  () => load()
+  () => load(),
+  { immediate: true }
 )
-
-onMounted(() => {
-  load()
-})
 </script>
 <template>
-  <UploadButton v-model="openBrowseWindow" :dir="storage.dir" :kp="crypto.keypair" />
-  <CreateDirectoryModal v-model="isModalCreateDirActive" @cancel="isModalCreateDirActive = false" />
-  <ActionsModal
-    v-model="actionFile"
-    @remove="remove"
-    @download="download"
-    @preview="preview"
-    @details="details"
+  <UploadButton v-model="openBrowseWindow" :dir="Storage.dir" :kp="Crypto.keypair" />
+  <CreateDirectoryModal
+    v-model="isModalCreateDirActive"
+    :Crypto="Crypto"
+    :Storage="Storage"
+    @cancel="isModalCreateDirActive = false"
   />
-  <DeleteModal v-model="singleRemove" :storage="storage" :kp="crypto.keypair" />
-  <DetailsModal v-model="detailsView" :storage="storage" :kp="crypto.keypair" />
-  <LinkModal v-model="linkView" :storage="storage" :links="links" :kp="crypto.keypair" />
+  <ActionsModal v-model="actionFile" @remove="remove" @download="download" @details="details" />
+  <DeleteModal v-model="singleRemove" :Storage="Storage" :kp="Crypto.keypair" />
+  <DetailsModal v-model="detailsView" :Storage="Storage" :kp="Crypto.keypair" />
+  <LinkModal v-model="linkView" :Storage="Storage" :Links="Links" :kp="Crypto.keypair" />
   <DeleteMultipleModal
     v-model="isModalDeleteMultipleActive"
-    :storage="storage"
-    :kp="crypto.keypair"
-  />
-  <PreviewModal
-    v-model="previewFile"
-    :storage="storage"
-    :kp="crypto.keypair"
-    @download="download"
-    @remove="remove"
-    @details="details"
+    :Storage="Storage"
+    :kp="Crypto.keypair"
   />
 
   <slot
+    :authenticated="props.authenticated"
+    :keypair="props.keypair"
     :parentId="parentId"
-    :storage="storage"
+    :Storage="Storage"
     :download="Download"
-    :loading="storage.loading"
+    :loading="Storage.loading"
     :on="{
       actions,
       browse,
@@ -168,11 +152,10 @@ onMounted(() => {
       directory,
       download,
       link,
-      preview,
       remove,
       'remove-all': removeAll,
-      'select-one': storage.selectOne,
-      'select-all': storage.selectAll
+      'select-one': Storage.selectOne,
+      'select-all': Storage.selectAll
     }"
   />
 </template>

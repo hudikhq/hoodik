@@ -3,16 +3,15 @@ import { ref } from 'vue'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import { AppForm, AppField } from '@/components/form'
 import * as yup from 'yup'
-import { store as storageStore } from '!/storage'
-import { store as cryptoStore } from '!/crypto'
 import type { ErrorResponse } from '!/api'
-
-const storage = storageStore()
-const crypto = cryptoStore()
+import type { CryptoStore, FilesStore } from 'types'
 
 const props = defineProps<{
   modelValue?: boolean | undefined
+  Storage: FilesStore
+  Crypto: CryptoStore
 }>()
+
 const emit = defineEmits(['update:modelValue', 'cancel', 'confirm'])
 
 const config = ref()
@@ -28,9 +27,9 @@ const init = () => {
     }),
     onSubmit: async (values: { name: string; file_id?: number }, ctx: any) => {
       try {
-        await storage.createDir(crypto.keypair, values.name, storage.dir?.id)
+        await props.Storage.createDir(props.Crypto.keypair, values.name, props.Storage.dir?.id)
         ctx.resetForm()
-        storage.find(crypto.keypair, storage.dir?.id || null)
+        props.Storage.find(props.Crypto.keypair, props.Storage.dir?.id || null)
         emit('confirm')
         emit('update:modelValue', false)
       } catch (err) {

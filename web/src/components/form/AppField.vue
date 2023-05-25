@@ -53,11 +53,14 @@ function update(e: Event) {
   emit('change', (e.target as HTMLInputElement).value)
 }
 
-const model = computed<string>(() => {
-  if (props.form) {
-    return props.form.values[props.name]
-  }
-  return props.modelValue || ''
+const model = computed<string>({
+  get: () => {
+    if (props.form) {
+      return props.form.values[props.name]
+    }
+    return props.modelValue || ''
+  },
+  set: (v) => emit('update:modelValue', v)
 })
 
 const componentClass = ref<string>(

@@ -4,12 +4,11 @@ import CardBoxComponentTitle from '@/components/ui/CardBoxComponentTitle.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { mdiFileOutline, mdiFolderOutline, mdiClose } from '@mdi/js'
 import { computed } from 'vue'
-import type { FilesStore, KeyPair, ListAppFile } from 'types'
+import type { KeyPair, ListAppFile } from 'types'
 import { formatPrettyDate, formatSize } from '!/index'
 
 const props = defineProps<{
   modelValue: ListAppFile | undefined
-  storage: FilesStore
   kp: KeyPair
 }>()
 

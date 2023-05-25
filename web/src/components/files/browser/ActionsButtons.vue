@@ -12,10 +12,9 @@ const props = defineProps<{
 
 const emits = defineEmits<{
   (event: 'update:modelValue', value: ListAppFile | undefined): void
-  (event: 'remove', file: ListAppFile): void
   (event: 'details', file: ListAppFile): void
+  (event: 'remove', file: ListAppFile): void
   (event: 'link', file: ListAppFile): void
-  (event: 'preview', file: ListAppFile): void
   (event: 'download', file: ListAppFile): void
 }>()
 
@@ -45,7 +44,10 @@ const canHaveALink = computed(() => {
   <PureButton
     v-if="hasPreview"
     :icon="mdiEye"
-    @click="emits('preview', file)"
+    :to="{
+      name: 'file-preview',
+      params: { file_id: file.id }
+    }"
     label="Preview"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
   />

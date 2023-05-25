@@ -8,10 +8,39 @@ import { utcStringFromLocal } from '..'
 
 export { meta, crypto }
 
-export const store = defineStore('linkStore', () => {
+export const store = defineStore('links', () => {
   const loading = ref(false)
 
   const items = ref<AppLink[]>([])
+
+  /**
+   * Files selected to be deleted from various places
+   */
+  const forDelete = ref<AppLink[]>([])
+
+  /**
+   * Add single file to select list
+   */
+  function selectOne(select: boolean, file: AppLink) {
+    if (select) {
+      forDelete.value.push(file)
+    } else {
+      forDelete.value = forDelete.value.filter((f) => f.id !== file.id)
+    }
+  }
+
+  /**
+   * Add single file to select list
+   */
+  function selectAll(files: AppLink[], fileId?: string | null) {
+    forDelete.value = files.filter((f) => {
+      if (fileId && f.file_id !== fileId) {
+        return false
+      }
+
+      return true
+    })
+  }
 
   /**
    * Add or update a new item in the list
@@ -125,7 +154,7 @@ export const store = defineStore('linkStore', () => {
   /**
    * Load all the shared links for the user.
    */
-  async function all(kp: KeyPair): Promise<void> {
+  async function find(kp: KeyPair): Promise<void> {
     const response = await Api.get<EncryptedAppLink[]>(`/api/links`)
 
     if (!Array.isArray(response.body)) {
@@ -156,17 +185,20 @@ export const store = defineStore('linkStore', () => {
 
   return {
     addItem,
-    all,
     create,
     del,
     expire,
+    find,
     get,
     getItem,
     hasItem,
     removeItem,
+    selectAll,
+    selectOne,
     takeItem,
     updateItem,
     upsertItem,
+    forDelete,
     items,
     loading
   }

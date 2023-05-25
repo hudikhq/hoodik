@@ -23,7 +23,6 @@ const emits = defineEmits<{
   (event: 'remove', file: ListAppFile): void
   (event: 'details', file: ListAppFile): void
   (event: 'link', file: ListAppFile): void
-  (event: 'preview', file: ListAppFile): void
   (event: 'download', file: ListAppFile): void
   (event: 'update:modelValue', value: ListAppFile): void
 }>()
@@ -46,11 +45,6 @@ const details = () => {
 const link = () => {
   close()
   emits('link', file.value)
-}
-
-const preview = () => {
-  close()
-  emits('preview', file.value)
 }
 
 const download = () => {
@@ -140,7 +134,6 @@ window.addEventListener('keydown', (e) => {
         @remove="remove"
         @details="details"
         @link="link"
-        @preview="preview"
         @download="download"
       />
     </div>
