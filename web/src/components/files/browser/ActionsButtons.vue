@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import PureButton from '@/components/ui/PureButton.vue'
-import { mdiTrashCan, mdiEye, mdiDownload } from '@mdi/js'
+import { mdiTrashCan, mdiEye, mdiDownload, mdiLink } from '@mdi/js'
 import type { ListAppFile } from 'types'
 import { computed } from 'vue'
 
 const props = defineProps<{
   modelValue: ListAppFile
   hideDelete?: boolean
+  share?: boolean
 }>()
 
 const emits = defineEmits<{
   (event: 'update:modelValue', value: ListAppFile | undefined): void
   (event: 'remove', file: ListAppFile): void
   (event: 'details', file: ListAppFile): void
+  (event: 'link', file: ListAppFile): void
   (event: 'preview', file: ListAppFile): void
   (event: 'download', file: ListAppFile): void
 }>()
@@ -25,6 +27,10 @@ const hasPreview = computed(() => {
 
 const hasDownload = computed(() => {
   return file.value?.mime !== 'dir' && file.value?.finished_upload_at
+})
+
+const canHaveALink = computed(() => {
+  return file.value?.mime !== 'dir' && file.value?.finished_upload_at && props.share
 })
 </script>
 
@@ -49,6 +55,14 @@ const hasDownload = computed(() => {
     @click="emits('download', file)"
     v-if="hasDownload"
     label="Download"
+    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
+  />
+
+  <PureButton
+    :icon="mdiLink"
+    @click="emits('link', file)"
+    v-if="canHaveALink"
+    label="Public link"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
   />
 

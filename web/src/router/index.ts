@@ -14,6 +14,15 @@ const router = createRouter({
       component: FilesView
     },
     {
+      path: '/l/:link_id?',
+      name: 'links',
+      meta: {
+        files: false,
+        title: 'File'
+      },
+      component: () => import('../views/auth/pin/IndexView.vue')
+    },
+    {
       path: '/auth/pin/lock',
       name: 'lock',
       meta: { title: 'Account Locked' },

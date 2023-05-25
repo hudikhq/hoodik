@@ -21,6 +21,7 @@ const props = defineProps<{
   active?: Boolean
   disabled?: Boolean
   roundedFull?: Boolean
+  notRounded?: Boolean
   noBorder?: Boolean
   class?: String
   dropdownEl?: boolean
@@ -73,7 +74,7 @@ const componentClass = computed(() => {
     'focus:ring',
     'duration-150',
     props.disabled ? 'cursor-not-allowed' : 'cursor-pointer',
-    props.roundedFull ? 'rounded-full' : 'rounded',
+    props.roundedFull ? 'rounded-full' : props.notRounded ? '' : 'rounded',
     getButtonColor(props.color || 'light', !!props.outline, !props.disabled, !!props.active)
   ]
 
@@ -81,7 +82,7 @@ const componentClass = computed(() => {
     base.push('border')
   }
 
-  if (!props.label && props.icon) {
+  if (props.icon) {
     base.push('p-1')
   } else if (props.xs) {
     base.push('text-xs')

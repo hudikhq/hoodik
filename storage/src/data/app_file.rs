@@ -58,11 +58,13 @@ impl AppFile {
     }
 }
 
-impl From<(files::Model, user_files::Model)> for AppFile {
-    fn from(source: (files::Model, user_files::Model)) -> AppFile {
-        let (file, user_file) = source;
+impl FromQueryResult for AppFile {
+    fn from_query_result(res: &QueryResult, _pre: &str) -> Result<Self, DbErr> {
+        let file = files::Model::from_query_result(res, "file")?;
+        let user_file = user_files::Model::from_query_result(res, "user_file")?;
+        let link = links::Model::from_query_result(res, "link").ok();
 
-        Self {
+        Ok(Self {
             id: file.id,
             user_id: user_file.user_id,
             is_owner: user_file.is_owner,
@@ -78,16 +80,7 @@ impl From<(files::Model, user_files::Model)> for AppFile {
             finished_upload_at: file.finished_upload_at,
             is_new: false,
             uploaded_chunks: None,
-            link: None,
-        }
-    }
-}
-
-impl FromQueryResult for AppFile {
-    fn from_query_result(res: &QueryResult, _pre: &str) -> Result<Self, DbErr> {
-        let file = files::Model::from_query_result(res, "file")?;
-        let user_file = user_files::Model::from_query_result(res, "user_file")?;
-
-        Ok(Self::from((file, user_file)))
+            link,
+        })
     }
 }

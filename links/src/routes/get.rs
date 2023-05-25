@@ -1,6 +1,6 @@
-use actix_web::{route, web, HttpResponse};
-use auth::data::authenticated::Authenticated;
+use actix_web::{route, web, HttpRequest, HttpResponse};
 use context::Context;
+use entity::Uuid;
 use error::AppResult;
 
 use crate::repository::Repository;
@@ -10,7 +10,7 @@ use crate::repository::Repository;
 ///
 /// Response: [crate::data::app_link::AppLink]
 #[route("/api/links/{link_id}", method = "GET")]
-pub(crate) async fn index(context: web::Data<Context>) -> AppResult<HttpResponse> {
+pub(crate) async fn get(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let link_id: Uuid = util::actix::path_var(&req, "link_id")?;
     let repository = Repository::new(&context);

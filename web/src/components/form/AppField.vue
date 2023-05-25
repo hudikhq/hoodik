@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { FormType } from '.'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Field, ErrorMessage } from 'vee-validate'
 import useClipboard from 'vue-clipboard3'
 const { toClipboard } = useClipboard()
@@ -10,7 +10,7 @@ const originalClass =
 
 const props = defineProps<{
   name: string
-  form: FormType
+  form?: FormType
   type?: 'text' | 'password' | undefined
   label?: string | undefined
   allowCopy?: boolean | undefined
@@ -53,7 +53,12 @@ function update(e: Event) {
   emit('change', (e.target as HTMLInputElement).value)
 }
 
-const model = ref<string>(props.form.values[props.name] || props.modelValue || '')
+const model = computed<string>(() => {
+  if (props.form) {
+    return props.form.values[props.name]
+  }
+  return props.modelValue || ''
+})
 
 const componentClass = ref<string>(
   `${props.class ? props.class : (props.classAdd || '') + ' ' + originalClass}`
@@ -111,7 +116,7 @@ const copy = () => {
           :class="componentClass"
           :type="type || 'text'"
           :placeholder="placeholder || ''"
-          :disabled="disabled || form.isSubmitting.value"
+          :disabled="disabled || form?.isSubmitting.value"
           :autofocus="!!props.autofocus"
         />
       </Field>

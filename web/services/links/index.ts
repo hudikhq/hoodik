@@ -141,12 +141,26 @@ export const store = defineStore('linkStore', () => {
     }
   }
 
+  /**
+   * Get link from the store (as its owner)
+   */
+  async function get(id: string, key: string): Promise<AppLink> {
+    const link = getItem(id)
+
+    if (link) {
+      return link
+    }
+
+    return await meta.metadata(id, key)
+  }
+
   return {
     addItem,
     all,
     create,
     del,
     expire,
+    get,
     getItem,
     hasItem,
     removeItem,

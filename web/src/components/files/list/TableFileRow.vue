@@ -15,6 +15,7 @@ const props = defineProps<{
   file: ListAppFile
   checkedRows: Partial<ListAppFile>[]
   hideDelete?: boolean
+  share?: boolean
   hideCheckbox?: boolean
   highlighted?: boolean
   sizes: {
@@ -32,6 +33,7 @@ const emits = defineEmits<{
   (event: 'actions', file: ListAppFile): void
   (event: 'remove', file: ListAppFile): void
   (event: 'details', file: ListAppFile): void
+  (event: 'link', file: ListAppFile): void
   (event: 'preview', file: ListAppFile): void
   (event: 'download', file: ListAppFile): void
   (event: 'select-one', value: boolean, file: ListAppFile): void
@@ -212,7 +214,10 @@ const doubleClick = () => {
         class="ml-2 hidden sm:block float-right"
         :model-value="props.file"
         :disabled="!props.file.id"
+        :hide-delete="props.hideDelete"
+        :share="props.share"
         @remove="(f: ListAppFile) => emits('remove', f)"
+        @link="(f: ListAppFile) => emits('link', f)"
         @details="(f: ListAppFile) => emits('details', f)"
         @preview="(f: ListAppFile) => emits('preview', f)"
         @download="(f: ListAppFile) => emits('download', f)"

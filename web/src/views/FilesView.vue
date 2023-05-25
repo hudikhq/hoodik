@@ -94,6 +94,7 @@ watch(fileId, () => {
           :hide-checkbox="false"
           :hide-delete="false"
           :show-actions="true"
+          :share="true"
           :loading="loading"
           v-on="on"
         />

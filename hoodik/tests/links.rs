@@ -152,4 +152,18 @@ async fn test_creating_and_downloading_link() {
 
     assert_eq!(content_len, size as usize);
     assert_eq!(file_checksum, checksum);
+
+    let req = test::TestRequest::get()
+        .uri(format!("/api/storage/{}/metadata", &file.id).as_str())
+        .cookie(jwt)
+        .set_json(&random_file)
+        .to_request();
+
+    let file =
+        serde_json::from_slice::<AppFile>(&test::call_and_read_body(&mut app, req).await).unwrap();
+
+    // println!("file: {:#?}", file);
+
+    assert!(file.link.is_some());
+    assert_eq!(file.link.unwrap().id, link.id);
 }

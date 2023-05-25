@@ -8,6 +8,7 @@ const props = defineProps<{
   file: ListAppFile
   checkedRows: Partial<ListAppFile>[]
   hideDelete?: boolean
+  share?: boolean
   hideCheckbox?: boolean
   highlighted?: boolean
   sizes: {
@@ -25,6 +26,7 @@ const emits = defineEmits<{
   (event: 'actions', file: ListAppFile): void
   (event: 'remove', file: ListAppFile): void
   (event: 'details', file: ListAppFile): void
+  (event: 'link', file: ListAppFile): void
   (event: 'preview', file: ListAppFile): void
   (event: 'download', file: ListAppFile): void
   (event: 'select-one', value: boolean, file: ListAppFile): void
@@ -61,12 +63,14 @@ onMounted(() => {
       :file="props.file"
       :checked-rows="props.checkedRows"
       :hide-delete="props.hideDelete"
+      :share="props.share"
       :hide-checkbox="props.hideCheckbox"
       :sizes="props.sizes"
       :highlighted="props.highlighted"
       @actions="(f: ListAppFile) => emits('actions', f)"
       @remove="(f: ListAppFile) => emits('remove', f)"
       @details="(f: ListAppFile) => emits('details', f)"
+      @link="(f: ListAppFile) => emits('link', f)"
       @preview="(f: ListAppFile) => emits('preview', f)"
       @download="(f: ListAppFile) => emits('download', f)"
       @select-one="(v: boolean, f: ListAppFile) => emits('select-one', v, f)"

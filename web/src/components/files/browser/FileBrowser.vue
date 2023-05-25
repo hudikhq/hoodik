@@ -2,12 +2,14 @@
 import { store as downloadStore } from '!/storage/download'
 import { store as storageStore } from '!/storage'
 import { store as cryptoStore } from '!/crypto'
-import PreviewModal from '@/components/files/browser/PreviewModal.vue'
-import DeleteMultipleModal from '@/components/files/browser/DeleteMultipleModal.vue'
-import ActionsModal from '@/components/files/browser/ActionsModal.vue'
-import CreateDirectoryModal from '@/components/files/browser/CreateDirectoryModal.vue'
-import DeleteModal from '@/components/files/browser/DeleteModal.vue'
-import DetailsModal from '@/components/files/browser/DetailsModal.vue'
+import { store as linksStore } from '!/links'
+import PreviewModal from '@/components/files/modals/PreviewModal.vue'
+import DeleteMultipleModal from '@/components/files/modals/DeleteMultipleModal.vue'
+import ActionsModal from '@/components/files/modals/ActionsModal.vue'
+import CreateDirectoryModal from '@/components/files/modals/CreateDirectoryModal.vue'
+import DeleteModal from '@/components/files/modals/DeleteModal.vue'
+import LinkModal from '@/components/files/modals/LinkModal.vue'
+import DetailsModal from '@/components/files/modals/DetailsModal.vue'
 import UploadButton from '@/components/files/browser/UploadButton.vue'
 import { ref, watch, onMounted } from 'vue'
 import type { ListAppFile } from 'types'
@@ -21,6 +23,7 @@ const props = defineProps<{
 const Download = downloadStore()
 const storage = storageStore()
 const crypto = cryptoStore()
+const links = linksStore()
 
 const openBrowseWindow = ref(false)
 const isModalCreateDirActive = ref(false)
@@ -29,6 +32,7 @@ const detailsView = ref<ListAppFile>()
 const singleRemove = ref<ListAppFile>()
 const actionFile = ref<ListAppFile>()
 const previewFile = ref<ListAppFile>()
+const linkView = ref<ListAppFile>()
 
 /**
  * Opens a modal for a file to display actions
@@ -45,6 +49,18 @@ const actions = (file: ListAppFile) => {
 const details = (file: ListAppFile) => {
   actionFile.value = undefined
   detailsView.value = file
+}
+
+/**
+ * Open a modal with file link, create it if it doesn't exist
+ */
+const link = (file: ListAppFile) => {
+  if (file.mime === 'dir') {
+    throw new Error('Cannot create link for a directory')
+  }
+
+  actionFile.value = undefined
+  linkView.value = file
 }
 
 /**
@@ -125,6 +141,7 @@ onMounted(() => {
   />
   <DeleteModal v-model="singleRemove" :storage="storage" :kp="crypto.keypair" />
   <DetailsModal v-model="detailsView" :storage="storage" :kp="crypto.keypair" />
+  <LinkModal v-model="linkView" :storage="storage" :links="links" :kp="crypto.keypair" />
   <DeleteMultipleModal
     v-model="isModalDeleteMultipleActive"
     :storage="storage"
@@ -145,13 +162,14 @@ onMounted(() => {
     :download="Download"
     :loading="storage.loading"
     :on="{
-      remove,
-      download,
       actions,
-      preview,
       browse,
-      directory,
       details,
+      directory,
+      download,
+      link,
+      preview,
+      remove,
       'remove-all': removeAll,
       'select-one': storage.selectOne,
       'select-all': storage.selectAll

@@ -61,3 +61,17 @@ export interface EncryptedAppLink {
   file_created_at: string
   expires_at: string
 }
+
+export interface EncryptedLink {
+  id: string
+  file_id: string
+  user_id: string
+  signature: string
+  downloads: number
+  encrypted_name: string
+  encrypted_link_key: string
+  encrypted_thumbnail?: string
+  created_at: string
+  expires_at: string
+  link_key_hex?: string
+}
