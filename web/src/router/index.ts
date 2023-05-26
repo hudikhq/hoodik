@@ -14,7 +14,7 @@ const router = createRouter({
       component: IndexView
     },
     {
-      path: '/p/:file_id',
+      path: '/p/:id',
       name: 'file-preview',
       meta: {
         files: true,

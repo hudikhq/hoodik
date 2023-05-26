@@ -64,11 +64,20 @@ export async function createLinkFromFile(file: ListAppFile, kp: KeyPair): Promis
   const encrypted_name = await cryptfns.aes.encryptToHex(file.metadata?.name || 'no-name', key)
   const encrypted_file_key = await cryptfns.aes.encryptToHex(cryptfns.uint8.toHex(key), key)
 
+  let encrypted_thumbnail
+
+  console.log(file)
+  if (file.metadata?.thumbnail) {
+    console.log('we have thumbnail')
+    encrypted_thumbnail = await cryptfns.aes.encryptToHex(file.metadata.thumbnail, key)
+  }
+
   return {
     file_id: file.id,
     signature,
     encrypted_link_key,
     encrypted_name,
-    encrypted_file_key
+    encrypted_file_key,
+    encrypted_thumbnail
   }
 }

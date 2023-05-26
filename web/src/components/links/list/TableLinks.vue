@@ -18,7 +18,6 @@ const props = defineProps<{
 
 const emits = defineEmits<{
   (event: 'link', item: AppLink): void
-  (event: 'remove', item: AppLink): void
   (event: 'remove-all', items: AppLink[]): void
   (event: 'select-one', select: boolean, item: AppLink): void
   (event: 'select-all', items: AppLink[]): void
@@ -28,7 +27,7 @@ const checked = ref(false)
 
 const checkedRows = computed(() => {
   return props.items.filter((item) => {
-    return props.forDelete.find((file) => file.id === item.id)
+    return props.forDelete.find((link) => link.id === item.id)
   })
 })
 
@@ -60,10 +59,9 @@ const borderClass = 'sm:border-l-2 sm:border-brownish-50 sm:dark:border-brownish
 
 const sizes = {
   checkbox: 'pl-2 pt-3 w-10',
-  name: 'w-10/12 p-2 pt-3 sm:w-7/12 xl:w-6/12 flex',
+  name: 'w-10/12 p-2 pt-3 sm:w-7/12 md:w-5/12 lg:w-6/12 xl:w-7/12 flex',
   size: 'hidden p-2 pt-3 md:block md:w-2/12 xl:w-1/12',
   createdAt: 'hidden p-2 pt-3 sm:block sm:w-4/12 lg:w-3/12 xl:w-2/12',
-  fileCreatedAt: 'hidden p-2 pt-3 xl:block xl:w-1/12',
   expiresAt: 'hidden p-2 pt-3 xl:block xl:w-1/12',
   buttons: 'w-2/12 p-2 sm:w-1/12'
 }
@@ -75,7 +73,7 @@ const sizes = {
     v-if="showActions"
   >
     <BaseButton
-      title="Delete selected files and folders"
+      title="Delete selected links and folders"
       :iconSize="20"
       :xs="true"
       :icon="mdiTrashCanOutline"
@@ -102,10 +100,6 @@ const sizes = {
       <span>Created</span>
     </div>
 
-    <div :class="`${sizes.fileCreatedAt} ${borderClass}`">
-      <span>File Created</span>
-    </div>
-
     <div :class="`${sizes.expiresAt} ${borderClass}`">
       <span>Expires</span>
     </div>
@@ -122,14 +116,13 @@ const sizes = {
     </span>
   </div>
   <div v-else class="flex flex-col rounded-b-lg">
-    <template v-for="file in items" :key="file.id">
+    <template v-for="link in items" :key="link.id">
       <TableLinkRowWatcher
-        :file="file"
+        :link="link"
         :sizes="sizes"
         :checkedRows="checkedRows"
-        :highlighted="props.searchedFileId === file.id"
+        :highlighted="props.searchedFileId === link.id"
         @link="(f: AppLink) => emits('link', f)"
-        @remove="(f: AppLink) => emits('remove', f)"
         @select-one="(v: boolean, f: AppLink) => emits('select-one', v, f)"
       />
     </template>

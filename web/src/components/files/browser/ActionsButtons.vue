@@ -46,7 +46,7 @@ const canHaveALink = computed(() => {
     :icon="mdiEye"
     :to="{
       name: 'file-preview',
-      params: { file_id: file.id }
+      params: { id: file.id }
     }"
     label="Preview"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"

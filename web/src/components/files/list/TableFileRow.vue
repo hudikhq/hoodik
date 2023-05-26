@@ -137,7 +137,7 @@ const singleClick = () => {
 
 const detailsOrPreview = () => {
   if (props.file.finished_upload_at && props.file.metadata?.thumbnail) {
-    router.push({ name: 'file-preview', params: { file_id: props.file.id } })
+    router.push({ name: 'file-preview', params: { id: props.file.id } })
   } else {
     emits('details', props.file)
   }

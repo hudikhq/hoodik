@@ -121,16 +121,25 @@ impl<'ctx> Repository<'ctx> {
 
     /// Get all the links for a user.
     /// This will not include expired links.
-    pub(crate) async fn links(&self, user_id: Uuid) -> AppResult<Vec<AppLink>> {
+    pub(crate) async fn links(&self, user_id: Uuid, with_expired: bool) -> AppResult<Vec<AppLink>> {
         let mut selector = links::Entity::find().select_only();
 
         entity::join::add_columns_with_prefix::<_, links::Entity>(&mut selector, "link");
         entity::join::add_columns_with_prefix::<_, users::Entity>(&mut selector, "user");
         entity::join::add_columns_with_prefix::<_, files::Entity>(&mut selector, "file");
 
+        if with_expired {
+            selector = selector.filter(
+                links::Column::ExpiresAt
+                    .is_null()
+                    .or(links::Column::ExpiresAt.gt(chrono::Utc::now().naive_utc())),
+            );
+        } else {
+            selector = selector.filter(links::Column::ExpiresAt.is_null());
+        }
+
         let links = selector
             .filter(links::Column::UserId.eq(user_id))
-            .filter(links::Column::ExpiresAt.gt(chrono::Utc::now().naive_utc()))
             .join(JoinType::InnerJoin, links::Relation::Users.def())
             .join(JoinType::InnerJoin, links::Relation::Files.def())
             .into_model::<AppLink>()

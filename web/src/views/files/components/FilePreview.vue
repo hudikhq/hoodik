@@ -11,7 +11,7 @@ import {
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import type { FilesStore, KeyPair, ListAppFile } from 'types'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const props = defineProps<{
@@ -63,8 +63,7 @@ const load = async () => {
   await fitUrl(file.value.metadata?.thumbnail)
 
   if (!file.value.data) {
-    const { data } = await props.Storage.get(file.value, props.kp)
-    file.value.data = data
+    file.value = await props.Storage.get(file.value, props.kp)
   }
 
   if (!file.value.data) return
@@ -175,11 +174,14 @@ const percentage = computed(() => {
 
 watch(
   () => props.modelValue,
-  () => get(),
+  () => setTimeout(get, 100),
   { immediate: true }
 )
 
-window.addEventListener('keydown', (e) => {
+/**
+ * Keydown event handler
+ */
+const keydown = (e: KeyboardEvent) => {
   if (e.key === 'Escape') {
     cancel()
   }
@@ -194,6 +196,14 @@ window.addEventListener('keydown', (e) => {
   if (e.key === ' ' && props.modelValue) {
     fit()
   }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', keydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', keydown)
 })
 </script>
 

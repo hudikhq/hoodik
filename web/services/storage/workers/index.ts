@@ -42,7 +42,12 @@ export async function startFileDownload(file: DownloadAppFile): Promise<void> {
     throw new Error(`File ${file.id} is missing key`)
   }
 
-  const transferableFile = { ...file, metadata: undefined, uploaded_chunks: undefined }
+  const transferableFile = {
+    ...file,
+    metadata: undefined,
+    uploaded_chunks: undefined,
+    link: undefined
+  }
 
   const apiTransfer = new Api().toJson()
 

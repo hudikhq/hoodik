@@ -10,7 +10,8 @@ import DeleteModal from '@/components/files/modals/DeleteModal.vue'
 import LinkModal from '@/components/files/modals/LinkModal.vue'
 import DetailsModal from '@/components/files/modals/DetailsModal.vue'
 import UploadButton from '@/components/files/browser/UploadButton.vue'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import type { Authenticated, KeyPair, ListAppFile } from 'types'
 
 const props = defineProps<{
@@ -21,6 +22,15 @@ const props = defineProps<{
   authenticated: Authenticated
   keypair: KeyPair
 }>()
+
+const route = useRoute()
+const parentId = computed(() => {
+  if (!route.params.file_id) {
+    return null
+  }
+
+  return `${route.params.file_id}`
+})
 
 const Download = downloadStore()
 const Storage = storageStore()
@@ -103,19 +113,14 @@ const directory = () => {
 }
 
 const load = async () => {
-  let file_id = null
-
-  if (props.parentId !== undefined) {
-    file_id = props.parentId
-  } else {
-    file_id = null
-  }
-
-  await Storage.find(Crypto.keypair, file_id)
+  // We are not loading when we have hash in the url
+  // because that means we already have some files and
+  // we want to scroll down to them.
+  await Storage.find(Crypto.keypair, parentId.value, !route.hash)
 }
 
 watch(
-  () => props.parentId,
+  () => parentId.value,
   () => load(),
   { immediate: true }
 )

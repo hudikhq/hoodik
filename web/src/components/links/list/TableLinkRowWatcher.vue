@@ -16,7 +16,7 @@ const props = defineProps<{
     name: string
     size: string
     createdAt: string
-    fileCreatedAt: string
+    linkCreatedAt: string
     expiresAt: string
     buttons: string
   }
@@ -24,7 +24,6 @@ const props = defineProps<{
 
 const emits = defineEmits<{
   (event: 'link', link: AppLink): void
-  (event: 'remove', link: AppLink): void
   (event: 'select-one', value: boolean, link: AppLink): void
 }>()
 
@@ -59,12 +58,11 @@ onMounted(() => {
     </div>
     <TableLinkRow
       v-else
-      :file="props.link"
+      :link="props.link"
       :checked-rows="props.checkedRows"
       :sizes="props.sizes"
       :highlighted="props.highlighted"
       @link="(f: AppLink) => emits('link', f)"
-      @remove="(f: AppLink) => emits('remove', f)"
       @select-one="(v: boolean, f: AppLink) => emits('select-one', v, f)"
     />
   </Suspense>

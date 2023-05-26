@@ -95,7 +95,7 @@ export const store = defineStore('files', () => {
   /**
    * Head over to backend and do a lookup for the current directory
    */
-  async function find(kp: KeyPair, parentId: string | null): Promise<void> {
+  async function find(kp: KeyPair, parentId: string | null, showLoading = true): Promise<void> {
     error.value = null
 
     let query = parameters.value
@@ -106,6 +106,7 @@ export const store = defineStore('files', () => {
     }
 
     let response: FileResponse = { children: [], parents: [] }
+    loading.value = showLoading
 
     // We wrap this here so we can somewhat support failing network
     // connection and use the files we have in the store.
@@ -126,6 +127,7 @@ export const store = defineStore('files', () => {
     })
 
     fileId.value = parentId
+    loading.value = false
   }
 
   /**

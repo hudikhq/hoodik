@@ -18,7 +18,7 @@ export async function decryptLink(link: EncryptedAppLink, link_key_hex: string):
   const name = await cryptfns.aes.decryptFromHex(link.encrypted_name, link_key)
 
   const thumbnail = link.encrypted_thumbnail
-    ? await cryptfns.aes.encryptToHex(link.encrypted_thumbnail, link_key)
+    ? await cryptfns.aes.decryptFromHex(link.encrypted_thumbnail, link_key)
     : undefined
 
   return {

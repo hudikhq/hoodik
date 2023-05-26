@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import FilePreview from '@/components/files/preview/FilePreview.vue'
+import FilePreview from './FilePreview.vue'
 import { useRoute } from 'vue-router'
 import type { FilesStore, KeyPair, ListAppFile } from 'types'
 import { ref, watch } from 'vue'
@@ -20,7 +20,7 @@ const route = useRoute()
 const file = ref()
 
 watch(
-  () => route.params.file_id,
+  () => route.params.id,
   async (id: string[] | string) => {
     if (!id) return
 

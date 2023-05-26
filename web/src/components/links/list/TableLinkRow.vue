@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { mdiDotsVertical } from '@mdi/js'
+import { mdiLink, mdiDownload } from '@mdi/js'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseIcon from '@/components/ui/BaseIcon.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import TruncatedSpan from '@/components/ui/TruncatedSpan.vue'
 import { formatPrettyDate, formatSize } from '!'
@@ -24,7 +25,6 @@ const props = defineProps<{
 
 const emits = defineEmits<{
   (event: 'link', link: AppLink): void
-  (event: 'remove', link: AppLink): void
   (event: 'select-one', value: boolean, link: AppLink): void
 }>()
 
@@ -54,7 +54,7 @@ const fileCreatedAt = computed(() => {
 })
 
 const linkExpiresAt = computed(() => {
-  return props.link.expires_at ? formatPrettyDate(props.link.expires_at) : ''
+  return props.link.expires_at ? formatPrettyDate(props.link.expires_at) : 'never'
 })
 
 const sharedClass = computed(() => {
@@ -131,18 +131,20 @@ const doubleClick = () => {
       />
 
       <TruncatedSpan :text="linkName" />
+
+      <span class="flex ml-3">
+        <BaseIcon :path="mdiDownload" :size="15" />
+
+        {{ link.downloads }}
+      </span>
     </button>
 
     <div :class="sizes.size" :title="linkSize">
-      <span>{{ linkSize || '-' }}</span>
+      <TruncatedSpan :text="linkSize || '-'" />
     </div>
 
-    <div :class="sizes.createdAt" :title="props.link.created_at">
+    <div :class="sizes.createdAt" :title="`File created: ${fileCreatedAt}`">
       <TruncatedSpan :text="linkCreatedAt" />
-    </div>
-
-    <div :class="sizes.fileCreatedAt" :title="props.link.created_at">
-      <TruncatedSpan :text="fileCreatedAt" />
     </div>
 
     <div :class="sizes.expiresAt" :title="props.link.expires_at">
@@ -151,9 +153,9 @@ const doubleClick = () => {
 
     <div :class="sizes.buttons">
       <BaseButton
-        class="ml-2 sm:hidden float-right"
+        class="ml-2 float-right"
         color="dark"
-        :icon="mdiDotsVertical"
+        :icon="mdiLink"
         small
         @click="emits('link', link)"
         :disabled="!props.link.id"

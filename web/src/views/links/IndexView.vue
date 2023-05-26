@@ -5,9 +5,9 @@ import SectionMain from '@/components/ui/SectionMain.vue'
 </script>
 
 <template>
-  <LayoutLinkBrowser :clear="false" v-slot="{ Links }">
+  <LayoutLinkBrowser :clear="false" v-slot="{ Links, on }">
     <SectionMain>
-      <TableLinks :items="Links.items" :forDelete="Links.forDelete" />
+      <TableLinks :items="Links.items" :forDelete="Links.forDelete" v-on="on" />
     </SectionMain>
   </LayoutLinkBrowser>
 </template>

@@ -35,7 +35,7 @@ const referenceObject = ref()
 const visible = ref(false)
 
 onMounted(() => {
-  const elementWatcher = scrollMonitor.create(referenceObject.value, 100)
+  const elementWatcher = scrollMonitor.create(referenceObject.value, 2000)
   elementWatcher.enterViewport(() => {
     visible.value = true
   }, false)

@@ -97,7 +97,7 @@ const copy = () => {
     <div :class="wrapperClass">
       <Field v-model="model" :name="name" v-slot="{ field }">
         <textarea
-          v-if="textarea && typeof field.value === 'string'"
+          v-if="textarea"
           ref="input"
           v-model="field.value"
           :id="name"

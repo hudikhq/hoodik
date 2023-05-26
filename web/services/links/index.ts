@@ -155,6 +155,7 @@ export const store = defineStore('links', () => {
    * Load all the shared links for the user.
    */
   async function find(kp: KeyPair): Promise<void> {
+    loading.value = true
     const response = await Api.get<EncryptedAppLink[]>(`/api/links`)
 
     if (!Array.isArray(response.body)) {
@@ -168,6 +169,8 @@ export const store = defineStore('links', () => {
     for (const link of links) {
       upsertItem(link)
     }
+
+    loading.value = false
   }
 
   /**
