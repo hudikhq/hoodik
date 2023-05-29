@@ -183,15 +183,39 @@ export const store = defineStore('links', () => {
       return link
     }
 
-    return await meta.metadata(id, key)
+    const metadata = await meta.metadata(id, key)
+
+    addItem(metadata)
+
+    return metadata
+  }
+
+  /**
+   * Download the link data for viewing in the browser.
+   */
+  async function download(id: string, key: string): Promise<Response> {
+    const link = await get(id, key)
+
+    return await meta.download(link.id, key)
+  }
+
+  /**
+   * Pass on the request to form download
+   */
+  async function formDownload(id: string, key: string): Promise<void> {
+    const link = await get(id, key)
+
+    await meta.formDownload(link.id, key)
   }
 
   return {
     addItem,
     create,
     del,
+    download,
     expire,
     find,
+    formDownload,
     get,
     getItem,
     hasItem,

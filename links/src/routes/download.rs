@@ -35,12 +35,12 @@ fn map_chunk(chunk: Result<web::Bytes, Error>, file_key: Vec<u8>) -> Result<Byte
 pub(crate) async fn download(
     req: HttpRequest,
     context: web::Data<Context>,
-    download: web::Json<Download>,
+    data: web::Either<web::Json<Download>, web::Form<Download>>,
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let link_id: Uuid = util::actix::path_var(&req, "link_id")?;
     let repository = Repository::new(&context);
-    let link_key = download.into_inner().into_value()?;
+    let link_key = data.into_inner().into_value()?;
 
     let link = repository.get(link_id).await?;
     let filename = link.decrypt_name(&link_key)?;
@@ -73,7 +73,7 @@ pub(crate) async fn download(
 pub(crate) async fn head(
     req: HttpRequest,
     context: web::Data<Context>,
-    data: web::Json<Download>,
+    data: web::Either<web::Json<Download>, web::Form<Download>>,
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let link_id: Uuid = util::actix::path_var(&req, "link_id")?;

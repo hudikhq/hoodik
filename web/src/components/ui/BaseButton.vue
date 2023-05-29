@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
 import { getButtonColor, type ColorType } from '@/colors'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import type { RouteLocation } from 'vue-router'
@@ -33,7 +32,7 @@ const is = computed(() => {
   }
 
   if (props.to) {
-    return RouterLink
+    return 'router-link'
   }
 
   if (props.href) {
@@ -107,6 +106,7 @@ const componentClass = computed(() => {
 
 <template>
   <component
+    v-if="is !== 'router-link'"
     :is="is"
     :class="componentClass"
     :href="href"
@@ -118,4 +118,15 @@ const componentClass = computed(() => {
     <BaseIcon v-if="icon" :path="icon" :size="iconSize" />
     <span v-if="label" :class="labelClass">{{ label }}</span>
   </component>
+  <router-link
+    v-else
+    :class="componentClass"
+    :type="computedType"
+    :to="to"
+    :target="target"
+    :disabled="disabled"
+  >
+    <BaseIcon v-if="icon" :path="icon" :size="iconSize" />
+    <span v-if="label" :class="labelClass">{{ label }}</span>
+  </router-link>
 </template>

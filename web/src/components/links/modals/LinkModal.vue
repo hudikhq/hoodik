@@ -3,7 +3,7 @@ import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import CardBoxComponentTitle from '@/components/ui/CardBoxComponentTitle.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseButtonConfirm from '@/components/ui/BaseButtonConfirm.vue'
-import { mdiClose, mdiLink, mdiTrashCan } from '@mdi/js'
+import { mdiClose, mdiLink, mdiTrashCan, mdiOpenInNew } from '@mdi/js'
 import { computed, ref } from 'vue'
 import type { FilesStore, KeyPair, LinksStore, AppLink } from 'types'
 import { formatPrettyDate, formatSize } from '!/index'
@@ -116,6 +116,16 @@ const remove = async () => {
           xs
           rounded-full
           @confirm="remove"
+        />
+        <BaseButton
+          title="View link"
+          :icon="mdiOpenInNew"
+          color="dark"
+          small
+          rounded-full
+          class="mr-2"
+          :to="{ name: 'links-view', params: { link_id: link.id }, hash: `#${link.link_key_hex}` }"
+          target="_blank"
         />
         <BaseButton
           title="Close modal"

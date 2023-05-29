@@ -22,7 +22,16 @@ export async function all(): Promise<EncryptedAppLink[]> {
  * return the file as a response.
  */
 export async function download(id: string, link_key: string): Promise<Response> {
-  return new Api().download<{ link_key: string }>(`/api/links/${id}`, undefined, {
+  return new Api().postDownload<{ link_key: string }>(`/api/links/${id}`, undefined, {
+    link_key
+  })
+}
+
+/**
+ * Run the download by mocking a form submit
+ */
+export async function formDownload(id: string, link_key: string): Promise<void> {
+  return new Api().formDownload<{ link_key: string }>(`/api/links/${id}`, undefined, {
     link_key
   })
 }
@@ -40,7 +49,7 @@ export async function metadata(id: string, linkKey: string): Promise<AppLink> {
  * Get the encrypted metadata in case we don't have a key
  */
 export async function encryptedMetadata(id: string): Promise<EncryptedAppLink> {
-  const response = await Api.get<EncryptedAppLink>(`/api/links/${id}`)
+  const response = await Api.get<EncryptedAppLink>(`/api/links/${id}/metadata`)
 
   if (!response.body) {
     throw new Error('Failed to get link')
@@ -53,6 +62,10 @@ export async function encryptedMetadata(id: string): Promise<EncryptedAppLink> {
  * Convert unencrypted app file into a encrypted create link construct
  */
 export async function createLinkFromFile(file: ListAppFile, kp: KeyPair): Promise<CreateLink> {
+  if (!file.metadata?.key) {
+    throw new Error('File key is missing')
+  }
+
   const key = await cryptfns.aes.generateKey()
 
   const signature = await cryptfns.rsa.sign(kp, file.id)
@@ -62,13 +75,14 @@ export async function createLinkFromFile(file: ListAppFile, kp: KeyPair): Promis
   )
 
   const encrypted_name = await cryptfns.aes.encryptToHex(file.metadata?.name || 'no-name', key)
-  const encrypted_file_key = await cryptfns.aes.encryptToHex(cryptfns.uint8.toHex(key), key)
+  const encrypted_file_key = await cryptfns.aes.encryptToHex(
+    cryptfns.uint8.toHex(file.metadata?.key),
+    key
+  )
 
   let encrypted_thumbnail
 
-  console.log(file)
   if (file.metadata?.thumbnail) {
-    console.log('we have thumbnail')
     encrypted_thumbnail = await cryptfns.aes.encryptToHex(file.metadata.thumbnail, key)
   }
 

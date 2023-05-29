@@ -33,7 +33,7 @@ impl<'provider> FsProvider<'provider> {
         filename: &T,
         chunk: Option<i32>,
     ) -> impl futures_util::Stream<Item = AppResult<actix_web::web::Bytes>> {
-        let files: Vec<File> = match chunk {
+        let mut files: Vec<File> = match chunk {
             Some(chunk) => match self.get(filename, chunk).await {
                 Ok(file) => vec![file],
                 Err(e) => {
@@ -49,6 +49,9 @@ impl<'provider> FsProvider<'provider> {
                 }
             },
         };
+
+        // Reverse the files so we can pop them from the end
+        files.reverse();
 
         // We are passing the Vec<File> here because those files are not read yet..
         // but in the future if we want to create another FsProvider, for example S3, this would

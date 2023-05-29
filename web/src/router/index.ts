@@ -20,7 +20,7 @@ const router = createRouter({
         files: true,
         title: 'File Preview'
       },
-      component: () => import('../views/files/PreviewView.vue')
+      component: () => import('../views/files/FileView.vue')
     },
     {
       path: '/links',

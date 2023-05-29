@@ -9,8 +9,11 @@ use crate::repository::Repository;
 /// that will be handled by frontend to display its description and information.
 ///
 /// Response: [crate::data::app_link::AppLink]
-#[route("/api/links/{link_id}", method = "GET")]
-pub(crate) async fn get(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
+#[route("/api/links/{link_id}/metadata", method = "GET")]
+pub(crate) async fn metadata(
+    req: HttpRequest,
+    context: web::Data<Context>,
+) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let link_id: Uuid = util::actix::path_var(&req, "link_id")?;
     let repository = Repository::new(&context);
