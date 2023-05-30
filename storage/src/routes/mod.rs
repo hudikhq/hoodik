@@ -1,3 +1,11 @@
+//! # Storage routes
+//!
+//! This module exposes routes for manipulating your files and folders.
+//! Also it exposes routes for uploading and downloading files.
+//!
+//! TODO: This module exposes routes for sharing files with other users
+//! on the platform.
+
 pub mod create;
 pub mod delete;
 pub mod download;
@@ -7,7 +15,7 @@ pub mod name_hash;
 pub mod search;
 pub mod upload;
 
-/// Register the authentication routes
+/// Register the storage routes
 /// on to the application server
 pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
     cfg.service(create::create);

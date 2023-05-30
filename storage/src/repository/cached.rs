@@ -5,7 +5,7 @@
 use cached::proc_macro::cached;
 use cached::SizedCache;
 use context::Context;
-use uuid::Uuid;
+use entity::Uuid;
 
 use crate::data::app_file::AppFile;
 

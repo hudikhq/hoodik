@@ -1,9 +1,8 @@
 use context::Context;
-use entity::{users, ConnectionTrait, Uuid};
-use error::AppResult;
 
 use crate::{
-    data::{app_file::AppFile, create_file::CreateFile, query::Query},
+    data::{app_file::AppFile, query::Query},
+    mock::create_file,
     repository::Repository,
 };
 
@@ -14,55 +13,19 @@ fn app_file_vec_to_str_vec(files: &[AppFile]) -> Vec<String> {
         .collect()
 }
 
-pub(crate) async fn create_file<'ctx, T: ConnectionTrait>(
-    repository: &'ctx Repository<'ctx, T>,
-    user: &users::Model,
-    name: &str,
-    file_id: Option<Uuid>,
-    mime: Option<&str>,
-) -> AppResult<AppFile> {
-    let mut size = None;
-    let mut chunks = None;
-
-    if mime != Some("dir") {
-        size = Some(100);
-        chunks = Some(1);
-    }
-
-    let search_tokens_hashed =
-        cryptfns::tokenizer::into_string(cryptfns::tokenizer::into_tokens(name).unwrap())
-            .split(";")
-            .map(|i| i.to_string())
-            .collect::<Vec<_>>();
-
-    let file = CreateFile {
-        encrypted_metadata: Some(name.to_string()),
-        search_tokens_hashed: Some(search_tokens_hashed),
-        mime: mime.map(|m| m.to_string()),
-        name_hash: Some(cryptfns::sha256::digest(name.as_bytes())),
-        size,
-        chunks,
-        file_id: file_id.map(|f| f.to_string()),
-        file_created_at: None,
-    };
-
-    let (am, _, tokens) = file.into_active_model()?;
-    repository.manage(user.id).create(am, name, tokens).await
-}
-
-#[async_std::test]
+#[actix_web::test]
 async fn create_dir_files() {
     let context = Context::mock_sqlite().await;
     let repository = Repository::new(&context.db);
-    let user = entity::mock::create_user(&context.db, "first@test.com").await;
-    let user2 = entity::mock::create_user(&context.db, "second@test.com").await;
+    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
+    let user2 = entity::mock::create_user(&context.db, "second@test.com", None).await;
 
-    let dir = create_file(&repository, &user, "dir", None, Some("dir"))
+    let dir = create_file(&context, &user, "dir", None, Some("dir"))
         .await
         .unwrap();
 
     let file = create_file(
-        &repository,
+        &context,
         &user,
         "file",
         Some(dir.id),
@@ -71,12 +34,12 @@ async fn create_dir_files() {
     .await
     .unwrap();
 
-    let dir2 = create_file(&repository, &user, "dir", None, Some("dir"))
+    let dir2 = create_file(&context, &user, "dir", None, Some("dir"))
         .await
         .unwrap();
 
     let file2 = create_file(
-        &repository,
+        &context,
         &user2,
         "file",
         Some(dir2.id),
@@ -121,15 +84,15 @@ async fn create_dir_files() {
     assert!(response.is_err());
 }
 
-#[async_std::test]
+#[actix_web::test]
 async fn get_dir_tree_with_right_ordering() {
     let context = Context::mock_sqlite().await;
     let repository = Repository::new(&context.db);
-    let user = entity::mock::create_user(&context.db, "first@test.com").await;
+    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
 
     let mut manual = vec![];
 
-    let dir = create_file(&repository, &user, "dir", None, Some("dir"))
+    let dir = create_file(&context, &user, "dir", None, Some("dir"))
         .await
         .unwrap();
     let dir_id = dir.id.clone();
@@ -142,24 +105,24 @@ async fn get_dir_tree_with_right_ordering() {
         app_file_vec_to_str_vec(&response)
     );
 
-    let dir2 = create_file(&repository, &user, "dir", Some(dir_id), Some("dir"))
+    let dir2 = create_file(&context, &user, "dir", Some(dir_id), Some("dir"))
         .await
         .unwrap();
     let dir2_id = dir2.id.clone();
     manual.push(dir2);
 
-    let dir3 = create_file(&repository, &user, "dir", Some(dir2_id), Some("dir"))
+    let dir3 = create_file(&context, &user, "dir", Some(dir2_id), Some("dir"))
         .await
         .unwrap();
     let dir3_id = dir3.id.clone();
     manual.push(dir3);
 
-    let dir4 = create_file(&repository, &user, "dir", Some(dir3_id), Some("dir"))
+    let dir4 = create_file(&context, &user, "dir", Some(dir3_id), Some("dir"))
         .await
         .unwrap();
     let dir4_id = dir4.id.clone();
 
-    let _dir5 = create_file(&repository, &user, "dir", Some(dir4_id), Some("dir"))
+    let _dir5 = create_file(&context, &user, "dir", Some(dir4_id), Some("dir"))
         .await
         .unwrap();
 
@@ -180,51 +143,51 @@ async fn get_dir_tree_with_right_ordering() {
     );
 }
 
-#[async_std::test]
+#[actix_web::test]
 async fn get_file_tree_with_right_ordering() {
     let context = Context::mock_sqlite().await;
     let repository = Repository::new(&context.db);
-    let user = entity::mock::create_user(&context.db, "first@test.com").await;
+    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
 
     let mut manual = vec![];
 
-    let dir = create_file(&repository, &user, "dir", None, Some("dir"))
+    let dir = create_file(&context, &user, "dir", None, Some("dir"))
         .await
         .unwrap();
     let dir_id = dir.id.clone();
     manual.push(dir);
 
-    let file = create_file(&repository, &user, "json1", None, Some("application/json"))
+    let file = create_file(&context, &user, "json1", None, Some("application/json"))
         .await
         .unwrap();
     let file1_id = file.id.clone();
     manual.push(file);
 
-    let file = create_file(&repository, &user, "json2", None, Some("application/json"))
+    let file = create_file(&context, &user, "json2", None, Some("application/json"))
         .await
         .unwrap();
     let _file2_id = file.id.clone();
     manual.push(file);
 
-    let dir = create_file(&repository, &user, "dir", Some(dir_id), Some("dir"))
+    let dir = create_file(&context, &user, "dir", Some(dir_id), Some("dir"))
         .await
         .unwrap();
     let dir2_id = dir.id.clone();
     manual.push(dir);
 
-    let file = create_file(&repository, &user, "json3", None, Some("application/json"))
+    let file = create_file(&context, &user, "json3", None, Some("application/json"))
         .await
         .unwrap();
     let _file3_id = file.id.clone();
     manual.push(file);
 
-    let file = create_file(&repository, &user, "json4", None, Some("application/json"))
+    let file = create_file(&context, &user, "json4", None, Some("application/json"))
         .await
         .unwrap();
     let _file4_id = file.id.clone();
     manual.push(file);
 
-    let dir3 = create_file(&repository, &user, "dir", Some(dir2_id), Some("dir"))
+    let dir3 = create_file(&context, &user, "dir", Some(dir2_id), Some("dir"))
         .await
         .unwrap();
     let dir3_id = dir3.id.clone();

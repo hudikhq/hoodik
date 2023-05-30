@@ -64,7 +64,9 @@ export function localDateFromUtcString(utc?: string | Date | null): Date {
   }
 
   if (typeof utc === 'string') {
-    return parseISO(`${utc}Z`)
+    const date = parseISO(`${utc}`)
+
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
   }
 
   return utc
@@ -74,6 +76,10 @@ export function localDateFromUtcString(utc?: string | Date | null): Date {
  * Takes the LOCAL date and creates an UTC date
  */
 export function utcStringFromLocal(local?: string | Date): string {
+  if (local instanceof Date) {
+    local = new Date(local.getTime() + local.getTimezoneOffset() * 60000)
+  }
+
   return format(local || new Date(), DATE_FORMAT)
 }
 
@@ -86,8 +92,6 @@ export function format(date: Date | string, formatString?: string): string {
     date = localDateFromUtcString(date)
   }
 
-  date = new Date(date.getTime() + date.getTimezoneOffset() * 60000)
-
   return f(date, formatString || DATE_FORMAT)
 }
 
@@ -95,7 +99,7 @@ export function format(date: Date | string, formatString?: string): string {
  * Single point of doing the 'pretty' dates for the entire app
  */
 export function formatPrettyDate(date: Date | string): string {
-  return format(date, 'MMM do yyyy, hh:mm')
+  return format(date, 'MMM do yyyy, HH:mm')
 }
 
 /**

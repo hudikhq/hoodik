@@ -11,35 +11,31 @@ use entity::{
 };
 use error::{AppResult, Error};
 
-pub struct Auth<'ctx> {
-    pub context: &'ctx Context,
+pub(crate) struct Auth<'ctx> {
+    pub(crate) context: &'ctx Context,
 }
 
 impl<'ctx> Auth<'ctx> {
-    pub fn generate_nonce_seconds() -> String {
-        format!("{}", Utc::now().timestamp())
-    }
-
-    pub fn generate_nonce_minutes() -> String {
+    pub(crate) fn generate_nonce_minutes() -> String {
         format!("{}", Utc::now().timestamp() / 60)
     }
 
-    pub fn generate_fingerprint_nonce(fingerprint: &str) -> String {
+    pub(crate) fn generate_fingerprint_nonce(fingerprint: &str) -> String {
         format!("{}-{}", fingerprint, Self::generate_nonce_minutes())
     }
 
-    pub fn generate_two_factor() -> String {
+    pub(crate) fn generate_two_factor() -> String {
         util::generate::generate_secret()
     }
 }
 
 impl<'ctx> Auth<'ctx> {
-    pub fn new(context: &'ctx Context) -> Auth<'ctx> {
+    pub(crate) fn new(context: &'ctx Context) -> Auth<'ctx> {
         Auth { context }
     }
 
     /// Create a new user
-    pub async fn register(&self, data: CreateUser) -> AppResult<users::Model> {
+    pub(crate) async fn register(&self, data: CreateUser) -> AppResult<users::Model> {
         let email = data.email.clone();
 
         let mut active_model = data.into_active_model()?;
@@ -68,7 +64,7 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Perform activation of the user
-    pub async fn activate(&self, user_action_id: Uuid) -> AppResult<users::Model> {
+    pub(crate) async fn activate(&self, user_action_id: Uuid) -> AppResult<users::Model> {
         let tx = self.context.db.begin().await.unwrap();
 
         let user_action = UserActions::new(self.context).with_connection(&tx);
@@ -99,7 +95,7 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Get a user by id
-    pub async fn get_by_id(&self, id: Uuid) -> AppResult<users::Model> {
+    pub(crate) async fn get_by_id(&self, id: Uuid) -> AppResult<users::Model> {
         users::Entity::find_by_id(id)
             .one(&self.context.db)
             .await
@@ -108,7 +104,7 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Get a user by email
-    pub async fn get_by_email(&self, email: &str) -> AppResult<users::Model> {
+    pub(crate) async fn get_by_email(&self, email: &str) -> AppResult<users::Model> {
         users::Entity::find()
             .filter(users::Column::Email.contains(email))
             .one(&self.context.db)
@@ -118,7 +114,7 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Get a user by fingerprint
-    pub async fn get_by_fingerprint(&self, fingerprint: &str) -> AppResult<users::Model> {
+    pub(crate) async fn get_by_fingerprint(&self, fingerprint: &str) -> AppResult<users::Model> {
         users::Entity::find()
             .filter(users::Column::Fingerprint.contains(fingerprint))
             .one(&self.context.db)
@@ -127,25 +123,8 @@ impl<'ctx> Auth<'ctx> {
             .ok_or_else(|| Error::NotFound(format!("user_not_found:{}", fingerprint)))
     }
 
-    /// Validate a session by its device id
-    pub async fn validate(&self, id: Uuid) -> AppResult<()> {
-        let session = sessions::Entity::find()
-            .filter(sessions::Column::Id.eq(id))
-            .filter(sessions::Column::DeletedAt.is_null())
-            .one(&self.context.db)
-            .await
-            .map_err(Error::from)?
-            .ok_or_else(|| Error::Unauthorized("session_not_found".to_string()))?;
-
-        if session.expires_at < Utc::now().naive_utc() {
-            return Err(Error::Unauthorized("session_expired".to_string()));
-        }
-
-        Ok(())
-    }
-
     /// Get user and session by session id, session does not have to be valid
-    pub async fn get_by_session_id(&self, id: Uuid) -> AppResult<Authenticated> {
+    pub(crate) async fn get_by_session_id(&self, id: Uuid) -> AppResult<Authenticated> {
         let result = sessions::Entity::find()
             .filter(sessions::Column::Id.eq(id))
             .inner_join(users::Entity)
@@ -163,7 +142,7 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Get user and session by refresh token, session must be valid
-    pub async fn get_by_refresh(&self, refresh: Uuid) -> AppResult<Authenticated> {
+    pub(crate) async fn get_by_refresh(&self, refresh: Uuid) -> AppResult<Authenticated> {
         let result = sessions::Entity::find()
             .filter(sessions::Column::Refresh.eq(refresh))
             .filter(sessions::Column::DeletedAt.is_null())
@@ -182,7 +161,7 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Get user and session by device id, session must be valid
-    pub async fn get_by_device_id(&self, device_id: Uuid) -> AppResult<Authenticated> {
+    pub(crate) async fn get_by_device_id(&self, device_id: Uuid) -> AppResult<Authenticated> {
         let result = sessions::Entity::find()
             .filter(sessions::Column::DeviceId.eq(device_id))
             .filter(sessions::Column::DeletedAt.is_null())
@@ -201,7 +180,7 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Generate a new session for a user
-    pub async fn generate_session(
+    pub(crate) async fn generate_session(
         &self,
         user: &users::Model,
         user_agent: &str,
@@ -237,7 +216,10 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Refresh session, if it's not expired. Refreshing a session will extend the expiration date by 10 minutes.
-    pub async fn refresh_session(&self, session: &sessions::Model) -> AppResult<Authenticated> {
+    pub(crate) async fn refresh_session(
+        &self,
+        session: &sessions::Model,
+    ) -> AppResult<Authenticated> {
         let expires_at = Utc::now().naive_utc()
             + Duration::seconds(self.context.config.short_term_session_duration_seconds);
 
@@ -260,7 +242,10 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Perform the logout action
-    pub async fn destroy_session(&self, session: &sessions::Model) -> AppResult<Authenticated> {
+    pub(crate) async fn destroy_session(
+        &self,
+        session: &sessions::Model,
+    ) -> AppResult<Authenticated> {
         let active_model = sessions::ActiveModel {
             id: ActiveValue::Set(session.id),
             user_id: ActiveValue::Set(session.user_id),
@@ -280,7 +265,7 @@ impl<'ctx> Auth<'ctx> {
     }
 
     /// Sets a cookie on the request
-    pub async fn manage_cookies(
+    pub(crate) async fn manage_cookies(
         &self,
         authenticated: &Authenticated,
         issuer: &str,

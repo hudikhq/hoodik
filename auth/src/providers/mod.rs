@@ -1,2 +1,2 @@
-pub mod credentials;
-pub mod signature;
+pub(crate) mod credentials;
+pub(crate) mod signature;

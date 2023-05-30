@@ -31,7 +31,7 @@ pub(crate) async fn send(context: &Context, user: &users::Model) -> AppResult<()
     .to_string();
 
     let action = UserActions::<DatabaseConnection>::new(context)
-        .from_user(user, "activate-email")
+        .for_user(user, "activate-email")
         .await?;
 
     let link = generate_link(context, &action)?;

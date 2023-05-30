@@ -2,18 +2,20 @@
 
 set -e
 
-echo "DATA_DIR=$PWD/e2e-data" >> $PWD/.env.e2e
+export DATA_DIR=$PWD/e2e-data
 
 cargo build --bin hoodik
 
-$PWD/target/debug/hoodik -c .env.e2e &
+RUST_LOG=error $PWD/target/debug/hoodik -c .env.e2e &
 
-node_modules/.bin/wait-on -t 600000 -i 250 -w 250 https://127.0.0.1:5443/api/liveness || (kill -9 $! && exit 1)
+node_modules/.bin/wait-on -t 300000 https://127.0.0.1:5443/api/liveness || (kill -9 $! && exit 1)
 
 export ENV_FILE="../.env.e2e"
 
 (yarn workspace @hoodik/web test:e2e) || TEST_EXIT_CODE=$?
 
 kill -9 $!
+
+rm -rf $PWD/e2e-data
 
 exit $TEST_EXIT_CODE

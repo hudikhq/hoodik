@@ -1,12 +1,13 @@
 pub use sea_orm_migration::prelude::*;
 
-pub mod m20220101_000001_create_users;
-pub mod m20220101_000002_create_user_actions;
-pub mod m20230114_091730_create_sessions;
-pub mod m20230409_091730_create_files;
-pub mod m20230409_101730_create_user_files;
-pub mod m20230429_091730_create_tokens;
-pub mod m20230429_101730_create_file_tokens;
+pub(crate) mod m20220101_000001_create_users;
+pub(crate) mod m20220101_000002_create_user_actions;
+pub(crate) mod m20230114_091730_create_sessions;
+pub(crate) mod m20230409_091730_create_files;
+pub(crate) mod m20230409_101730_create_user_files;
+pub(crate) mod m20230429_091730_create_tokens;
+pub(crate) mod m20230429_101730_create_file_tokens;
+pub(crate) mod m20230521_074334_create_links;
 
 pub struct Migrator;
 
@@ -21,6 +22,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20230409_101730_create_user_files::Migration),
             Box::new(m20230429_091730_create_tokens::Migration),
             Box::new(m20230429_101730_create_file_tokens::Migration),
+            Box::new(m20230521_074334_create_links::Migration),
         ]
     }
 }

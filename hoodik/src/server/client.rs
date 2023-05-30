@@ -40,7 +40,7 @@ pub(crate) async fn client(
 
     let path: Vec<&str> = filename.split('.').collect();
 
-    if path.len() == 1 {
+    if path.len() == 1 && !filename.starts_with("/api/") {
         return HttpResponse::Ok()
             .insert_header(("Cache-Control", "no-cache"))
             .content_type("text/html; charset=utf-8")

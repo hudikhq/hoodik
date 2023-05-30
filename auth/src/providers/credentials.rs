@@ -5,13 +5,13 @@ use crate::{
 };
 use error::{AppResult, Error};
 
-pub struct CredentialsProvider<'ctx> {
-    pub auth: &'ctx Auth<'ctx>,
-    pub data: Credentials,
+pub(crate) struct CredentialsProvider<'ctx> {
+    auth: &'ctx Auth<'ctx>,
+    data: Credentials,
 }
 
 impl<'ctx> CredentialsProvider<'ctx> {
-    pub fn new(auth: &'ctx Auth, data: Credentials) -> Self {
+    pub(crate) fn new(auth: &'ctx Auth, data: Credentials) -> Self {
         Self { auth, data }
     }
 }

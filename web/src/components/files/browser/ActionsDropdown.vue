@@ -9,6 +9,7 @@ import { vOnClickOutside } from '@vueuse/components'
 const props = defineProps<{
   modelValue: ListAppFile
   hideDelete?: boolean
+  share?: boolean
   disabled?: boolean
   class?: string
 }>()
@@ -21,7 +22,7 @@ const menuHeight = ref(0)
 const emits = defineEmits<{
   (event: 'remove', file: ListAppFile): void
   (event: 'details', file: ListAppFile): void
-  (event: 'preview', file: ListAppFile): void
+  (event: 'link', file: ListAppFile): void
   (event: 'download', file: ListAppFile): void
   (event: 'update:modelValue', value: ListAppFile): void
 }>()
@@ -41,9 +42,9 @@ const details = () => {
   emits('details', file.value)
 }
 
-const preview = () => {
+const link = () => {
   close()
-  emits('preview', file.value)
+  emits('link', file.value)
 }
 
 const download = () => {
@@ -119,6 +120,7 @@ window.addEventListener('keydown', (e) => {
         small
         :disabled="props.disabled"
         @click="open"
+        name="actions-dropdown"
       />
     </slot>
     <div
@@ -129,9 +131,10 @@ window.addEventListener('keydown', (e) => {
       <ActionsButtons
         v-model="file"
         :hide-delete="hideDelete"
+        :share="share"
         @remove="remove"
         @details="details"
-        @preview="preview"
+        @link="link"
         @download="download"
       />
     </div>

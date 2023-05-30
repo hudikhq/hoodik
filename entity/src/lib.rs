@@ -1,11 +1,14 @@
 pub mod file_tokens;
 pub mod files;
+pub mod links;
 pub mod prelude;
 pub mod sessions;
 pub mod tokens;
 pub mod user_actions;
 pub mod user_files;
 pub mod users;
+
+pub mod join;
 
 pub use prelude::*;
 
@@ -16,9 +19,9 @@ pub use sea_orm::{
         Alias, Expr, IntoCondition, Query, SelectStatement, SimpleExpr, SubQueryOper,
         SubQueryStatement, UnionType,
     },
-    ActiveValue, Condition, ConnectionTrait, DbBackend, DbConn, EntityOrSelect, FromQueryResult,
-    JoinType, JsonValue, ModelTrait, Order, QueryFilter, QueryOrder, QuerySelect, QueryTrait,
-    SelectTwo, Statement, TransactionTrait, TryGetableMany, Value,
+    ActiveValue, Condition, ConnectionTrait, DbBackend, DbConn, DbErr, EntityOrSelect,
+    FromQueryResult, JoinType, JsonValue, ModelTrait, Order, QueryFilter, QueryOrder, QueryResult,
+    QuerySelect, QueryTrait, Select, SelectTwo, Statement, TransactionTrait, TryGetableMany, Value,
 };
 
 /// Helper to convert `Option<String>` to `Option<Uuid>`

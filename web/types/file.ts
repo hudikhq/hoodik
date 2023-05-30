@@ -1,4 +1,5 @@
 import type { FileMetadata } from '../services/storage/metadata'
+import type { EncryptedLink } from './links'
 import type { WorkerErrorType } from './worker'
 
 export interface UploadAppFile extends AppFile {
@@ -164,4 +165,9 @@ export interface EncryptedAppFile {
    * by their chunk number from 0 to chunks - 1
    */
   uploaded_chunks?: number[]
+
+  /**
+   * File shared public link (if it exists)
+   */
+  link?: EncryptedLink
 }

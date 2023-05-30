@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import type { FormType } from '.'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Field, ErrorMessage } from 'vee-validate'
 import useClipboard from 'vue-clipboard3'
 const { toClipboard } = useClipboard()
 
 const originalClass =
-  'w-full px-4 py-2 text-gray-900 placeholder-gray-400 transition duration-150 ease-in-out bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+  'w-full px-4 py-2 text-gray-900 placeholder-gray-400 transition duration-150 ease-in-out bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-redish-500'
 
 const props = defineProps<{
   name: string
-  form: FormType
+  form?: FormType
   type?: 'text' | 'password' | undefined
   label?: string | undefined
   allowCopy?: boolean | undefined
@@ -53,7 +53,15 @@ function update(e: Event) {
   emit('change', (e.target as HTMLInputElement).value)
 }
 
-const model = ref<string>(props.form.values[props.name] || props.modelValue || '')
+const model = computed<string>({
+  get: () => {
+    if (props.form) {
+      return props.form.values[props.name]
+    }
+    return props.modelValue || ''
+  },
+  set: (v) => emit('update:modelValue', v)
+})
 
 const componentClass = ref<string>(
   `${props.class ? props.class : (props.classAdd || '') + ' ' + originalClass}`
@@ -89,7 +97,7 @@ const copy = () => {
     <div :class="wrapperClass">
       <Field v-model="model" :name="name" v-slot="{ field }">
         <textarea
-          v-if="textarea && typeof field.value === 'string'"
+          v-if="textarea"
           ref="input"
           v-model="field.value"
           :id="name"
@@ -111,7 +119,7 @@ const copy = () => {
           :class="componentClass"
           :type="type || 'text'"
           :placeholder="placeholder || ''"
-          :disabled="disabled || form.isSubmitting.value"
+          :disabled="disabled || form?.isSubmitting.value"
           :autofocus="!!props.autofocus"
         />
       </Field>
