@@ -23,7 +23,7 @@ const speed = computed(() => {
       return '0 B/s'
     }
 
-    const started = localDateFromUtcString((props.file as UploadAppFile).started_upload_at)
+    const started = new Date((props.file as UploadAppFile).started_upload_at as string)
 
     const seconds = (Date.now().valueOf() - started.valueOf()) / 1000
 

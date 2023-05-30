@@ -136,7 +136,7 @@ export const store = defineStore('files', () => {
   async function replaceItem(item: ListAppFile, kp: KeyPair): Promise<void> {
     const existing = getItem(item.id)
 
-    if (existing) {
+    if (existing && existing.metadata?.key) {
       return upsertItem({ ...item, metadata: existing.metadata, temporaryId: uuidv4() })
     } else {
       return upsertItem(await decryptItem({ ...item, temporaryId: uuidv4() }, kp))

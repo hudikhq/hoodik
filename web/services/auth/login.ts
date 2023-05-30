@@ -49,7 +49,7 @@ export const store = defineStore('login', () => {
     crypto: CryptoStore
   ) {
     set(authenticated)
-    crypto.set(privateKey)
+    await crypto.set(privateKey)
 
     _refresher.value = setInterval(() => setupRefresh(crypto), 1000)
   }

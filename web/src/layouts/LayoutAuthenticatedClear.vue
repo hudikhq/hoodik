@@ -5,13 +5,13 @@ import { store as login } from '!/auth/login'
 import { ensureAuthenticated } from '!/auth'
 import { store as cryptoStore } from '!/crypto'
 
-const crypto = cryptoStore()
 const styleStore = style()
 const router = useRouter()
 const route = useRoute()
-const loginStore = login()
 
 await ensureAuthenticated(router, route)
+const crypto = cryptoStore()
+const loginStore = login()
 </script>
 
 <template>
