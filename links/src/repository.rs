@@ -128,14 +128,12 @@ impl<'ctx> Repository<'ctx> {
         entity::join::add_columns_with_prefix::<_, users::Entity>(&mut selector, "user");
         entity::join::add_columns_with_prefix::<_, files::Entity>(&mut selector, "file");
 
-        if with_expired {
+        if !with_expired {
             selector = selector.filter(
                 links::Column::ExpiresAt
                     .is_null()
                     .or(links::Column::ExpiresAt.gt(chrono::Utc::now().naive_utc())),
             );
-        } else {
-            selector = selector.filter(links::Column::ExpiresAt.is_null());
         }
 
         let links = selector
