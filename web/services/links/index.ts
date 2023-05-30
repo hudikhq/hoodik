@@ -190,7 +190,6 @@ export const store = defineStore('links', () => {
 
     const links = await Promise.all(encryptedLinks.map((link) => crypto.decryptLinkRsa(link, kp)))
 
-    console.log(links)
     for (const link of links) {
       upsertItem(link)
     }
