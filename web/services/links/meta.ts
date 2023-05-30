@@ -8,7 +8,9 @@ import type { AppLink, CreateLink, EncryptedAppLink, KeyPair, ListAppFile } from
  * Load all the shared links for the user.
  */
 export async function all(): Promise<EncryptedAppLink[]> {
-  const response = await Api.get<EncryptedAppLink[]>(`/api/links`)
+  const response = await Api.get<EncryptedAppLink[]>(`/api/links`, {
+    with_expired: 'true'
+  })
 
   if (!Array.isArray(response.body)) {
     throw new Error('Failed to get link')

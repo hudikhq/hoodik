@@ -4,7 +4,7 @@ import BaseIcon from '@/components/ui/BaseIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import type { LinksStore, AppLink } from 'types'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { formatSize } from '!/index'
+import { formatPrettyDate, formatSize } from '!/index'
 
 const props = defineProps<{
   modelValue: AppLink
@@ -29,8 +29,23 @@ const link = computed({
   set: (value: AppLink) => emits('update:modelValue', value)
 })
 
+const linkExpiresAt = computed(() => {
+  return link.value?.expires_at ? formatPrettyDate(link.value?.expires_at) : null
+})
+
+const isExpired = computed(() => {
+  const now = new Date()
+
+  return link.value?.expires_at && new Date(link.value?.expires_at) < now
+})
+
 const name = computed(() => link.value?.name)
-const thumbnail = computed(() => link.value?.thumbnail)
+const thumbnail = computed(() => {
+  if (!link.value) return
+  if (isExpired.value) return
+
+  return link.value?.thumbnail
+})
 const hasPreview = computed(() => !!thumbnail.value)
 
 /**
@@ -170,6 +185,10 @@ onUnmounted(() => {
     v-if="link"
     class="fixed top-0 left-0 flex flex-col items-center justify-center w-full h-full dark:bg-brownish-950 pt-20 pb-20"
   >
+    <div class="absolute bottom-0" v-if="linkExpiresAt">
+      <span v-if="!isExpired">This link will expire on {{ linkExpiresAt }}</span>
+      <span v-else class="text-redish-300">This link has expired on {{ linkExpiresAt }}</span>
+    </div>
     <div class="absolute top-0 w-full">
       <div class="float-right space-x-4 p-4">
         <BaseButton
@@ -178,6 +197,7 @@ onUnmounted(() => {
           small
           name="preview-download"
           @click="download"
+          :disabled="!link || isExpired"
         />
       </div>
       <div class="float-left space-x-4 p-4">
@@ -213,11 +233,22 @@ onUnmounted(() => {
         <div class="text-center">
           <span> No preview available 🥲 </span>
         </div>
+        <div class="text-center mt-2">
+          <BaseButton
+            color="light"
+            :icon="mdiDownload"
+            small
+            name="preview-download-big"
+            label="Download"
+            @click="download"
+            :disabled="!link || isExpired"
+          />
+        </div>
       </div>
     </div>
 
     <div class="absolute bottom-0 w-full">
-      <div class="flex justify-center space-x-4 p-4" v-if="hasPreview">
+      <div class="flex justify-center space-x-4 p-8" v-if="hasPreview">
         <BaseButton
           :disabled="!imageUrl || percentage <= 1"
           color="dark"

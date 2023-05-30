@@ -185,16 +185,12 @@ export const store = defineStore('links', () => {
    */
   async function find(kp: KeyPair): Promise<void> {
     loading.value = true
-    const response = await Api.get<EncryptedAppLink[]>(`/api/links`, { with_expired: 'true' })
-
-    if (!Array.isArray(response.body)) {
-      throw new Error('Failed to get link')
-    }
 
     const encryptedLinks = await meta.all()
 
     const links = await Promise.all(encryptedLinks.map((link) => crypto.decryptLinkRsa(link, kp)))
 
+    console.log(links)
     for (const link of links) {
       upsertItem(link)
     }

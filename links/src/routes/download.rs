@@ -43,6 +43,11 @@ pub(crate) async fn download(
     let link_key = data.into_inner().into_value()?;
 
     let link = repository.get(link_id).await?;
+
+    if link.is_expired() {
+        return Err(Error::Unauthorized("link_expired".to_string()));
+    }
+
     let filename = link.decrypt_name(&link_key)?;
     let file_key = link.file_key(&link_key)?;
 
@@ -81,6 +86,11 @@ pub(crate) async fn head(
     let link_key = data.into_inner().into_value()?;
 
     let link = repository.get(link_id).await?;
+
+    if link.is_expired() {
+        return Err(Error::Unauthorized("link_expired".to_string()));
+    }
+
     let filename = link.decrypt_name(&link_key)?;
 
     Ok(HttpResponse::NoContent()

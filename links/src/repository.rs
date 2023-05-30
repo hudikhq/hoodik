@@ -51,12 +51,6 @@ impl<'ctx> Repository<'ctx> {
     pub(crate) async fn get(&self, id: Uuid) -> AppResult<AppLink> {
         let app_link = self.get_by_id(id).await?;
 
-        if let Some(expired_at) = app_link.expires_at {
-            if expired_at < chrono::Utc::now().naive_utc() {
-                return Err(Error::Forbidden("link_expired".to_string()));
-            }
-        }
-
         Ok(app_link)
     }
 

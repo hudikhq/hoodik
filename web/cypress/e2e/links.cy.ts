@@ -1,5 +1,5 @@
-describe('Handle directories', () => {
-  it('can create dir', () => {
+describe('Handle public links', () => {
+  it('Create public link and attempt do view it', () => {
     const email = `test+${Math.random() * 100000}@test.com`
     const password = `some-very-strong-password-${Math.random() * 123123123}`
 

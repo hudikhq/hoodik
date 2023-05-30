@@ -67,6 +67,15 @@ impl AppLink {
 
         Ok(file_key)
     }
+
+    /// Let us know if the link has expired so we can prevent it from being downloaded.
+    pub fn is_expired(&self) -> bool {
+        let now = chrono::Utc::now().naive_utc();
+
+        self.expires_at
+            .map(|expires_at| expires_at < now)
+            .unwrap_or(false)
+    }
 }
 
 impl FromQueryResult for AppLink {

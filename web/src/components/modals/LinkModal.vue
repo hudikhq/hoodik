@@ -18,10 +18,8 @@ import { formatPrettyDate, formatSize, localDateFromUtcString } from '!/index'
 import PuppyLoader from '@/components/ui/PuppyLoader.vue'
 import * as logger from '!/logger'
 import { useRouter } from 'vue-router'
-import { AppField } from '@/components/form'
+import { AppField, AppDateTime } from '@/components/form'
 import * as cryptfns from '!/cryptfns'
-import VueDatePicker from '@vuepic/vue-datepicker'
-import '@vuepic/vue-datepicker/dist/main.css'
 
 const router = useRouter()
 
@@ -82,6 +80,12 @@ const fileCreatedAt = computed(() => {
 const expiresAt = ref()
 const linkExpiresAt = computed(() => {
   return link.value?.expires_at ? formatPrettyDate(link.value?.expires_at) : null
+})
+
+const isExpired = computed(() => {
+  const now = new Date()
+
+  return link.value?.expires_at && new Date(link.value?.expires_at) < now
 })
 
 const linkUrl = computed(() => {
@@ -160,15 +164,13 @@ const remove = async () => {
 /**
  * Update the expiry date
  */
-const updateExpiry = async (value: string | undefined) => {
+const updateExpiry = async (value: Date | undefined) => {
   if (!link.value) return
   loadingExpire.value = true
 
-  const dateValue = value ? localDateFromUtcString(value) : undefined
-
   logger.debug('Updating expiry for link', link.value)
-  loadedLink.value = await props.Links.expire(link.value.id, dateValue)
-  expiresAt.value = dateValue
+  loadedLink.value = await props.Links.expire(link.value.id, value)
+  expiresAt.value = value
   loadingExpire.value = false
   editExpire.value = false
 }
@@ -196,9 +198,30 @@ watch(
     :hide-submit="true"
     @cancel="cancel"
   >
-    <CardBoxComponentTitle :icon="mdiLink" title="Public link for a link"> </CardBoxComponentTitle>
+    <CardBoxComponentTitle :icon="mdiLink" title="Public link for a link">
+      <BaseButton
+        title="Close modal"
+        :icon="mdiClose"
+        color="dark"
+        small
+        rounded-full
+        @click.prevent="cancel"
+      />
+    </CardBoxComponentTitle>
 
-    <div>
+    <div class="ml-2">
+      <BaseButton
+        title="View link"
+        :icon="mdiOpenInNew"
+        color="dark"
+        small
+        rounded-full
+        class="mr-2"
+        :to="{ name: 'links-view', params: { link_id: link.id }, hash: `#${link.link_key_hex}` }"
+        target="_blank"
+        name="links-view"
+        v-if="link"
+      />
       <BaseButtonConfirm
         title="Delete public link"
         label="Delete public link"
@@ -212,30 +235,14 @@ watch(
         @confirm="remove"
         v-if="link"
       />
-      <BaseButton
-        title="View link"
-        :icon="mdiOpenInNew"
-        color="dark"
-        small
-        rounded-full
-        class="mr-2"
-        :to="{ name: 'links-view', params: { link_id: link.id }, hash: `#${link.link_key_hex}` }"
-        target="_blank"
-        name="links-view"
-        v-if="link"
-      />
-      <BaseButton
-        title="Close modal"
-        :icon="mdiClose"
-        color="dark"
-        small
-        rounded-full
-        @click.prevent="cancel"
-      />
     </div>
 
     <div v-if="!loading">
       <div v-if="link">
+        <div class="w-full p-2 border-b-[1px] border-brownish-700 text-redish-200" v-if="isExpired">
+          <p>This link is expired, you can extend the expiry date below, or simply delete it.</p>
+        </div>
+
         <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
           <div class="flex flex-col w-1/2">Name</div>
           <div class="flex flex-col w-1/2">{{ link.name }}</div>
@@ -295,13 +302,15 @@ watch(
           </div>
         </div>
         <div class="flex flex-row p-2 border-b-[1px] border-brownish-700" v-else>
-          <div class="flex flex-col w-6/12">
-            <span class="mt-2"> Expires </span>
+          <div class="flex flex-col w-10/12">
+            <AppDateTime
+              v-model="expiresAt"
+              name="expires-at"
+              :disabled="loadingExpire"
+              :min="new Date()"
+            />
           </div>
-          <div class="flex flex-col w-4/12">
-            <VueDatePicker v-model="expiresAt" :disabled="loadingExpire" />
-          </div>
-          <div class="flex flex-col w-2/12">
+          <div class="flex flex-col w-2/12 mt-1">
             <div class="flex justify-end mt-0.5 pl-2">
               <BaseButton
                 title="Save changes"

@@ -38,7 +38,7 @@ const config = {
           <AppField
             type="password"
             :form="form"
-            label="Your linkKeyHex"
+            label="Link key (password)"
             name="linkKeyHex"
             placeholder="********"
             :autofocus="true"

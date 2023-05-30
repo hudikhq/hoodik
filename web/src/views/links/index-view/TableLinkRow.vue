@@ -57,6 +57,12 @@ const linkExpiresAt = computed(() => {
   return props.link.expires_at ? formatPrettyDate(props.link.expires_at) : 'never'
 })
 
+const isExpired = computed(() => {
+  const now = new Date()
+
+  return props.link?.expires_at && new Date(props.link?.expires_at) < now
+})
+
 const sharedClass = computed(() => {
   return 'dark:bg-brownish-900 hover:bg-dirty-white hover:dark:bg-brownish-700'
 })
@@ -148,7 +154,8 @@ const doubleClick = () => {
     </div>
 
     <div :class="sizes.expiresAt" :title="props.link.expires_at">
-      <TruncatedSpan :text="linkExpiresAt" />
+      <span v-if="isExpired" class="inline-block text-redish-200">expired</span>
+      <TruncatedSpan v-else :text="linkExpiresAt" />
     </div>
 
     <div :class="sizes.buttons">
