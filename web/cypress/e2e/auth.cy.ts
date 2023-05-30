@@ -37,7 +37,6 @@ describe('Registration to the application', () => {
       .invoke('val')
       .then(async (val) => {
         secret = val
-        console.log(val)
         const token = otp(val)
 
         cy.get('input[id=token]').type(token)

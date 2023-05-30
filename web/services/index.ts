@@ -64,9 +64,9 @@ export function localDateFromUtcString(utc?: string | Date | null): Date {
   }
 
   if (typeof utc === 'string') {
-    const date = parseISO(`${utc}`)
+    const date = parseISO(`${utc}Z`)
 
-    return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+    return date
   }
 
   return utc

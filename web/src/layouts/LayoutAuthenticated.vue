@@ -19,11 +19,11 @@ import SearchModal from '@/components/files/search/SearchModal.vue'
 const router = useRouter()
 const route = useRoute()
 
-const crypto = cryptoStore()
 const style = styleStore()
-const login = loginStore()
 
 await ensureAuthenticated(router, route)
+const crypto = cryptoStore()
+const login = loginStore()
 
 const layoutAsidePadding = 'xl:pl-60'
 
