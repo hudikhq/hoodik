@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import DeleteMultipleModal from '@/components/links/modals/DeleteMultipleModal.vue'
+import LinkModal from '@/components/modals/LinkModal.vue'
 import { store as storageStore } from '!/storage'
 import { store as cryptoStore } from '!/crypto'
 import { store as linksStore } from '!/links'
-import DeleteMultipleModal from '@/components/links/modals/DeleteMultipleModal.vue'
-import LinkModal from '@/components/links/modals/LinkModal.vue'
 import { ref } from 'vue'
 import type { Authenticated, KeyPair, AppLink } from 'types'
 
@@ -43,11 +43,7 @@ load()
 </script>
 <template>
   <LinkModal v-model="linkView" :Storage="Storage" :Links="Links" :kp="Crypto.keypair" />
-  <DeleteMultipleModal
-    v-model="isModalDeleteMultipleActive"
-    :Storage="Storage"
-    :kp="Crypto.keypair"
-  />
+  <DeleteMultipleModal v-model="isModalDeleteMultipleActive" :Links="Links" :kp="Crypto.keypair" />
 
   <slot
     :authenticated="props.authenticated"

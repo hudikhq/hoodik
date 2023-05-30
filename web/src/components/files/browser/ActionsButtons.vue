@@ -38,6 +38,7 @@ const canHaveALink = computed(() => {
     :icon="mdiEye"
     @click="emits('details', file)"
     label="Details"
+    name="details"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
   />
 
@@ -49,6 +50,7 @@ const canHaveALink = computed(() => {
       params: { id: file.id }
     }"
     label="Preview"
+    name="preview"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
   />
 
@@ -57,6 +59,7 @@ const canHaveALink = computed(() => {
     @click="emits('download', file)"
     v-if="hasDownload"
     label="Download"
+    name="download"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
   />
 
@@ -65,6 +68,7 @@ const canHaveALink = computed(() => {
     @click="emits('link', file)"
     v-if="canHaveALink"
     label="Public link"
+    name="public-link"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
   />
 
@@ -73,6 +77,7 @@ const canHaveALink = computed(() => {
     :icon="mdiTrashCan"
     @click="emits('remove', file)"
     label="Delete"
+    name="delete"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
   />
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import LayoutLinkBrowser from '@/layouts/LayoutLinkBrowser.vue'
-import TableLinks from '@/components/links/list/TableLinks.vue'
 import SectionMain from '@/components/ui/SectionMain.vue'
+import TableLinks from './index-view/TableLinks.vue'
 </script>
 
 <template>

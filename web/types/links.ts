@@ -59,7 +59,7 @@ export interface EncryptedAppLink {
   encrypted_thumbnail?: string
   created_at: string
   file_created_at: string
-  expires_at: string
+  expires_at?: string
 }
 
 export interface EncryptedLink {

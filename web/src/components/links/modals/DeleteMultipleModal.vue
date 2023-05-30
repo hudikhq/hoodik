@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
-import type { FilesStore, KeyPair } from 'types'
+import type { LinksStore, KeyPair } from 'types'
 
 const props = defineProps<{
   modelValue: boolean
-  Storage: FilesStore
+  Links: LinksStore
   kp: KeyPair
 }>()
 
@@ -13,17 +13,17 @@ const emits = defineEmits<{
 }>()
 
 /**
- * Confirms removing multiple files that were selected
+ * Confirms removing multiple links that were selected
  */
 const confirmRemoveAll = async () => {
-  await props.Storage.removeAll(props.kp, props.Storage.forDelete)
+  await props.Links.removeAll(props.kp, props.Links.forDelete)
   emits('update:modelValue', false)
 }
 </script>
 
 <template>
   <CardBoxModal
-    title="Delete selected"
+    title="Delete selected links"
     button="danger"
     :model-value="props.modelValue"
     button-label="Yes, delete"
@@ -31,16 +31,9 @@ const confirmRemoveAll = async () => {
     @cancel="emits('update:modelValue', false)"
     @confirm="confirmRemoveAll"
   >
-    <template v-if="Storage.forDelete && Storage.forDelete.length > 1">
-      <p>Are you sure you want to delete {{ Storage.forDelete.length }} items?</p>
-    </template>
-
-    <template v-else v-for="file in Storage.forDelete" :key="file.id">
-      <p>
-        Are you sure you want to delete forever '{{ file?.metadata?.name }}'
-        <span v-if="file?.mime === 'dir'"> directory</span>
-        ?
-      </p>
-    </template>
+    <p>
+      Are you sure you want to delete
+      {{ Links.forDelete.length }} {{ Links.forDelete.length == 1 ? 'item' : 'items' }}?
+    </p>
   </CardBoxModal>
 </template>

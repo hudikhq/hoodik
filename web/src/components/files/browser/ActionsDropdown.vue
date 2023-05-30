@@ -120,6 +120,7 @@ window.addEventListener('keydown', (e) => {
         small
         :disabled="props.disabled"
         @click="open"
+        name="actions-dropdown"
       />
     </slot>
     <div

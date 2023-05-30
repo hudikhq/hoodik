@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import TableLinkRowWatcher from '@/components/links/list/TableLinkRowWatcher.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
+import TableLinkRowWatcher from './TableLinkRowWatcher.vue'
 import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { mdiTrashCanOutline } from '@mdi/js'
@@ -12,7 +12,6 @@ const props = defineProps<{
   items: AppLink[]
   searchedFileId?: string
   hideCheckbox?: boolean
-  showActions?: boolean
   loading?: boolean
 }>()
 
@@ -68,17 +67,14 @@ const sizes = {
 </script>
 
 <template>
-  <div
-    class="w-full p-2 mb-2 flex rounded-t-md bg-brownish-100 dark:bg-brownish-900 gap-4"
-    v-if="showActions"
-  >
+  <div class="w-full p-2 mb-2 flex rounded-t-md bg-brownish-100 dark:bg-brownish-900 gap-4">
     <BaseButton
       title="Delete selected links and folders"
       :iconSize="20"
       :xs="true"
       :icon="mdiTrashCanOutline"
       color="danger"
-      v-if="showDeleteAll"
+      :disabled="!showDeleteAll"
       @click="() => emits('remove-all', checkedRows)"
     />
   </div>

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import TableFileRowWatcher from '@/components/files/list/TableFileRowWatcher.vue'
+import { mdiTrashCanOutline, mdiFolderPlusOutline, mdiFilePlusOutline } from '@mdi/js'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
+import TableFileRowWatcher from './TableFileRowWatcher.vue'
 import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import { mdiTrashCanOutline, mdiFolderPlusOutline, mdiFilePlusOutline } from '@mdi/js'
+import { computed, ref, watch } from 'vue'
 import type { ListAppFile } from 'types'
 
 const props = defineProps<{

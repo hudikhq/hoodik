@@ -67,7 +67,13 @@ export const store = defineStore('links', () => {
    */
   function takeItem(id: string): AppLink | null {
     const index = items.value.findIndex((item) => item.id === id)
-    return items.value.slice(index, 1)[0] || null
+    const item = items.value[index] || null
+
+    if (item) {
+      items.value = items.value.filter((item) => item.id !== id)
+    }
+
+    return item
   }
 
   /**
@@ -126,29 +132,52 @@ export const store = defineStore('links', () => {
   /**
    * Delete the link.
    */
-  async function del(id: string): Promise<void> {
+  async function remove(id: string): Promise<void> {
     await Api.delete(`/api/links/${id}`)
 
     removeItem(id)
   }
 
   /**
-   * Mark the link as expired so it cannot be downloaded anymore.
+   * Remove all the links on the selected list
    */
-  async function expire(id: string): Promise<void> {
-    const expires_at = utcStringFromLocal(new Date())
+  async function removeAll(kp: KeyPair, links: AppLink[]) {
+    await Promise.all(
+      links.map(async (file) => {
+        await Api.delete(`/api/links/${file.id}`)
+        removeItem(file.id)
+      })
+    )
+
+    items.value = []
+    forDelete.value = []
+
+    await find(kp)
+  }
+
+  /**
+   * Set the expiry on a link
+   */
+  async function expire(id: string, expiresAt?: Date): Promise<AppLink> {
+    let expires_at
+
+    if (expiresAt) {
+      expires_at = utcStringFromLocal(expiresAt)
+    }
+
+    const link = takeItem(id)
+
+    if (!link) {
+      throw new Error('Failed to update link')
+    }
 
     await Api.put(`/api/links/${id}`, undefined, {
       expires_at
     })
 
-    const link = takeItem(id)
-
-    if (!link) {
-      return
-    }
-
     addItem({ ...link, expires_at })
+
+    return { ...link, expires_at }
   }
 
   /**
@@ -156,7 +185,7 @@ export const store = defineStore('links', () => {
    */
   async function find(kp: KeyPair): Promise<void> {
     loading.value = true
-    const response = await Api.get<EncryptedAppLink[]>(`/api/links`)
+    const response = await Api.get<EncryptedAppLink[]>(`/api/links`, { with_expired: 'true' })
 
     if (!Array.isArray(response.body)) {
       throw new Error('Failed to get link')
@@ -211,7 +240,6 @@ export const store = defineStore('links', () => {
   return {
     addItem,
     create,
-    del,
     download,
     expire,
     find,
@@ -219,6 +247,8 @@ export const store = defineStore('links', () => {
     get,
     getItem,
     hasItem,
+    remove,
+    removeAll,
     removeItem,
     selectAll,
     selectOne,

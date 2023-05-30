@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import LinkViewInner from './components/LinkViewInner.vue'
+import LinkViewInner from './link-view/LinkViewInner.vue'
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import { store as linksStore } from '!/links'
 import { useRoute } from 'vue-router'

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import LayoutFileBrowser from '@/layouts/LayoutFileBrowser.vue'
-import TableFiles from '@/components/files/list/TableFiles.vue'
 import SectionMain from '@/components/ui/SectionMain.vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import BreadCrumbs from '@/components/files/BreadCrumbs.vue'
+import TableFiles from './index-view/TableFiles.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { computed, onMounted, watch } from 'vue'
 

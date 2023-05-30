@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { mdiLink, mdiDownload } from '@mdi/js'
-import BaseButton from '@/components/ui/BaseButton.vue'
-import BaseIcon from '@/components/ui/BaseIcon.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import TruncatedSpan from '@/components/ui/TruncatedSpan.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { formatPrettyDate, formatSize } from '!'
+import { mdiOpenInNew, mdiDownload } from '@mdi/js'
 import type { AppLink } from 'types'
 import { computed, ref } from 'vue'
 
@@ -153,12 +153,15 @@ const doubleClick = () => {
 
     <div :class="sizes.buttons">
       <BaseButton
-        class="ml-2 float-right"
+        title="View link"
+        :icon="mdiOpenInNew"
         color="dark"
-        :icon="mdiLink"
         small
-        @click="emits('link', link)"
-        :disabled="!props.link.id"
+        rounded-full
+        class="ml-2 float-right"
+        :to="{ name: 'links-view', params: { link_id: link.id }, hash: `#${link.link_key_hex}` }"
+        target="_blank"
+        v-if="link"
       />
     </div>
   </div>

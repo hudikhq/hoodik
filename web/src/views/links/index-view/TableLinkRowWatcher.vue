@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import TableFileRow from '@/components/files/list/TableFileRow.vue'
-import type { ListAppFile } from 'types'
+import TableLinkRow from './TableLinkRow.vue'
 import scrollMonitor from 'scrollmonitor'
+import type { AppLink } from 'types'
 import { ref, onMounted } from 'vue'
 
 const props = defineProps<{
-  file: ListAppFile
-  checkedRows: Partial<ListAppFile>[]
+  link: AppLink
+  checkedRows: Partial<AppLink>[]
   hideDelete?: boolean
   share?: boolean
   hideCheckbox?: boolean
@@ -15,27 +15,23 @@ const props = defineProps<{
     checkbox: string
     name: string
     size: string
-    type: string
     createdAt: string
-    uploadedAt: string
+    linkCreatedAt: string
+    expiresAt: string
     buttons: string
   }
 }>()
 
 const emits = defineEmits<{
-  (event: 'actions', file: ListAppFile): void
-  (event: 'details', file: ListAppFile): void
-  (event: 'download', file: ListAppFile): void
-  (event: 'link', file: ListAppFile): void
-  (event: 'remove', file: ListAppFile): void
-  (event: 'select-one', value: boolean, file: ListAppFile): void
+  (event: 'link', link: AppLink): void
+  (event: 'select-one', value: boolean, link: AppLink): void
 }>()
 
 const referenceObject = ref()
 const visible = ref(false)
 
 onMounted(() => {
-  const elementWatcher = scrollMonitor.create(referenceObject.value, 2000)
+  const elementWatcher = scrollMonitor.create(referenceObject.value, 100)
   elementWatcher.enterViewport(() => {
     visible.value = true
   }, false)
@@ -60,22 +56,15 @@ onMounted(() => {
         <div class="w-32 h-6 mr-2 rounded-md bg-brownish-50 dark:bg-brownish-800"></div>
       </div>
     </div>
-    <TableFileRow
+    <TableLinkRow
       v-else
-      :file="props.file"
+      :link="props.link"
       :checked-rows="props.checkedRows"
-      :hide-delete="props.hideDelete"
-      :share="props.share"
-      :hide-checkbox="props.hideCheckbox"
       :sizes="props.sizes"
       :highlighted="props.highlighted"
-      @actions="(f: ListAppFile) => emits('actions', f)"
-      @details="(f: ListAppFile) => emits('details', f)"
-      @download="(f: ListAppFile) => emits('download', f)"
-      @link="(f: ListAppFile) => emits('link', f)"
-      @remove="(f: ListAppFile) => emits('remove', f)"
-      @select-one="(v: boolean, f: ListAppFile) => emits('select-one', v, f)"
+      @link="(f: AppLink) => emits('link', f)"
+      @select-one="(v: boolean, f: AppLink) => emits('select-one', v, f)"
     />
   </Suspense>
-  <div ref="referenceObject" :id="props.file.id"></div>
+  <div ref="referenceObject" :id="props.link.id"></div>
 </template>

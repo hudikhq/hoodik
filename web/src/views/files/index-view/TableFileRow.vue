@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { mdiDotsVertical } from '@mdi/js'
-import BaseButton from '@/components/ui/BaseButton.vue'
+import ActionsDropdown from '@/components/files/browser/ActionsDropdown.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import TruncatedSpan from '@/components/ui/TruncatedSpan.vue'
-import ActionsDropdown from '../browser/ActionsDropdown.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { formatPrettyDate, formatSize } from '!'
+import { mdiDotsVertical } from '@mdi/js'
 import type { ListAppFile } from 'types'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -206,6 +206,7 @@ const doubleClick = () => {
         color="dark"
         :icon="mdiDotsVertical"
         small
+        name="actions-modal"
         @click="emits('actions', file)"
         :disabled="!props.file.id"
       />
