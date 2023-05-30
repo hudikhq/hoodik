@@ -14,11 +14,16 @@ use config::ssl::SslConfig as _;
 use context::Context;
 use error::{AppResult, Error};
 
+pub mod client;
+pub mod cors;
+
 pub mod middleware {
     //! # Middleware
     //!
     //! Collection of all the middleware used in the application pulled
     //! from various packages we depend on.
+    //!
+    //! Currently, there are no middleware used in the application.
 }
 
 pub mod routes {
@@ -27,17 +32,16 @@ pub mod routes {
     //! Collection of all the routes used in the application pulled
     //! from various packages we depend on.
     pub use auth::routes as auth_routes;
+    pub use links::routes as links_routes;
     pub use storage::routes as storage_routes;
 
-    pub use auth::routes::signature::signature;
+    pub use super::client::client;
 }
 
-pub mod client;
-pub mod cors;
-
-/// Inject the application features into the server
+/// Inject the application modules into the server
 fn configure(cfg: &mut web::ServiceConfig) {
     auth::routes::configure(cfg);
+    links::routes::configure(cfg);
     storage::routes::configure(cfg);
 }
 
@@ -54,10 +58,10 @@ pub fn app(
     >,
 > {
     App::new()
-        // Set the maximum payload size to 1.2x of a single file chunk
+        // Set the maximum payload size to 1.1x of a single file chunk
         // we are expecting to be uploaded
         .app_data(web::PayloadConfig::new(
-            (storage::CHUNK_SIZE_BYTES as f32 * 1.2) as usize,
+            (fs::MAX_CHUNK_SIZE_BYTES as f32 * 1.1) as usize,
         ))
         .app_data(web::Data::new(context))
         .wrap(cors::setup())
@@ -83,8 +87,7 @@ pub fn app(
                     .json(serde_json::json!({"METHOD": "HEAD", "message": "I am alive"}))
             }),
         )
-        // Proxy HTTP requests to frontend
-        .service(client::client)
+        .service(routes::client)
 }
 
 /// Start the server

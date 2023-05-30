@@ -136,7 +136,7 @@ impl CreateFile {
 
         Ok((
             ActiveModelFile {
-                id: ActiveValue::Set(uuid::Uuid::new_v4()),
+                id: ActiveValue::Set(entity::Uuid::new_v4()),
                 name_hash: ActiveValue::Set(data.name_hash.unwrap()),
                 mime: ActiveValue::Set(data.mime.unwrap()),
                 size: ActiveValue::Set(data.size),

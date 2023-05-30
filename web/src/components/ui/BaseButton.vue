@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
 import { getButtonColor, type ColorType } from '@/colors'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import type { RouteLocation } from 'vue-router'
@@ -21,6 +20,7 @@ const props = defineProps<{
   active?: Boolean
   disabled?: Boolean
   roundedFull?: Boolean
+  notRounded?: Boolean
   noBorder?: Boolean
   class?: String
   dropdownEl?: boolean
@@ -32,7 +32,7 @@ const is = computed(() => {
   }
 
   if (props.to) {
-    return RouterLink
+    return 'router-link'
   }
 
   if (props.href) {
@@ -73,7 +73,7 @@ const componentClass = computed(() => {
     'focus:ring',
     'duration-150',
     props.disabled ? 'cursor-not-allowed' : 'cursor-pointer',
-    props.roundedFull ? 'rounded-full' : 'rounded',
+    props.roundedFull ? 'rounded-full' : props.notRounded ? '' : 'rounded',
     getButtonColor(props.color || 'light', !!props.outline, !props.disabled, !!props.active)
   ]
 
@@ -81,7 +81,7 @@ const componentClass = computed(() => {
     base.push('border')
   }
 
-  if (!props.label && props.icon) {
+  if (props.icon) {
     base.push('p-1')
   } else if (props.xs) {
     base.push('text-xs')
@@ -106,6 +106,7 @@ const componentClass = computed(() => {
 
 <template>
   <component
+    v-if="is !== 'router-link'"
     :is="is"
     :class="componentClass"
     :href="href"
@@ -117,4 +118,15 @@ const componentClass = computed(() => {
     <BaseIcon v-if="icon" :path="icon" :size="iconSize" />
     <span v-if="label" :class="labelClass">{{ label }}</span>
   </component>
+  <router-link
+    v-else
+    :class="componentClass"
+    :type="computedType"
+    :to="to"
+    :target="target"
+    :disabled="disabled"
+  >
+    <BaseIcon v-if="icon" :path="icon" :size="iconSize" />
+    <span v-if="label" :class="labelClass">{{ label }}</span>
+  </router-link>
 </template>

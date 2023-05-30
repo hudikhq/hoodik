@@ -1,6 +1,6 @@
 [package]
 name = "hoodik"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
 readme = "../README.md"
@@ -25,12 +25,16 @@ context = { path = "../context" }
 cryptfns = { path = "../cryptfns" }
 entity = { path = "../entity" }
 error = { path = "../error" }
-storage = { path = "../storage" }
+fs = { path = "../fs" }
+links = { path = "../links" }
 migration = { path = "../migration" }
+storage = { path = "../storage" }
 
 [dev-dependencies]
 chrono = { version = "0.4.23", features = ["serde"] }
 auth = { path = "../auth", features = ["mock"] }
-email = { path = "../email", features = ["mock"] }
 context = { path = "../context", features = ["mock"] }
 cryptfns = { path = "../cryptfns", features = ["mock"] }
+email = { path = "../email", features = ["mock"] }
+links = { path = "../links", features = ["mock"] }
+storage = { path = "../storage", features = ["mock"] }

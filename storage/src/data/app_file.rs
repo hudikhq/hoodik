@@ -1,5 +1,7 @@
 use chrono::NaiveDateTime;
-use entity::{files, user_files, Uuid};
+use entity::{files, links, user_files, DbErr, FromQueryResult, QueryResult, Uuid};
+use error::{AppResult, Error};
+use fs::prelude::{Filename, IntoFilename};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -19,6 +21,19 @@ pub struct AppFile {
     pub finished_upload_at: Option<NaiveDateTime>,
     pub is_new: bool,
     pub uploaded_chunks: Option<Vec<i32>>,
+    pub link: Option<links::Model>,
+}
+
+impl IntoFilename for AppFile {
+    fn filename(&self) -> AppResult<Filename> {
+        if self.is_dir() {
+            return Err(Error::BadRequest(
+                "cannot_get_filename_from_dir".to_string(),
+            ));
+        }
+
+        Ok(Filename::new(self.created_at, self.id))
+    }
 }
 
 impl PartialEq for AppFile {
@@ -36,18 +51,6 @@ impl AppFile {
         &self.mime == "dir"
     }
 
-    pub fn get_filename(&self) -> Option<String> {
-        if self.is_file() {
-            Some(format!(
-                "{}-{}",
-                &self.created_at.timestamp(),
-                &self.id.to_string()
-            ))
-        } else {
-            None
-        }
-    }
-
     pub fn is_new(mut self, is_new: bool) -> Self {
         self.is_new = is_new;
 
@@ -55,11 +58,13 @@ impl AppFile {
     }
 }
 
-impl From<(files::Model, user_files::Model)> for AppFile {
-    fn from(source: (files::Model, user_files::Model)) -> AppFile {
-        let (file, user_file) = source;
+impl FromQueryResult for AppFile {
+    fn from_query_result(res: &QueryResult, _pre: &str) -> Result<Self, DbErr> {
+        let file = files::Model::from_query_result(res, "file")?;
+        let user_file = user_files::Model::from_query_result(res, "user_file")?;
+        let link = links::Model::from_query_result(res, "link").ok();
 
-        Self {
+        Ok(Self {
             id: file.id,
             user_id: user_file.user_id,
             is_owner: user_file.is_owner,
@@ -75,6 +80,7 @@ impl From<(files::Model, user_files::Model)> for AppFile {
             finished_upload_at: file.finished_upload_at,
             is_new: false,
             uploaded_chunks: None,
-        }
+            link,
+        })
     }
 }

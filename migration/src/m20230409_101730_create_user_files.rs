@@ -3,7 +3,7 @@ use super::m20230409_091730_create_files::Files;
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
-pub struct Migration;
+pub(crate) struct Migration;
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
@@ -58,7 +58,7 @@ impl MigrationTrait for Migration {
 
 // Learn more at https://docs.rs/sea-query#iden
 #[derive(Iden)]
-pub enum UserFiles {
+pub(crate) enum UserFiles {
     Table,
     Id,
     FileId,

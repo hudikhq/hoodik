@@ -1,13 +1,15 @@
+#[path = "./helpers.rs"]
+mod helpers;
+
 use std::{str::FromStr, time::Duration};
 
 use actix_web::{cookie::Expiration, http::StatusCode, test};
 use auth::{
-    auth::Auth,
     data::{
         authenticated::Authenticated, create_user::CreateUser, credentials::Credentials,
         signature::Signature,
     },
-    extract_cookies,
+    mock::generate_fingerprint_nonce,
 };
 use context::SenderContract;
 use hoodik::server;
@@ -56,7 +58,7 @@ async fn test_registration_and_login() {
 
     assert_eq!(resp.status(), StatusCode::OK);
 
-    let nonce = Auth::generate_fingerprint_nonce(&fingerprint);
+    let nonce = generate_fingerprint_nonce(&fingerprint);
     let signature = cryptfns::rsa::private::sign(&nonce, &private_string).unwrap();
 
     let req = test::TestRequest::post()
@@ -68,7 +70,7 @@ async fn test_registration_and_login() {
         .to_request();
 
     let resp = test::call_service(&mut app, req).await;
-    let (jwt, refresh) = extract_cookies(&resp.headers());
+    let (jwt, refresh) = helpers::extract_cookies(&resp.headers());
 
     assert_eq!(resp.status(), StatusCode::OK);
 
@@ -83,7 +85,7 @@ async fn test_registration_and_login() {
     let resp = test::call_service(&mut app, req).await;
     let status = resp.status();
 
-    let (jwt, _refresh) = extract_cookies(&resp.headers());
+    let (jwt, _refresh) = helpers::extract_cookies(&resp.headers());
 
     // let body = test::read_body(resp).await;
     // let body_str = String::from_utf8_lossy(&body).to_string();
@@ -108,7 +110,7 @@ async fn test_registration_and_login() {
 
     let resp = test::call_service(&mut app, req).await;
     let status = resp.status();
-    let (jwt, refresh) = extract_cookies(&resp.headers());
+    let (jwt, refresh) = helpers::extract_cookies(&resp.headers());
 
     // let body = test::read_body(resp).await;
     // let body_str = String::from_utf8_lossy(&body).to_string();
@@ -213,7 +215,7 @@ async fn test_claims_can_expire() {
         .to_request();
 
     let resp = test::call_service(&mut app, req).await;
-    let (jwt, _) = extract_cookies(&resp.headers());
+    let (jwt, _) = helpers::extract_cookies(&resp.headers());
 
     assert_eq!(resp.status(), StatusCode::CREATED);
 
@@ -257,7 +259,7 @@ async fn test_expired_session_can_be_refreshed() {
         .to_request();
 
     let resp = test::call_service(&mut app, req).await;
-    let (jwt, refresh) = extract_cookies(&resp.headers());
+    let (jwt, refresh) = helpers::extract_cookies(&resp.headers());
 
     assert_eq!(resp.status(), StatusCode::CREATED);
 
@@ -280,7 +282,7 @@ async fn test_expired_session_can_be_refreshed() {
 
     let resp = test::try_call_service(&mut app, req).await.unwrap();
     let status = resp.status();
-    let (jwt, _) = extract_cookies(&resp.headers());
+    let (jwt, _) = helpers::extract_cookies(&resp.headers());
     // let body = test::read_body(resp).await;
     // let body_str = String::from_utf8_lossy(&body).to_string();
     // println!("{:#?}", body_str);
@@ -324,7 +326,7 @@ async fn cannot_refresh_logged_out_session() {
         .to_request();
 
     let resp = test::call_service(&mut app, req).await;
-    let (jwt, refresh) = extract_cookies(&resp.headers());
+    let (jwt, refresh) = helpers::extract_cookies(&resp.headers());
 
     assert_eq!(resp.status(), StatusCode::CREATED);
 

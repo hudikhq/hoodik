@@ -1,31 +1,13 @@
+#[path = "./helpers.rs"]
+mod helpers;
+
 use actix_web::{http::StatusCode, test};
-use auth::{data::create_user::CreateUser, extract_cookies};
+use auth::data::create_user::CreateUser;
+use fs::IntoFilename;
 use hoodik::server;
 use storage::data::app_file::AppFile;
 
-const CHUNKS: usize = 5;
-const CHUNK_SIZE_BYTES: i32 = 1024 * 1024;
-
-fn create_byte_chunks() -> (Vec<Vec<u8>>, i64, String) {
-    let one_chunk_size = CHUNK_SIZE_BYTES as usize;
-    let mut byte_chunks = vec![];
-    let mut body = vec![];
-
-    while body.len() < (one_chunk_size * CHUNKS) {
-        body.extend(b"a");
-    }
-
-    let checksum = cryptfns::sha256::digest(body.as_slice());
-
-    for i in (0..body.len()).step_by(one_chunk_size) {
-        let chunk = &body[i..(i + one_chunk_size)];
-        byte_chunks.push(chunk.to_vec());
-    }
-
-    let total_len = byte_chunks.iter().map(|chunk| chunk.len()).sum::<usize>() as i64;
-
-    (byte_chunks, total_len, checksum)
-}
+use crate::helpers::{create_byte_chunks, CHUNKS, CHUNK_SIZE_BYTES};
 
 #[actix_web::test]
 async fn test_creating_file_and_uploading_chunks() {
@@ -55,7 +37,7 @@ async fn test_creating_file_and_uploading_chunks() {
         .to_request();
 
     let resp = test::call_service(&mut app, req).await;
-    let (jwt, _) = extract_cookies(&resp.headers());
+    let (jwt, _) = helpers::extract_cookies(&resp.headers());
     let jwt = jwt.unwrap();
 
     let req = test::TestRequest::post()
@@ -72,7 +54,7 @@ async fn test_creating_file_and_uploading_chunks() {
         .to_request();
 
     let resp = test::call_service(&mut app, req).await;
-    let (second_jwt, _) = extract_cookies(&resp.headers());
+    let (second_jwt, _) = helpers::extract_cookies(&resp.headers());
     let second_jwt = second_jwt.unwrap();
 
     let (data, size, checksum) = create_byte_chunks();
@@ -133,7 +115,7 @@ async fn test_creating_file_and_uploading_chunks() {
 
     assert!(file.finished_upload_at.is_some());
 
-    let filename = file.get_filename().unwrap();
+    let filename = file.filename().unwrap();
 
     let req = test::TestRequest::get()
         .uri(format!("/api/storage/{}", &file.id).as_str())

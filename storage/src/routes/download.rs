@@ -5,17 +5,14 @@ use auth::data::claims::Claims;
 use context::Context;
 use entity::Uuid;
 use error::{AppResult, Error};
+use fs::prelude::*;
 
-use crate::{
-    contract::StorageProvider,
-    repository::{cached::get_file, Repository},
-    storage::Storage,
-};
+use crate::repository::{cached::get_file, Repository};
 
 /// Get file content by its id
 ///
 /// Request:
-///  - Query: chunk: i32 - if omitted, file be streamed until its completely downloaded
+///  - Query: chunk: i32 - if omitted, file will be streamed until its completely downloaded
 ///
 /// Response: [actix_web::web::Bytes]
 ///  - Content-Type: application/octet-stream
@@ -34,22 +31,23 @@ pub(crate) async fn download(
         .await
         .ok_or_else(|| Error::NotFound("file_not_found".to_string()))?;
 
-    let filename = file
-        .get_filename()
-        .ok_or(Error::NotFound("file_not_found".to_string()))?;
+    let storage = Fs::new(&context.config);
 
-    let storage = Storage::new(&context.config);
-
-    let streamer = storage.stream(&filename, chunk).await;
+    let streamer = storage.stream(&file, chunk).await?;
 
     let filename = match chunk {
-        Some(chunk) => format!("{filename}.part.{chunk}.enc"),
-        None => format!("{filename}.enc"),
+        Some(chunk) => file.filename()?.with_chunk(chunk).with_extension(".enc"),
+        None => file.filename()?.with_extension(".enc"),
+    };
+
+    let file_size = match chunk {
+        Some(_) => file.size.unwrap_or(1) / file.chunks.unwrap_or(0) as i64,
+        None => file.size.unwrap_or(0),
     };
 
     Ok(HttpResponse::Ok()
         .insert_header(("Content-Type", "application/octet-stream"))
-        .insert_header(("Content-Length", file.size.unwrap_or(0)))
+        .insert_header(("Content-Length", file_size))
         .insert_header((
             "Content-Disposition",
             format!("attachment; filename=\"{}\"", filename),
@@ -75,35 +73,31 @@ pub(crate) async fn head(
         .file(file_id)
         .await?;
 
-    let filename = file
-        .get_filename()
-        .ok_or(Error::NotFound("file_not_found".to_string()))?;
-
-    let storage = Storage::new(&context.config);
+    let storage = Fs::new(&context.config);
 
     if let Some(c) = chunk {
         let _fs_file = storage
-            .get(&filename, c)
+            .get(&file, c)
             .await
             .map_err(|_| error::Error::NotFound("file_not_found".to_string()))?;
     } else {
         let chunks = storage
-            .get_uploaded_chunks(&filename)
+            .get_uploaded_chunks(&file)
             .await
             .map_err(|_| error::Error::NotFound("file_not_found".to_string()))?;
 
         // check that all the chunks are available
         for chunk in chunks {
             let _fs_file = storage
-                .get(&filename, chunk)
+                .get(&file, chunk)
                 .await
                 .map_err(|_| error::Error::NotFound("file_not_found".to_string()))?;
         }
     }
 
     let filename = match chunk {
-        Some(chunk) => format!("{filename}.part.{chunk}.enc"),
-        None => format!("{filename}.enc"),
+        Some(chunk) => file.filename()?.with_chunk(chunk).with_extension(".enc"),
+        None => file.filename()?.with_extension(".enc"),
     };
 
     Ok(HttpResponse::NoContent()

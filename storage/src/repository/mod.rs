@@ -1,19 +1,19 @@
 pub(crate) mod cached;
-pub mod manage;
-pub mod query;
-pub mod tokens;
+pub(crate) mod manage;
+pub(crate) mod query;
+pub(crate) mod tokens;
 
 use crate::data::app_file::AppFile;
 
 use self::{manage::Manage, query::Query, tokens::Tokens};
 use entity::{
-    files, user_files, ColumnTrait, ConnectionTrait, EntityTrait, Expr, IntoCondition, JoinType,
-    QueryFilter, QuerySelect, RelationTrait, Uuid, Value,
+    files, links, user_files, ColumnTrait, ConnectionTrait, EntityTrait, Expr, IntoCondition,
+    JoinType, QueryFilter, QuerySelect, RelationTrait, Select, Uuid, Value,
 };
 use error::{AppResult, Error};
 use std::fmt::Display;
 
-pub struct Repository<'ctx, T: ConnectionTrait> {
+pub(crate) struct Repository<'ctx, T: ConnectionTrait> {
     connection: &'ctx T,
 }
 
@@ -21,7 +21,7 @@ impl<'ctx, T> Repository<'ctx, T>
 where
     T: ConnectionTrait,
 {
-    pub fn new(connection: &'ctx T) -> Self {
+    pub(crate) fn new(connection: &'ctx T) -> Self {
         Self { connection }
     }
 }
@@ -31,7 +31,7 @@ where
     T: ConnectionTrait,
 {
     /// Query files from any user perspective
-    pub fn query<'repository>(&'repository self, user_id: Uuid) -> Query<'repository, T>
+    pub(crate) fn query<'repository>(&'repository self, user_id: Uuid) -> Query<'repository, T>
     where
         Self: 'repository,
     {
@@ -39,7 +39,7 @@ where
     }
 
     /// Manage files from the owners perspective
-    pub fn manage<'repository>(&'repository self, owner_id: Uuid) -> Manage<'repository, T>
+    pub(crate) fn manage<'repository>(&'repository self, owner_id: Uuid) -> Manage<'repository, T>
     where
         Self: 'repository,
     {
@@ -47,7 +47,7 @@ where
     }
 
     /// Manage files from the owners perspective
-    pub fn tokens<'repository>(&'repository self, user_id: Uuid) -> Tokens<'repository, T>
+    pub(crate) fn tokens<'repository>(&'repository self, user_id: Uuid) -> Tokens<'repository, T>
     where
         Self: 'repository,
     {
@@ -55,35 +55,59 @@ where
     }
 
     /// Get the inner database connection
-    pub fn connection(&self) -> &impl ConnectionTrait {
+    pub(crate) fn connection(&self) -> &impl ConnectionTrait {
         self.connection
     }
 
     /// Load the file from the database by its id
-    pub async fn by_id<V>(&self, id: V, user_id: Uuid) -> AppResult<AppFile>
+    pub(crate) async fn by_id<V>(&self, id: V, user_id: Uuid) -> AppResult<AppFile>
     where
         V: Into<Value> + Display + Clone,
     {
-        let result = files::Entity::find()
+        self.selector(user_id, false)
             .filter(files::Column::Id.eq(id.clone()))
-            .join(
-                JoinType::InnerJoin,
-                files::Relation::UserFiles
-                    .def()
-                    .on_condition(move |_left, right| {
-                        Expr::col((right, user_files::Column::UserId))
-                            .eq(user_id)
-                            .into_condition()
-                    }),
-            )
-            .select_also(user_files::Entity)
+            .into_model::<AppFile>()
             .one(self.connection)
             .await
             .map_err(Error::from)?
-            .ok_or_else(|| Error::NotFound(format!("file_not_found:{}", id)))?;
+            .ok_or_else(|| Error::NotFound(format!("file_not_found:{}", id)))
+    }
 
-        let (file, user_file) = (result.0, result.1.unwrap());
+    /// Preset the selector for the given user, maybe check if the user is the owner
+    pub(crate) fn selector(&self, user_id: Uuid, check_is_owner: bool) -> Select<files::Entity> {
+        let mut selector = files::Entity::find().select_only();
 
-        Ok(AppFile::from((file, user_file)))
+        entity::join::add_columns_with_prefix::<_, files::Entity>(&mut selector, "file");
+        entity::join::add_columns_with_prefix::<_, user_files::Entity>(&mut selector, "user_file");
+        entity::join::add_columns_with_prefix::<_, links::Entity>(&mut selector, "link");
+
+        let rel = match check_is_owner {
+            true => files::Relation::UserFiles
+                .def()
+                .on_condition(move |_left, right| {
+                    Expr::col((right, user_files::Column::UserId))
+                        .eq(user_id)
+                        .and(user_files::Column::IsOwner.eq(true))
+                        .into_condition()
+                }),
+            false => files::Relation::UserFiles
+                .def()
+                .on_condition(move |_left, right| {
+                    Expr::col((right, user_files::Column::UserId))
+                        .eq(user_id)
+                        .into_condition()
+                }),
+        };
+
+        selector.join(JoinType::InnerJoin, rel).join(
+            JoinType::LeftJoin,
+            files::Relation::Links
+                .def()
+                .on_condition(move |_left, right| {
+                    Expr::col((right, links::Column::UserId))
+                        .eq(user_id)
+                        .into_condition()
+                }),
+        )
     }
 }

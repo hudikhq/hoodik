@@ -19,6 +19,8 @@ async fn main() -> AppResult<()> {
         "This is a first try at a drive app",
     );
 
+    config.announce();
+
     // Create context from the config
     let context = Context::new(config).await?;
 

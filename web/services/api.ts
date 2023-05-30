@@ -289,17 +289,62 @@ export default class Api {
   /**
    * Make get request
    */
-  async download(path: string, query?: Query): Promise<globalThis.Response> {
-    const { request, fetchOptions } = Api.buildRequest(
-      'get',
-      path,
-      query,
-      undefined,
-      undefined,
-      this
-    )
+  async download<T>(
+    path: string,
+    query?: Query,
+    body?: T | undefined
+  ): Promise<globalThis.Response> {
+    const { request, fetchOptions } = Api.buildRequest('get', path, query, body, undefined, this)
 
     return fetch(decodeURIComponent(request.url), fetchOptions)
+  }
+
+  /**
+   * Download file using a post method
+   */
+  async postDownload<T>(
+    path: string,
+    query?: Query,
+    body?: T | undefined
+  ): Promise<globalThis.Response> {
+    const { request, fetchOptions } = Api.buildRequest('post', path, query, body, undefined, this)
+
+    if (request.body instanceof Uint8Array) {
+      fetchOptions.body = request.body
+    } else if (request.body && typeof request.body === 'object') {
+      fetchOptions.body = JSON.stringify(request.body)
+    } else if (request.body && typeof request.body === 'string') {
+      fetchOptions.body = request.body
+    }
+
+    return fetch(decodeURIComponent(request.url), fetchOptions)
+  }
+
+  /**
+   * Run the download by mocking a form submit
+   */
+  async formDownload<T>(path: string, query?: Query, body?: T | undefined): Promise<void> {
+    const { request } = Api.buildRequest('post', path, query, body, undefined, this)
+
+    const url = decodeURIComponent(request.url)
+
+    const form = document.createElement('form')
+    form.setAttribute('method', 'post')
+    form.setAttribute('action', url)
+    form.setAttribute('target', '_blank')
+
+    if (typeof body === 'object' && body) {
+      for (const key in body) {
+        const input = document.createElement('input')
+        input.setAttribute('type', 'hidden')
+        input.setAttribute('name', key)
+        input.setAttribute('value', body[key] as string)
+        form.appendChild(input)
+      }
+    }
+
+    document.body.appendChild(form)
+    form.submit()
   }
 
   /**

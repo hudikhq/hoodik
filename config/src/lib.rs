@@ -1,9 +1,11 @@
 use clap::{builder::Str, Arg, ArgMatches, Command};
 use dotenv::{from_path, vars};
 use email::EmailConfig;
+use path_absolutize::*;
 use std::{
     env::{set_var as set_env_var, var as env_var},
     fs::{self, DirBuilder},
+    path,
 };
 use url::Url;
 
@@ -191,7 +193,7 @@ impl Config {
         let app_name = "Hoodik".to_string();
         let app_version = env_var("CARGO_PKG_VERSION").unwrap_or_else(|_| "unknown".to_string());
 
-        let data_dir = "./data".to_string();
+        let data_dir = "/tmp/data".to_string();
 
         let (ssl_cert_file, ssl_key_file) = Self::parse_ssl_files(&Some(data_dir.clone()));
 
@@ -231,8 +233,8 @@ impl Config {
             dotenv(m.try_get_one("CONFIG_PATH").unwrap_or(None).cloned());
         }
 
-        let app_name = env_var("APP_NAME").unwrap_or_else(|_| "Hoodik".to_string());
-        let app_version = env_var("CARGO_PKG_VERSION").unwrap_or_else(|_| "unknown".to_string());
+        let app_name = env_var("APP_NAME").unwrap_or_else(|_| name.to_string());
+        let app_version = version.to_string();
 
         parse_log(matches.as_ref());
 
@@ -497,13 +499,24 @@ impl Config {
 
     /// Try loading the data_dir from env or arguments
     fn parse_data_dir(matches: Option<&ArgMatches>, errors: &mut Vec<String>) -> Option<String> {
-        let data_dir = match env_var("DATA_DIR") {
+        let mut data_dir = match env_var("DATA_DIR") {
             Ok(v) => Some(v),
             Err(_) => match matches {
                 Some(m) => m.get_one::<String>("DATA_DIR").cloned(),
                 None => None,
             },
         };
+
+        if let Some(d) = data_dir.as_mut() {
+            *d = match absolute_path(d) {
+                Some(p) => p,
+                None => {
+                    errors.push(format!("Invalid data_dir path: '{}'", d));
+
+                    return None;
+                }
+            };
+        }
 
         if data_dir.is_none() {
             errors.push("Required attribute 'data_dir' not specified, please provide 'DATA_DIR' environment variable or '--data-dir' cli argument when starting the application".to_string());
@@ -613,6 +626,33 @@ impl Config {
 
     pub fn get_app_version(&self) -> String {
         self.app_version.clone()
+    }
+
+    /// Announce the application
+    /// with some configuration options defined
+    pub fn announce(&self) {
+        println!(
+            "Starting {} v{} on {}",
+            self.get_app_name(),
+            self.get_app_version(),
+            self.get_full_bind_address()
+        );
+        println!("-- Using data_dir: {}", self.data_dir);
+        println!("-- Using ssl cert: {}", self.ssl_cert_file);
+        println!("-- Using ssl key: {}", self.ssl_key_file);
+        println!("-- RUST_LOG={:?}", env_var("RUST_LOG").ok());
+        println!("------------------------------------------");
+    }
+
+    /// Cleanup the data directory
+    #[cfg(feature = "mock")]
+    pub fn cleanup(&self) {
+        log::debug!("Trying to cleanup the data directory: {}", &self.data_dir);
+
+        match fs::remove_dir_all(&self.data_dir) {
+            Ok(_) => (),
+            Err(_e) => (),
+        }
     }
 }
 
@@ -732,6 +772,13 @@ fn parse_url(name: &str, maybe_value: Option<String>, alternative: &str) -> Url 
     url
 }
 
+/// Convert given path into an absolute path
+fn absolute_path(path: &str) -> Option<String> {
+    let p = path::Path::new(path);
+
+    Some(p.absolutize().ok()?.to_string_lossy().to_string())
+}
+
 #[cfg(test)]
 mod test {
     #[test]
@@ -764,5 +811,29 @@ mod test {
         let invalid = "/// something ///";
 
         super::parse_url("invalid", Some(invalid.to_string()), "should not come here");
+    }
+
+    #[test]
+    fn test_parsing_path() {
+        let path = "../data";
+        let absolute = "/tmp/data";
+        let maybe_absolute = "data";
+        let does_not_exist = "../tmp/../../does_not_exist";
+
+        let parsed = super::absolute_path(path).unwrap();
+        println!("Parsed: {}", parsed);
+        assert!(parsed.ends_with("/data"));
+
+        let parsed = super::absolute_path(absolute).unwrap();
+        println!("Parsed: {}", parsed);
+        assert!(parsed.ends_with("/data"));
+
+        let parsed = super::absolute_path(maybe_absolute).unwrap();
+        println!("Parsed: {}", parsed);
+        assert!(parsed.ends_with("/data"));
+
+        let parsed = super::absolute_path(does_not_exist).unwrap();
+        println!("Parsed: {}", parsed);
+        assert!(parsed.ends_with("/does_not_exist"));
     }
 }

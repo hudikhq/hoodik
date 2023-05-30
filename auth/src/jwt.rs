@@ -4,7 +4,11 @@ use log::error;
 use crate::data::{authenticated::Authenticated, claims::Claims};
 
 /// Generate JWT token
-pub fn generate(authenticated: &Authenticated, issuer: &str, secret: &str) -> AppResult<String> {
+pub(crate) fn generate(
+    authenticated: &Authenticated,
+    issuer: &str,
+    secret: &str,
+) -> AppResult<String> {
     if secret.is_empty() {
         error!("Generating unsecure JWT without secret set!");
     }
@@ -20,7 +24,7 @@ pub fn generate(authenticated: &Authenticated, issuer: &str, secret: &str) -> Ap
 }
 
 /// Extract and verify given token and return authenticated data
-pub fn extract(claims: &str, secret: &str) -> AppResult<Claims> {
+pub(crate) fn extract(claims: &str, secret: &str) -> AppResult<Claims> {
     if secret.is_empty() {
         error!("Generating unsecure JWT without secret set!");
     }

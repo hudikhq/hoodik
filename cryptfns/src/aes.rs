@@ -85,4 +85,17 @@ mod test {
             String::from_utf8(decrypted).unwrap()
         );
     }
+
+    #[test]
+    fn fails_decrypt_with_wrong_key() {
+        let plaintext = b"plaintext message".to_vec();
+        let right_key = b"very secret key.very secret key.".to_vec();
+        let wrong_key = b"very wrong  key.very wrong  key.".to_vec();
+
+        let encrypted = super::encrypt(right_key, plaintext).unwrap();
+
+        let result = super::decrypt(wrong_key, encrypted);
+
+        assert!(result.is_err())
+    }
 }

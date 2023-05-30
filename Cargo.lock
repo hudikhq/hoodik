@@ -1153,6 +1153,7 @@ dependencies = [
  "dotenv",
  "error",
  "log",
+ "path-absolutize",
  "rcgen",
  "rustls",
  "rustls-pemfile",
@@ -1639,6 +1640,7 @@ name = "entity"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "cryptfns",
  "error",
  "sea-orm",
  "serde",
@@ -1803,6 +1805,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9c384f161156f5260c24a097c56119f9be8c798586aecc13afbcbe7b7e26bf8"
 dependencies = [
  "percent-encoding",
+]
+
+[[package]]
+name = "fs"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "async-trait",
+ "chrono",
+ "config",
+ "context",
+ "entity",
+ "error",
+ "futures-util",
+ "glob",
+ "log",
+ "pin-project",
+ "tokio",
 ]
 
 [[package]]
@@ -2114,7 +2134,7 @@ dependencies = [
 
 [[package]]
 name = "hoodik"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "actix-cors",
  "actix-web",
@@ -2127,6 +2147,8 @@ dependencies = [
  "entity",
  "env_logger",
  "error",
+ "fs",
+ "links",
  "log",
  "migration",
  "reqwest",
@@ -2524,6 +2546,26 @@ name = "linked-hash-map"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0717cef1bc8b636c6e1c1bbdefc09e6322da8a9321966e8928ef80d20f7f770f"
+
+[[package]]
+name = "links"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "auth",
+ "cached",
+ "chrono",
+ "context",
+ "cryptfns",
+ "entity",
+ "error",
+ "fs",
+ "log",
+ "serde",
+ "serde_json",
+ "util",
+ "validr",
+]
 
 [[package]]
 name = "linux-raw-sys"
@@ -2999,6 +3041,24 @@ name = "paste"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f746c4065a8fa3fe23974dd82f15431cc8d40779821001404d10d2e79ca7d79"
+
+[[package]]
+name = "path-absolutize"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43eb3595c63a214e1b37b44f44b0a84900ef7ae0b4c5efce59e123d246d7a0de"
+dependencies = [
+ "path-dedot",
+]
+
+[[package]]
+name = "path-dedot"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9d55e486337acb9973cdea3ec5638c1b3bcb22e573b2b7b41969e0c744d5a15e"
+dependencies = [
+ "once_cell",
+]
 
 [[package]]
 name = "peeking_take_while"
@@ -4285,26 +4345,18 @@ name = "storage"
 version = "0.1.0"
 dependencies = [
  "actix-web",
- "async-std",
- "async-trait",
  "auth",
  "cached",
  "chrono",
- "config",
  "context",
  "cryptfns",
  "entity",
  "error",
- "futures-util",
- "glob",
+ "fs",
  "log",
- "mime",
- "pin-project",
  "serde",
  "serde_json",
- "tokio",
  "util",
- "uuid",
  "validr",
 ]
 

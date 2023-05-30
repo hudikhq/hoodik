@@ -21,16 +21,12 @@ const url = computed(() => {
         params: {
           file_id: props.file.file_id
         },
-        query: {
-          file: props.file.id
-        }
+        hash: `#${props.file.id}`
       }
     } else {
       return {
         name: 'files',
-        query: {
-          file: props.file.id
-        }
+        hash: `#${props.file.id}`
       }
     }
   }

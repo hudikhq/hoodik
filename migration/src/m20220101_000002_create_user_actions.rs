@@ -3,7 +3,7 @@ use sea_orm_migration::{prelude::*, sea_orm::prelude::Uuid};
 use crate::m20220101_000001_create_users::Users;
 
 #[derive(DeriveMigrationName)]
-pub struct Migration;
+pub(crate) struct Migration;
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
@@ -50,7 +50,7 @@ impl MigrationTrait for Migration {
 
 // Learn more at https://docs.rs/sea-query#iden
 #[derive(Iden)]
-pub enum UserActions {
+pub(crate) enum UserActions {
     Table,
     Id,
     UserId,

@@ -2,8 +2,9 @@ use actix_web::{route, web, HttpRequest, HttpResponse};
 use auth::data::claims::Claims;
 use context::Context;
 use error::AppResult;
+use fs::prelude::*;
 
-use crate::{contract::StorageProvider, repository::Repository, storage::Storage};
+use crate::repository::Repository;
 
 /// Get file metadata by name hash and directory id user can only
 /// query his own files this way.
@@ -25,12 +26,7 @@ pub(crate) async fn name_hash(
         .await?;
 
     if file.is_file() && file.finished_upload_at.is_none() {
-        let filename = file.get_filename().unwrap();
-        file.uploaded_chunks = Some(
-            Storage::new(&context.config)
-                .get_uploaded_chunks(&filename)
-                .await?,
-        );
+        file.uploaded_chunks = Some(Fs::new(&context.config).get_uploaded_chunks(&file).await?);
     }
 
     Ok(HttpResponse::Ok().json(file))

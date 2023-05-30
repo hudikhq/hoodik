@@ -1,4 +1,4 @@
-import { mdiMonitor } from '@mdi/js'
+import { mdiMonitor, mdiLink } from '@mdi/js'
 import type { RouteLocation } from 'vue-router'
 
 export interface AsideMenuItemType {
@@ -12,5 +12,10 @@ export default [
     to: { name: 'files' },
     icon: mdiMonitor,
     label: 'My Files'
+  },
+  {
+    to: { name: 'links' },
+    icon: mdiLink,
+    label: 'Public links'
   }
 ] as AsideMenuItemType[]
