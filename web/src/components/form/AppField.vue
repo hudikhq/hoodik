@@ -108,6 +108,7 @@ const copy = () => {
           @blur="change"
           @keyup.enter="update"
           :class="componentClass"
+          :disabled="disabled || form?.isSubmitting.value"
         ></textarea>
         <input
           v-else
