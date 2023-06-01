@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { mdiDownload, mdiFileOutline, mdiPlus, mdiMinus } from '@mdi/js'
+import { mdiDownload, mdiFileOutline, mdiPlus, mdiMinus, mdiInformationOutline } from '@mdi/js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import type { LinksStore, AppLink } from 'types'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { formatPrettyDate, formatSize } from '!/index'
+import PreviewInfoModal from '@/components/links/modals/PreviewInfoModal.vue'
 
 const props = defineProps<{
   modelValue: AppLink
@@ -28,6 +29,8 @@ const link = computed({
   get: () => props.modelValue,
   set: (value: AppLink) => emits('update:modelValue', value)
 })
+
+const infoLink = ref()
 
 const linkExpiresAt = computed(() => {
   return link.value?.expires_at ? formatPrettyDate(link.value?.expires_at) : null
@@ -76,6 +79,13 @@ const load = async () => {
 
     imageUrl.value = url
   }
+}
+
+/**
+ * Open the details modal with verified signature
+ */
+const details = async () => {
+  infoLink.value = link.value
 }
 
 /**
@@ -181,6 +191,7 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <PreviewInfoModal v-model="infoLink" />
   <div
     v-if="link"
     class="fixed top-0 left-0 flex flex-col items-center justify-center w-full h-full dark:bg-brownish-950 pt-20 pb-20"
@@ -191,6 +202,14 @@ onUnmounted(() => {
     </div>
     <div class="absolute top-0 w-full">
       <div class="float-right space-x-4 p-4">
+        <BaseButton
+          color="light"
+          :icon="mdiInformationOutline"
+          small
+          name="file-details"
+          @click="details"
+          :disabled="!link"
+        />
         <BaseButton
           color="light"
           :icon="mdiDownload"
