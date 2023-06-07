@@ -216,7 +216,7 @@ onUnmounted(() => {
           small
           name="preview-download"
           @click="download"
-          :disabled="!link || isExpired"
+          :disabled="!link || !!isExpired"
         />
       </div>
       <div class="float-left space-x-4 p-4">
@@ -260,7 +260,7 @@ onUnmounted(() => {
             name="preview-download-big"
             label="Download"
             @click="download"
-            :disabled="!link || isExpired"
+            :disabled="!!(!link || isExpired)"
           />
         </div>
       </div>

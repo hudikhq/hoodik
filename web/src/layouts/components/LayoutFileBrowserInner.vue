@@ -12,7 +12,7 @@ import { store as cryptoStore } from '!/crypto'
 import { store as linksStore } from '!/links'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import type { Authenticated, KeyPair, ListAppFile } from 'types'
+import type { Authenticated, KeyPair, AppFile } from 'types'
 
 const props = defineProps<{
   parentId?: string
@@ -41,24 +41,24 @@ const openBrowseWindow = ref(false)
 const isModalCreateDirActive = ref(false)
 const isModalDeleteMultipleActive = ref(false)
 
-const detailsView = ref<ListAppFile>()
-const singleRemove = ref<ListAppFile>()
-const actionFile = ref<ListAppFile>()
-const linkView = ref<ListAppFile>()
+const detailsView = ref<AppFile>()
+const singleRemove = ref<AppFile>()
+const actionFile = ref<AppFile>()
+const linkView = ref<AppFile>()
 
 /**
  * Opens a modal for a file to display actions
  * for it. This is used when the display is small and
  * the actions are hidden behind a ... button.
  */
-const actions = (file: ListAppFile) => {
+const actions = (file: AppFile) => {
   actionFile.value = file
 }
 
 /**
  * Opens a modal to confirm removing a single file
  */
-const details = (file: ListAppFile) => {
+const details = (file: AppFile) => {
   actionFile.value = undefined
   detailsView.value = file
 }
@@ -66,7 +66,7 @@ const details = (file: ListAppFile) => {
 /**
  * Open a modal with file link, create it if it doesn't exist
  */
-const link = (file: ListAppFile) => {
+const link = (file: AppFile) => {
   if (file.mime === 'dir') {
     throw new Error('Cannot create link for a directory')
   }
@@ -85,7 +85,7 @@ const removeAll = () => {
 /**
  * Opens a modal to confirm removing a single file
  */
-const remove = (file: ListAppFile) => {
+const remove = (file: AppFile) => {
   actionFile.value = undefined
   singleRemove.value = file
 }
@@ -93,7 +93,7 @@ const remove = (file: ListAppFile) => {
 /**
  * Sends the file to the download queue
  */
-const download = (file: ListAppFile) => {
+const download = (file: AppFile) => {
   actionFile.value = undefined
   return Download.push(file)
 }
@@ -160,7 +160,8 @@ watch(
       remove,
       'remove-all': removeAll,
       'select-one': Storage.selectOne,
-      'select-all': Storage.selectAll
+      'select-all': Storage.selectAll,
+      'deselect-all': Storage.deselectAll
     }"
   />
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ListAppFile } from 'types'
+import type { AppFile } from 'types'
 import { mdiDotsVertical } from '@mdi/js'
 import ActionsButtons from './ActionsButtons.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -7,7 +7,7 @@ import { ref, computed } from 'vue'
 import { vOnClickOutside } from '@vueuse/components'
 
 const props = defineProps<{
-  modelValue: ListAppFile
+  modelValue: AppFile
   hideDelete?: boolean
   share?: boolean
   disabled?: boolean
@@ -20,16 +20,16 @@ const menuWidth = ref(0)
 const menuHeight = ref(0)
 
 const emits = defineEmits<{
-  (event: 'remove', file: ListAppFile): void
-  (event: 'details', file: ListAppFile): void
-  (event: 'link', file: ListAppFile): void
-  (event: 'download', file: ListAppFile): void
-  (event: 'update:modelValue', value: ListAppFile): void
+  (event: 'remove', file: AppFile): void
+  (event: 'details', file: AppFile): void
+  (event: 'link', file: AppFile): void
+  (event: 'download', file: AppFile): void
+  (event: 'update:modelValue', value: AppFile): void
 }>()
 
 const file = computed({
   get: () => props.modelValue,
-  set: (v: ListAppFile) => emits('update:modelValue', v)
+  set: (v: AppFile) => emits('update:modelValue', v)
 })
 
 const remove = () => {

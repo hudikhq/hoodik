@@ -11,7 +11,7 @@ pub struct Model {
     pub id: Uuid,
     pub file_id: Uuid,
     pub user_id: Uuid,
-    pub encrypted_metadata: String,
+    pub encrypted_key: String,
     pub is_owner: bool,
     pub created_at: NaiveDateTime,
     pub expires_at: Option<NaiveDateTime>,

@@ -55,7 +55,8 @@ load()
       link,
       'remove-all': removeAll,
       'select-one': Links.selectOne,
-      'select-all': Links.selectAll
+      'select-all': Links.selectAll,
+      'deselect-all': Links.deselectAll
     }"
   />
 </template>

@@ -10,22 +10,22 @@ import {
 } from '@mdi/js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import type { FilesStore, KeyPair, ListAppFile } from 'types'
+import type { FilesStore, KeyPair, AppFile } from 'types'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const props = defineProps<{
-  modelValue: ListAppFile
+  modelValue: AppFile
   hideDelete?: boolean
   Storage: FilesStore
   kp: KeyPair
 }>()
 
 const emits = defineEmits<{
-  (event: 'update:modelValue', value: ListAppFile): void
-  (event: 'download', file: ListAppFile): void
-  (event: 'remove', file: ListAppFile): void
-  (event: 'details', file: ListAppFile): void
+  (event: 'update:modelValue', value: AppFile): void
+  (event: 'download', file: AppFile): void
+  (event: 'remove', file: AppFile): void
+  (event: 'details', file: AppFile): void
 }>()
 
 const router = useRouter()
@@ -38,10 +38,10 @@ const scaleH = ref(0)
 
 const file = computed({
   get: () => props.modelValue,
-  set: (value: ListAppFile) => emits('update:modelValue', value)
+  set: (value: AppFile) => emits('update:modelValue', value)
 })
 
-const hasPreview = computed(() => !!file.value?.metadata?.thumbnail)
+const hasPreview = computed(() => !!file.value?.thumbnail)
 
 /**
  * Load the file data
@@ -58,9 +58,9 @@ const get = async () => {
  * Load the binary data of the file from the backend
  */
 const load = async () => {
-  if (!file.value) return
+  if (!file.value?.thumbnail) return
 
-  await fitUrl(file.value.metadata?.thumbnail)
+  await fitUrl(file.value.thumbnail)
 
   if (!file.value.data) {
     file.value = await props.Storage.get(file.value, props.kp)
@@ -240,12 +240,12 @@ onUnmounted(() => {
           color="light"
           :icon="mdiClose"
           small
-          :to="{ name: 'files', params: { file_id: file.file_id } }"
+          :to="{ name: 'files', params: { file_id: file.file_id as string } }"
           name="preview-close"
         />
       </div>
       <div class="float-left space-x-4 p-4">
-        <h1>{{ file.metadata?.name }}</h1>
+        <h1>{{ file.name }}</h1>
       </div>
     </div>
 
@@ -256,7 +256,7 @@ onUnmounted(() => {
           name="original"
           v-if="imageUrl"
           :src="imageUrl"
-          :alt="props.modelValue?.metadata?.name"
+          :alt="props.modelValue?.name"
           :height="scaleH"
           :width="scaleW"
         />
@@ -264,8 +264,8 @@ onUnmounted(() => {
           key="thumbnail"
           name="loading-thumbnail"
           v-else
-          :src="props.modelValue?.metadata?.thumbnail"
-          :alt="props.modelValue?.metadata?.name"
+          :src="props.modelValue?.thumbnail"
+          :alt="props.modelValue?.name"
           :height="scaleH"
           :width="scaleW"
         />

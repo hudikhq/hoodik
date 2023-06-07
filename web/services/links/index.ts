@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import Api from '!/api'
 import * as meta from './meta'
 import * as crypto from './crypto'
-import type { AppLink, CreateLink, EncryptedAppLink, KeyPair, ListAppFile } from 'types'
+import type { AppLink, CreateLink, EncryptedAppLink, KeyPair, AppFile } from 'types'
 import { utcStringFromLocal } from '..'
 
 export { meta, crypto }
@@ -19,34 +19,35 @@ export const store = defineStore('links', () => {
   const forDelete = ref<AppLink[]>([])
 
   /**
-   * Add single file to select list
+   * Add single link to select list
    */
-  function selectOne(select: boolean, file: AppLink) {
+  function selectOne(select: boolean, link: AppLink) {
     if (select) {
-      forDelete.value.push(file)
+      forDelete.value.push(link)
     } else {
-      forDelete.value = forDelete.value.filter((f) => f.id !== file.id)
+      forDelete.value = forDelete.value.filter((f) => f.id !== link.id)
     }
   }
 
   /**
-   * Add single file to select list
+   * Select all the links
    */
-  function selectAll(files: AppLink[], fileId?: string | null) {
-    forDelete.value = files.filter((f) => {
-      if (fileId && f.file_id !== fileId) {
-        return false
-      }
+  function selectAll(links: AppLink[]) {
+    forDelete.value = links
+  }
 
-      return true
-    })
+  /**
+   * Remove all the selected links
+   */
+  function deselectAll() {
+    forDelete.value = []
   }
 
   /**
    * Add or update a new item in the list
    */
   function upsertItem(item: AppLink): void {
-    if (hasItem(item.id, item.file_id || null)) {
+    if (hasItem(item.id)) {
       updateItem(item)
     } else {
       addItem(item)
@@ -79,21 +80,21 @@ export const store = defineStore('links', () => {
   /**
    * Remove item from the list
    */
-  function hasItem(id: string, file_id: string | null): boolean {
-    return items.value.findIndex((item) => item.id === id && item.file_id === file_id) !== -1
+  function hasItem(id: string): boolean {
+    return items.value.findIndex((item) => item.id === id) !== -1
   }
 
   /**
    * Update existing item in the list
    */
-  function updateItem(file: AppLink) {
-    const index = items.value.findIndex((item) => item.id === file.id)
+  function updateItem(link: AppLink) {
+    const index = items.value.findIndex((item) => item.id === link.id)
 
     if (index === -1) {
       return
     }
 
-    items.value.splice(index, 1, file)
+    items.value.splice(index, 1, link)
   }
 
   /**
@@ -111,10 +112,10 @@ export const store = defineStore('links', () => {
   }
 
   /**
-   * Share a file with a publicly accessible link.
+   * Share a link with a publicly accessible link.
    */
-  async function create(file: ListAppFile, kp: KeyPair): Promise<AppLink> {
-    const createLink = await meta.createLinkFromFile(file, kp)
+  async function create(link: AppFile, kp: KeyPair): Promise<AppLink> {
+    const createLink = await meta.createLinkFromFile(link, kp)
 
     const response = await Api.post<CreateLink, EncryptedAppLink>(
       '/api/links',
@@ -143,9 +144,9 @@ export const store = defineStore('links', () => {
    */
   async function removeAll(kp: KeyPair, links: AppLink[]) {
     await Promise.all(
-      links.map(async (file) => {
-        await Api.delete(`/api/links/${file.id}`)
-        removeItem(file.id)
+      links.map(async (link) => {
+        await Api.delete(`/api/links/${link.id}`)
+        removeItem(link.id)
       })
     )
 
@@ -250,6 +251,7 @@ export const store = defineStore('links', () => {
     takeItem,
     updateItem,
     upsertItem,
+    deselectAll,
     forDelete,
     items,
     loading

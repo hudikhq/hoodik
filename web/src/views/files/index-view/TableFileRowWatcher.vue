@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import TableFileRow from './TableFileRow.vue'
 import scrollMonitor from 'scrollmonitor'
-import type { ListAppFile } from 'types'
+import type { AppFile } from 'types'
 import { ref, onMounted } from 'vue'
 
 const props = defineProps<{
-  file: ListAppFile
-  checkedRows: Partial<ListAppFile>[]
+  file: AppFile
+  checkedRows: Partial<AppFile>[]
   hideDelete?: boolean
   share?: boolean
   hideCheckbox?: boolean
@@ -23,12 +23,13 @@ const props = defineProps<{
 }>()
 
 const emits = defineEmits<{
-  (event: 'actions', file: ListAppFile): void
-  (event: 'details', file: ListAppFile): void
-  (event: 'download', file: ListAppFile): void
-  (event: 'link', file: ListAppFile): void
-  (event: 'remove', file: ListAppFile): void
-  (event: 'select-one', value: boolean, file: ListAppFile): void
+  (event: 'actions', file: AppFile): void
+  (event: 'details', file: AppFile): void
+  (event: 'download', file: AppFile): void
+  (event: 'link', file: AppFile): void
+  (event: 'remove', file: AppFile): void
+  (event: 'select-one', value: boolean, file: AppFile): void
+  (event: 'deselect-all'): void
 }>()
 
 const referenceObject = ref()
@@ -69,12 +70,13 @@ onMounted(() => {
       :hide-checkbox="props.hideCheckbox"
       :sizes="props.sizes"
       :highlighted="props.highlighted"
-      @actions="(f: ListAppFile) => emits('actions', f)"
-      @details="(f: ListAppFile) => emits('details', f)"
-      @download="(f: ListAppFile) => emits('download', f)"
-      @link="(f: ListAppFile) => emits('link', f)"
-      @remove="(f: ListAppFile) => emits('remove', f)"
-      @select-one="(v: boolean, f: ListAppFile) => emits('select-one', v, f)"
+      @actions="(f: AppFile) => emits('actions', f)"
+      @details="(f: AppFile) => emits('details', f)"
+      @download="(f: AppFile) => emits('download', f)"
+      @link="(f: AppFile) => emits('link', f)"
+      @remove="(f: AppFile) => emits('remove', f)"
+      @select-one="(v: boolean, f: AppFile) => emits('select-one', v, f)"
+      @deselect-all="() => emits('deselect-all')"
     />
   </Suspense>
   <div ref="referenceObject" :id="props.file.id"></div>

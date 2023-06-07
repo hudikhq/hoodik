@@ -2,7 +2,7 @@ import type Api from '../../api'
 import * as cryptfns from '../../cryptfns'
 // import * as logger from '!/logger'
 
-import type { DownloadProgressFunction, ListAppFile } from 'types'
+import type { DownloadProgressFunction, AppFile } from 'types'
 import { DOWNLOAD_POOL_LIMIT } from '../../constants'
 
 /**
@@ -11,7 +11,7 @@ import { DOWNLOAD_POOL_LIMIT } from '../../constants'
  */
 export async function downloadAndDecryptStream(
   api: Api,
-  file: ListAppFile,
+  file: AppFile,
   progress: DownloadProgressFunction
 ): Promise<Response> {
   const fileChunks = [...new Array(file.chunks)].map((_, i) => i)
@@ -76,13 +76,13 @@ export async function downloadAndDecryptStream(
 /**
  * Download single file chunk and decrypt it
  */
-export async function downloadChunk(
-  api: Api,
-  file: ListAppFile,
-  chunk: number
-): Promise<Uint8Array> {
+export async function downloadChunk(api: Api, file: AppFile, chunk: number): Promise<Uint8Array> {
+  if (!file.key) {
+    throw new Error(`File ${file.id} is missing key`)
+  }
+
   const data = await downloadEncryptedChunk(api, file, chunk)
-  return cryptfns.worker.decrypt(data, file?.metadata?.key as Uint8Array)
+  return cryptfns.worker.decrypt(data, file.key)
 }
 
 /**
@@ -90,7 +90,7 @@ export async function downloadChunk(
  */
 export async function downloadEncryptedChunk(
   api: Api,
-  file: ListAppFile,
+  file: AppFile,
   chunk: number
 ): Promise<Uint8Array> {
   const response = await getResponse(api, file, chunk)
@@ -132,7 +132,7 @@ export async function downloadEncryptedChunk(
 /**
  * Get the file download response
  */
-async function getResponse(api: Api, file: ListAppFile | number, chunk: number): Promise<Response> {
+async function getResponse(api: Api, file: AppFile | number, chunk: number): Promise<Response> {
   const id = typeof file === 'number' ? file : file.id
 
   return await api.download(`/api/storage/${id}?chunk=${chunk}`)

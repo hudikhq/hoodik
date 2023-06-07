@@ -1,27 +1,27 @@
 <script setup lang="ts">
 import PureButton from '@/components/ui/PureButton.vue'
 import { mdiTrashCan, mdiEye, mdiDownload, mdiLink } from '@mdi/js'
-import type { ListAppFile } from 'types'
+import type { AppFile } from 'types'
 import { computed } from 'vue'
 
 const props = defineProps<{
-  modelValue: ListAppFile
+  modelValue: AppFile
   hideDelete?: boolean
   share?: boolean
 }>()
 
 const emits = defineEmits<{
-  (event: 'update:modelValue', value: ListAppFile | undefined): void
-  (event: 'details', file: ListAppFile): void
-  (event: 'remove', file: ListAppFile): void
-  (event: 'link', file: ListAppFile): void
-  (event: 'download', file: ListAppFile): void
+  (event: 'update:modelValue', value: AppFile | undefined): void
+  (event: 'details', file: AppFile): void
+  (event: 'remove', file: AppFile): void
+  (event: 'link', file: AppFile): void
+  (event: 'download', file: AppFile): void
 }>()
 
 const file = computed(() => props.modelValue)
 
 const hasPreview = computed(() => {
-  return file.value?.metadata?.thumbnail && file.value?.finished_upload_at
+  return file.value?.thumbnail && file.value?.finished_upload_at
 })
 
 const hasDownload = computed(() => {

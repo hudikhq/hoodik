@@ -17,7 +17,6 @@ const props = defineProps<{
     name: string
     size: string
     createdAt: string
-    fileCreatedAt: string
     expiresAt: string
     buttons: string
   }
@@ -26,6 +25,7 @@ const props = defineProps<{
 const emits = defineEmits<{
   (event: 'link', link: AppLink): void
   (event: 'select-one', value: boolean, link: AppLink): void
+  (event: 'deselect-all'): void
 }>()
 
 const selectOne = (value: boolean) => {
@@ -74,7 +74,6 @@ const sizes = computed(() => {
     name: `${props.sizes.name}`,
     size: `${border} ${props.sizes.size}`,
     createdAt: `${border} ${props.sizes.createdAt}`,
-    fileCreatedAt: `${border} ${props.sizes.fileCreatedAt}`,
     expiresAt: `${border} ${props.sizes.expiresAt}`,
     buttons: `${props.sizes.buttons} text-right`
   }
@@ -90,23 +89,27 @@ const timer = ref()
 const click = () => {
   clicks.value++
   if (clicks.value === 1) {
+    singleClick()
+
     timer.value = setTimeout(() => {
       clicks.value = 0
-      singleClick()
-    }, 200)
-  } else {
-    clearTimeout(timer.value)
+    }, 250)
+  }
+
+  if (clicks.value === 2) {
     clicks.value = 0
+    clearTimeout(timer.value)
     doubleClick()
   }
 }
 
-const singleClick = () => {
+const doubleClick = () => {
   emits('link', props.link)
 }
 
-const doubleClick = () => {
-  checked.value = !checked.value
+const singleClick = () => {
+  emits('deselect-all')
+  selectOne(!checked.value)
 }
 </script>
 

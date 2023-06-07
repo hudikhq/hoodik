@@ -119,7 +119,7 @@ const componentClass = computed(() => {
     <span v-if="label" :class="labelClass">{{ label }}</span>
   </component>
   <router-link
-    v-else
+    v-else-if="to"
     :class="componentClass"
     :type="computedType"
     :to="to"

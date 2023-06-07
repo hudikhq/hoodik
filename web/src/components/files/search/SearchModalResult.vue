@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import type { ListAppFile } from 'types'
+import type { AppFile } from 'types'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { mdiFolderOutline, mdiFileOutline } from '@mdi/js'
 import { computed } from 'vue'
 import { formatSize } from '!'
 
 const props = defineProps<{
-  file: ListAppFile
+  file: AppFile
 }>()
 
 const emits = defineEmits<{
-  (event: 'clicked', file: ListAppFile): void
+  (event: 'clicked', file: AppFile): void
 }>()
 
 const url = computed(() => {
@@ -41,10 +41,10 @@ const url = computed(() => {
 
 const name = computed(() => {
   if (props.file.mime !== 'dir') {
-    return props.file.metadata?.name
+    return props.file.name
   }
 
-  return `${props.file.metadata?.name}/`
+  return `${props.file.name}/`
 })
 
 const fileSize = computed(() => {
@@ -59,8 +59,8 @@ const fileSize = computed(() => {
   >
     <div class="w-1/12 pt-2">
       <img
-        v-if="props.file.metadata?.thumbnail"
-        :src="props.file.metadata?.thumbnail"
+        v-if="props.file.thumbnail"
+        :src="props.file.thumbnail"
         :alt="name"
         class="w-10 h-10 rounded-md"
       />

@@ -1,5 +1,4 @@
 import { downloadAndDecryptStream } from './services/storage/workers'
-import { FileMetadata } from './services/storage/metadata'
 import { uploadFile } from './services/storage/workers/file'
 import Api, { ErrorResponse, type ApiTransfer } from './services/api'
 import * as cryptfns from './services/cryptfns'
@@ -9,7 +8,7 @@ import type {
   DownloadCompletedResponseMessage,
   DownloadFileMessage,
   DownloadProgressResponseMessage,
-  ListAppFile,
+  AppFile,
   UploadAppFile,
   UploadChunkResponseMessage,
   UploadFileMessage,
@@ -125,11 +124,9 @@ async function handleCrypto(
  */
 async function handleUploadFile({
   transferableUploadedChunks,
-  transferableFile,
-  metadataJson
+  transferableFile
 }: UploadFileMessage) {
   const file = transferableFile as UploadAppFile
-  file.metadata = FileMetadata.fromJson(metadataJson)
   file.uploaded_chunks = transferableUploadedChunks as unknown as number[]
 
   const progress = (
@@ -138,13 +135,10 @@ async function handleUploadFile({
     isDone: boolean,
     error?: Error | ErrorResponse<any> | string | undefined
   ) => {
-    const transferableFile = { ...file, metadata: undefined }
-
     postMessage({
       type: 'upload-progress',
       response: {
-        transferableFile,
-        metadataJson,
+        transferableFile: file,
         attempt: attempt || 0,
         isDone,
         error: handleError(error)
@@ -166,21 +160,16 @@ async function handleUploadFile({
  * Once the download is generated it transfers the stream back
  * with the postMessage. This happens right away and
  */
-async function handleDownloadFile({ transferableFile, metadataJson }: DownloadFileMessage) {
-  transferableFile.metadata = FileMetadata.fromJson(metadataJson)
-
+async function handleDownloadFile({ transferableFile }: DownloadFileMessage) {
   try {
     const response = await downloadAndDecryptStream(
       self.SWApi,
       transferableFile,
-      async (file: ListAppFile, chunkBytes: number): Promise<void> => {
-        const transferableFile = { ...file, metadata: undefined }
-
+      async (file: AppFile, chunkBytes: number): Promise<void> => {
         postMessage({
           type: 'download-progress',
           response: {
-            transferableFile,
-            metadataJson,
+            transferableFile: file,
             chunkBytes
           } as DownloadProgressResponseMessage
         })
@@ -191,7 +180,6 @@ async function handleDownloadFile({ transferableFile, metadataJson }: DownloadFi
       type: 'download-completed',
       response: {
         transferableFile,
-        metadataJson,
         blob: await response.blob()
       } as DownloadCompletedResponseMessage
     })

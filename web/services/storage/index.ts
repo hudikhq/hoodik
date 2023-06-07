@@ -6,13 +6,11 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import * as cryptfns from '../cryptfns'
 import { utcStringFromLocal, uuidv4 } from '..'
-import { FileMetadata } from './metadata'
 
 import type {
   AppFile,
   CreateFile,
   FileResponse,
-  ListAppFile,
   Parameters,
   EncryptedAppFile,
   KeyPair
@@ -30,7 +28,7 @@ export const store = defineStore('files', () => {
    * Title of the currently selected directory (or root)
    */
   const title = computed<string>((): string => {
-    return dir.value?.metadata?.name || 'Root'
+    return dir.value?.name || 'Root'
   })
 
   /**
@@ -49,7 +47,7 @@ export const store = defineStore('files', () => {
   /**
    * All the items regardless of the current directory
    */
-  const items = ref<ListAppFile[]>([])
+  const items = ref<AppFile[]>([])
 
   /**
    * Currently selected directory id
@@ -65,15 +63,15 @@ export const store = defineStore('files', () => {
   /**
    * Currently selected directory
    */
-  const dir = computed<ListAppFile | null>(() => {
+  const dir = computed<AppFile | null>(() => {
     return items.value.find((item) => item.mime === 'dir' && item.id === fileId.value) || null
   })
 
   /**
    * All the parent directories
    */
-  const parents = computed<ListAppFile[]>(() => {
-    const p: ListAppFile[] = []
+  const parents = computed<AppFile[]>(() => {
+    const p: AppFile[] = []
 
     const f = (id: string | null) => {
       const i = items.value.find((item) => item.id === id)
@@ -119,11 +117,11 @@ export const store = defineStore('files', () => {
     }
 
     response.parents?.forEach(async (item) => {
-      await replaceItem({ ...item, parent: true }, kp)
+      await replaceItem(item, kp)
     })
 
     response.children?.forEach(async (item) => {
-      await replaceItem({ ...item, parent: false }, kp)
+      await replaceItem(item, kp)
     })
 
     fileId.value = parentId
@@ -133,11 +131,17 @@ export const store = defineStore('files', () => {
   /**
    * Attempts to avoid decrypting of an item that is already in the list
    */
-  async function replaceItem(item: ListAppFile, kp: KeyPair): Promise<void> {
+  async function replaceItem(item: AppFile, kp: KeyPair): Promise<void> {
     const existing = getItem(item.id)
 
-    if (existing && existing.metadata?.key) {
-      return upsertItem({ ...item, metadata: existing.metadata, temporaryId: uuidv4() })
+    if (existing && existing.key) {
+      return upsertItem({
+        ...item,
+        key: existing.key,
+        name: existing.name,
+        thumbnail: existing.thumbnail,
+        temporaryId: uuidv4()
+      })
     } else {
       return upsertItem(await decryptItem({ ...item, temporaryId: uuidv4() }, kp))
     }
@@ -146,18 +150,19 @@ export const store = defineStore('files', () => {
   /**
    * Decrypt each item
    */
-  async function decryptItem(item: ListAppFile, kp: KeyPair): Promise<ListAppFile> {
+  async function decryptItem(item: AppFile, kp: KeyPair): Promise<AppFile> {
+    const decryptedParts = await meta.decrypt(item, kp.input as string)
+
     return {
       ...item,
-      metadata: await FileMetadata.decrypt(item.encrypted_metadata, kp),
-      encrypted: false
+      ...decryptedParts
     }
   }
 
   /**
    * Add or update a new item in the list
    */
-  function upsertItem(item: ListAppFile): void {
+  function upsertItem(item: AppFile): void {
     if (hasItem(item.id, item.file_id || null)) {
       updateItem(item)
     } else {
@@ -168,7 +173,7 @@ export const store = defineStore('files', () => {
   /**
    * Get copy of the item from the list
    */
-  function getItem(id: string): ListAppFile | null {
+  function getItem(id: string): AppFile | null {
     const index = items.value.findIndex((item) => item.id === id)
 
     return items.value[index] || null
@@ -177,7 +182,7 @@ export const store = defineStore('files', () => {
   /**
    * Remove item from the list
    */
-  function takeItem(id: string): ListAppFile | null {
+  function takeItem(id: string): AppFile | null {
     const index = items.value.findIndex((item) => item.id === id)
     return items.value.slice(index, 1)[0] || null
   }
@@ -192,7 +197,7 @@ export const store = defineStore('files', () => {
   /**
    * Update existing item in the list
    */
-  function updateItem(file: ListAppFile) {
+  function updateItem(file: AppFile) {
     const index = items.value.findIndex((item) => item.id === file.id)
 
     if (index === -1) {
@@ -205,7 +210,7 @@ export const store = defineStore('files', () => {
   /**
    * Add new item to the list
    */
-  function addItem(item: ListAppFile): void {
+  function addItem(item: AppFile): void {
     items.value.push(item)
   }
 
@@ -220,7 +225,7 @@ export const store = defineStore('files', () => {
   /**
    * Download and decrypt file to the local machine
    */
-  async function get(file: ListAppFile, kp: KeyPair): Promise<ListAppFile> {
+  async function get(file: AppFile, kp: KeyPair): Promise<AppFile> {
     if (!file.id) {
       throw new Error('Cannot download file without ID')
     }
@@ -229,7 +234,7 @@ export const store = defineStore('files', () => {
       throw new Error('Cannot download directory')
     }
 
-    if (!file.metadata?.key) {
+    if (!file.key) {
       throw new Error('Cannot download file without key')
     }
 
@@ -239,7 +244,7 @@ export const store = defineStore('files', () => {
   /**
    * Load file metadata, use the inner storage if the file is found, if not, fetch it from the backend
    */
-  async function metadata(id: string, kp: KeyPair): Promise<ListAppFile> {
+  async function metadata(id: string, kp: KeyPair): Promise<AppFile> {
     const item = getItem(id)
 
     if (!item) {
@@ -248,13 +253,13 @@ export const store = defineStore('files', () => {
       addItem(item)
     }
 
-    return item as ListAppFile
+    return item as AppFile
   }
 
   /**
    * Remove a single file from the storage
    */
-  async function remove(kp: KeyPair, file: Partial<ListAppFile>): Promise<void> {
+  async function remove(kp: KeyPair, file: Partial<AppFile>): Promise<void> {
     if (!file.id) {
       throw new Error('Cannot remove file without ID')
     }
@@ -279,9 +284,7 @@ export const store = defineStore('files', () => {
       search_tokens_hashed
     }
 
-    const created = await meta.create(keypair, createFile)
-
-    return { ...created }
+    return meta.create(keypair, createFile)
   }
 
   /**
@@ -292,7 +295,7 @@ export const store = defineStore('files', () => {
   /**
    * Add single file to select list
    */
-  function selectOne(select: boolean, file: ListAppFile) {
+  function selectOne(select: boolean, file: AppFile) {
     if (select) {
       forDelete.value.push(file)
     } else {
@@ -303,7 +306,7 @@ export const store = defineStore('files', () => {
   /**
    * Add single file to select list
    */
-  function selectAll(files: ListAppFile[], fileId?: string | null) {
+  function selectAll(files: AppFile[], fileId?: string | null) {
     forDelete.value = files.filter((f) => {
       if (fileId && f.file_id !== fileId) {
         return false
@@ -314,9 +317,16 @@ export const store = defineStore('files', () => {
   }
 
   /**
+   * Add single file to select list
+   */
+  function deselectAll() {
+    forDelete.value = []
+  }
+
+  /**
    * Remove all the files on the selected list
    */
-  async function removeAll(kp: KeyPair, files: ListAppFile[]) {
+  async function removeAll(kp: KeyPair, files: AppFile[]) {
     await Promise.all(
       files.map(async (file) => {
         await meta.remove(file.id)
@@ -350,6 +360,7 @@ export const store = defineStore('files', () => {
     removeItem,
     replaceItem,
     selectAll,
+    deselectAll,
     selectOne,
     takeItem,
     updateItem,
@@ -360,15 +371,21 @@ export const store = defineStore('files', () => {
 /**
  * Do a full text search through the files and folders
  */
-export async function search(query: string, kp: KeyPair): Promise<ListAppFile[]> {
+export async function search(query: string, kp: KeyPair): Promise<AppFile[]> {
+  if (!kp.input) {
+    throw new Error('Cannot search without private key')
+  }
+
+  const privateKey = kp.input
+  const response = await meta.search(query)
+
   const results = await Promise.all(
-    (
-      await meta.search(query)
-    ).map(async (file: EncryptedAppFile) => {
+    response.map(async (file: EncryptedAppFile) => {
+      const unencryptedPart = await meta.decrypt(file, privateKey)
+
       return {
         ...file,
-        metadata: await FileMetadata.decrypt(file.encrypted_metadata, kp),
-        encrypted: false
+        ...unencryptedPart
       }
     })
   )

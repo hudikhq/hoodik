@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
-import type { FilesStore, KeyPair, ListAppFile } from 'types'
+import type { FilesStore, KeyPair, AppFile } from 'types'
 
 const props = defineProps<{
-  modelValue: ListAppFile | undefined
+  modelValue: AppFile | undefined
   Storage: FilesStore
   kp: KeyPair
 }>()
 
 const emits = defineEmits<{
-  (event: 'update:modelValue', value: ListAppFile | undefined): void
+  (event: 'update:modelValue', value: AppFile | undefined): void
 }>()
 
 /**
@@ -34,7 +34,7 @@ const confirmRemove = async () => {
     @cancel="emits('update:modelValue', undefined)"
     @confirm="confirmRemove"
   >
-    Are you sure you want to delete forever '{{ props.modelValue?.metadata?.name }}'
+    Are you sure you want to delete forever '{{ props.modelValue?.name }}'
     <span v-if="props.modelValue?.mime === 'dir'"> directory</span>?
   </CardBoxModal>
 </template>

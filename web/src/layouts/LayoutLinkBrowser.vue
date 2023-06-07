@@ -8,7 +8,12 @@ const props = defineProps<{
 </script>
 <template>
   <LayoutAuthenticatedWithLoader :clear="props.clear" v-slot="{ authenticated, keypair }">
-    <LayoutLinkBrowserInner :authenticated="authenticated" :keypair="keypair" v-slot="all">
+    <LayoutLinkBrowserInner
+      v-if="authenticated"
+      :authenticated="authenticated"
+      :keypair="keypair"
+      v-slot="all"
+    >
       <slot v-bind="all" />
     </LayoutLinkBrowserInner>
   </LayoutAuthenticatedWithLoader>

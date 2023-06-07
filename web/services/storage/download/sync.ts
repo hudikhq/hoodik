@@ -1,17 +1,21 @@
 import * as cryptfns from '../../cryptfns'
 import Api from '../../api'
 
-import type { DownloadProgressFunction, ListAppFile } from '../../../types'
+import type { DownloadProgressFunction, AppFile } from '../../../types'
 
 /**
  * Download the file content
  */
-export async function downloadAndDecrypt(file: ListAppFile): Promise<Uint8Array> {
+export async function downloadAndDecrypt(file: AppFile): Promise<Uint8Array> {
+  if (!file.key) {
+    throw new Error('Cannot download file without key')
+  }
+
   let data = new Uint8Array(0)
 
   for (let i = 0; i < file.chunks; i++) {
     const encrypted = await downloadEncryptedChunk(file, i)
-    const chunk = await cryptfns.aes.decrypt(encrypted, file?.metadata?.key as Uint8Array)
+    const chunk = await cryptfns.aes.decrypt(encrypted, file.key)
     const tg4 = new Uint8Array(data.length + chunk.length)
     tg4.set(data, 0)
     tg4.set(chunk, data.length)
@@ -25,10 +29,7 @@ export async function downloadAndDecrypt(file: ListAppFile): Promise<Uint8Array>
  * Create readable stream from downloading chunks and stream them
  * to download of the browser
  */
-export async function downloadAndDecryptStream(
-  file: ListAppFile,
-  progress?: DownloadProgressFunction
-) {
+export async function downloadAndDecryptStream(file: AppFile, progress?: DownloadProgressFunction) {
   const chunks = [...new Array(file.chunks)].map((_, i) => i)
 
   const stream = new ReadableStream({
@@ -62,7 +63,7 @@ export async function downloadAndDecryptStream(
   const url = window.URL.createObjectURL(await response.blob())
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = file.metadata?.name as string
+  anchor.download = file.name
   anchor.click()
   window.URL.revokeObjectURL(url)
 }
@@ -70,18 +71,19 @@ export async function downloadAndDecryptStream(
 /**
  * Download single file chunk and decrypt it
  */
-export async function downloadChunk(file: ListAppFile, chunk: number): Promise<Uint8Array> {
+export async function downloadChunk(file: AppFile, chunk: number): Promise<Uint8Array> {
+  if (!file.key) {
+    throw new Error('Cannot download file without key')
+  }
+
   const data = await downloadEncryptedChunk(file, chunk)
-  return cryptfns.aes.decrypt(data, file?.metadata?.key as Uint8Array)
+  return cryptfns.aes.decrypt(data, file.key)
 }
 
 /**
  * Download a single chunk of the file and return it without decrypting it
  */
-export async function downloadEncryptedChunk(
-  file: ListAppFile,
-  chunk: number
-): Promise<Uint8Array> {
+export async function downloadEncryptedChunk(file: AppFile, chunk: number): Promise<Uint8Array> {
   const response = await getResponse(file, chunk)
 
   if (!response.body) {
@@ -119,7 +121,7 @@ export async function downloadEncryptedChunk(
 /**
  * Get the file download response
  */
-async function getResponse(file: ListAppFile | number, chunk: number): Promise<Response> {
+async function getResponse(file: AppFile | number, chunk: number): Promise<Response> {
   const id = typeof file === 'number' ? file : file.id
 
   return await new Api().download(`/api/storage/${id}?chunk=${chunk}`)
