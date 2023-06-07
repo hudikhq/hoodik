@@ -5,13 +5,13 @@ import TableFileRowWatcher from './TableFileRowWatcher.vue'
 import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { computed, ref, watch } from 'vue'
-import type { ListAppFile } from 'types'
+import type { AppFile } from 'types'
 
 const props = defineProps<{
-  forDelete: ListAppFile[]
-  items: ListAppFile[]
-  parents: ListAppFile[]
-  dir: ListAppFile | null
+  forDelete: AppFile[]
+  items: AppFile[]
+  parents: AppFile[]
+  dir: AppFile | null
   file_id?: string
   searchedFileId?: string
   hideCheckbox?: boolean
@@ -22,16 +22,17 @@ const props = defineProps<{
 }>()
 
 const emits = defineEmits<{
-  (event: 'actions', file: ListAppFile): void
-  (event: 'download', file: ListAppFile): void
-  (event: 'link', file: ListAppFile): void
-  (event: 'remove', file: ListAppFile): void
-  (event: 'details', file: ListAppFile): void
+  (event: 'actions', file: AppFile): void
+  (event: 'download', file: AppFile): void
+  (event: 'link', file: AppFile): void
+  (event: 'remove', file: AppFile): void
+  (event: 'details', file: AppFile): void
   (event: 'browse'): void
   (event: 'directory'): void
-  (event: 'remove-all', files: ListAppFile[], fileId: string | null | undefined): void
-  (event: 'select-one', select: boolean, file: ListAppFile): void
-  (event: 'select-all', files: ListAppFile[], fileId: string | null | undefined): void
+  (event: 'remove-all', files: AppFile[], fileId: string | null | undefined): void
+  (event: 'select-one', select: boolean, file: AppFile): void
+  (event: 'select-all', files: AppFile[], fileId: string | null | undefined): void
+  (event: 'deselect-all'): void
 }>()
 
 const checked = ref(false)
@@ -141,7 +142,6 @@ const sizes = {
       :xs="true"
       :icon="mdiFolderPlusOutline"
       color="light"
-      v-if="!showDeleteAll"
       @click="emits('directory')"
     />
 
@@ -152,7 +152,6 @@ const sizes = {
       :xs="true"
       :icon="mdiFilePlusOutline"
       color="light"
-      v-if="!showDeleteAll"
       @click="emits('browse')"
     />
   </div>
@@ -203,12 +202,13 @@ const sizes = {
         :hideDelete="props.hideDelete"
         :share="props.share"
         :highlighted="props.searchedFileId === file.id"
-        @actions="(f: ListAppFile) => emits('actions', f)"
-        @details="(f: ListAppFile) => emits('details', f)"
-        @download="(f: ListAppFile) => emits('download', f)"
-        @link="(f: ListAppFile) => emits('link', f)"
-        @remove="(f: ListAppFile) => emits('remove', f)"
-        @select-one="(v: boolean, f: ListAppFile) => emits('select-one', v, f)"
+        @actions="(f: AppFile) => emits('actions', f)"
+        @details="(f: AppFile) => emits('details', f)"
+        @download="(f: AppFile) => emits('download', f)"
+        @link="(f: AppFile) => emits('link', f)"
+        @remove="(f: AppFile) => emits('remove', f)"
+        @select-one="(v: boolean, f: AppFile) => emits('select-one', v, f)"
+        @deselect-all="emits('deselect-all')"
       />
     </template>
   </div>

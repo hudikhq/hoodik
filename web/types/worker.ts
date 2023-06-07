@@ -1,6 +1,5 @@
 import type { InnerValidationErrors } from '!/api'
-import type { ListAppFile, UploadAppFile } from './file'
-import type { FileMetadataJson } from '.'
+import type { AppFile, UploadAppFile } from './file'
 
 /**
  * Message error that is sent from the worker
@@ -17,15 +16,13 @@ export type WorkerErrorType =
 export type UploadFileMessage = {
   transferableUploadedChunks: Uint16Array
   transferableFile: UploadAppFile
-  metadataJson: FileMetadataJson
 }
 
 /**
  * Message sent to the worker to download a file
  */
 export type DownloadFileMessage = {
-  transferableFile: ListAppFile
-  metadataJson: FileMetadataJson
+  transferableFile: AppFile
 }
 
 /**
@@ -33,7 +30,6 @@ export type DownloadFileMessage = {
  */
 export type UploadChunkResponseMessage = {
   transferableFile: UploadAppFile
-  metadataJson: FileMetadataJson | null
   chunk: number
   attempt: number
   isDone?: boolean
@@ -44,8 +40,7 @@ export type UploadChunkResponseMessage = {
  * Message sent FROM the worker with file download progress
  */
 export type DownloadProgressResponseMessage = {
-  transferableFile: ListAppFile
-  metadataJson: FileMetadataJson | null
+  transferableFile: AppFile
   chunkBytes: number
   error?: WorkerErrorType
 }
@@ -55,7 +50,6 @@ export type DownloadProgressResponseMessage = {
  * download.
  */
 export type DownloadCompletedResponseMessage = {
-  transferableFile: ListAppFile
-  metadataJson: FileMetadataJson | null
+  transferableFile: AppFile
   blob: Blob
 }

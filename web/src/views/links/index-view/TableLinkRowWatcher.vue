@@ -16,7 +16,6 @@ const props = defineProps<{
     name: string
     size: string
     createdAt: string
-    linkCreatedAt: string
     expiresAt: string
     buttons: string
   }
@@ -25,6 +24,7 @@ const props = defineProps<{
 const emits = defineEmits<{
   (event: 'link', link: AppLink): void
   (event: 'select-one', value: boolean, link: AppLink): void
+  (event: 'deselect-all'): void
 }>()
 
 const referenceObject = ref()
@@ -64,6 +64,7 @@ onMounted(() => {
       :highlighted="props.highlighted"
       @link="(f: AppLink) => emits('link', f)"
       @select-one="(v: boolean, f: AppLink) => emits('select-one', v, f)"
+      @deselect-all="emits('deselect-all')"
     />
   </Suspense>
   <div ref="referenceObject" :id="props.link.id"></div>

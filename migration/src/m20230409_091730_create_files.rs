@@ -20,6 +20,8 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(ColumnDef::new(Files::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(Files::NameHash).string().not_null())
+                    .col(ColumnDef::new(Files::EncryptedName).string().not_null())
+                    .col(ColumnDef::new(Files::EncryptedThumbnail).string())
                     .col(ColumnDef::new(Files::Mime).string().not_null())
                     .col(ColumnDef::new(Files::Size).big_integer())
                     .col(ColumnDef::new(Files::Chunks).big_integer())
@@ -46,6 +48,8 @@ impl MigrationTrait for Migration {
 pub(crate) enum Files {
     Table,
     Id,
+    EncryptedName,
+    EncryptedThumbnail,
     NameHash,
     Mime,
     Size,

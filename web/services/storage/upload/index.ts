@@ -101,7 +101,7 @@ export const store = defineStore('upload', () => {
     // that will trigger the upload error and the file will be moved to the
     // failed list as if it was canceled
     if (file.cancel) {
-      logger.debug(`File ${file.metadata?.name} is canceling the upload...`)
+      logger.debug(`File ${file.name} is canceling the upload...`)
 
       running.value = running.value.filter((i) => i.id !== file.id)
       failed.value.push(file)
@@ -111,9 +111,7 @@ export const store = defineStore('upload', () => {
     // If the file has been finished, we will remove it from the uploading list
     // and move it to the done list
     if (isDone || file.finished_upload_at) {
-      logger.debug(
-        `File ${file.metadata?.name} has finished uploading, pushing to the done list...`
-      )
+      logger.debug(`File ${file.name} has finished uploading, pushing to the done list...`)
 
       file.finished_upload_at = utcStringFromLocal(new Date())
       done.value.push(file)
@@ -243,10 +241,11 @@ export const store = defineStore('upload', () => {
       chunks: Math.ceil(file.size / CHUNK_SIZE_BYTES),
       file_id: parent_id,
       file_created_at: utcStringFromLocal(modified),
-      search_tokens_hashed
+      search_tokens_hashed,
+      thumbnail
     }
 
-    const created = await meta.create(keypair, createFile, { thumbnail })
+    const created = await meta.create(keypair, createFile)
 
     return { ...created, file }
   }

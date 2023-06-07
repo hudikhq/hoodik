@@ -1,4 +1,3 @@
-import type { FileMetadata } from '../services/storage/metadata'
 import type { EncryptedLink } from './links'
 import type { WorkerErrorType } from './worker'
 
@@ -29,7 +28,7 @@ export interface UploadAppFile extends AppFile {
   cancel?: boolean
 }
 
-export interface DownloadAppFile extends ListAppFile {
+export interface DownloadAppFile extends AppFile {
   /**
    * Start of the download
    */
@@ -56,25 +55,7 @@ export interface DownloadAppFile extends ListAppFile {
   downloadedBytes?: number
 }
 
-export interface ListAppFile extends AppFile {
-  current?: boolean
-  parent?: boolean
-  encrypted?: boolean
-  name?: string
-  checked?: boolean
-}
-
-export interface AppFile extends EncryptedAppFile {
-  /**
-   * Unencrypted file metadata
-   */
-  metadata?: FileMetadata
-
-  /**
-   * Transferable way of storing FileMetadata
-   */
-  metadataJson?: { [key: string]: string }
-
+export interface AppFile extends EncryptedAppFile, AppFileUnencryptedPart {
   /**
    * Decrypted data of the file
    */
@@ -88,7 +69,7 @@ export interface AppFile extends EncryptedAppFile {
   temporaryId?: string
 }
 
-export interface EncryptedAppFile {
+export interface EncryptedAppFile extends AppFileEncryptedPart {
   id: string
 
   /**
@@ -100,11 +81,6 @@ export interface EncryptedAppFile {
    * Is the current user file owner
    */
   is_owner: boolean
-
-  /**
-   * Encrypted file metadata
-   */
-  encrypted_metadata: string
 
   /**
    * Unencrypted file name hash
@@ -170,4 +146,44 @@ export interface EncryptedAppFile {
    * File shared public link (if it exists)
    */
   link?: EncryptedLink
+}
+
+/**
+ * Unencrypted file parts
+ */
+export interface AppFileUnencryptedPart {
+  /**
+   * Decrypted file key
+   */
+  key?: Uint8Array
+
+  /**
+   * Decrypted file name
+   */
+  name: string
+
+  /**
+   * Decrypted file thumbnail
+   */
+  thumbnail?: string
+}
+
+/**
+ * Encrypted file parts
+ */
+export interface AppFileEncryptedPart {
+  /**
+   * Encrypted file metadata
+   */
+  encrypted_key: string
+
+  /**
+   * Encrypted file name
+   */
+  encrypted_name: string
+
+  /**
+   * Encrypted file thumbnail
+   */
+  encrypted_thumbnail?: string
 }

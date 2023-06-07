@@ -2,7 +2,7 @@ import * as cryptfns from '!/cryptfns'
 import * as crypto from './crypto'
 import Api from '!/api'
 
-import type { AppLink, CreateLink, EncryptedAppLink, KeyPair, ListAppFile } from 'types'
+import type { AppLink, CreateLink, EncryptedAppLink, KeyPair, AppFile } from 'types'
 
 /**
  * Load all the shared links for the user.
@@ -63,8 +63,8 @@ export async function encryptedMetadata(id: string): Promise<EncryptedAppLink> {
 /**
  * Convert unencrypted app file into a encrypted create link construct
  */
-export async function createLinkFromFile(file: ListAppFile, kp: KeyPair): Promise<CreateLink> {
-  if (!file.metadata?.key) {
+export async function createLinkFromFile(file: AppFile, kp: KeyPair): Promise<CreateLink> {
+  if (!file.key) {
     throw new Error('File key is missing')
   }
 
@@ -76,16 +76,13 @@ export async function createLinkFromFile(file: ListAppFile, kp: KeyPair): Promis
     kp.publicKey as string
   )
 
-  const encrypted_name = await cryptfns.aes.encryptToHex(file.metadata?.name || 'no-name', key)
-  const encrypted_file_key = await cryptfns.aes.encryptToHex(
-    cryptfns.uint8.toHex(file.metadata?.key),
-    key
-  )
+  const encrypted_name = await cryptfns.aes.encryptToHex(file.name || 'no-name', key)
+  const encrypted_file_key = await cryptfns.aes.encryptToHex(cryptfns.uint8.toHex(file.key), key)
 
   let encrypted_thumbnail
 
-  if (file.metadata?.thumbnail) {
-    encrypted_thumbnail = await cryptfns.aes.encryptToHex(file.metadata.thumbnail, key)
+  if (file.thumbnail) {
+    encrypted_thumbnail = await cryptfns.aes.encryptToHex(file.thumbnail, key)
   }
 
   return {

@@ -11,7 +11,7 @@ describe('Handle directories', () => {
 
     cy.contains('Test_dir')
 
-    cy.get('button').contains('span', 'Test_dir').click()
+    cy.get('button').contains('span', 'Test_dir').click().click()
 
     cy.get('button').contains('span', 'Test_dir').should('not.exist')
 
@@ -27,7 +27,7 @@ describe('Handle directories', () => {
       .wait(5000)
 
     cy.get('img[name=thumbnail]').should('have.attr', 'alt', 'android-chrome-512x512.png')
-    cy.get('button').contains('span', 'android-chrome-512x512.png').click()
+    cy.get('button').contains('span', 'android-chrome-512x512.png').click().click()
 
     cy.get('img[name=original]').should('have.attr', 'alt', 'android-chrome-512x512.png')
     cy.get('button[name="preview-details"]').click()

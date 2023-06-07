@@ -20,6 +20,7 @@ const emits = defineEmits<{
   (event: 'remove-all', items: AppLink[]): void
   (event: 'select-one', select: boolean, item: AppLink): void
   (event: 'select-all', items: AppLink[]): void
+  (event: 'deselect-all'): void
 }>()
 
 const checked = ref(false)
@@ -120,6 +121,7 @@ const sizes = {
         :highlighted="props.searchedFileId === link.id"
         @link="(f: AppLink) => emits('link', f)"
         @select-one="(v: boolean, f: AppLink) => emits('select-one', v, f)"
+        @deselect-all="emits('deselect-all')"
       />
     </template>
   </div>

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { ListAppFile } from 'types'
+import type { AppFile } from 'types'
 import BaseButton from '../ui/BaseButton.vue'
 import { computed } from 'vue'
 
 const props = defineProps<{
-  parents: ListAppFile[]
+  parents: AppFile[]
   parentId?: string
 }>()
 
@@ -36,7 +36,7 @@ const skipIndexes = computed<number[]>(() => {
             :to="{ name: 'files', params: { file_id: parent.id } }"
             :xs="true"
             color="light"
-            :label="`${parent.metadata?.name || '...'}/`"
+            :label="`${parent.name || '...'}/`"
             :disabled="parent.id === props.parentId"
           />
         </li>

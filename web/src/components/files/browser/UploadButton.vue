@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { store as uploadStore } from '!/storage/upload'
 import { ref, watch } from 'vue'
-import type { KeyPair, ListAppFile } from 'types'
+import type { KeyPair, AppFile } from 'types'
 
 const props = defineProps<{
-  dir: ListAppFile | undefined | null
+  dir: AppFile | undefined | null
   kp: KeyPair
   modelValue: boolean
 }>()

@@ -1,4 +1,6 @@
-export interface CreateFile {
+import type { AppFileUnencryptedPart } from './file'
+
+export interface CreateFile extends AppFileUnencryptedPart {
   /**
    * Unencrypted file name
    */
@@ -8,6 +10,11 @@ export interface CreateFile {
    * Mime type of the unencrypted file
    */
   mime: string
+
+  /**
+   * Unencrypted file thumbnail
+   */
+  thumbnail?: string
 
   /**
    * Size of the unencrypted file in bytes

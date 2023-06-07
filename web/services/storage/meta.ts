@@ -1,7 +1,5 @@
 import Api from '../api'
-import { FileMetadata } from './metadata'
 import * as cryptfns from '../cryptfns'
-import * as logger from '!/logger'
 
 import type {
   AppFile,
@@ -11,41 +9,80 @@ import type {
   Parameters,
   KeyPair,
   EncryptedAppFile,
-  SearchQuery
+  SearchQuery,
+  AppFileEncryptedPart,
+  AppFileUnencryptedPart
 } from 'types'
+
+/**
+ * Take the unencrypted file or thumbnail and encrypt it with the file key
+ */
+export async function encrypt(
+  unencrypted: AppFileUnencryptedPart,
+  publicKey: string
+): Promise<AppFileEncryptedPart> {
+  const key = unencrypted.key ? unencrypted.key : await cryptfns.aes.generateKey()
+
+  const encrypted_name = await cryptfns.aes.encryptString(unencrypted.name, key)
+  const encrypted_thumbnail = unencrypted.thumbnail
+    ? await cryptfns.aes.encryptString(unencrypted.thumbnail, key)
+    : undefined
+
+  const keyHex = cryptfns.uint8.toHex(key)
+  const encrypted_key = await cryptfns.rsa.encryptMessage(keyHex, publicKey)
+
+  return {
+    encrypted_key,
+    encrypted_name,
+    encrypted_thumbnail
+  }
+}
+
+/**
+ * Return the unencrypted file parts
+ */
+export async function decrypt(
+  encrypted: AppFileEncryptedPart,
+  privateKey: string
+): Promise<AppFileUnencryptedPart> {
+  const keyHex = await cryptfns.rsa.decryptMessage(privateKey, encrypted.encrypted_key)
+  const key = cryptfns.uint8.fromHex(keyHex)
+
+  const name = await cryptfns.aes.decryptString(encrypted.encrypted_name, key)
+  const thumbnail = encrypted.encrypted_thumbnail
+    ? await cryptfns.aes.decryptString(encrypted.encrypted_thumbnail, key)
+    : undefined
+
+  return {
+    key,
+    name,
+    thumbnail
+  }
+}
 
 /**
  * Create a file or directory on the server
  */
-export async function create(
-  keypair: KeyPair,
-  unencrypted: CreateFile,
-  extras?: { [key: string]: string | null | undefined }
-): Promise<AppFile> {
-  const key = await cryptfns.aes.generateKey()
-  const metadata = new FileMetadata(unencrypted.name, key)
-
-  if (extras && Object.keys(extras).length > 0) {
-    metadata.setExtras(extras)
+export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise<AppFile> {
+  if (!keypair.publicKey) {
+    throw new Error('Cannot create file without public key')
   }
 
-  let encrypted_metadata
-
-  try {
-    encrypted_metadata = await metadata.encrypt(keypair.publicKey as string)
-  } catch (e) {
-    logger.error(e)
+  if (!keypair.input) {
+    throw new Error('Cannot create file without private key')
   }
+
+  const encryptedParts = await encrypt(unencrypted, keypair.publicKey)
 
   const createFile: EncryptedCreateFile = {
     search_tokens_hashed: unencrypted.search_tokens_hashed,
     name_hash: cryptfns.sha256.digest(unencrypted.name),
-    encrypted_metadata,
     mime: unencrypted.mime,
     size: unencrypted.size,
     chunks: unencrypted.chunks,
     file_id: unencrypted.file_id,
-    file_created_at: unencrypted.file_created_at
+    file_created_at: unencrypted.file_created_at,
+    ...encryptedParts
   }
 
   const response = await Api.post<EncryptedCreateFile, AppFile>(
@@ -59,14 +96,22 @@ export async function create(
   }
 
   const file = response.body
+  const unencryptedPart = await decrypt(file, keypair.input)
 
-  return { ...file, metadata }
+  return {
+    ...file,
+    ...unencryptedPart
+  }
 }
 
 /**
  * Get file or directory metadata
  */
 export async function get(keypair: KeyPair, file_id: string): Promise<AppFile> {
+  if (!keypair.input) {
+    throw new Error('Cannot get file without private key')
+  }
+
   const response = await Api.get<AppFile>(`/api/storage/${file_id}/metadata`, undefined)
 
   if (!response?.body?.id) {
@@ -74,9 +119,9 @@ export async function get(keypair: KeyPair, file_id: string): Promise<AppFile> {
   }
 
   const file = response.body
-  const metadata = await FileMetadata.decrypt(file.encrypted_metadata, keypair)
+  const unencryptedPart = await decrypt(file, keypair.input)
 
-  return { ...file, metadata }
+  return { ...file, ...unencryptedPart }
 }
 
 /**
@@ -87,6 +132,10 @@ export async function getByName(
   name: string,
   parent_id?: string
 ): Promise<AppFile> {
+  if (!keypair.input) {
+    throw new Error('Cannot get file without private key')
+  }
+
   const nameHash = cryptfns.sha256.digest(name)
 
   if (parent_id !== undefined || typeof parent_id !== 'number') {
@@ -100,9 +149,9 @@ export async function getByName(
   }
 
   const file = response.body
-  const metadata = await FileMetadata.decrypt(file.encrypted_metadata, keypair)
+  const unencryptedPart = await decrypt(file, keypair.input)
 
-  return { ...file, metadata }
+  return { ...file, ...unencryptedPart }
 }
 
 /**

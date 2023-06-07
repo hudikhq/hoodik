@@ -4,21 +4,21 @@ import CardBoxComponentTitle from '@/components/ui/CardBoxComponentTitle.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { mdiFileOutline, mdiFolderOutline, mdiClose } from '@mdi/js'
 import { computed } from 'vue'
-import type { KeyPair, ListAppFile } from 'types'
+import type { KeyPair, AppFile } from 'types'
 import { formatPrettyDate, formatSize } from '!/index'
 
 const props = defineProps<{
-  modelValue: ListAppFile | undefined
+  modelValue: AppFile | undefined
   kp: KeyPair
 }>()
 
 const emits = defineEmits<{
-  (event: 'update:modelValue', value: ListAppFile | undefined): void
+  (event: 'update:modelValue', value: AppFile | undefined): void
 }>()
 
 const file = computed({
   get: () => props.modelValue,
-  set: (value: ListAppFile | undefined) => emits('update:modelValue', value)
+  set: (value: AppFile | undefined) => emits('update:modelValue', value)
 })
 
 const isDir = computed(() => {
@@ -67,14 +67,14 @@ const cancel = () => {
   >
     <CardBoxComponentTitle
       :icon="file.mime === 'dir' ? mdiFolderOutline : mdiFileOutline"
-      :title="file?.metadata?.name"
+      :title="file?.name"
     >
       <BaseButton :icon="mdiClose" color="dark" small rounded-full @click.prevent="cancel" />
     </CardBoxComponentTitle>
 
     <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
       <div class="flex flex-col w-1/2">Name</div>
-      <div class="flex flex-col w-1/2">{{ file.metadata?.name }}</div>
+      <div class="flex flex-col w-1/2">{{ file.name }}</div>
     </div>
     <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
       <div class="flex flex-col w-1/2">Type</div>

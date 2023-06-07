@@ -1,13 +1,13 @@
 import type {
   FilesStore,
-  ListAppFile,
   DownloadAppFile,
   UploadAppFile,
   AppFile,
   HelperType,
-  KeyPair
+  KeyPair,
+  EncryptedAppFile
 } from 'types'
-import { FileMetadata } from './metadata'
+import * as meta from './meta'
 
 /**
  * Helper class that can be easily shared between components to enable common requirements
@@ -27,15 +27,21 @@ export class Helper implements HelperType {
    * Easily decrypt a file and replace it in the store
    * if it already wasn't decrypted.
    */
+  async decrypt(file: EncryptedAppFile): Promise<EncryptedAppFile>
   async decrypt(file: AppFile): Promise<AppFile>
-  async decrypt(file: ListAppFile): Promise<ListAppFile>
   async decrypt(file: UploadAppFile): Promise<UploadAppFile>
   async decrypt(file: DownloadAppFile): Promise<DownloadAppFile> {
-    if (!file.metadata || !file.metadata.key) {
-      const metadata = await FileMetadata.decrypt(file.encrypted_metadata, this.keypair)
-      this.store.updateItem({ ...file, metadata })
+    if (!this.keypair.input) {
+      throw new Error('Cannot decrypt without private key')
+    }
 
-      return { ...file, metadata }
+    if (!file.key) {
+      const decrypted = await meta.decrypt(file, this.keypair.input)
+
+      return {
+        ...file,
+        ...decrypted
+      }
     }
 
     return file

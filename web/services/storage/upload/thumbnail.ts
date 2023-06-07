@@ -3,10 +3,10 @@ import { PREVIEW_MIME_TYPES, IMAGE_THUMBNAIL_SIZE_PX } from '../../constants'
 /**
  * Take the selected file and create a thumbnail from it
  */
-export function createThumbnail(file: File): Promise<string | null> {
+export function createThumbnail(file: File): Promise<string | undefined> {
   return new Promise((resolve, reject) => {
     if (PREVIEW_MIME_TYPES.includes(file.type) === false) {
-      return resolve(null)
+      return resolve(undefined)
     }
 
     const reader = new FileReader()

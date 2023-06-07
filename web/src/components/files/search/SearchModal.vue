@@ -5,7 +5,7 @@ import { AppForm } from '@/components/form'
 import { search } from '!/storage'
 import { computed, ref, watch } from 'vue'
 import * as yup from 'yup'
-import type { KeyPair, ListAppFile } from 'types'
+import type { KeyPair, AppFile } from 'types'
 import { Field } from 'vee-validate'
 
 const props = defineProps<{ keypair: KeyPair; modelValue: boolean }>()
@@ -19,7 +19,7 @@ const active = computed({
 })
 
 const searchField = ref()
-const results = ref<ListAppFile[]>([])
+const results = ref<AppFile[]>([])
 const searched = ref(false)
 const config = ref()
 const form = ref()

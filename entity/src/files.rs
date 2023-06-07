@@ -10,6 +10,8 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
     pub name_hash: String,
+    pub encrypted_name: String,
+    pub encrypted_thumbnail: Option<String>,
     pub mime: String,
     pub size: Option<i64>,
     pub chunks: Option<i32>,

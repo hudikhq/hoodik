@@ -60,6 +60,8 @@ pub async fn create_file<T: super::ConnectionTrait>(
         mime: ActiveValue::Set(mime.to_string()),
         file_id: ActiveValue::Set(file_id),
         name_hash: ActiveValue::Set(cryptfns::sha256::digest(name.as_bytes())),
+        encrypted_name: ActiveValue::Set(name.to_string()),
+        encrypted_thumbnail: ActiveValue::NotSet,
         size: ActiveValue::Set(size),
         chunks: ActiveValue::Set(chunks),
         chunks_stored: ActiveValue::Set(chunks),
@@ -84,7 +86,7 @@ pub async fn create_file<T: super::ConnectionTrait>(
         file_id: ActiveValue::Set(file.id),
         user_id: ActiveValue::Set(user.id),
         is_owner: ActiveValue::Set(true),
-        encrypted_metadata: ActiveValue::Set(name.to_string()),
+        encrypted_key: ActiveValue::Set(name.to_string()),
         created_at: ActiveValue::Set(Utc::now().naive_utc()),
         expires_at: ActiveValue::NotSet,
     };
