@@ -10,14 +10,13 @@ import type { DownloadAppFile, DownloadFileMessage, UploadAppFile, UploadFileMes
  * Use service worker to upload a single chunk
  */
 export async function pushUploadToWorker(file: UploadAppFile): Promise<void> {
-  if (!file.metadata?.key) {
+  if (!file.key) {
     throw new Error(`File ${file.id} is missing key`)
   }
 
   const transferableFile = {
     ...file,
-    uploaded_chunks: undefined,
-    metadata: undefined
+    uploaded_chunks: undefined
   }
 
   const apiTransfer = new Api().toJson()
@@ -28,8 +27,7 @@ export async function pushUploadToWorker(file: UploadAppFile): Promise<void> {
     apiTransfer,
     message: {
       transferableUploadedChunks,
-      transferableFile,
-      metadataJson: file.metadata.toJson()
+      transferableFile
     } as UploadFileMessage
   })
 }
@@ -38,13 +36,12 @@ export async function pushUploadToWorker(file: UploadAppFile): Promise<void> {
  * Send file to start downloading on the worker
  */
 export async function startFileDownload(file: DownloadAppFile): Promise<void> {
-  if (!file.metadata?.key) {
+  if (!file.key) {
     throw new Error(`File ${file.id} is missing key`)
   }
 
   const transferableFile = {
     ...file,
-    metadata: undefined,
     uploaded_chunks: undefined,
     link: undefined
   }
@@ -55,8 +52,7 @@ export async function startFileDownload(file: DownloadAppFile): Promise<void> {
     type: 'download-file',
     apiTransfer,
     message: {
-      transferableFile,
-      metadataJson: file.metadata.toJson()
+      transferableFile
     } as DownloadFileMessage
   })
 }

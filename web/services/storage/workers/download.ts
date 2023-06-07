@@ -2,7 +2,7 @@ import type Api from '../../api'
 import * as cryptfns from '../../cryptfns'
 import * as logger from '!/logger'
 
-import type { DownloadProgressFunction, ListAppFile } from 'types'
+import type { DownloadProgressFunction, AppFile } from 'types'
 
 /**
  * Create readable stream from downloading chunks and stream them
@@ -10,11 +10,15 @@ import type { DownloadProgressFunction, ListAppFile } from 'types'
  */
 export async function downloadAndDecryptStream(
   api: Api,
-  file: ListAppFile,
+  file: AppFile,
   progress: DownloadProgressFunction
 ): Promise<Response> {
   if (!file.size) {
     throw new Error('Cannot download file without known size')
+  }
+
+  if (!file.key) {
+    throw new Error('Cannot download file without key')
   }
 
   const chunkSize = Math.floor(file.size / file.chunks)
@@ -49,7 +53,7 @@ export async function downloadAndDecryptStream(
     }
 
     if (temp.byteLength === chunkSize) {
-      const d = await cryptfns.aes.decrypt(temp, file.metadata?.key as Uint8Array)
+      const d = await cryptfns.aes.decrypt(temp, file.key)
       const tg4D = new Uint8Array(decrypted.length + d.length)
       tg4D.set(decrypted, 0)
       tg4D.set(d, decrypted.length)
@@ -68,7 +72,7 @@ export async function downloadAndDecryptStream(
   }
 
   if (temp.byteLength !== 0) {
-    const d = await cryptfns.aes.decrypt(temp, file.metadata?.key as Uint8Array)
+    const d = await cryptfns.aes.decrypt(temp, file.key)
     const tg4D = new Uint8Array(decrypted.length + d.length)
     tg4D.set(decrypted, 0)
     tg4D.set(d, decrypted.length)
@@ -81,7 +85,7 @@ export async function downloadAndDecryptStream(
 /**
  * Get the file download response
  */
-async function getResponse(api: Api, file: ListAppFile | number): Promise<Response> {
+async function getResponse(api: Api, file: AppFile | number): Promise<Response> {
   const id = typeof file === 'number' ? file : file.id
 
   return await api.download(`/api/storage/${id}`)

@@ -4,7 +4,7 @@ import PuppyLoader from '../ui/PuppyLoader.vue'
 import { computed } from 'vue'
 
 const props = defineProps<{
-  config: Parameters<typeof useForm>
+  config: Parameters<typeof useForm> | any
   class?: string
   working?: boolean
   leaveOnSubmit?: boolean

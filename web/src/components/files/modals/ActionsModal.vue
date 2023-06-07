@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import ActionsButtons from '@/components/files/browser/ActionsButtons.vue'
 import DropdownModal from '@/components/ui/DropdownModal.vue'
-import type { ListAppFile } from 'types'
+import type { AppFile } from 'types'
 import { computed } from 'vue'
 
 const props = defineProps<{
-  modelValue: ListAppFile | undefined
+  modelValue: AppFile | undefined
   hideDelete?: boolean
 }>()
 
 const emits = defineEmits<{
-  (event: 'update:modelValue', value: ListAppFile | undefined): void
-  (event: 'remove', file: ListAppFile): void
-  (event: 'link', file: ListAppFile): void
-  (event: 'download', file: ListAppFile): void
-  (event: 'details', file: ListAppFile): void
+  (event: 'update:modelValue', value: AppFile | undefined): void
+  (event: 'remove', file: AppFile): void
+  (event: 'link', file: AppFile): void
+  (event: 'download', file: AppFile): void
+  (event: 'details', file: AppFile): void
 }>()
 
 const file = computed(() => props.modelValue)

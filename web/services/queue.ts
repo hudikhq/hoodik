@@ -9,7 +9,6 @@ import type {
   DownloadCompletedResponseMessage
 } from '../types'
 import { ref } from 'vue'
-import { FileMetadata } from './storage/metadata'
 
 export const store = defineStore('queue', () => {
   const uploading = ref<IntervalType>()
@@ -100,8 +99,6 @@ async function uploadMessage(
   upload: UploadStore,
   response: UploadChunkResponseMessage
 ) {
-  response.transferableFile.metadata = FileMetadata.fromJson(response.metadataJson)
-
   const storedChunks = response.transferableFile.uploaded_chunks?.length || 0
 
   await upload.progress(
@@ -120,8 +117,7 @@ async function handleDownloadProgressMessage(
   download: DownloadStore,
   response: DownloadProgressResponseMessage
 ) {
-  const { transferableFile, metadataJson, chunkBytes, error } = response
-  transferableFile.metadata = FileMetadata.fromJson(metadataJson)
+  const { transferableFile, chunkBytes, error } = response
 
   await download.progress(files, transferableFile, chunkBytes, error)
 }
@@ -131,13 +127,12 @@ async function handleDownloadProgressMessage(
  * in the worker and send it to the browser download.
  */
 async function handleDownloadCompletedMessage(response: DownloadCompletedResponseMessage) {
-  const { transferableFile, metadataJson, blob } = response
-  transferableFile.metadata = FileMetadata.fromJson(metadataJson)
+  const { transferableFile, blob } = response
 
   const url = window.URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = transferableFile.metadata?.name as string
+  anchor.download = transferableFile.name
   anchor.click()
   window.URL.revokeObjectURL(url)
 }

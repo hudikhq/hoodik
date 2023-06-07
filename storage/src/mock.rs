@@ -30,7 +30,9 @@ pub async fn create_file<'ctx>(
             .collect::<Vec<_>>();
 
     let file = CreateFile {
-        encrypted_metadata: Some(name.to_string()),
+        encrypted_key: Some(name.to_string()),
+        encrypted_name: Some(name.to_string()),
+        encrypted_thumbnail: None,
         search_tokens_hashed: Some(search_tokens_hashed),
         mime: mime.map(|m| m.to_string()),
         name_hash: Some(cryptfns::sha256::digest(name.as_bytes())),

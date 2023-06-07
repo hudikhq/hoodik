@@ -37,7 +37,7 @@ const confirmRemoveAll = async () => {
 
     <template v-else v-for="file in Storage.forDelete" :key="file.id">
       <p>
-        Are you sure you want to delete forever '{{ file?.metadata?.name }}'
+        Are you sure you want to delete forever '{{ file?.name }}'
         <span v-if="file?.mime === 'dir'"> directory</span>
         ?
       </p>

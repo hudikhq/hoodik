@@ -29,17 +29,17 @@ export async function uploadChunk(
   chunk: number,
   attempt: number = 0
 ): Promise<UploadAppFile> {
-  if (!file.metadata?.key) {
+  if (!file.key) {
     throw new Error(`File ${file.id} is missing key`)
   }
 
   const encrypted = data
-  // const encrypted = await cryptfns.aes.encrypt(data, file.metadata?.key)
+  // const encrypted = await cryptfns.aes.encrypt(data, file.key)
   // const checksum = await cryptfns.sha256.digest(encrypted)
   const checksum = await cryptfns.wasm.crc16_digest(encrypted)
 
   // Data can be encrypted also on the server, but this method is less secure
-  const key_hex = cryptfns.uint8.toHex(file.metadata.key)
+  const key_hex = cryptfns.uint8.toHex(file.key)
   const query: Query = {
     chunk,
     checksum,
@@ -72,8 +72,10 @@ export async function uploadChunk(
 
     return {
       ...uploaded,
+      key: file.key,
+      name: file.name,
+      thumbnail: file.thumbnail,
       temporaryId: file.temporaryId,
-      metadata: file.metadata,
       file: file.file,
       started_upload_at: file.started_upload_at || utcStringFromLocal()
     }
@@ -93,14 +95,14 @@ export async function uploadChunk(
     if (error.validation?.chunk === 'chunk_already_exists') {
       logger.warn(
         'Sync',
-        `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.file.name}, chunk already exist, skipping...`
+        `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.name}, chunk already exist, skipping...`
       )
       return file
     }
 
     logger.error(
       'Sync',
-      `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.file.name}, either some unexpected error, or too many failed checksum tries, aborting...`,
+      `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.name}, either some unexpected error, or too many failed checksum tries, aborting...`,
       err
     )
 

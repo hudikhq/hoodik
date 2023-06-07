@@ -243,7 +243,7 @@ where
     pub(crate) async fn create(
         &self,
         create_file: files::ActiveModel,
-        encrypted_metadata: &str,
+        encrypted_key: &str,
         hashed_tokens: Vec<String>,
     ) -> AppResult<AppFile> {
         // Check if the file_id is set, if it is, check if the parent is directory
@@ -277,7 +277,7 @@ where
             file_id: ActiveValue::Set(file_id),
             user_id: ActiveValue::Set(self.owner_id),
             is_owner: ActiveValue::Set(true),
-            encrypted_metadata: ActiveValue::Set(encrypted_metadata.to_string()),
+            encrypted_key: ActiveValue::Set(encrypted_key.to_string()),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
             expires_at: ActiveValue::NotSet,
         };

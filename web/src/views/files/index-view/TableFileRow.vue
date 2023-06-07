@@ -5,15 +5,15 @@ import TruncatedSpan from '@/components/ui/TruncatedSpan.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { formatPrettyDate, formatSize } from '!'
 import { mdiDotsVertical } from '@mdi/js'
-import type { ListAppFile } from 'types'
+import type { AppFile } from 'types'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
 const props = defineProps<{
-  file: ListAppFile
-  checkedRows: Partial<ListAppFile>[]
+  file: AppFile
+  checkedRows: Partial<AppFile>[]
   hideDelete?: boolean
   share?: boolean
   hideCheckbox?: boolean
@@ -30,12 +30,13 @@ const props = defineProps<{
 }>()
 
 const emits = defineEmits<{
-  (event: 'actions', file: ListAppFile): void
-  (event: 'details', file: ListAppFile): void
-  (event: 'download', file: ListAppFile): void
-  (event: 'link', file: ListAppFile): void
-  (event: 'remove', file: ListAppFile): void
-  (event: 'select-one', value: boolean, file: ListAppFile): void
+  (event: 'actions', file: AppFile): void
+  (event: 'details', file: AppFile): void
+  (event: 'download', file: AppFile): void
+  (event: 'link', file: AppFile): void
+  (event: 'remove', file: AppFile): void
+  (event: 'select-one', value: boolean, file: AppFile): void
+  (event: 'deselect-all'): void
 }>()
 
 const selectOne = (value: boolean) => {
@@ -60,7 +61,7 @@ const isDir = computed(() => {
 })
 
 const fileName = computed(() => {
-  const name = props.file.metadata?.name || '...'
+  const name = props.file.name || '...'
 
   return props.file.mime === 'dir' ? `${name}/` : name
 })
@@ -116,18 +117,21 @@ const timer = ref()
 const click = () => {
   clicks.value++
   if (clicks.value === 1) {
+    singleClick()
+
     timer.value = setTimeout(() => {
       clicks.value = 0
-      singleClick()
-    }, 200)
-  } else {
-    clearTimeout(timer.value)
+    }, 250)
+  }
+
+  if (clicks.value === 2) {
     clicks.value = 0
+    clearTimeout(timer.value)
     doubleClick()
   }
 }
 
-const singleClick = () => {
+const doubleClick = () => {
   if (isDir.value) {
     router.push({ name: 'files', params: { file_id: props.file.id } })
   } else {
@@ -136,15 +140,16 @@ const singleClick = () => {
 }
 
 const detailsOrPreview = () => {
-  if (props.file.finished_upload_at && props.file.metadata?.thumbnail) {
+  if (props.file.finished_upload_at && props.file.thumbnail) {
     router.push({ name: 'file-preview', params: { id: props.file.id } })
   } else {
     emits('details', props.file)
   }
 }
 
-const doubleClick = () => {
-  checked.value = !checked.value
+const singleClick = () => {
+  emits('deselect-all')
+  selectOne(!checked.value)
 }
 </script>
 
@@ -152,8 +157,7 @@ const doubleClick = () => {
   <div
     class="w-full flex"
     :class="{
-      'bg-greeny-100 dark:bg-greeny-900 hover:bg-greeny-200 hover:dark:bg-greeny-800':
-        props.highlighted,
+      'bg-brownish-50 dark:bg-brownish-700': !!checked,
       [sharedClass]: true
     }"
   >
@@ -168,8 +172,8 @@ const doubleClick = () => {
     >
       <img
         name="thumbnail"
-        v-if="file.metadata?.thumbnail"
-        :src="file.metadata?.thumbnail"
+        v-if="file.thumbnail"
+        :src="file.thumbnail"
         :alt="fileName"
         class="w-6 h-6 mr-2 rounded-md"
       />
@@ -216,10 +220,10 @@ const doubleClick = () => {
         :disabled="!props.file.id"
         :hide-delete="props.hideDelete"
         :share="props.share"
-        @details="(f: ListAppFile) => emits('details', f)"
-        @download="(f: ListAppFile) => emits('download', f)"
-        @link="(f: ListAppFile) => emits('link', f)"
-        @remove="(f: ListAppFile) => emits('remove', f)"
+        @details="(f: AppFile) => emits('details', f)"
+        @download="(f: AppFile) => emits('download', f)"
+        @link="(f: AppFile) => emits('link', f)"
+        @remove="(f: AppFile) => emits('remove', f)"
       />
     </div>
   </div>

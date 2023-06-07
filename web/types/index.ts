@@ -6,7 +6,7 @@ import type { store as queueStore } from '../services/queue'
 import type { store as cryptoStore } from '../services/crypto'
 import type { store as linksStore } from '../services/links'
 import type { store as loginStore } from '../services/auth/login'
-import type { AppFile, ListAppFile, UploadAppFile, DownloadAppFile } from './file'
+import type { AppFile, UploadAppFile, DownloadAppFile } from './file'
 
 export * from './create'
 export * from './cryptfns'
@@ -51,17 +51,11 @@ export interface SingleChunk {
 export type IntervalType = ReturnType<typeof setInterval>
 
 export type UploadProgressFunction = (file: UploadAppFile, done: boolean) => Promise<void>
-export type DownloadProgressFunction = (file: ListAppFile, chunkBytes: number) => Promise<void>
-
-export interface FileMetadataJson {
-  name?: string
-  key?: string
-  [other: string]: any
-}
+export type DownloadProgressFunction = (file: AppFile, chunkBytes: number) => Promise<void>
 
 export interface HelperType {
   decrypt(file: AppFile): Promise<AppFile>
-  decrypt(file: ListAppFile): Promise<ListAppFile>
+  decrypt(file: AppFile): Promise<AppFile>
   decrypt(file: UploadAppFile): Promise<UploadAppFile>
   decrypt(file: DownloadAppFile): Promise<DownloadAppFile>
   [key: string]: any

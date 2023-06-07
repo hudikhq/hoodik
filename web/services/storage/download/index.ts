@@ -1,6 +1,5 @@
 import { meta } from '..'
 import * as sync from './sync'
-import { FileMetadata } from '../metadata'
 import { defineStore } from 'pinia'
 import * as logger from '!/logger'
 
@@ -9,7 +8,7 @@ import type {
   DownloadProgressFunction,
   FilesStore,
   IntervalType,
-  ListAppFile,
+  AppFile,
   QueueStore
 } from '../../../types'
 import type { KeyPair } from 'types'
@@ -96,7 +95,7 @@ export const store = defineStore('download', () => {
     const index = running.value.findIndex((f) => f.id === file.id)
 
     if (index === -1) {
-      logger.debug(`File ${file.metadata?.name} not found in the downloading list, adding...`)
+      logger.debug(`File ${file.name} not found in the downloading list, adding...`)
 
       // File hasn't been found in the downloading list so we add it
       running.value.push(file)
@@ -108,9 +107,7 @@ export const store = defineStore('download', () => {
     // If the file has been finished, we will remove it from the downloading list
     // and move it to the done list
     if (file.downloadedBytes >= (file.size || 0)) {
-      logger.debug(
-        `File ${file.metadata?.name} has finished downloading, pushing to the done list...`
-      )
+      logger.debug(`File ${file.name} has finished downloading, pushing to the done list...`)
 
       file.finished_downloading_at = utcStringFromLocal(new Date())
       done.value.push(file)
@@ -194,7 +191,7 @@ export const store = defineStore('download', () => {
   /**
    * Add new file to the download queue
    */
-  async function push(file: ListAppFile) {
+  async function push(file: AppFile) {
     return waiting.value.push({ ...file, temporaryId: uuidv4() })
   }
 
@@ -235,7 +232,7 @@ export async function download(
   queue: QueueStore,
   progress?: DownloadProgressFunction
 ): Promise<void> {
-  if (!file.metadata?.key) {
+  if (!file.key) {
     throw new Error("File doesn't have a key, cannot decrypt the data, file is unrecoverable")
   }
 
@@ -256,16 +253,12 @@ export async function download(
 /**
  * Get the file and the files content decrypt the file and its content
  */
-export async function get(file: ListAppFile | string, kp: KeyPair): Promise<ListAppFile> {
+export async function get(file: AppFile | string, kp: KeyPair): Promise<AppFile> {
   if (typeof file === 'string') {
     file = await meta.get(kp, file)
   }
 
-  if (!file.metadata && file.encrypted_metadata && kp && kp.input) {
-    file.metadata = await FileMetadata.decrypt(file.encrypted_metadata, kp)
-  }
-
-  if (!file.metadata?.key) {
+  if (!file.key) {
     throw new Error("File doesn't have a key, cannot decrypt the data, file is unrecoverable")
   }
 

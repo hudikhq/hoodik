@@ -95,23 +95,25 @@ const copy = () => {
       </div>
     </div>
     <div :class="wrapperClass">
-      <Field v-model="model" :name="name" v-slot="{ field }">
-        <textarea
-          v-if="textarea"
-          ref="input"
-          v-model="field.value"
-          :id="name"
-          :rows="rows"
-          :cols="cols"
-          @input="update"
-          @change="change"
-          @blur="change"
-          @keyup.enter="update"
-          :class="componentClass"
-          :disabled="disabled || form?.isSubmitting.value"
-        ></textarea>
+      <Field
+        :id="name"
+        :rows="rows"
+        :cols="cols"
+        v-if="textarea"
+        as="textarea"
+        v-model="model"
+        :name="name"
+        :disabled="disabled || form?.isSubmitting.value"
+        ref="input"
+        @input="update"
+        @change="change"
+        @blur="change"
+        @keyup.enter="update"
+        :class="componentClass"
+      >
+      </Field>
+      <Field v-else v-model="model" :name="name" v-slot="{ field }">
         <input
-          v-else
           ref="input"
           :id="name"
           v-bind="field"

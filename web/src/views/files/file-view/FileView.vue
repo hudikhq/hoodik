@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import FileViewInner from './FileViewInner.vue'
 import { useRoute } from 'vue-router'
-import type { FilesStore, KeyPair, ListAppFile } from 'types'
+import type { FilesStore, KeyPair, AppFile } from 'types'
 import { ref, watch } from 'vue'
 
 const props = defineProps<{
@@ -10,10 +10,10 @@ const props = defineProps<{
 }>()
 
 const emits = defineEmits<{
-  (event: 'update:modelValue', value: ListAppFile | undefined): void
-  (event: 'details', file: ListAppFile): void
-  (event: 'download', file: ListAppFile): void
-  (event: 'remove', file: ListAppFile): void
+  (event: 'update:modelValue', value: AppFile | undefined): void
+  (event: 'details', file: AppFile): void
+  (event: 'download', file: AppFile): void
+  (event: 'remove', file: AppFile): void
 }>()
 
 const route = useRoute()

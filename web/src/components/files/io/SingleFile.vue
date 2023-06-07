@@ -43,11 +43,11 @@ const error = computed(() => {
 })
 
 const name = computed<string>(() => {
-  if (!props.file.metadata?.name) {
+  if (!props.file.name) {
     return `${props.file.id}`
   }
 
-  return `${props.file.metadata?.name || props.file.id}`
+  return `${props.file.name || props.file.id}`
 })
 
 const titleText = computed(() => {

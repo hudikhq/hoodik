@@ -4,6 +4,7 @@ import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import { AppForm, AppField, AppButton } from '@/components/form'
 import * as yup from 'yup'
+import { ref } from 'vue'
 
 defineProps<{
   unlockingError?: boolean
@@ -12,7 +13,7 @@ const emits = defineEmits<{
   (event: 'unlock', password: string): void
 }>()
 
-const config = {
+const config = ref({
   initialValues: {
     linkKeyHex: ''
   },
@@ -22,7 +23,7 @@ const config = {
   onSubmit: async (values: { linkKeyHex: string }) => {
     emits('unlock', values.linkKeyHex)
   }
-}
+})
 </script>
 <template>
   <LayoutGuest>

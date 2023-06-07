@@ -14,22 +14,18 @@ use validr::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CreateFile {
-    /// Encrypted metadata of the file, this data should contain
-    /// the file key, name, any form of additional data for
-    /// displaying more information about the file and is
-    /// only accessible in the client apps once the file
-    /// meta is decrypted.
-    ///
-    /// Metadata is encrypted with the users public key,
-    /// and should also contain the unlocking key for the
-    /// file data.
-    pub encrypted_metadata: Option<String>,
-    /// Tokens by which this file will be searchable broken down
-    /// into tokens using the tokenizing methods
-    pub search_tokens_hashed: Option<Vec<String>>,
+    /// File key encrypted with users RSA key
+    pub encrypted_key: Option<String>,
     /// Name of the file hashed so we can guard
     /// against duplicate files in directories
     pub name_hash: Option<String>,
+    /// File name encrypted with the AES file key
+    pub encrypted_name: Option<String>,
+    /// File thumbnail encrypted with the AES file key
+    pub encrypted_thumbnail: Option<String>,
+    /// Tokens by which this file will be searchable broken down
+    /// into tokens using the tokenizing methods
+    pub search_tokens_hashed: Option<Vec<String>>,
     /// Mime type of the file or "dir" for directory
     pub mime: Option<String>,
     /// Total size of the file
@@ -45,8 +41,9 @@ pub struct CreateFile {
 impl Validation for CreateFile {
     fn rules(&self) -> Vec<Rule<Self>> {
         vec![
-            rule_required!(encrypted_metadata),
+            rule_required!(encrypted_key),
             rule_required!(name_hash),
+            rule_required!(encrypted_name),
             rule_required!(mime),
             Rule::new("size", |obj: &CreateFile, error| {
                 let dir_mime = Some("dir".to_string());
@@ -138,6 +135,8 @@ impl CreateFile {
             ActiveModelFile {
                 id: ActiveValue::Set(entity::Uuid::new_v4()),
                 name_hash: ActiveValue::Set(data.name_hash.unwrap()),
+                encrypted_name: ActiveValue::Set(data.encrypted_name.unwrap()),
+                encrypted_thumbnail: ActiveValue::Set(data.encrypted_thumbnail),
                 mime: ActiveValue::Set(data.mime.unwrap()),
                 size: ActiveValue::Set(data.size),
                 chunks: ActiveValue::Set(data.chunks),
@@ -154,7 +153,7 @@ impl CreateFile {
                 created_at: ActiveValue::Set(now),
                 finished_upload_at: ActiveValue::Set(None),
             },
-            data.encrypted_metadata.unwrap(),
+            data.encrypted_key.unwrap(),
             data.search_tokens_hashed.unwrap_or_default(),
         ))
     }

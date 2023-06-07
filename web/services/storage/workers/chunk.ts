@@ -18,22 +18,22 @@ export async function uploadChunk(
   attempt: number
 ): Promise<UploadChunkResponseMessage> {
   try {
-    if (!file.metadata?.key) {
+    if (!file.key) {
       throw new Error(`File ${file.id} is missing key`)
     }
     // const encrypted = data
-    const encrypted = await cryptfns.worker.encrypt(data, file.metadata.key)
+    const encrypted = await cryptfns.worker.encrypt(data, file.key)
     // const checksum = await cryptfns.sha256.digest(encrypted) // this is slower then crc16
     const checksum = await cryptfns.wasm.crc16_digest(encrypted)
     // const checksum = ''
 
     if (!encrypted.byteLength) {
-      throw new Error(`Failed encrypting chunk ${chunk} / ${file.chunks} of ${file.metadata?.name}`)
+      throw new Error(`Failed encrypting chunk ${chunk} / ${file.chunks} of ${file.name}`)
     }
 
     logger.debug(
       'Worker',
-      `Uploading chunk (${encrypted.length} B) ${chunk} / ${file.chunks} of ${file.metadata?.name} - upload attempt ${attempt} (checksum: ${checksum})`
+      `Uploading chunk (${encrypted.length} B) ${chunk} / ${file.chunks} of ${file.name} - upload attempt ${attempt} (checksum: ${checksum})`
     )
 
     const query = {
@@ -59,7 +59,7 @@ export async function uploadChunk(
     // like all the rest of the possible error responses
     if (!response?.body) {
       throw new Error(
-        `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.metadata?.name}, no response body after upload`
+        `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.name}, no response body after upload`
       )
     }
 
@@ -70,7 +70,7 @@ export async function uploadChunk(
 
     // logger.debug(
     //   'Worker',
-    //   `Done uploading chunk (${encrypted.length} B) ${chunk} / ${file.chunks} of ${file.metadata?.name}`
+    //   `Done uploading chunk (${encrypted.length} B) ${chunk} / ${file.chunks} of ${file.name}`
     // )
   } catch (err) {
     const error = err as ErrorResponse<Uint8Array>
@@ -80,7 +80,7 @@ export async function uploadChunk(
     if (error.validation?.checksum && attempt < MAX_UPLOAD_RETRIES) {
       logger.warn(
         'Worker',
-        `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.metadata?.name}, failed checksum, retrying...`
+        `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.name}, failed checksum, retrying...`
       )
       return uploadChunk(api, file, data, chunk, attempt + 1)
     }
@@ -89,12 +89,12 @@ export async function uploadChunk(
     if (error.validation?.chunk === 'chunk_already_exists') {
       logger.warn(
         'Worker',
-        `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.metadata?.name}, chunk already exist, skipping...`
+        `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.name}, chunk already exist, skipping...`
       )
     } else {
       logger.error(
         'Worker',
-        `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.metadata?.name}, either some unexpected error, or too many failed checksum tries, aborting.`,
+        `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.name}, either some unexpected error, or too many failed checksum tries, aborting.`,
         err
       )
 
@@ -105,13 +105,11 @@ export async function uploadChunk(
   const transferableFile = {
     ...file,
     started_upload_at: file.started_upload_at || utcStringFromLocal(),
-    last_progress_at: utcStringFromLocal(),
-    metadata: undefined
+    last_progress_at: utcStringFromLocal()
   }
 
   return {
     transferableFile,
-    metadataJson: file.metadata?.toJson() || null,
     chunk,
     attempt
   }

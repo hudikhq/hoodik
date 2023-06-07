@@ -12,6 +12,7 @@ const props = defineProps<{
 <template>
   <LayoutAuthenticatedWithLoader :clear="props.clear" v-slot="{ authenticated, keypair }">
     <LayoutFileBrowserInner
+      v-if="authenticated"
       :parentId="props.parentId"
       :hideDelete="props.hideDelete"
       :share="props.share"

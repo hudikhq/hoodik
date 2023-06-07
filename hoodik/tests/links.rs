@@ -44,7 +44,9 @@ async fn test_creating_and_downloading_link() {
     assert_eq!(data.len(), size as usize / CHUNK_SIZE_BYTES as usize);
 
     let random_file = storage::data::create_file::CreateFile {
-        encrypted_metadata: Some("encrypted-gibberish".to_string()),
+        encrypted_key: Some("encrypted-gibberish".to_string()),
+        encrypted_name: Some("name".to_string()),
+        encrypted_thumbnail: None,
         search_tokens_hashed: None,
         name_hash: Some(checksum.clone()),
         mime: Some("text/plain".to_string()),

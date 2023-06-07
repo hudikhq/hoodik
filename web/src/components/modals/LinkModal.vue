@@ -13,7 +13,7 @@ import {
   mdiPencil
 } from '@mdi/js'
 import { computed, ref, watch } from 'vue'
-import type { FilesStore, KeyPair, LinksStore, AppLink, ListAppFile } from 'types'
+import type { FilesStore, KeyPair, LinksStore, AppLink, AppFile } from 'types'
 import { formatPrettyDate, formatSize, localDateFromUtcString } from '!/index'
 import PuppyLoader from '@/components/ui/PuppyLoader.vue'
 import * as logger from '!/logger'
@@ -24,14 +24,14 @@ import * as cryptfns from '!/cryptfns'
 const router = useRouter()
 
 const props = defineProps<{
-  modelValue: AppLink | ListAppFile | undefined
+  modelValue: AppLink | AppFile | undefined
   Storage: FilesStore
   Links: LinksStore
   kp: KeyPair
 }>()
 
 const emits = defineEmits<{
-  (event: 'update:modelValue', value: AppLink | ListAppFile | undefined): void
+  (event: 'update:modelValue', value: AppLink | AppFile | undefined): void
 }>()
 
 const loading = ref(false)
@@ -49,9 +49,9 @@ const link = computed((): AppLink | undefined => {
   return undefined
 })
 
-const file = computed((): ListAppFile | undefined => {
-  if (props.modelValue && (props.modelValue as ListAppFile)?.mime) {
-    return props.modelValue as ListAppFile
+const file = computed((): AppFile | undefined => {
+  if (props.modelValue && (props.modelValue as AppFile)?.mime) {
+    return props.modelValue as AppFile
   }
 
   return undefined
@@ -346,7 +346,13 @@ watch(
         </div>
         <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
           <div class="flex flex-col w-full">
-            <AppField name="link" label="Link" v-model="linkUrl" :allow-copy="true" />
+            <AppField
+              v-if="linkUrl"
+              name="link"
+              label="Link"
+              v-model="linkUrl"
+              :allow-copy="true"
+            />
           </div>
         </div>
       </div>
