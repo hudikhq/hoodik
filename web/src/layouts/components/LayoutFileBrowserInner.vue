@@ -161,7 +161,8 @@ watch(
       'remove-all': removeAll,
       'select-one': Storage.selectOne,
       'select-all': Storage.selectAll,
-      'deselect-all': Storage.deselectAll
+      'deselect-all': Storage.deselectAll,
+      'set-sort-simple': Storage.setSortSimple
     }"
   />
 </template>

@@ -4,6 +4,7 @@ import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import TableFileRowWatcher from './TableFileRowWatcher.vue'
 import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import SortableName from '@/components/ui/SortableName.vue'
 import { computed, ref, watch } from 'vue'
 import type { AppFile } from 'types'
 
@@ -19,6 +20,7 @@ const props = defineProps<{
   share?: boolean
   showActions?: boolean
   loading?: boolean
+  sortOptions: { parameter: string; order: string }
 }>()
 
 const emits = defineEmits<{
@@ -33,6 +35,7 @@ const emits = defineEmits<{
   (event: 'select-one', select: boolean, file: AppFile): void
   (event: 'select-all', files: AppFile[], fileId: string | null | undefined): void
   (event: 'deselect-all'): void
+  (event: 'set-sort-simple', value: string): void
 }>()
 
 const checked = ref(false)
@@ -55,34 +58,6 @@ const showDeleteAll = computed(() => {
   return (checked.value || checkedRows.value.length > 0) && !props.hideDelete
 })
 
-const items = computed(() => {
-  const directories = props.items.filter((item) => {
-    if (item.mime !== 'dir') {
-      return false
-    }
-
-    if (props.dir) {
-      return item.file_id === props.dir.id
-    }
-
-    return item.file_id === null
-  })
-
-  const files = props.items.filter((item) => {
-    if (item.mime === 'dir') {
-      return false
-    }
-
-    if (props.dir) {
-      return item.file_id === props.dir.id
-    }
-
-    return item.file_id === null
-  })
-
-  return [...directories, ...files]
-})
-
 watch(
   () => checkedRows.value,
   (value) => {
@@ -96,11 +71,7 @@ watch(
   () => checked.value,
   (value) => {
     if (value) {
-      emits(
-        'select-all',
-        items.value.filter((item) => item.file_id === dirId.value),
-        dirId.value
-      )
+      emits('select-all', props.items, dirId.value)
     } else {
       emits('select-all', [], dirId.value)
     }
@@ -111,11 +82,10 @@ const borderClass = 'sm:border-l-2 sm:border-brownish-50 sm:dark:border-brownish
 
 const sizes = {
   checkbox: 'pl-2 pt-3 w-10',
-  name: 'w-10/12 p-2 pt-3 sm:w-7/12 xl:w-6/12 flex',
+  name: 'w-10/12 p-2 pt-3 sm:w-7/12 xl:w-7/12 flex',
   size: 'hidden p-2 pt-3 md:block md:w-2/12 xl:w-1/12',
   type: 'hidden p-2 pt-3 xl:block xl:w-1/12',
-  createdAt: 'hidden p-2 pt-3 sm:block sm:w-4/12 lg:w-3/12 xl:w-2/12',
-  uploadedAt: 'hidden p-2 pt-3 xl:block xl:w-1/12',
+  modifiedAt: 'hidden p-2 pt-3 sm:block sm:w-4/12 lg:w-3/12 xl:w-2/12',
   buttons: 'w-2/12 p-2 sm:w-1/12'
 }
 </script>
@@ -162,23 +132,39 @@ const sizes = {
     </div>
 
     <div :class="`${sizes.name}`">
-      <span>Name</span>
+      <SortableName
+        name="name"
+        label="Name"
+        :sort-options="sortOptions"
+        @sort="(v: string) => emits('set-sort-simple', v)"
+      />
     </div>
 
     <div :class="`${sizes.size} ${borderClass}`">
-      <span>Size</span>
+      <SortableName
+        name="size"
+        label="Size"
+        :sort-options="sortOptions"
+        @sort="(v: string) => emits('set-sort-simple', v)"
+      />
     </div>
 
     <div :class="`${sizes.type} ${borderClass}`">
-      <span>Type</span>
+      <SortableName
+        name="mime"
+        label="Type"
+        :sort-options="sortOptions"
+        @sort="(v: string) => emits('set-sort-simple', v)"
+      />
     </div>
 
-    <div :class="`${sizes.createdAt} ${borderClass}`">
-      <span>Created</span>
-    </div>
-
-    <div :class="`${sizes.uploadedAt} ${borderClass}`">
-      <span>Uploaded</span>
+    <div :class="`${sizes.modifiedAt} ${borderClass}`">
+      <SortableName
+        name="file_created_at"
+        label="Modified"
+        :sort-options="sortOptions"
+        @sort="(v: string) => emits('set-sort-simple', v)"
+      />
     </div>
 
     <div :class="`${sizes.buttons}`"></div>
@@ -193,7 +179,7 @@ const sizes = {
     </span>
   </div>
   <div v-else class="flex flex-col rounded-b-lg">
-    <template v-for="file in items" :key="file.id">
+    <template v-for="file in props.items" :key="file.id">
       <TableFileRowWatcher
         :file="file"
         :sizes="sizes"
