@@ -77,7 +77,7 @@ export const store = defineStore('files', () => {
   /**
    * Currently selected directory id
    */
-  const fileId = ref<string | null>(null)
+  const fileId = ref<string | undefined>()
 
   /**
    * Last error message that happened when trying to
@@ -115,7 +115,7 @@ export const store = defineStore('files', () => {
   const parents = computed<AppFile[]>(() => {
     const p: AppFile[] = []
 
-    const f = (id: string | null) => {
+    const f = (id: string | undefined) => {
       const i = _items.value.find((item) => item.id === id)
 
       if (i) {
@@ -178,7 +178,11 @@ export const store = defineStore('files', () => {
   /**
    * Head over to backend and do a lookup for the current directory
    */
-  async function find(kp: KeyPair, parentId: string | null, showLoading = true): Promise<void> {
+  async function find(
+    kp: KeyPair,
+    parentId: string | undefined,
+    showLoading = true
+  ): Promise<void> {
     error.value = null
 
     let query = parameters.value
@@ -331,15 +335,7 @@ export const store = defineStore('files', () => {
    * Load file metadata, use the inner storage if the file is found, if not, fetch it from the backend
    */
   async function metadata(id: string, kp: KeyPair): Promise<AppFile> {
-    const item = getItem(id)
-
-    if (!item) {
-      const item = await meta.get(kp, id)
-
-      addItem(item)
-    }
-
-    return item as AppFile
+    return meta.get(kp, id)
   }
 
   /**

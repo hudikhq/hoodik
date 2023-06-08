@@ -29,7 +29,7 @@ const init = () => {
       try {
         await props.Storage.createDir(props.Crypto.keypair, values.name, props.Storage.dir?.id)
         ctx.resetForm()
-        props.Storage.find(props.Crypto.keypair, props.Storage.dir?.id || null)
+        props.Storage.find(props.Crypto.keypair, props.Storage.dir?.id || undefined)
         emit('confirm')
         emit('update:modelValue', false)
       } catch (err) {

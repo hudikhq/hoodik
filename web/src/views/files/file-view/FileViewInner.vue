@@ -6,13 +6,17 @@ import {
   mdiClose,
   mdiPlus,
   mdiMinus,
-  mdiInformationSlabCircleOutline
+  mdiInformationSlabCircleOutline,
+  mdiArrowLeft,
+  mdiArrowRight
 } from '@mdi/js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import type { FilesStore, KeyPair, AppFile } from 'types'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const props = defineProps<{
   modelValue: AppFile
@@ -28,7 +32,50 @@ const emits = defineEmits<{
   (event: 'details', file: AppFile): void
 }>()
 
-const router = useRouter()
+/**
+ * Items that have a preview capability so we can
+ * figure out what would be previous and what would be next item
+ */
+const items = computed<AppFile[]>(() => {
+  if (!props.modelValue) return []
+
+  return props.Storage.items.filter((item) => {
+    return !!item.thumbnail
+  })
+})
+
+const index = computed(() => {
+  return items.value.findIndex((item) => item.id === props.modelValue?.id)
+})
+
+const total = computed(() => {
+  return items.value.length
+})
+
+const previousId = computed(() => {
+  if (index.value === -1 && !total.value) return null
+
+  const previousIndex = index.value - 1
+
+  if (previousIndex < 0) {
+    return items.value[total.value - 1].id
+  }
+
+  return items.value[previousIndex].id
+})
+
+const nextId = computed(() => {
+  if (index.value === -1 && !total.value) return null
+
+  const nextIndex = index.value + 1
+
+  if (nextIndex >= total.value) {
+    return items.value[0].id
+  }
+
+  return items.value[nextIndex].id
+})
+
 const container = ref()
 const imageUrl = ref<string>()
 const imageW = ref(0)
@@ -246,6 +293,32 @@ onUnmounted(() => {
       </div>
       <div class="float-left space-x-4 p-4">
         <h1>{{ file.name }}</h1>
+      </div>
+    </div>
+
+    <div class="absolute top-12 w-full">
+      <div class="flex justify-center space-x-4 p-4" v-if="hasPreview">
+        <BaseButton
+          :disabled="!previousId"
+          color="dark"
+          :icon="mdiArrowLeft"
+          small
+          title="Previous image"
+          :to="{ name: 'file-preview', params: { id: previousId } }"
+        />
+        <span
+          class="inline-flex justify-center items-center whitespace-nowrap transition-colors p-1"
+        >
+          {{ index + 1 }} / {{ total }}
+        </span>
+        <BaseButton
+          :disabled="!nextId"
+          color="dark"
+          :icon="mdiArrowRight"
+          small
+          title="Next image"
+          :to="{ name: 'file-preview', params: { id: nextId } }"
+        />
       </div>
     </div>
 
