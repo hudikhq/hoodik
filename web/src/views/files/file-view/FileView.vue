@@ -27,9 +27,18 @@ watch(
     const fileId = Array.isArray(id) ? id[0] : id
 
     file.value = await props.Storage.metadata(fileId, props.kp)
+
+    props.Storage.deselectAll()
+    props.Storage.selectOne(true, file.value)
   },
   { immediate: true }
 )
+
+watch(file, async (f: AppFile) => {
+  if (!f) return
+
+  await props.Storage.find(props.kp, f.file_id)
+})
 </script>
 <template>
   <FileViewInner

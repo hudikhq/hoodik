@@ -26,7 +26,7 @@ const props = defineProps<{
 const route = useRoute()
 const parentId = computed(() => {
   if (!route.params.file_id) {
-    return null
+    return undefined
   }
 
   return `${route.params.file_id}`
