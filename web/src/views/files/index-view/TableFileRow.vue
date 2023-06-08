@@ -23,8 +23,7 @@ const props = defineProps<{
     name: string
     size: string
     type: string
-    createdAt: string
-    uploadedAt: string
+    modifiedAt: string
     buttons: string
   }
 }>()
@@ -70,7 +69,7 @@ const fileSize = computed(() => {
   return props.file.size ? formatSize(props.file.size) : ''
 })
 
-const fileCreatedAt = computed(() => {
+const fileModifiedAt = computed(() => {
   return props.file.file_created_at ? formatPrettyDate(props.file.file_created_at) : ''
 })
 
@@ -86,10 +85,6 @@ const progressValue = computed(() => {
   return Math.ceil(progress * 100)
 })
 
-const fileFinishedUploadAt = computed(() => {
-  return props.file.finished_upload_at ? formatPrettyDate(props.file.finished_upload_at) : ''
-})
-
 const sharedClass = computed(() => {
   return 'dark:bg-brownish-900 hover:bg-dirty-white hover:dark:bg-brownish-700'
 })
@@ -101,8 +96,7 @@ const sizes = computed(() => {
     name: `${props.sizes.name}`,
     size: `${border} ${props.sizes.size}`,
     type: `${border} ${props.sizes.type}`,
-    createdAt: `${border} ${props.sizes.createdAt}`,
-    uploadedAt: `${border} ${props.sizes.uploadedAt}`,
+    modifiedAt: `${border} ${props.sizes.modifiedAt}`,
     buttons: `${props.sizes.buttons} text-right`
   }
 })
@@ -189,12 +183,8 @@ const singleClick = () => {
       <TruncatedSpan :text="props.file.mime" />
     </div>
 
-    <div :class="sizes.createdAt" :title="props.file.file_created_at">
-      <TruncatedSpan :text="fileCreatedAt" />
-    </div>
-
-    <div :class="sizes.uploadedAt">
-      <TruncatedSpan v-if="props.file.finished_upload_at" :text="fileFinishedUploadAt" />
+    <div :class="sizes.modifiedAt" :title="props.file.file_created_at">
+      <TruncatedSpan v-if="props.file.file_created_at" :text="fileModifiedAt" />
       <progress
         class="self-center w-full"
         :max="100"

@@ -10,10 +10,8 @@ describe('Testing links', () => {
     const link = await links.meta.createLinkFromFile(
       {
         id: '123',
-        metadata: {
-          name: 'test',
-          key: file_key
-        }
+        name: 'test',
+        key: file_key
       },
       kp
     )
@@ -31,10 +29,8 @@ describe('Testing links', () => {
     const link = await links.meta.createLinkFromFile(
       {
         id: '123',
-        metadata: {
-          name: 'test',
-          key: file_key
-        }
+        name: 'test',
+        key: file_key
       },
       kp
     )

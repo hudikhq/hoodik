@@ -16,8 +16,7 @@ const props = defineProps<{
     name: string
     size: string
     type: string
-    createdAt: string
-    uploadedAt: string
+    modifiedAt: string
     buttons: string
   }
 }>()

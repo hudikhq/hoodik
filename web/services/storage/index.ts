@@ -6,6 +6,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import * as cryptfns from '../cryptfns'
 import { utcStringFromLocal, uuidv4 } from '..'
+import { useStorage } from '@vueuse/core'
 
 import type {
   AppFile,
@@ -17,6 +18,25 @@ import type {
 } from 'types'
 
 export { meta, upload, download, queue }
+
+/**
+ * Run sort operations on the given items by the given parameter
+ * The results are always in ASC, if you need DESC, just reverse the array
+ */
+function innerSort(items: AppFile[], parameter: string): AppFile[] {
+  return items.sort((a, b) => {
+    // @ts-ignore
+    const aValue = a[parameter] || ''
+    // @ts-ignore
+    const bValue = b[parameter] || ''
+
+    if (typeof aValue === 'number' && typeof bValue === 'number') {
+      return aValue - bValue
+    }
+
+    return aValue.localeCompare(bValue)
+  })
+}
 
 export const store = defineStore('files', () => {
   /**
@@ -47,7 +67,12 @@ export const store = defineStore('files', () => {
   /**
    * All the items regardless of the current directory
    */
-  const items = ref<AppFile[]>([])
+  const _items = ref<AppFile[]>([])
+
+  /**
+   * Persistent storage of the sort options
+   */
+  const sort = useStorage<{ [key: string]: string }>('dir-sort', {})
 
   /**
    * Currently selected directory id
@@ -61,10 +86,27 @@ export const store = defineStore('files', () => {
   const error = ref<string | null>(null)
 
   /**
+   * Files selected to be deleted from various places
+   */
+  const forDelete = ref<AppFile[]>([])
+
+  /**
+   * Current dir sort options
+   */
+  const sortOptions = computed<{ parameter: string; order: string }>(() => {
+    const [parameter, order] = getSort(fileId.value || 'root').split('|')
+
+    return {
+      parameter,
+      order
+    }
+  })
+
+  /**
    * Currently selected directory
    */
   const dir = computed<AppFile | null>(() => {
-    return items.value.find((item) => item.mime === 'dir' && item.id === fileId.value) || null
+    return _items.value.find((item) => item.mime === 'dir' && item.id === fileId.value) || null
   })
 
   /**
@@ -74,7 +116,7 @@ export const store = defineStore('files', () => {
     const p: AppFile[] = []
 
     const f = (id: string | null) => {
-      const i = items.value.find((item) => item.id === id)
+      const i = _items.value.find((item) => item.id === id)
 
       if (i) {
         p.push(i)
@@ -91,6 +133,49 @@ export const store = defineStore('files', () => {
   })
 
   /**
+   * Items filtered for the given directory and sorted by the sort options
+   */
+  const items = computed<AppFile[]>(() => {
+    const [parameter, order] = getSort(fileId.value || 'root').split('|')
+
+    const directories = innerSort(
+      _items.value.filter((item) => {
+        if (item.mime !== 'dir') {
+          return false
+        }
+
+        if (fileId.value) {
+          return item.file_id === fileId.value
+        }
+
+        return item.file_id === null
+      }),
+      parameter
+    )
+
+    const files = innerSort(
+      _items.value.filter((item) => {
+        if (item.mime === 'dir') {
+          return false
+        }
+
+        if (fileId.value) {
+          return item.file_id === fileId.value
+        }
+
+        return item.file_id === null
+      }),
+      parameter
+    )
+
+    if (order === 'desc') {
+      return [...directories.reverse(), ...files.reverse()]
+    }
+
+    return [...directories, ...files]
+  })
+
+  /**
    * Head over to backend and do a lookup for the current directory
    */
   async function find(kp: KeyPair, parentId: string | null, showLoading = true): Promise<void> {
@@ -102,6 +187,8 @@ export const store = defineStore('files', () => {
     } else {
       delete query.dir_id
     }
+
+    fileId.value = parentId
 
     let response: FileResponse = { children: [], parents: [] }
     loading.value = showLoading
@@ -124,7 +211,6 @@ export const store = defineStore('files', () => {
       await replaceItem(item, kp)
     })
 
-    fileId.value = parentId
     loading.value = false
   }
 
@@ -174,51 +260,51 @@ export const store = defineStore('files', () => {
    * Get copy of the item from the list
    */
   function getItem(id: string): AppFile | null {
-    const index = items.value.findIndex((item) => item.id === id)
+    const index = _items.value.findIndex((item) => item.id === id)
 
-    return items.value[index] || null
+    return _items.value[index] || null
   }
 
   /**
    * Remove item from the list
    */
   function takeItem(id: string): AppFile | null {
-    const index = items.value.findIndex((item) => item.id === id)
-    return items.value.slice(index, 1)[0] || null
+    const index = _items.value.findIndex((item) => item.id === id)
+    return _items.value.slice(index, 1)[0] || null
   }
 
   /**
    * Remove item from the list
    */
   function hasItem(id: string, file_id: string | null): boolean {
-    return items.value.findIndex((item) => item.id === id && item.file_id === file_id) !== -1
+    return _items.value.findIndex((item) => item.id === id && item.file_id === file_id) !== -1
   }
 
   /**
    * Update existing item in the list
    */
   function updateItem(file: AppFile) {
-    const index = items.value.findIndex((item) => item.id === file.id)
+    const index = _items.value.findIndex((item) => item.id === file.id)
 
     if (index === -1) {
       return
     }
 
-    items.value.splice(index, 1, file)
+    _items.value.splice(index, 1, file)
   }
 
   /**
    * Add new item to the list
    */
   function addItem(item: AppFile): void {
-    items.value.push(item)
+    _items.value.push(item)
   }
 
   /**
    * Remove item from the list
    */
   function removeItem(id: string): void {
-    items.value = items.value.filter((item) => item.id !== id)
+    _items.value = _items.value.filter((item) => item.id !== id)
     forDelete.value = forDelete.value.filter((item) => item.id !== id)
   }
 
@@ -288,11 +374,6 @@ export const store = defineStore('files', () => {
   }
 
   /**
-   * Files selected to be deleted from various places
-   */
-  const forDelete = ref<AppFile[]>([])
-
-  /**
    * Add single file to select list
    */
   function selectOne(select: boolean, file: AppFile) {
@@ -339,6 +420,29 @@ export const store = defineStore('files', () => {
     await find(kp, fileId.value)
   }
 
+  /**
+   * Set the sort value for a given directory
+   */
+  function setSort(dir: string, parameter: string, order: 'asc' | 'desc'): void {
+    sort.value[dir] = `${parameter}|${order}`
+  }
+
+  /**
+   * Simple version of sort that can be used in the UI
+   */
+  function setSortSimple(value: string): void {
+    const [parameter, order] = value.split('|')
+
+    setSort(fileId.value || 'root', parameter, order as 'asc' | 'desc')
+  }
+
+  /**
+   * Get the sort value for given directory
+   */
+  function getSort(dir: string): string {
+    return sort.value[dir] || 'name|desc'
+  }
+
   return {
     dir,
     parents,
@@ -347,9 +451,11 @@ export const store = defineStore('files', () => {
     items,
     parameters,
     forDelete,
+    sortOptions,
     addItem,
     createDir,
     decryptItem,
+    setSortSimple,
     find,
     get,
     getItem,
@@ -364,7 +470,9 @@ export const store = defineStore('files', () => {
     selectOne,
     takeItem,
     updateItem,
-    upsertItem
+    upsertItem,
+    setSort,
+    getSort
   }
 })
 

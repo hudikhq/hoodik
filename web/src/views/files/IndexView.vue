@@ -87,6 +87,7 @@ watch(fileId, (v) => {
         :for-delete="Storage.forDelete"
         :parents="Storage.parents"
         :items="Storage.items"
+        :sortOptions="Storage.sortOptions"
         :dir="Storage.dir || null"
         :hide-checkbox="false"
         :hide-delete="false"
