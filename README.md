@@ -77,7 +77,7 @@ docker run --name hoodik -it -d \
 -e SMTP_DEFAULT_FROM='Hoodik Drive <email@gmail.com>' \
 --volume "$(pwd)/data:/data" \
 -p 4554:5443 \
-htunlogic/hoodik:latest
+hudik/hoodik:latest
 ```
 
 # Database
