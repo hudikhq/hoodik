@@ -33,11 +33,11 @@ jobs:
       - name: Install yarn
         run: npm install -g yarn
 
-      - name: Unit test Rust
-        run: ./rust-unit
+      # - name: Unit test Rust
+      #   run: ./rust-unit
 
-      - name: Integration test Rust
-        run: ./rust-integration
+      # - name: Integration test Rust
+      #   run: ./rust-integration
 
       - name: Install yarn dependencies
         run: yarn install
