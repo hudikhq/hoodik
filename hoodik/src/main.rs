@@ -13,11 +13,13 @@ async fn main() -> AppResult<()> {
     }));
 
     // Initialize the configuration of the app
-    let config = Config::new(
+    let mut config = Config::new(
         "My app",
         env!("CARGO_PKG_VERSION"),
         "This is a first try at a drive app",
     );
+
+    config.app.ensure_data_dir(None);
 
     config.announce();
 

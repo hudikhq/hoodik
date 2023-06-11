@@ -11,7 +11,7 @@ use crate::helpers::{create_byte_chunks, CHUNK_SIZE_BYTES};
 
 #[actix_web::test]
 async fn test_creating_and_downloading_link() {
-    let context = context::Context::mock_sqlite().await;
+    let context = context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
 
     let private = cryptfns::rsa::private::generate().unwrap();
     let public = cryptfns::rsa::public::from_private(&private).unwrap();
@@ -168,4 +168,6 @@ async fn test_creating_and_downloading_link() {
 
     assert!(file.link.is_some());
     assert_eq!(file.link.unwrap().id, link.id);
+
+    context.config.app.cleanup();
 }

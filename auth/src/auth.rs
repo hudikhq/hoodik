@@ -186,8 +186,8 @@ impl<'ctx> Auth<'ctx> {
         user_agent: &str,
         ip: &str,
     ) -> AppResult<sessions::Model> {
-        let expires_at =
-            Utc::now() + Duration::seconds(self.context.config.short_term_session_duration_seconds);
+        let expires_at = Utc::now()
+            + Duration::seconds(self.context.config.auth.short_term_session_duration_seconds);
 
         let id = entity::Uuid::new_v4();
 
@@ -221,7 +221,7 @@ impl<'ctx> Auth<'ctx> {
         session: &sessions::Model,
     ) -> AppResult<Authenticated> {
         let expires_at = Utc::now().naive_utc()
-            + Duration::seconds(self.context.config.short_term_session_duration_seconds);
+            + Duration::seconds(self.context.config.auth.short_term_session_duration_seconds);
 
         let active_model = sessions::ActiveModel {
             id: ActiveValue::Set(session.id),
@@ -285,16 +285,18 @@ impl<'ctx> Auth<'ctx> {
 
         let jwt = match destroy {
             true => "destroyed".to_string(),
-            false => crate::jwt::generate(authenticated, issuer, &self.context.config.jwt_secret)?,
+            false => {
+                crate::jwt::generate(authenticated, issuer, &self.context.config.auth.jwt_secret)?
+            }
         };
 
         let jwt = self.make_cookie(
-            Cookie::build(self.context.config.get_session_cookie(), jwt).path("/"),
+            Cookie::build(self.context.config.auth.session_cookie.clone(), jwt).path("/"),
             destroy,
         )?;
 
         let refresh = self.make_cookie(
-            Cookie::build(self.context.config.get_refresh_cookie(), refresh)
+            Cookie::build(self.context.config.auth.refresh_cookie.clone(), refresh)
                 .path(crate::REFRESH_PATH),
             destroy,
         )?;
@@ -309,21 +311,21 @@ impl<'ctx> Auth<'ctx> {
         destroy: bool,
     ) -> AppResult<Cookie<'static>> {
         let mut cookie = cookie
-            .secure(self.context.config.cookie_secure)
-            .http_only(self.context.config.cookie_http_only)
+            .secure(self.context.config.auth.cookie_secure)
+            .http_only(self.context.config.auth.cookie_http_only)
             .finish();
 
-        cookie.set_domain(self.context.config.get_cookie_domain());
+        cookie.set_domain(self.context.config.auth.cookie_domain.clone());
 
         if destroy {
             cookie.set_expires(OffsetDateTime::from_unix_timestamp(0).unwrap());
         } else {
-            let timestamp =
-                Utc::now() + Duration::days(self.context.config.long_term_session_duration_days);
+            let timestamp = Utc::now()
+                + Duration::days(self.context.config.auth.long_term_session_duration_days);
             cookie.set_expires(OffsetDateTime::from_unix_timestamp(timestamp.timestamp()).unwrap());
         }
 
-        match self.context.config.cookie_same_site.as_ref() {
+        match self.context.config.auth.cookie_same_site.as_ref() {
             "Lax" => cookie.set_same_site(SameSite::Lax),
             "Strict" => cookie.set_same_site(SameSite::Strict),
             _ => cookie.set_same_site(SameSite::None),

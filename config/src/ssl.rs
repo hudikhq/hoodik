@@ -7,33 +7,50 @@ use std::{
     io::{BufReader, Write},
 };
 
-use crate::Config;
+use crate::{app::AppConfig, vars::Vars};
 
-pub trait SslConfig {
-    /// Build a rustls server config from the provided cert and key files through the environment
-    fn build_rustls_config(&self) -> AppResult<ServerConfig>;
+#[derive(Debug, Clone)]
+pub struct SslConfig {
+    /// SSL_CERT_FILE: Location of the ssl cert file, this will be loaded and setup on to the server
+    /// if you don't provide this, the server will generate a self signed certificate
+    /// and place them in the /tmp directory. This is not recommended for production.
+    ///
+    /// *optional*
+    ///
+    /// default: DATA_DIR/hoodik.crt.pem
+    pub cert_file: String,
 
-    /// Attempt to load the cert and key files from the environment, if they don't exist, generate them
-    fn load_or_generate(&self) -> AppResult<(File, File)>;
-
-    /// Use rcgen to generate a simple self signed certificate and key
-    fn generate_simple_self_signed(
-        &self,
-        subject_alt_names: Vec<String>,
-    ) -> AppResult<(String, String)> {
-        let cert = generate_simple_self_signed(subject_alt_names)?;
-
-        Ok((cert.serialize_pem()?, cert.serialize_private_key_pem()))
-    }
+    /// SSL_KEY_FILE: Location of the ssl key file, this will be loaded and setup on to the server
+    /// if you don't provide this, the server will generate a self signed certificate
+    /// and place them in the /tmp directory. This is not recommended for production.
+    ///
+    /// *optional*
+    ///
+    /// default: DATA_DIR/hoodik.key.pem
+    pub key_file: String,
 }
 
-impl SslConfig for Config {
-    fn build_rustls_config(&self) -> AppResult<ServerConfig> {
+impl SslConfig {
+    pub(crate) fn new(app: &AppConfig, vars: &mut Vars) -> Self {
+        let cert_file =
+            vars.var_default("SSL_CERT_FILE", format!("{}/hoodik.crt.pem", app.data_dir));
+        let key_file = vars.var_default("SSL_KEY_FILE", format!("{}/hoodik.key.pem", app.data_dir));
+
+        vars.panic_if_errors("SslConfig");
+
+        Self {
+            cert_file: cert_file.get(),
+            key_file: key_file.get(),
+        }
+    }
+
+    /// Build a rustls server config from the provided cert and key files through the environment
+    pub fn build_rustls_config(&self, names: Vec<String>) -> AppResult<ServerConfig> {
         let config = ServerConfig::builder()
             .with_safe_defaults()
             .with_no_client_auth();
 
-        let (cert_file, key_file) = self.load_or_generate()?;
+        let (cert_file, key_file) = self.load_or_generate(names)?;
 
         let cert_file = &mut BufReader::new(cert_file);
         let key_file = &mut BufReader::new(key_file);
@@ -49,26 +66,37 @@ impl SslConfig for Config {
             .map_err(Error::from)
     }
 
-    fn load_or_generate(&self) -> AppResult<(File, File)> {
-        let cert_file = open_file(&self.ssl_cert_file);
-        let key_file = open_file(&self.ssl_key_file);
+    /// Take the set file names for ssl cert and key, try to load them, if they don't exist, generate them
+    fn load_or_generate(&self, names: Vec<String>) -> AppResult<(File, File)> {
+        let cert_file = open_file(&self.cert_file);
+        let key_file = open_file(&self.key_file);
 
         match (cert_file, key_file) {
             (Some(cert_file), Some(key_file)) => Ok((cert_file, key_file)),
             (None, None) | (Some(_), None) | (None, Some(_)) => {
-                let (cert, key) = self.generate_simple_self_signed(vec![self.address.clone()])?;
+                let (cert, key) = self.generate_simple_self_signed(names)?;
 
-                let mut cert_file = File::create(&self.ssl_cert_file)?;
+                let mut cert_file = File::create(&self.cert_file)?;
                 cert_file.write_all(&cert.into_bytes())?;
-                cert_file = File::open(&self.ssl_cert_file)?;
+                cert_file = File::open(&self.cert_file)?;
 
-                let mut key_file = File::create(&self.ssl_key_file)?;
+                let mut key_file = File::create(&self.key_file)?;
                 key_file.write_all(&key.into_bytes())?;
-                key_file = File::open(&self.ssl_key_file)?;
+                key_file = File::open(&self.key_file)?;
 
                 Ok((cert_file, key_file))
             }
         }
+    }
+
+    /// Use rcgen to generate a simple self signed certificate and key
+    fn generate_simple_self_signed(
+        &self,
+        subject_alt_names: Vec<String>,
+    ) -> AppResult<(String, String)> {
+        let cert = generate_simple_self_signed(subject_alt_names)?;
+
+        Ok((cert.serialize_pem()?, cert.serialize_private_key_pem()))
     }
 }
 
