@@ -77,7 +77,7 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub(crate) fn new(vars: &mut Vars) -> Self {
-        let data_dir = vars.var::<String>("DATA_DIR");
+        let data_dir = vars.var_default::<String>("DATA_DIR", "".to_string());
         let database_url = vars.maybe_var("DATABASE_URL");
         let address = vars
             .var_default("HTTP_ADDRESS", "localhost".to_string())
@@ -99,7 +99,7 @@ impl AppConfig {
         Self {
             port,
             address,
-            data_dir: ensure_data_dir(data_dir.get()),
+            data_dir: data_dir.get(),
             database_url: database_url.maybe_get(),
             name: name.get(),
             version: version.get(),
@@ -107,6 +107,45 @@ impl AppConfig {
             client_url,
         }
         .set_env()
+    }
+
+    /// Cleanup the data directory
+    #[cfg(feature = "mock")]
+    pub fn cleanup(&self) {
+        log::debug!("Trying to cleanup the data directory: {}", &self.data_dir);
+
+        match fs::remove_dir_all(&self.data_dir) {
+            Ok(_) => (),
+            Err(_e) => (),
+        }
+    }
+
+    /// Once the application starts, this will make sure the data_dir actually
+    /// exists and its writeable, it will try to create it if possible, but if
+    /// it fails it will panic.
+    pub fn ensure_data_dir(&mut self, data_dir: Option<String>) {
+        let data_dir = data_dir.unwrap_or_else(|| self.data_dir.clone());
+
+        let data_dir = absolute_path(&data_dir)
+            .unwrap_or_else(|| panic!("Couldn't get absolute path for '{}'", &data_dir));
+
+        match DirBuilder::new().recursive(true).create(&data_dir) {
+            Ok(_) => (),
+            Err(e) => println!("Error creating directory: {:?}", e),
+        };
+
+        let metadata = fs::metadata(&data_dir).unwrap_or_else(|e| {
+            panic!(
+                "Got error when attempting to get metadata of a data dir '{}': {}",
+                data_dir, e
+            )
+        });
+
+        if metadata.permissions().readonly() {
+            panic!("DATA_DIR is not writeable to the application, aborting...")
+        }
+
+        self.data_dir = clean_path(data_dir);
     }
 
     /// Set database url in the env if it wasn't already for the migration
@@ -124,34 +163,6 @@ impl AppConfig {
     }
 }
 
-/// Make sure the data directory exists and create it if not
-fn ensure_data_dir(data_dir: String) -> String {
-    let mut dir_builder = DirBuilder::new();
-
-    let data_dir = absolute_path(&data_dir)
-        .unwrap_or_else(|| panic!("Couldn't get absolute path for '{}'", data_dir));
-
-    match dir_builder.recursive(true).create(&data_dir) {
-        Ok(_) => (),
-        Err(e) => println!("Error creating directory: {:?}", e),
-    };
-
-    let metadata = fs::metadata(&data_dir).unwrap_or_else(|e| {
-        panic!(
-            "Got error when attempting to get metadata of a data dir '{}': {}",
-            data_dir, e
-        )
-    });
-
-    let permissions = metadata.permissions();
-
-    if permissions.readonly() {
-        panic!("DATA_DIR is not writeable to the application, aborting...")
-    }
-
-    parse_path(data_dir)
-}
-
 /// Convert given path into an absolute path
 fn absolute_path(path: &str) -> Option<String> {
     let p = path::Path::new(path);
@@ -160,7 +171,7 @@ fn absolute_path(path: &str) -> Option<String> {
 }
 
 /// Remove the leading slash from the path
-fn parse_path(path: String) -> String {
+fn clean_path(path: String) -> String {
     let mut path = path.trim().to_string();
 
     if path.ends_with('/') {

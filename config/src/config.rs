@@ -1,5 +1,4 @@
 use crate::{app::AppConfig, email::EmailConfig, ssl::SslConfig, vars::Vars};
-use std::fs;
 
 /// Config struct that holds all the loaded configuration
 /// from the env and arguments.
@@ -55,6 +54,11 @@ impl From<Vars> for Config {
 }
 
 impl Config {
+    /// Don't load any environment variables, just use the defaults
+    pub fn empty() -> Self {
+        Self::from(Vars::create("Hoodik", "v0.1.0", "Hoodik"))
+    }
+
     /// Create a new config with the given name, version and about
     pub fn new(name: &str, version: &str, about: &str) -> Self {
         Self::from(Vars::new(name, version, about))
@@ -69,19 +73,5 @@ impl Config {
     /// Create a new config with the given name, version and about
     pub fn mock_with_env() -> Self {
         Self::from(Vars::env_only("Hoodik", "v0.1.0", "Hoodik"))
-    }
-
-    /// Cleanup the data directory
-    #[cfg(feature = "mock")]
-    pub fn cleanup(&self) {
-        log::debug!(
-            "Trying to cleanup the data directory: {}",
-            &self.app.data_dir
-        );
-
-        match fs::remove_dir_all(&self.app.data_dir) {
-            Ok(_) => (),
-            Err(_e) => (),
-        }
     }
 }

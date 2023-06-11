@@ -110,7 +110,7 @@ pub(crate) struct Vars {
 impl Vars {
     pub(crate) fn new(name: &str, version: &str, about: &str) -> Self {
         let mut vars = Self::create(name, version, about);
-        vars.dotenv(None);
+        vars.dotenv(std::env::var("ENV_FILE").ok());
         vars.arguments();
 
         vars
@@ -118,12 +118,12 @@ impl Vars {
 
     pub(crate) fn env_only(name: &str, version: &str, about: &str) -> Self {
         let vars = Self::create(name, version, about);
-        vars.dotenv(None);
+        vars.dotenv(std::env::var("ENV_FILE").ok());
 
         vars
     }
 
-    fn create(name: &str, version: &str, about: &str) -> Self {
+    pub(crate) fn create(name: &str, version: &str, about: &str) -> Self {
         Self {
             name: name.to_string(),
             version: version.to_string(),

@@ -2,7 +2,7 @@
 
 set -e
 
-export DATA_DIR=$PWD/e2e-data
+export DATA_DIR=$PWD/data-e2e
 
 cargo build --bin hoodik
 
@@ -16,6 +16,6 @@ export ENV_FILE="../.env.e2e"
 
 kill -9 $!
 
-rm -rf $PWD/e2e-data
+rm -rf $PWD/data-e2e
 
 exit $TEST_EXIT_CODE

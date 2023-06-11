@@ -1,8 +1,9 @@
 /target
 .env
 sqlite.db
-./data/*
-/e2e-data/*
+/data/*
+/data-test/*
+/data-e2e/*
 node_modules
 .DS_Store
 .turbo

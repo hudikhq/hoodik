@@ -82,6 +82,30 @@ impl Context {
     }
 
     #[cfg(feature = "mock")]
+    pub async fn mock_with_data_dir(data_dir: Option<String>) -> Context {
+        use migration::MigratorTrait;
+
+        let mut config = Config::empty();
+        config.app.ensure_data_dir(data_dir);
+
+        if env_logger::try_init().is_ok() {
+            log::debug!("Log has been initialized");
+        }
+
+        let db = Database::connect("sqlite::memory:?mode=rwc").await.unwrap();
+
+        let context = Context {
+            config,
+            db,
+            sender: None,
+        };
+
+        migration::Migrator::up(&context.db, None).await.unwrap();
+
+        context
+    }
+
+    #[cfg(feature = "mock")]
     pub async fn mock_sqlite() -> Context {
         use migration::MigratorTrait;
 

@@ -11,7 +11,7 @@ use crate::helpers::{create_byte_chunks, CHUNKS, CHUNK_SIZE_BYTES};
 
 #[actix_web::test]
 async fn test_creating_file_and_uploading_chunks() {
-    let context = context::Context::mock_sqlite().await;
+    let context = context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
 
     let private = cryptfns::rsa::private::generate().unwrap();
     let public = cryptfns::rsa::public::from_private(&private).unwrap();
@@ -162,4 +162,6 @@ async fn test_creating_file_and_uploading_chunks() {
 
     let response = test::call_service(&mut app, req).await;
     assert_eq!(response.status(), StatusCode::OK);
+
+    context.config.app.cleanup();
 }
