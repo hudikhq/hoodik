@@ -47,9 +47,9 @@ impl Clone for Context {
 
 impl Context {
     pub async fn new(config: Config) -> AppResult<Context> {
-        let sqlite_file = format!("sqlite:{}/sqlite.db?mode=rwc", &config.data_dir);
+        let sqlite_file = format!("sqlite:{}/sqlite.db?mode=rwc", &config.app.data_dir);
 
-        let db = match &config.database_url {
+        let db = match &config.app.database_url {
             Some(value) => Database::connect(value).await?,
             None => Database::connect(sqlite_file).await?,
         };
@@ -61,7 +61,7 @@ impl Context {
 
     #[cfg(feature = "mock")]
     pub fn mock_inject(db: DatabaseConnection) -> Context {
-        let config = Config::mock();
+        let config = Config::mock_with_env();
 
         Context {
             config,
@@ -72,7 +72,7 @@ impl Context {
 
     #[cfg(feature = "mock")]
     pub fn mock() -> Context {
-        let config = Config::mock();
+        let config = Config::mock_with_env();
 
         Context {
             config,
@@ -85,7 +85,7 @@ impl Context {
     pub async fn mock_sqlite() -> Context {
         use migration::MigratorTrait;
 
-        let config = Config::mock();
+        let config = Config::mock_with_env();
 
         if env_logger::try_init().is_ok() {
             log::debug!("Log has been initialized");

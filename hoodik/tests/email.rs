@@ -4,7 +4,7 @@ use email::{contract::SenderContract, Sender};
 #[actix_web::test]
 #[ignore = "This test requires a valid smtp server"]
 async fn test_send_email_via_smtp() {
-    let config = Config::mock();
+    let config = Config::mock_with_env();
 
     let _smtp_credentials = match &config.mailer {
         EmailConfig::Smtp(c) => c,

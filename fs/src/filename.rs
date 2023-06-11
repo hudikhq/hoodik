@@ -11,7 +11,7 @@ pub struct Filename {
     created_at: NaiveDateTime,
     file_id: Uuid,
     extension: Option<String>,
-    chunk: Option<i32>,
+    chunk: Option<String>,
 }
 
 impl Display for Filename {
@@ -21,10 +21,15 @@ impl Display for Filename {
 
         let part = self
             .chunk
+            .as_ref()
             .map(|c| format!(".part.{}", c))
             .unwrap_or_default();
 
-        let extension = self.chunk.map(|c| format!(".{}", c)).unwrap_or_default();
+        let extension = self
+            .extension
+            .as_ref()
+            .map(|c| format!(".{}", c))
+            .unwrap_or_default();
 
         write!(f, "{timestamp}-{file_id}{part}{extension}")
     }
@@ -45,8 +50,8 @@ impl Filename {
         self
     }
 
-    pub fn with_chunk(mut self, chunk: i32) -> Self {
-        self.chunk = Some(chunk);
+    pub fn with_chunk<T: ToString>(mut self, chunk: T) -> Self {
+        self.chunk = Some(chunk.to_string());
         self
     }
 }

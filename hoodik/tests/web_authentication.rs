@@ -190,7 +190,7 @@ async fn test_register_and_verify_user_email() {
 #[actix_web::test]
 async fn test_claims_can_expire() {
     let mut context = context::Context::mock_sqlite().await;
-    context.config.short_term_session_duration_seconds = 1;
+    context.config.auth.short_term_session_duration_seconds = 1;
 
     let private = cryptfns::rsa::private::generate().unwrap();
     let public = cryptfns::rsa::public::from_private(&private).unwrap();
@@ -234,7 +234,7 @@ async fn test_claims_can_expire() {
 #[actix_web::test]
 async fn test_expired_session_can_be_refreshed() {
     let mut context = context::Context::mock_sqlite().await;
-    context.config.short_term_session_duration_seconds = 1;
+    context.config.auth.short_term_session_duration_seconds = 1;
 
     let private = cryptfns::rsa::private::generate().unwrap();
     let public = cryptfns::rsa::public::from_private(&private).unwrap();

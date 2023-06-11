@@ -21,7 +21,7 @@ impl<'ctx> Fs<'ctx> {
     where
         'ctx: 'provider,
     {
-        fs::FsProvider::<'provider>::new(&self.config.data_dir)
+        fs::FsProvider::<'provider>::new(&self.config.app.data_dir)
     }
 }
 

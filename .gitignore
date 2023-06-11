@@ -1,7 +1,7 @@
 /target
 .env
 sqlite.db
-/data/*
+./data/*
 /e2e-data/*
 node_modules
 .DS_Store

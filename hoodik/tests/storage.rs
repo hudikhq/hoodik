@@ -130,11 +130,14 @@ async fn test_creating_file_and_uploading_chunks() {
     let file_checksum = cryptfns::sha256::digest(contents.as_slice());
 
     for i in 0..CHUNKS {
-        assert!(std::fs::remove_file(format!(
-            "{}/{}.{}.part",
-            context.config.data_dir, filename, i
-        ))
-        .is_ok());
+        let f = format!(
+            "{}/{}",
+            context.config.app.data_dir,
+            filename.clone().with_chunk(i as i32)
+        );
+
+        println!("removing file: {}", f);
+        assert!(std::fs::remove_file(f).is_ok());
     }
 
     assert_eq!(content_len, size as usize);
