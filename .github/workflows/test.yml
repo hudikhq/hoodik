@@ -12,10 +12,12 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
       - uses: actions/checkout@v2
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev
+          version: 1.0
+
       - name: ⚡ Cache
         uses: actions/cache@v2
         with:
@@ -24,9 +26,6 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo
-
-      - name: Install os dependencies
-        run: sudo apt-get install curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev -y
 
       - name: Install wasm pack tool
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh

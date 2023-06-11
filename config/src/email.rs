@@ -1,5 +1,7 @@
 #![allow(rustdoc::invalid_html_tags)]
 
+use crate::vars::Vars;
+
 /// Email configuration holder,
 /// it can be either SMTP or None.
 ///
@@ -28,72 +30,40 @@ pub struct SmtpCredentials {
     pub address: String,
     pub username: String,
     pub password: String,
-    pub port: Option<u16>,
+    pub port: u16,
     pub default_from: String,
 }
 
 impl SmtpCredentials {
-    pub fn from_env(errors: &mut Vec<String>) -> Option<Self> {
-        let address = std::env::var("SMTP_ADDRESS")
-            .map(Some)
-            .unwrap_or_else(|_| {
-                errors.push("SMTP_ADDRESS is not set".to_string());
-                None
-            })?;
+    fn new(vars: &mut Vars) -> Box<dyn FnOnce() -> Self> {
+        let address = vars.var::<String>("SMTP_ADDRESS");
+        let username = vars.var::<String>("SMTP_USERNAME");
+        let password = vars.var::<String>("SMTP_PASSWORD");
+        let port = vars.var_default::<u16>("SMTP_PORT", 465);
+        let default_from = vars.var::<String>("SMTP_DEFAULT_FROM");
 
-        let username = std::env::var("SMTP_USERNAME")
-            .map(Some)
-            .unwrap_or_else(|_| {
-                errors.push("SMTP_USERNAME is not set".to_string());
-                None
-            })?;
-
-        let password = std::env::var("SMTP_PASSWORD")
-            .map(Some)
-            .unwrap_or_else(|_| {
-                errors.push("SMTP_USERNAME is not set".to_string());
-                None
-            })?;
-
-        let port = match std::env::var("SMTP_PORT") {
-            Ok(p) => p.parse::<u16>().ok(),
-            Err(_) => None,
-        };
-
-        let default_from = std::env::var("SMTP_DEFAULT_FROM")
-            .map(Some)
-            .unwrap_or_else(|_| {
-                errors.push("SMTP_DEFAULT_FROM is not set".to_string());
-                None
-            })?;
-
-        Some(Self {
-            address,
-            username,
-            password,
-            port,
-            default_from,
+        Box::new(move || Self {
+            address: address.get(),
+            username: username.get(),
+            password: password.get(),
+            port: port.get(),
+            default_from: default_from.get(),
         })
     }
 }
 
 impl EmailConfig {
-    pub fn new(errors: &mut Vec<String>) -> Self {
-        let mailer = std::env::var("MAILER_TYPE")
-            .ok()
-            .unwrap_or_default()
-            .to_lowercase();
+    pub(crate) fn new(vars: &mut Vars) -> Self {
+        let mailer = vars.var_default("MAILER_TYPE", "".to_string()).get();
 
         if mailer == "smtp" {
-            let credentials = SmtpCredentials::from_env(errors);
+            let credentials = SmtpCredentials::new(vars);
 
-            if let Some(c) = credentials {
-                return Self::Smtp(c);
-            }
+            vars.panic_if_errors("EmailConfig");
+
+            Self::Smtp(credentials())
+        } else {
+            Self::None
         }
-
-        log::warn!("Using mock email sender");
-
-        Self::None
     }
 }

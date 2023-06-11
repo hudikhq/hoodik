@@ -10,7 +10,6 @@ use actix_web::{
     middleware::Logger,
     web, App, HttpServer,
 };
-use config::ssl::SslConfig as _;
 use context::Context;
 use error::{AppResult, Error};
 
@@ -93,7 +92,8 @@ pub fn app(
 /// Start the server
 pub async fn engage(context: Context) -> AppResult<()> {
     let bind_address = context.config.get_full_bind_address();
-    let config = context.config.build_rustls_config()?;
+    let app_url = context.config.get_app_url();
+    let config = context.config.ssl.build_rustls_config(vec![app_url])?;
 
     HttpServer::new(move || {
         app(context.clone()).wrap(Logger::new(

@@ -23,7 +23,7 @@ impl<'provider> FsProvider<'provider> {
 
     /// Get full path of a file for the chunk
     fn full_path<C: ToString>(&self, filename: &Filename, chunk: C) -> String {
-        format!("{}/{}.{}.part", self.data_dir, filename, chunk.to_string())
+        format!("{}/{}", self.data_dir, filename.clone().with_chunk(chunk))
     }
 
     /// Create the inner streaming method that is then passed into the streamer for

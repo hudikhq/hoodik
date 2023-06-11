@@ -37,8 +37,8 @@ impl<'ext> Extractor<'ext, Useless> {
     pub(crate) fn jwt(self, ctx: &'ext Context) -> Extractor<'ext, Jwt<'ext>> {
         Extractor {
             extractor: Jwt {
-                cookie_name: &ctx.config.session_cookie,
-                jwt_secret: &ctx.config.jwt_secret,
+                cookie_name: &ctx.config.auth.session_cookie,
+                jwt_secret: &ctx.config.auth.jwt_secret,
             },
             _p: &PhantomData,
         }
@@ -46,7 +46,7 @@ impl<'ext> Extractor<'ext, Useless> {
 
     pub(crate) fn refresh(self, ctx: &'ext Context) -> Extractor<'ext, Refresh<'ext>> {
         Extractor {
-            extractor: Refresh(&ctx.config.refresh_cookie),
+            extractor: Refresh(&ctx.config.auth.refresh_cookie),
             _p: &PhantomData,
         }
     }
