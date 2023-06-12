@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
+    pub role: Option<String>,
     pub email: String,
     #[serde(skip_serializing)]
     pub password: Option<String>,

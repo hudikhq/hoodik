@@ -6,8 +6,8 @@ use actix_web::cookie::{time::OffsetDateTime, Cookie, CookieBuilder, SameSite};
 use chrono::{Duration, Utc};
 use context::Context;
 use entity::{
-    sessions, users, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, QueryFilter,
-    TransactionTrait, Uuid,
+    sessions, users, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, PaginatorTrait,
+    QueryFilter, TransactionTrait, Uuid,
 };
 use error::{AppResult, Error};
 
@@ -52,6 +52,10 @@ impl<'ctx> Auth<'ctx> {
             active_model.email_verified_at = ActiveValue::Set(Some(Utc::now().naive_utc()));
         }
 
+        if self.count().await? == 0 {
+            active_model.role = ActiveValue::Set(Some("admin".to_string()));
+        }
+
         users::Entity::insert(active_model)
             .exec_without_returning(&self.context.db)
             .await?;
@@ -92,6 +96,13 @@ impl<'ctx> Auth<'ctx> {
         tx.commit().await?;
 
         self.get_by_id(id).await
+    }
+
+    pub(crate) async fn count(&self) -> AppResult<u64> {
+        users::Entity::find()
+            .count(&self.context.db)
+            .await
+            .map_err(Error::from)
     }
 
     /// Get a user by id

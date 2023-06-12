@@ -20,8 +20,9 @@ pub use sea_orm::{
         SubQueryStatement, UnionType,
     },
     ActiveValue, Condition, ConnectionTrait, DbBackend, DbConn, DbErr, EntityOrSelect,
-    FromQueryResult, JoinType, JsonValue, ModelTrait, Order, QueryFilter, QueryOrder, QueryResult,
-    QuerySelect, QueryTrait, Select, SelectTwo, Statement, TransactionTrait, TryGetableMany, Value,
+    FromQueryResult, JoinType, JsonValue, ModelTrait, Order, PaginatorTrait, QueryFilter,
+    QueryOrder, QueryResult, QuerySelect, QueryTrait, Select, SelectTwo, Statement,
+    TransactionTrait, TryGetableMany, Value,
 };
 
 /// Helper to convert `Option<String>` to `Option<Uuid>`

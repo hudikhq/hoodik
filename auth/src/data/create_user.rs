@@ -106,6 +106,7 @@ impl CreateUser {
 
         Ok(ActiveModel {
             id: ActiveValue::Set(entity::Uuid::new_v4()),
+            role: ActiveValue::NotSet,
             email: ActiveValue::Set(data.email.unwrap()),
             password: ActiveValue::Set(data.password.map(hash)),
             secret: ActiveValue::Set(data.secret),

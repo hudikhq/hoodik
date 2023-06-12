@@ -16,6 +16,7 @@ pub async fn create_user<T: super::ConnectionTrait>(
 
     let user = UserActiveModel {
         id: ActiveValue::Set(id),
+        role: ActiveValue::NotSet,
         email: ActiveValue::Set(email.to_string()),
         password: ActiveValue::Set(Some("".to_string())),
         secret: ActiveValue::NotSet,
