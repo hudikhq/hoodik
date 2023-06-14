@@ -21,7 +21,7 @@ const percentage = computed(() => {
 </script>
 <template>
   <div class="flex flex-row">
-    <div class="w-6/12">{{ mime }}</div>
+    <div class="w-6/12 overflow-clip">{{ mime }}</div>
     <div class="w-2/12">{{ count }}</div>
     <div class="w-4/12 text-right">{{ size }}</div>
   </div>

@@ -31,7 +31,7 @@ onMounted(async () => {
 </script>
 <template>
   <SectionMain>
-    <CardBox class="w-1/2">
+    <CardBox class="sm:w-1/2">
       <CardBoxComponentHeader
         title="Files"
         :button-icon="mdiRefresh"
