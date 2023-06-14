@@ -1,0 +1,28 @@
+[package]
+name = "admin"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "^0.4"
+actix-web = "^4"
+validr = "^0.3"
+serde = "^1"
+serde_json = "^1"
+strum = "0.24"
+strum_macros = "0.24"
+chrono = { version = "^0.4", features = ["serde"] }
+
+util = { path = "../util" }
+auth = { path = "../auth" }
+context = { path = "../context" }
+entity = { path = "../entity" }
+error = { path = "../error" }
+fs = { path = "../fs" }
+
+[dev-dependencies]
+async-std = { version = "^1", features = ["attributes", "tokio1"] }
+entity = { path = "../entity", features = ["mock"] }
+context = { path = "../context", features = ["mock"] }

@@ -12,8 +12,9 @@ description = "File system abstraction library"
 [dependencies]
 config = { path = "../config" }
 error = { path = "../error" }
-entity = { path = "../entity" }
 
+fs4 = "^0.6"
+uuid = "^1"
 log = "^0.4"
 actix-web = "^4"
 futures-util = "^0.3"

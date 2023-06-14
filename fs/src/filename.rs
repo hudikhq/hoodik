@@ -1,7 +1,7 @@
 use chrono::NaiveDateTime;
-use entity::Uuid;
 use error::AppResult;
 use std::fmt::{Display, Formatter, Result};
+use uuid::Uuid;
 
 /// Struct representing the filename which will be used
 /// so that different types can implement a TryInto trait

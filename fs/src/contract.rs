@@ -6,6 +6,9 @@ use tokio::fs::File;
 
 #[async_trait]
 pub trait FsProviderContract {
+    /// Get the available space on the storage provider
+    async fn available_space(&self) -> AppResult<u64>;
+
     /// Check if the chunk already exists in the storage provider
     async fn exists<T: IntoFilename>(&self, filename: &T, chunk: i32) -> AppResult<bool>;
 

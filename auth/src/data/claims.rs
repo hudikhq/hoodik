@@ -21,6 +21,8 @@ pub struct Claims {
     pub iat: i64,
     /// Authenticated device id
     pub device: Uuid,
+    /// User role
+    pub role: Option<String>,
 }
 
 impl From<&Authenticated> for Claims {
@@ -31,6 +33,7 @@ impl From<&Authenticated> for Claims {
             exp: authenticated.session.expires_at.timestamp(),
             iat: chrono::Utc::now().timestamp(),
             device: authenticated.session.device_id,
+            role: authenticated.user.role.clone(),
         }
     }
 }

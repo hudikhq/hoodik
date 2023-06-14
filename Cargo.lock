@@ -269,6 +269,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
 
 [[package]]
+name = "admin"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "async-std",
+ "auth",
+ "chrono",
+ "context",
+ "entity",
+ "error",
+ "fs",
+ "log",
+ "serde",
+ "serde_json",
+ "strum",
+ "strum_macros",
+ "util",
+ "validr",
+]
+
+[[package]]
 name = "aead"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1642,6 +1663,7 @@ dependencies = [
  "chrono",
  "cryptfns",
  "error",
+ "fs",
  "sea-orm",
  "serde",
  "serde_json",
@@ -1816,13 +1838,24 @@ dependencies = [
  "chrono",
  "config",
  "context",
- "entity",
  "error",
+ "fs4",
  "futures-util",
  "glob",
  "log",
  "pin-project",
  "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "fs4"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7672706608ecb74ab2e055c68327ffc25ae4cac1e12349204fd5fb0f3487cce2"
+dependencies = [
+ "rustix",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -2138,6 +2171,7 @@ version = "0.7.0"
 dependencies = [
  "actix-cors",
  "actix-web",
+ "admin",
  "auth",
  "chrono",
  "config",
@@ -4388,6 +4422,25 @@ name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
+
+[[package]]
+name = "strum"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
+
+[[package]]
+name = "strum_macros"
+version = "0.24.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e385be0d24f186b4ce2f9982191e7101bb737312ad61c1f2f984f34bcf85d59"
+dependencies = [
+ "heck 0.4.1",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "syn 1.0.109",
+]
 
 [[package]]
 name = "subtle"

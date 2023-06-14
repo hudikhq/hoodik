@@ -1,6 +1,7 @@
 use actix_web::web::Bytes;
 use async_trait::async_trait;
 use error::{AppResult, Error};
+use fs4::available_space;
 use tokio::{
     fs::{remove_file, File, OpenOptions},
     io::{AsyncReadExt, AsyncWriteExt},
@@ -76,6 +77,10 @@ impl<'provider> FsProvider<'provider> {
 
 #[async_trait]
 impl<'ctx> FsProviderContract for FsProvider<'ctx> {
+    async fn available_space(&self) -> AppResult<u64> {
+        available_space(self.data_dir).map_err(Error::from)
+    }
+
     async fn exists<T: IntoFilename>(&self, filename: &T, chunk: i32) -> AppResult<bool> {
         Ok(std::path::Path::new(self.full_path(&filename.filename()?, chunk).as_str()).exists())
     }

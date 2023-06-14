@@ -27,6 +27,10 @@ impl<'ctx> Fs<'ctx> {
 
 #[async_trait]
 impl<'ctx> FsProviderContract for Fs<'ctx> {
+    async fn available_space(&self) -> AppResult<u64> {
+        self.provider().available_space().await
+    }
+
     async fn exists<T: IntoFilename>(&self, filename: &T, chunk: i32) -> AppResult<bool> {
         self.provider().exists(filename, chunk).await
     }

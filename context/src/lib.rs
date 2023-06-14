@@ -35,6 +35,7 @@ impl Clone for Context {
                     DatabaseConnection::SqlxSqlitePoolConnection(conn.clone())
                 }
                 DatabaseConnection::Disconnected => DatabaseConnection::Disconnected,
+
                 #[cfg(feature = "mock")]
                 DatabaseConnection::MockDatabaseConnection(conn) => {
                     DatabaseConnection::MockDatabaseConnection(conn.clone())

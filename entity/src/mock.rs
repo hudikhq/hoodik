@@ -1,10 +1,10 @@
 use super::files::{ActiveModel as FileActiveModel, Model as File};
 use super::user_files::{ActiveModel as UserFileActiveModel, Model as UserFile};
 use super::users::{ActiveModel as UserActiveModel, Model as User};
-use crate::{user_files, Uuid};
+use crate::{invitations, user_files, Uuid};
 
-use chrono::Utc;
-use sea_orm::{ActiveValue, EntityTrait};
+use chrono::{Duration, Utc};
+use sea_orm::{ActiveValue, ColumnTrait, EntityTrait, QueryFilter};
 
 /// Create a user in the database.
 pub async fn create_user<T: super::ConnectionTrait>(
@@ -40,6 +40,48 @@ pub async fn create_user<T: super::ConnectionTrait>(
         .unwrap()
 }
 
+/// Create session for the user
+pub async fn create_session<T: super::ConnectionTrait>(
+    db: &T,
+    user: &User,
+    ip: Option<&str>,
+    user_agent: Option<&str>,
+) -> super::sessions::Model {
+    let id = Uuid::new_v4();
+
+    let session = super::sessions::ActiveModel {
+        id: ActiveValue::Set(id),
+        user_id: ActiveValue::Set(user.id),
+        user_agent: ActiveValue::Set(
+            user_agent
+                .map(|user_agent| user_agent.to_string())
+                .unwrap_or_else(|| "".to_string()),
+        ),
+        device_id: ActiveValue::Set(Uuid::new_v4()),
+        ip: ActiveValue::Set(
+            ip.map(|ip| ip.to_string())
+                .unwrap_or_else(|| "127.0.0.1".to_string()),
+        ),
+        refresh: ActiveValue::Set(Some(Uuid::new_v4())),
+        created_at: ActiveValue::Set(Utc::now().naive_utc()),
+        updated_at: ActiveValue::Set(Utc::now().naive_utc()),
+        expires_at: ActiveValue::Set(Utc::now().naive_utc() + Duration::minutes(5)),
+        deleted_at: ActiveValue::NotSet,
+    };
+
+    super::sessions::Entity::insert(session)
+        .exec_without_returning(db)
+        .await
+        .unwrap();
+
+    super::sessions::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap()
+}
+
+/// Create a file in the database
 pub async fn create_file<T: super::ConnectionTrait>(
     db: &T,
     user: &super::users::Model,
@@ -104,4 +146,34 @@ pub async fn create_file<T: super::ConnectionTrait>(
         .unwrap();
 
     (file, user_file)
+}
+
+/// Create invitation for the user in database
+pub async fn create_invitation<T: super::ConnectionTrait>(
+    db: &T,
+    email: &str,
+) -> super::invitations::Model {
+    let id = Uuid::new_v4();
+
+    let invitation = super::invitations::ActiveModel {
+        id: ActiveValue::Set(id),
+        user_id: ActiveValue::NotSet,
+        email: ActiveValue::Set(email.to_string()),
+        created_at: ActiveValue::Set(Utc::now().naive_utc()),
+        expires_at: ActiveValue::Set(Utc::now().naive_utc() + chrono::Duration::days(7)),
+    };
+
+    invitations::Entity::insert(invitation)
+        .exec_without_returning(db)
+        .await
+        .unwrap();
+
+    let invitation = invitations::Entity::find()
+        .filter(invitations::Column::Id.eq(id))
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+
+    invitation
 }
