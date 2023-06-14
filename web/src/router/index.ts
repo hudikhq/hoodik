@@ -93,6 +93,22 @@ const router = createRouter({
       name: 'activate-email',
       meta: { title: 'Create Account - Verify Email' },
       component: () => import('../views/auth/VerifyEmailView.vue')
+    },
+
+    /**
+     * Admin routes
+     */
+    {
+      path: '/admin',
+      name: 'admin-dashboard',
+      meta: { title: 'Admin dashboard' },
+      component: () => import('../views/admin/IndexView.vue')
+    },
+    {
+      path: '/admin/users',
+      name: 'admin-users',
+      meta: { title: 'Admin Users' },
+      component: () => import('../views/admin/UsersView.vue')
     }
   ]
 })

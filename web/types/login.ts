@@ -12,6 +12,7 @@ export interface User {
   created_at: string
   updated_at: string
   email_verified_at?: string
+  role?: string
 }
 
 export interface Session {

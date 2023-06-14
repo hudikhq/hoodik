@@ -105,7 +105,20 @@ export function formatPrettyDate(date: Date | string): string {
 /**
  * Format bytes to human readable string
  */
-export function formatSize(b?: number | string): string {
+export function formatSize(b?: number | string, unit?: 'B' | 'KB' | 'MB' | 'GB'): string {
+  if (unit) {
+    const sizes = {
+      B: b,
+      KB: b ? (b as number) / 1024 : undefined,
+      MB: b ? (b as number) / 1024 / 1024 : undefined,
+      GB: b ? (b as number) / 1024 / 1024 / 1024 : undefined
+    }
+
+    if (typeof sizes[unit] !== 'undefined') {
+      return `${(sizes[unit] as number).toFixed(2)} ${unit}`
+    }
+  }
+
   if (b === undefined || b === null) {
     return '0 B'
   }

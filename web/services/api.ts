@@ -1,7 +1,7 @@
 import type { WorkerErrorType } from '../types'
 
 export type Query = {
-  [key: string]: string | number | string[] | undefined | null | Query
+  [key: string]: string | number | string[] | undefined | null | boolean | Query
 }
 
 export type Headers = { [key: string]: string }

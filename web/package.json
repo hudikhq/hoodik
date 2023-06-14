@@ -23,6 +23,7 @@
     "@vueuse/core": "^10.1.0",
     "@zxcvbn-ts/core": "^2.2.1",
     "assert": "^2.0.0",
+    "chart.js": "^4.3.0",
     "constants-browserify": "^1.0.0",
     "crypto-browserify": "^3.12.0",
     "crypto-js": "^4.1.1",
@@ -39,7 +40,8 @@
     "threads": "^1.7.0",
     "util": "^0.12.5",
     "vee-validate": "^4.8.4",
-    "vue": "^3.2.47",
+    "vue": "^3.3.4",
+    "vue-chartjs": "^5.2.0",
     "vue-clipboard3": "^2.0.0",
     "vue-router": "^4.1.6",
     "yup": "^1.0.2"

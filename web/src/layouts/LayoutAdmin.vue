@@ -6,7 +6,7 @@ import menuAside from '@/menuAside'
 import menuNavBar, { type NavBarItem } from '@/menuNavBar'
 import { store as styleStore } from '!/style'
 import { store as loginStore } from '!/auth/login'
-import { ensureAuthenticated } from '!/auth'
+import { ensureAdmin } from '!/auth'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import NavBar from '@/components/ui/NavBar.vue'
 import NavBarItemPlain from '@/components/ui/NavBarItemPlain.vue'
@@ -21,7 +21,7 @@ const route = useRoute()
 
 const style = styleStore()
 
-await ensureAuthenticated(router, route)
+await ensureAdmin(router, route)
 const crypto = cryptoStore()
 const login = loginStore()
 
@@ -77,7 +77,6 @@ const menuClick = (event: Event, item: NavBarItem) => {
         v-if="login.authenticated"
         :is-aside-mobile-expanded="isAsideMobileExpanded"
         :is-aside-lg-active="isAsideLgActive"
-        :role="login.authenticated?.user?.role"
         :menu="menuAside"
         @menu-click="menuClick"
         @aside-lg-close-click="isAsideLgActive = false"
