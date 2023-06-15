@@ -30,12 +30,12 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Invitations::Email).string().not_null())
                     .col(
                         ColumnDef::new(Invitations::CreatedAt)
-                            .timestamp()
+                            .big_integer()
                             .not_null(),
                     )
                     .col(
                         ColumnDef::new(Invitations::ExpiresAt)
-                            .timestamp()
+                            .big_integer()
                             .not_null(),
                     )
                     .foreign_key(&mut foreign_key_user_id)

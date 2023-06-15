@@ -9,9 +9,10 @@
   ],
   "scripts": {
     "start": "yarn workspace @hoodik/web run dev & cargo run",
+    "type-check": "yarn workspace @hoodik/web run type-check",
+    "wasm-pack": "yarn workspace @hoodik/cryptfns run wasm-pack",
     "test:unit": "yarn workspace @hoodik/web run test:unit",
     "test:watch": "yarn workspace @hoodik/web run test:watch",
-    "type-check": "yarn workspace @hoodik/web run type-check",
     "cypress:open": "yarn workspace @hoodik/web run cypress open",
     "web:build": "yarn workspace @hoodik/web run build",
     "web:preview": "yarn web:build && yarn workspace @hoodik/web run preview"

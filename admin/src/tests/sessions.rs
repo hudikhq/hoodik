@@ -65,6 +65,7 @@ async fn test_find_sessions_by_email() {
         &user2,
         Some("123.123.123.69"),
         Some("IE Something?"),
+        false,
     )
     .await;
 

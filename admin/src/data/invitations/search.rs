@@ -36,10 +36,11 @@ impl Validation for Search {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum InvitationsSort {
     Id,
     Email,
+    #[default]
     CreatedAt,
     ExpiresAt,
 }

@@ -1,4 +1,3 @@
-use chrono::NaiveDateTime;
 use entity::{files, links, user_files, DbErr, FromQueryResult, QueryResult, Uuid};
 use error::{AppResult, Error};
 use fs::prelude::{Filename, IntoFilename};
@@ -18,9 +17,9 @@ pub struct AppFile {
     pub chunks: Option<i32>,
     pub chunks_stored: Option<i32>,
     pub file_id: Option<Uuid>,
-    pub file_created_at: NaiveDateTime,
-    pub created_at: NaiveDateTime,
-    pub finished_upload_at: Option<NaiveDateTime>,
+    pub file_created_at: i64,
+    pub created_at: i64,
+    pub finished_upload_at: Option<i64>,
     pub is_new: bool,
     pub uploaded_chunks: Option<Vec<i32>>,
     pub link: Option<links::Model>,

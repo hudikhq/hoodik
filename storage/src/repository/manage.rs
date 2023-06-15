@@ -278,7 +278,7 @@ where
             user_id: ActiveValue::Set(self.owner_id),
             is_owner: ActiveValue::Set(true),
             encrypted_key: ActiveValue::Set(encrypted_key.to_string()),
-            created_at: ActiveValue::Set(Utc::now().naive_utc()),
+            created_at: ActiveValue::Set(Utc::now().timestamp()),
             expires_at: ActiveValue::NotSet,
         };
 
@@ -305,7 +305,7 @@ where
         files::ActiveModel {
             id: ActiveValue::Set(file.id),
             chunks_stored: ActiveValue::Set(Some(chunks)),
-            finished_upload_at: ActiveValue::Set(Some(Utc::now().naive_utc())),
+            finished_upload_at: ActiveValue::Set(Some(Utc::now().timestamp())),
             ..Default::default()
         }
         .update(self.repository.connection())

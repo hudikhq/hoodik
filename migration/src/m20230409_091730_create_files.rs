@@ -27,9 +27,13 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Files::Chunks).big_integer())
                     .col(ColumnDef::new(Files::ChunksStored).integer())
                     .col(ColumnDef::new(Files::FileId).uuid())
-                    .col(ColumnDef::new(Files::FileCreatedAt).timestamp().not_null())
-                    .col(ColumnDef::new(Files::CreatedAt).timestamp().not_null())
-                    .col(ColumnDef::new(Files::FinishedUploadAt).timestamp())
+                    .col(
+                        ColumnDef::new(Files::FileCreatedAt)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(Files::CreatedAt).big_integer().not_null())
+                    .col(ColumnDef::new(Files::FinishedUploadAt).big_integer())
                     .foreign_key(&mut foreign_key_file_id)
                     .to_owned(),
             )

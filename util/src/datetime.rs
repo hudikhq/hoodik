@@ -1,5 +1,13 @@
-use chrono::{NaiveDate, NaiveDateTime};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use error::{AppResult, Error};
+
+/// Convert i64 timestamp back into DateTime<Utc>.
+pub fn from_timestamp(timestamp: i64) -> DateTime<Utc> {
+    DateTime::from_utc(
+        NaiveDateTime::from_timestamp_opt(timestamp, 0).unwrap(),
+        Utc,
+    )
+}
 
 /// Parse string date '%Y-%m-%d' into NaiveDate.
 pub fn parse_into_naive_date(raw: &str, err_attribute_name: Option<&str>) -> AppResult<NaiveDate> {

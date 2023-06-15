@@ -23,9 +23,9 @@ pub async fn create_user<T: super::ConnectionTrait>(
         pubkey: ActiveValue::Set(pubkey.unwrap_or_default()),
         fingerprint: ActiveValue::Set("".to_string()),
         encrypted_private_key: ActiveValue::NotSet,
-        email_verified_at: ActiveValue::Set(Some(Utc::now().naive_utc())),
-        created_at: ActiveValue::Set(Utc::now().naive_utc()),
-        updated_at: ActiveValue::Set(Utc::now().naive_utc()),
+        email_verified_at: ActiveValue::Set(Some(Utc::now().timestamp())),
+        created_at: ActiveValue::Set(Utc::now().timestamp()),
+        updated_at: ActiveValue::Set(Utc::now().timestamp()),
     };
 
     crate::users::Entity::insert(user)
@@ -46,8 +46,16 @@ pub async fn create_session<T: super::ConnectionTrait>(
     user: &User,
     ip: Option<&str>,
     user_agent: Option<&str>,
+    expired: bool,
 ) -> super::sessions::Model {
     let id = Uuid::new_v4();
+
+    let expires_at = if expired {
+        Utc::now().naive_utc() - Duration::days(1)
+    } else {
+        Utc::now().naive_utc() + Duration::minutes(5)
+    }
+    .timestamp();
 
     let session = super::sessions::ActiveModel {
         id: ActiveValue::Set(id),
@@ -63,9 +71,9 @@ pub async fn create_session<T: super::ConnectionTrait>(
                 .unwrap_or_else(|| "127.0.0.1".to_string()),
         ),
         refresh: ActiveValue::Set(Some(Uuid::new_v4())),
-        created_at: ActiveValue::Set(Utc::now().naive_utc()),
-        updated_at: ActiveValue::Set(Utc::now().naive_utc()),
-        expires_at: ActiveValue::Set(Utc::now().naive_utc() + Duration::minutes(5)),
+        created_at: ActiveValue::Set((Utc::now().naive_utc() - Duration::minutes(5)).timestamp()),
+        updated_at: ActiveValue::Set((Utc::now().naive_utc() - Duration::minutes(5)).timestamp()),
+        expires_at: ActiveValue::Set(expires_at),
         deleted_at: ActiveValue::NotSet,
     };
 
@@ -108,9 +116,9 @@ pub async fn create_file<T: super::ConnectionTrait>(
         size: ActiveValue::Set(size),
         chunks: ActiveValue::Set(chunks),
         chunks_stored: ActiveValue::Set(chunks),
-        file_created_at: ActiveValue::Set(Utc::now().naive_utc()),
-        created_at: ActiveValue::Set(Utc::now().naive_utc()),
-        finished_upload_at: ActiveValue::Set(Some(Utc::now().naive_utc())),
+        file_created_at: ActiveValue::Set(Utc::now().timestamp()),
+        created_at: ActiveValue::Set(Utc::now().timestamp()),
+        finished_upload_at: ActiveValue::Set(Some(Utc::now().timestamp())),
     };
 
     crate::files::Entity::insert(file)
@@ -130,7 +138,7 @@ pub async fn create_file<T: super::ConnectionTrait>(
         user_id: ActiveValue::Set(user.id),
         is_owner: ActiveValue::Set(true),
         encrypted_key: ActiveValue::Set(name.to_string()),
-        created_at: ActiveValue::Set(Utc::now().naive_utc()),
+        created_at: ActiveValue::Set(Utc::now().timestamp()),
         expires_at: ActiveValue::NotSet,
     };
 
@@ -159,8 +167,8 @@ pub async fn create_invitation<T: super::ConnectionTrait>(
         id: ActiveValue::Set(id),
         user_id: ActiveValue::NotSet,
         email: ActiveValue::Set(email.to_string()),
-        created_at: ActiveValue::Set(Utc::now().naive_utc()),
-        expires_at: ActiveValue::Set(Utc::now().naive_utc() + chrono::Duration::days(7)),
+        created_at: ActiveValue::Set(Utc::now().timestamp()),
+        expires_at: ActiveValue::Set((Utc::now() + chrono::Duration::days(7)).timestamp()),
     };
 
     invitations::Entity::insert(invitation)
@@ -168,12 +176,10 @@ pub async fn create_invitation<T: super::ConnectionTrait>(
         .await
         .unwrap();
 
-    let invitation = invitations::Entity::find()
+    invitations::Entity::find()
         .filter(invitations::Column::Id.eq(id))
         .one(db)
         .await
         .unwrap()
-        .unwrap();
-
-    invitation
+        .unwrap()
 }

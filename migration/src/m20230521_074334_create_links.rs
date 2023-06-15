@@ -36,8 +36,8 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Links::Downloads).integer().not_null())
                     .col(ColumnDef::new(Links::EncryptedThumbnail).text())
                     .col(ColumnDef::new(Links::EncryptedFileKey).text())
-                    .col(ColumnDef::new(Links::CreatedAt).timestamp().not_null())
-                    .col(ColumnDef::new(Links::ExpiresAt).timestamp())
+                    .col(ColumnDef::new(Links::CreatedAt).big_integer().not_null())
+                    .col(ColumnDef::new(Links::ExpiresAt).big_integer())
                     .foreign_key(&mut foreign_key_user_id)
                     .foreign_key(&mut foreign_key_file_id)
                     .to_owned(),

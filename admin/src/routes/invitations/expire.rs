@@ -18,10 +18,10 @@ pub(crate) async fn expire(
     let id = util::actix::path_var::<Uuid>(&req, "id")?;
     let context = context.into_inner();
 
-    let invitation = Repository::new(&context, &context.db)
+    Repository::new(&context, &context.db)
         .invitations()
         .expire(id)
         .await?;
 
-    Ok(HttpResponse::Ok().json(invitation))
+    Ok(HttpResponse::NoContent().finish())
 }

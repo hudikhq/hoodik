@@ -32,7 +32,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(UserActions::Action).string().not_null())
                     .col(
                         ColumnDef::new(UserActions::CreatedAt)
-                            .timestamp()
+                            .big_integer()
                             .not_null(),
                     )
                     .foreign_key(&mut foreign_key)

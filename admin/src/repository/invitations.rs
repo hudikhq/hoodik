@@ -35,7 +35,7 @@ where
         let with_expired = invitations.with_expired.unwrap_or(false);
 
         if !with_expired {
-            query = query.filter(invitations::Column::ExpiresAt.gt(Utc::now().naive_utc()));
+            query = query.filter(invitations::Column::ExpiresAt.gt(Utc::now().timestamp()));
         }
 
         if let Some(sort) = invitations.sort.as_ref() {
@@ -68,7 +68,7 @@ where
     pub(crate) async fn expire(&self, invitation_id: Uuid) -> AppResult<()> {
         let active_model = ActiveModel {
             id: ActiveValue::Set(invitation_id),
-            expires_at: ActiveValue::Set(Utc::now().naive_utc()),
+            expires_at: ActiveValue::Set(Utc::now().timestamp()),
             ..Default::default()
         };
 
@@ -98,11 +98,13 @@ where
 
         let id = Uuid::new_v4();
 
-        let mut model = ActiveModel::default();
-        model.id = ActiveValue::Set(id);
-        model.email = ActiveValue::Set(email.clone());
-        model.expires_at = ActiveValue::Set(expires_at);
-        model.created_at = ActiveValue::Set(Utc::now().naive_utc());
+        let model = ActiveModel {
+            id: ActiveValue::Set(id),
+            email: ActiveValue::Set(email.clone()),
+            expires_at: ActiveValue::Set(expires_at),
+            created_at: ActiveValue::Set(Utc::now().timestamp()),
+            ..Default::default()
+        };
 
         invitations::Entity::insert(model)
             .exec_without_returning(self.repository.connection())

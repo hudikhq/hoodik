@@ -7,7 +7,6 @@ import CardBoxComponentHeader from '@/components/ui/CardBoxComponentHeader.vue'
 import CardBoxComponentFooter from '@/components/ui/CardBoxComponentFooter.vue'
 import { formatSize } from '!/index'
 import StatsTable from '@/components/files/stats/StatsTable.vue'
-
 import type { Response } from 'types/admin/files'
 import { mdiRefresh } from '@mdi/js'
 
@@ -39,7 +38,7 @@ onMounted(async () => {
         class="mb-4"
       />
 
-      <StatsTable v-if="data" :data="data.stats" />
+      <StatsTable v-if="data" :data="data.stats" :max="data.available_space" />
     </CardBox>
 
     <CardBoxComponentFooter

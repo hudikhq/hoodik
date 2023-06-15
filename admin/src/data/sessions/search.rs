@@ -39,10 +39,11 @@ impl Validation for Search {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum SessionsSort {
     Id,
     Email,
+    #[default]
     CreatedAt,
     UpdatedAt,
     ExpiresAt,

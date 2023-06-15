@@ -60,7 +60,7 @@ where
             email: entity::ActiveValue::Set(user.email.clone()),
             action: entity::ActiveValue::Set(action.to_string()),
             user_id: entity::ActiveValue::Set(user.id),
-            created_at: entity::ActiveValue::Set(chrono::Utc::now().naive_utc()),
+            created_at: entity::ActiveValue::Set(chrono::Utc::now().timestamp()),
         };
 
         self.create(active_model).await

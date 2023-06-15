@@ -37,7 +37,7 @@ where
         let with_expired = sessions.with_expired.unwrap_or(false);
 
         if !with_expired {
-            query = query.filter(sessions::Column::ExpiresAt.gt(Utc::now().naive_utc()));
+            query = query.filter(sessions::Column::ExpiresAt.gt(Utc::now().timestamp()));
         }
 
         if let Some(sort) = sessions.sort.as_ref() {
@@ -81,7 +81,7 @@ where
             .ok_or_else(|| error::Error::NotFound("Session not found".to_string()))?;
 
         let mut active_model: ActiveModel = session.into();
-        active_model.deleted_at = ActiveValue::Set(Some(Utc::now().naive_utc()));
+        active_model.deleted_at = ActiveValue::Set(Some(Utc::now().timestamp()));
         active_model.refresh = ActiveValue::Set(None);
 
         sessions::Entity::update(active_model)
@@ -94,8 +94,8 @@ where
     /// Kill all session instantly for given user
     pub(crate) async fn kill_for(&self, user_id: Uuid) -> AppResult<u64> {
         let active_model = ActiveModel {
-            expires_at: ActiveValue::Set(Utc::now().naive_utc()),
-            deleted_at: ActiveValue::Set(Some(Utc::now().naive_utc())),
+            expires_at: ActiveValue::Set(Utc::now().timestamp()),
+            deleted_at: ActiveValue::Set(Some(Utc::now().timestamp())),
             refresh: ActiveValue::Set(None),
             ..Default::default()
         };

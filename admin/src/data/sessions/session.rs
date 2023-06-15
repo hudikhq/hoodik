@@ -1,4 +1,3 @@
-use chrono::NaiveDateTime;
 use entity::{sessions, users, DbErr, FromQueryResult, QueryResult, Uuid};
 use serde::Serialize;
 
@@ -25,16 +24,16 @@ pub struct Session {
     pub user_agent: String,
 
     /// The session's created date.
-    pub created_at: NaiveDateTime,
+    pub created_at: i64,
 
     /// The session's last updated date.
-    pub updated_at: NaiveDateTime,
+    pub updated_at: i64,
 
     /// The expiration datetime of the session
-    pub expires_at: NaiveDateTime,
+    pub expires_at: i64,
 
     /// The expiration datetime of the session
-    pub deleted_at: Option<NaiveDateTime>,
+    pub deleted_at: Option<i64>,
 }
 
 impl FromQueryResult for Session {
@@ -42,16 +41,24 @@ impl FromQueryResult for Session {
         let user = users::Model::from_query_result(res, "user")?;
         let session = sessions::Model::from_query_result(res, "session")?;
 
-        Ok(Self {
+        Ok(Self::from((&user, &session)))
+    }
+}
+
+impl From<(&users::Model, &sessions::Model)> for Session {
+    fn from(source: (&users::Model, &sessions::Model)) -> Session {
+        let (user, session) = source;
+
+        Self {
             id: session.id,
             user_id: session.user_id,
-            email: user.email,
-            ip: session.ip,
-            user_agent: session.user_agent,
+            email: user.email.clone(),
+            ip: session.ip.clone(),
+            user_agent: session.user_agent.clone(),
             created_at: session.created_at,
             updated_at: session.updated_at,
             expires_at: session.expires_at,
             deleted_at: session.deleted_at,
-        })
+        }
     }
 }

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import LayoutAdminWithLoader from '@/layouts/LayoutAdminWithLoader.vue'
+import UsersInner from './users/UsersInner.vue'
 </script>
 <template>
-  <LayoutAdminWithLoader> </LayoutAdminWithLoader>
+  <LayoutAdminWithLoader>
+    <UsersInner />
+  </LayoutAdminWithLoader>
 </template>

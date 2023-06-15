@@ -42,7 +42,7 @@ impl FromRequest for Staff {
         Box::pin(async {
             let claims = fut.await?;
 
-            if !claims.role.is_some() {
+            if claims.role.is_none() {
                 return Err(Error::Forbidden("auth::data::staff|not_staff".to_string()));
             }
 

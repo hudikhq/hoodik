@@ -1,5 +1,5 @@
 use ::error::AppResult;
-use chrono::{NaiveDateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use validr::*;
 
@@ -35,7 +35,7 @@ impl Validation for Create {
 }
 
 impl Create {
-    pub fn into_values(self) -> AppResult<(String, Option<String>, NaiveDateTime)> {
+    pub fn into_values(self) -> AppResult<(String, Option<String>, i64)> {
         let data = self.validate()?;
 
         let expires_at = match data.expires_at.as_deref() {
@@ -43,6 +43,6 @@ impl Create {
             None => Utc::now().naive_utc() + chrono::Duration::days(7),
         };
 
-        Ok((data.email.unwrap(), data.message, expires_at))
+        Ok((data.email.unwrap(), data.message, expires_at.timestamp()))
     }
 }

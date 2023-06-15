@@ -36,9 +36,10 @@ impl Validation for Search {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum UsersSort {
     Id,
+    #[default]
     Email,
     CreatedAt,
     UpdatedAt,

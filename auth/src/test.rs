@@ -99,7 +99,7 @@ async fn test_credentials_valid() {
 
     let authenticated = response.unwrap();
 
-    assert!(authenticated.session.expires_at > (Utc::now() + Duration::minutes(1)).naive_utc());
+    assert!(authenticated.session.expires_at > (Utc::now() + Duration::minutes(1)).timestamp());
     assert_eq!(authenticated.user.id, user.id);
 }
 

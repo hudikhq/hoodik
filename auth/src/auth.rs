@@ -49,7 +49,7 @@ impl<'ctx> Auth<'ctx> {
         }
 
         if self.context.sender.is_none() {
-            active_model.email_verified_at = ActiveValue::Set(Some(Utc::now().naive_utc()));
+            active_model.email_verified_at = ActiveValue::Set(Some(Utc::now().timestamp()));
         }
 
         if self.count().await? == 0 {
@@ -87,7 +87,7 @@ impl<'ctx> Auth<'ctx> {
 
         let mut active_model: users::ActiveModel = user.into();
 
-        active_model.email_verified_at = ActiveValue::Set(Some(Utc::now().naive_utc()));
+        active_model.email_verified_at = ActiveValue::Set(Some(Utc::now().timestamp()));
 
         active_model.update(&tx).await?;
 
@@ -209,9 +209,9 @@ impl<'ctx> Auth<'ctx> {
             ip: ActiveValue::Set(ip.to_string()),
             user_agent: ActiveValue::Set(user_agent.to_string()),
             refresh: ActiveValue::Set(Some(Uuid::new_v4())),
-            created_at: ActiveValue::Set(Utc::now().naive_utc()),
-            updated_at: ActiveValue::Set(Utc::now().naive_utc()),
-            expires_at: ActiveValue::Set(expires_at.naive_utc()),
+            created_at: ActiveValue::Set(Utc::now().timestamp()),
+            updated_at: ActiveValue::Set(Utc::now().timestamp()),
+            expires_at: ActiveValue::Set(expires_at.timestamp()),
             deleted_at: ActiveValue::NotSet,
         };
 
@@ -242,8 +242,8 @@ impl<'ctx> Auth<'ctx> {
             user_agent: ActiveValue::Set(session.user_agent.clone()),
             refresh: ActiveValue::Set(Some(Uuid::new_v4())),
             created_at: ActiveValue::Set(session.created_at),
-            updated_at: ActiveValue::Set(Utc::now().naive_utc()),
-            expires_at: ActiveValue::Set(expires_at),
+            updated_at: ActiveValue::Set(Utc::now().timestamp()),
+            expires_at: ActiveValue::Set(expires_at.timestamp()),
             deleted_at: ActiveValue::NotSet,
         };
 
@@ -265,9 +265,9 @@ impl<'ctx> Auth<'ctx> {
             user_agent: ActiveValue::Set(session.user_agent.clone()),
             refresh: ActiveValue::Set(None),
             created_at: ActiveValue::Set(session.created_at),
-            updated_at: ActiveValue::Set(Utc::now().naive_utc()),
-            expires_at: ActiveValue::Set(Utc::now().naive_utc()),
-            deleted_at: ActiveValue::Set(Some(Utc::now().naive_utc())),
+            updated_at: ActiveValue::Set(Utc::now().timestamp()),
+            expires_at: ActiveValue::Set(Utc::now().timestamp()),
+            deleted_at: ActiveValue::Set(Some(Utc::now().timestamp())),
         };
 
         let session = active_model.update(&self.context.db).await?;

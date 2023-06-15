@@ -1,4 +1,3 @@
-use chrono::NaiveDateTime;
 use error::AppResult;
 use std::fmt::{Display, Formatter, Result};
 use uuid::Uuid;
@@ -8,7 +7,7 @@ use uuid::Uuid;
 /// when trying to use the fs.
 #[derive(Clone, Debug)]
 pub struct Filename {
-    created_at: NaiveDateTime,
+    created_at: i64,
     file_id: Uuid,
     extension: Option<String>,
     chunk: Option<String>,
@@ -16,7 +15,7 @@ pub struct Filename {
 
 impl Display for Filename {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let timestamp = self.created_at.timestamp();
+        let timestamp = self.created_at;
         let file_id = self.file_id.to_string();
 
         let part = self
@@ -36,7 +35,7 @@ impl Display for Filename {
 }
 
 impl Filename {
-    pub fn new(created_at: NaiveDateTime, file_id: Uuid) -> Self {
+    pub fn new(created_at: i64, file_id: Uuid) -> Self {
         Self {
             created_at,
             file_id,

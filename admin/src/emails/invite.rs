@@ -36,8 +36,7 @@ pub(crate) async fn send(
 
     let link = format!("{}/auth/register", context.config.get_client_url());
     let app_name = context.config.get_app_name();
-    let expires_at = invitation
-        .expires_at
+    let expires_at = util::datetime::from_timestamp(invitation.expires_at)
         .format("%Y-%m-%d %H:%M:%S")
         .to_string();
 

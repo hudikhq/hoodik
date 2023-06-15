@@ -1,12 +1,12 @@
 use chrono::Utc;
 use entity::{
-    sort::Sortable, users, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, ModelTrait,
-    QueryFilter, QuerySelect, Uuid,
+    sessions, sort::Sortable, users, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, Expr,
+    IntoCondition, JoinType, ModelTrait, QueryFilter, QuerySelect, RelationTrait, Select, Uuid,
 };
 use error::{AppResult, Error};
 use validr::Validation;
 
-use crate::data::users::search::Search;
+use crate::data::users::{search::Search, user::User};
 
 use super::Repository;
 
@@ -22,18 +22,42 @@ where
         Self { repository }
     }
 
+    /// Query builder that creates a join query for the user and session
+    fn join_query(&self) -> Select<users::Entity> {
+        let mut query = users::Entity::find().select_only();
+
+        entity::join::add_columns_with_prefix::<_, users::Entity>(&mut query, "user");
+        entity::join::add_columns_with_prefix::<_, sessions::Entity>(&mut query, "session");
+
+        query = query.join(
+            JoinType::LeftJoin,
+            users::Relation::Sessions
+                .def()
+                .on_condition(move |_left, right| {
+                    Expr::col((right, sessions::Column::ExpiresAt))
+                        .gt(Utc::now().timestamp())
+                        .and(sessions::Column::DeletedAt.is_null())
+                        .into_condition()
+                }),
+        );
+
+        query = query.group_by(users::Column::Id);
+
+        query
+    }
+
     /// Search through users
-    pub(crate) async fn find(&self, users: Search) -> AppResult<Vec<entity::users::Model>> {
+    pub(crate) async fn find(&self, users: Search) -> AppResult<Vec<User>> {
         let users = users.validate()?;
 
-        let mut query = users::Entity::find();
+        let mut query = self.join_query();
 
-        if let Some(sort) = users.sort {
-            query = match users.order.as_deref() {
-                Some("desc") => sort.sort_desc(query),
-                _ => sort.sort_asc(query),
-            };
-        }
+        let sort = users.sort.unwrap_or_default();
+
+        query = match users.order.as_deref() {
+            Some("desc") => sort.sort_desc(query),
+            _ => sort.sort_asc(query),
+        };
 
         if let Some(search) = users.search {
             let maybe_uuid = Uuid::parse_str(search.as_str()).ok();
@@ -48,14 +72,20 @@ where
         query = query.limit(users.limit.unwrap_or(15));
         query = query.offset(users.offset.unwrap_or(0));
 
-        let users = query.all(self.repository.connection()).await?;
+        let users = query
+            .into_model::<User>()
+            .all(self.repository.connection())
+            .await?;
 
         Ok(users)
     }
 
     /// Find a single user by their id
-    pub(crate) async fn get(&self, user_id: Uuid) -> AppResult<entity::users::Model> {
-        let user = users::Entity::find_by_id(user_id)
+    pub(crate) async fn get(&self, user_id: Uuid) -> AppResult<User> {
+        let user = self
+            .join_query()
+            .filter(users::Column::Id.eq(user_id))
+            .into_model::<User>()
             .one(self.repository.connection())
             .await?
             .ok_or_else(|| Error::NotFound("User not found".to_string()))?;
@@ -92,7 +122,7 @@ where
         users::Entity::update(users::ActiveModel {
             id: ActiveValue::Set(user.id),
             secret: ActiveValue::Set(None),
-            updated_at: ActiveValue::Set(Utc::now().naive_utc()),
+            updated_at: ActiveValue::Set(Utc::now().timestamp()),
             ..Default::default()
         })
         .exec(self.repository.connection())

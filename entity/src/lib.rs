@@ -22,7 +22,7 @@ pub use sea_orm::{
         SubQueryStatement, UnionType,
     },
     ActiveValue, Condition, ConnectionTrait, DbBackend, DbConn, DbErr, EntityOrSelect,
-    FromQueryResult, JoinType, JsonValue, ModelTrait, Order, PaginatorTrait, QueryFilter,
+    FromQueryResult, Identity, JoinType, JsonValue, ModelTrait, Order, PaginatorTrait, QueryFilter,
     QueryOrder, QueryResult, QuerySelect, QueryTrait, Select, SelectTwo, Statement,
     TransactionTrait, TryGetableMany, Value,
 };
