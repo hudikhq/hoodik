@@ -6,10 +6,10 @@ export interface Session {
   email: string
   ip: string
   user_agent: String
-  created_at: string
-  updated_at: string
-  expires_at: string
-  deleted_at?: string
+  created_at: number
+  updated_at: number
+  expires_at: number
+  deleted_at?: number
 }
 
 export interface Search extends Query {

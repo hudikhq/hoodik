@@ -12,13 +12,13 @@ export interface Search extends Query {
 export interface Create {
   email: string
   message?: string
-  expires_at?: string
+  expires_at?: number
 }
 
 export interface Invitation {
   id: string
   user_id?: string
   email: string
-  created_at: string
-  expires_at: string
+  created_at: number
+  expires_at: number
 }

@@ -118,17 +118,17 @@ export interface EncryptedAppFile extends AppFileEncryptedPart {
    * This is an optional field that can be
    * set to the original file creation date
    */
-  file_created_at: string
+  file_created_at: number
 
   /**
    * Database file creation date
    */
-  created_at: string
+  created_at: number
 
   /**
    * Date of the last uploaded chunk
    */
-  finished_upload_at?: string
+  finished_upload_at?: number
 
   /**
    * Lets us know if the file was newly created or was

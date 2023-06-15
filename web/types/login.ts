@@ -9,10 +9,10 @@ export interface User {
   pubkey: string
   fingerprint: string
   encrypted_private_key?: string
-  created_at: string
-  updated_at: string
-  email_verified_at?: string
   role?: string
+  created_at: number
+  updated_at: number
+  email_verified_at?: number
 }
 
 export interface Session {
@@ -21,9 +21,9 @@ export interface Session {
   device_id?: string
   ip: string
   user_agent: string
-  created_at: string
-  updated_at: string
-  expires_at: string
+  created_at: number
+  updated_at: number
+  expires_at: number
 }
 
 export interface Credentials {
