@@ -1,5 +1,10 @@
 import type { Query } from '!/api'
 
+export interface Paginated {
+  sessions: Invitation[]
+  total: number
+}
+
 export interface Search extends Query {
   with_expired?: boolean
   search?: string

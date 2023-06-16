@@ -1,11 +1,11 @@
 import Api from '!/api'
-import type { Search, Session } from 'types/admin/sessions'
+import type { Paginated, Search } from 'types/admin/sessions'
 
 /**
  * Get paginated array of the sessions sent to the potential new users
  */
-export async function index(search: Search): Promise<Session[]> {
-  const response = await Api.get<Session[]>(`/api/admin/sessions`, search)
+export async function index(search: Search): Promise<Paginated> {
+  const response = await Api.get<Paginated>(`/api/admin/sessions`, search)
 
   if (!response.body) {
     throw new Error('Failed to get sessions')

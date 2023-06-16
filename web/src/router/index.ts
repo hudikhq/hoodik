@@ -109,6 +109,12 @@ const router = createRouter({
       name: 'admin-users',
       meta: { title: 'Admin Users' },
       component: () => import('../views/admin/UsersView.vue')
+    },
+    {
+      path: '/admin/users/:id',
+      name: 'admin-users-single',
+      meta: { title: 'User details' },
+      component: () => import('../views/admin/UsersSingleView.vue')
     }
   ]
 })

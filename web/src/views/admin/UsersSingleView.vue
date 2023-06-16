@@ -1,0 +1,151 @@
+<script setup lang="ts">
+import SectionMain from '@/components/ui/SectionMain.vue'
+import CardBox from '@/components/ui/CardBox.vue'
+import CardBoxComponentHeader from '@/components/ui/CardBoxComponentHeader.vue'
+import LayoutAdminWithLoader from '@/layouts/LayoutAdminWithLoader.vue'
+import StatsTable from '@/components/files/stats/StatsTable.vue'
+import type { Response } from 'types/admin/users'
+import { users } from '!/admin'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { mdiDelete, mdiRefresh } from '@mdi/js'
+import { formatPrettyDate } from '!/index'
+import BaseButtonConfirm from '@/components/ui/BaseButtonConfirm.vue'
+import SessionsInner from './users/SessionsInner.vue'
+
+const route = useRoute()
+const router = useRouter()
+const data = ref<Response>()
+
+const user = computed(() => {
+  if (!data.value) return null
+  return data.value.user
+})
+
+const createdAt = computed(() => {
+  if (!user.value) return null
+
+  return formatPrettyDate(user.value.created_at)
+})
+
+const emailVerifiedAt = computed(() => {
+  if (!user.value?.email_verified_at) return 'not-verified'
+
+  return formatPrettyDate(user.value?.email_verified_at)
+})
+
+const lastActiveAt = computed(() => {
+  if (!user.value?.last_session?.updated_at) return 'no data'
+  return formatPrettyDate(user.value?.last_session?.updated_at)
+})
+
+const disableTfa = async () => {
+  if (!user.value) return
+
+  data.value = await users.disableTfa(user.value.id)
+}
+
+const remove = async () => {
+  if (!user.value) return
+
+  await users.remove(user.value.id)
+
+  router.push({
+    name: 'admin-users'
+  })
+}
+
+const get = async () => {
+  if (!user.value) return
+
+  data.value = await users.get(user.value.id)
+}
+
+watch(
+  () => route.params.id,
+  async (id: string | string[]) => {
+    id = Array.isArray(id) ? id[0] : id
+
+    data.value = await users.get(id)
+  },
+  { immediate: true }
+)
+</script>
+<template>
+  <LayoutAdminWithLoader>
+    <SectionMain v-if="data">
+      <div class="flex space-x-2">
+        <CardBox class="sm:w-1/2" v-if="user">
+          <CardBoxComponentHeader
+            title="User details"
+            class="mb-4"
+            :button-icon="mdiRefresh"
+            @button-click="get"
+          />
+          <BaseButtonConfirm
+            class="mb-2"
+            :icon="mdiDelete"
+            color="danger"
+            small
+            rounded-full
+            label="Delete user"
+            confirm-label="Confirm"
+            @confirm="remove"
+          />
+
+          <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+            <div class="flex flex-col w-1/2">Email</div>
+            <div class="flex flex-col w-1/2">{{ user.email }}</div>
+          </div>
+          <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+            <div class="flex flex-col w-1/2">Email Verified</div>
+            <div class="flex flex-col w-1/2">{{ emailVerifiedAt }}</div>
+          </div>
+          <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+            <div class="flex flex-col w-6/12">Has two factor</div>
+            <div class="flex flex-col w-3/2">{{ user.secret ? 'yes' : 'no' }}</div>
+            <div class="flex flex-col w-3/2">
+              <BaseButtonConfirm
+                class="ml-2"
+                :icon="mdiDelete"
+                color="danger"
+                small
+                rounded-full
+                label="Disable TFA"
+                confirm-label="Confirm"
+                @confirm="disableTfa"
+                :disabled="!user.secret"
+              />
+            </div>
+          </div>
+          <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+            <div class="flex flex-col w-1/2">Created</div>
+            <div class="flex flex-col w-1/2">{{ createdAt }}</div>
+          </div>
+          <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+            <div class="flex flex-col w-1/2">Last active</div>
+            <div class="flex flex-col w-1/2">{{ lastActiveAt }}</div>
+          </div>
+          <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+            <div class="flex flex-col w-1/2">Public key</div>
+            <div class="flex flex-col w-1/2 text-xs">{{ user.pubkey }}</div>
+          </div>
+          <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+            <div class="flex flex-col w-1/2">Fingerprint</div>
+            <div class="flex flex-col w-1/2 text-xs">{{ user.fingerprint }}</div>
+          </div>
+        </CardBox>
+
+        <CardBox class="sm:w-1/2">
+          <CardBoxComponentHeader title="Storage usage" class="mb-4" />
+
+          <StatsTable :data="data.stats" />
+        </CardBox>
+      </div>
+
+      <div class="mt-2">
+        <SessionsInner v-if="user" :user="user" />
+      </div>
+    </SectionMain>
+  </LayoutAdminWithLoader>
+</template>

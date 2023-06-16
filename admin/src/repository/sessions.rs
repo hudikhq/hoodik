@@ -1,12 +1,12 @@
-use crate::data::sessions::{search::Search, session::Session};
+use crate::data::sessions::{response::Paginated, search::Search, session::Session};
 
 use super::Repository;
 use chrono::Utc;
 use entity::{
     sessions::{self, ActiveModel},
     sort::Sortable,
-    users, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, JoinType, QueryFilter,
-    QuerySelect, RelationTrait, Uuid,
+    users, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, JoinType, PaginatorTrait,
+    QueryFilter, QuerySelect, RelationTrait, Uuid,
 };
 use error::AppResult;
 use validr::Validation;
@@ -24,7 +24,7 @@ where
     }
 
     /// Find all the sessions
-    pub(crate) async fn find(&self, sessions: Search) -> AppResult<Vec<Session>> {
+    pub(crate) async fn find(&self, sessions: Search) -> AppResult<Paginated> {
         let sessions = sessions.validate()?;
 
         let mut query = sessions::Entity::find().select_only();
@@ -34,10 +34,16 @@ where
 
         query = query.join(JoinType::InnerJoin, sessions::Relation::Users.def());
 
-        let with_expired = sessions.with_expired.unwrap_or(false);
-
-        if !with_expired {
+        if !sessions.with_expired.unwrap_or(false) {
             query = query.filter(sessions::Column::ExpiresAt.gt(Utc::now().timestamp()));
+        }
+
+        if !sessions.with_deleted.unwrap_or(false) {
+            query = query.filter(sessions::Column::DeletedAt.is_null());
+        }
+
+        if let Some(user_id) = sessions.user_id {
+            query = query.filter(sessions::Column::UserId.eq(user_id));
         }
 
         if let Some(sort) = sessions.sort.as_ref() {
@@ -62,6 +68,8 @@ where
             }
         }
 
+        let total = query.clone().count(self.repository.connection()).await?;
+
         query = query.limit(sessions.limit.unwrap_or(15));
         query = query.offset(sessions.offset.unwrap_or(0));
 
@@ -70,7 +78,7 @@ where
             .all(self.repository.connection())
             .await?;
 
-        Ok(sessions)
+        Ok(Paginated { sessions, total })
     }
 
     /// Kill the session instantly
@@ -80,9 +88,13 @@ where
             .await?
             .ok_or_else(|| error::Error::NotFound("Session not found".to_string()))?;
 
-        let mut active_model: ActiveModel = session.into();
-        active_model.deleted_at = ActiveValue::Set(Some(Utc::now().timestamp()));
-        active_model.refresh = ActiveValue::Set(None);
+        let active_model = ActiveModel {
+            id: ActiveValue::Set(session.id),
+            expires_at: ActiveValue::Set(Utc::now().timestamp()),
+            deleted_at: ActiveValue::Set(Some(Utc::now().timestamp())),
+            refresh: ActiveValue::Set(None),
+            ..Default::default()
+        };
 
         sessions::Entity::update(active_model)
             .exec(self.repository.connection())
@@ -102,7 +114,7 @@ where
 
         let results = sessions::Entity::update_many()
             .filter(sessions::Column::UserId.eq(user_id))
-            .filter(sessions::Column::DeletedAt.gt(Utc::now().naive_utc()))
+            .filter(sessions::Column::DeletedAt.is_null())
             .set(active_model)
             .exec(self.repository.connection())
             .await?;

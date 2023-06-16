@@ -2,13 +2,14 @@ use chrono::Utc;
 use entity::{
     invitations::{self, ActiveModel},
     sort::Sortable,
-    users, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QuerySelect, Uuid,
+    users, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait, QueryFilter,
+    QuerySelect, Uuid,
 };
 use error::{AppResult, Error};
 use validr::Validation;
 
 use crate::{
-    data::invitations::{create::Create, search::Search},
+    data::invitations::{create::Create, response::Paginated, search::Search},
     emails::invite::send,
 };
 
@@ -27,7 +28,7 @@ where
     }
 
     /// Find all the invitations, redeemed or not
-    pub(crate) async fn find(&self, invitations: Search) -> AppResult<Vec<invitations::Model>> {
+    pub(crate) async fn find(&self, invitations: Search) -> AppResult<Paginated> {
         let invitations = invitations.validate()?;
 
         let mut query = invitations::Entity::find();
@@ -55,12 +56,14 @@ where
             }
         }
 
+        let total = query.clone().count(self.repository.connection()).await?;
+
         query = query.limit(invitations.limit.unwrap_or(15));
         query = query.offset(invitations.offset.unwrap_or(0));
 
         let invitations = query.all(self.repository.connection()).await?;
 
-        Ok(invitations)
+        Ok(Paginated { invitations, total })
     }
 
     /// Expire an invitation, this will make sure that the invitation

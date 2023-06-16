@@ -5,14 +5,17 @@ import { formatSize } from '!/index'
 
 const props = defineProps<{
   data: Stats
-  max: number
+  max?: number
 }>()
 
 const mime = computed(() => props.data.mime)
 const count = computed(() => props.data.count)
 const size = computed(() => formatSize(props.data.size))
+const maxSize = computed(() => {
+  if (!props.max) return 'infinity'
 
-const maxSize = computed(() => formatSize(props.max))
+  return formatSize(props.max)
+})
 const percentage = computed(() => {
   if (!props.data.size) return `0%`
   if (!props.max) return `0%`

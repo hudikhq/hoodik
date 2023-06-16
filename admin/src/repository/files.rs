@@ -69,7 +69,7 @@ where
         let files = user_files::Entity::find()
             .filter(user_files::Column::UserId.eq(user_id))
             .filter(user_files::Column::IsOwner.eq(true))
-            .join(JoinType::InnerJoin, files::Relation::UserFiles.def())
+            .join(JoinType::InnerJoin, user_files::Relation::Files.def())
             .select_also(files::Entity)
             .all(self.repository.connection())
             .await?

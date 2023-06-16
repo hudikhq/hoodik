@@ -35,6 +35,11 @@ const emits = defineEmits<{
 
 const clicked = ref(false)
 
+const confirm = () => {
+  clicked.value = false
+  emits('confirm')
+}
+
 const cancel = () => {
   clicked.value = false
   emits('cancel')
@@ -86,7 +91,7 @@ const cancel = () => {
           :roundedFull="false"
           :notRounded="true"
           :noBorder="props.noBorder"
-          @click="emits('confirm')"
+          @click="confirm"
         />
         <BaseButton
           :label="props.cancelLabel ?? ''"

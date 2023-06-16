@@ -36,5 +36,6 @@ const buttonClick = (event: Event) => {
     >
       <BaseIcon :path="buttonIcon" />
     </button>
+    <slot />
   </header>
 </template>

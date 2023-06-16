@@ -4,7 +4,7 @@ import StatsRow from './StatsRow.vue'
 
 const props = defineProps<{
   data: Stats[]
-  max: number
+  max?: number
 }>()
 </script>
 <template>

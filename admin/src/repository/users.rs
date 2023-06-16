@@ -1,12 +1,13 @@
 use chrono::Utc;
 use entity::{
     sessions, sort::Sortable, users, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, Expr,
-    IntoCondition, JoinType, ModelTrait, QueryFilter, QuerySelect, RelationTrait, Select, Uuid,
+    IntoCondition, JoinType, ModelTrait, PaginatorTrait, QueryFilter, QuerySelect, RelationTrait,
+    Select, Uuid,
 };
 use error::{AppResult, Error};
 use validr::Validation;
 
-use crate::data::users::{search::Search, user::User};
+use crate::data::users::{response::Paginated, search::Search, user::User};
 
 use super::Repository;
 
@@ -47,7 +48,7 @@ where
     }
 
     /// Search through users
-    pub(crate) async fn find(&self, users: Search) -> AppResult<Vec<User>> {
+    pub(crate) async fn find(&self, users: Search) -> AppResult<Paginated> {
         let users = users.validate()?;
 
         let mut query = self.join_query();
@@ -69,6 +70,8 @@ where
             }
         }
 
+        let total = query.clone().count(self.repository.connection()).await?;
+
         query = query.limit(users.limit.unwrap_or(15));
         query = query.offset(users.offset.unwrap_or(0));
 
@@ -77,7 +80,7 @@ where
             .all(self.repository.connection())
             .await?;
 
-        Ok(users)
+        Ok(Paginated { users, total })
     }
 
     /// Find a single user by their id

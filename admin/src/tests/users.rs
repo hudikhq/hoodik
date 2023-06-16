@@ -7,7 +7,7 @@ async fn test_find_all_users() {
     let repository = super::get_repo(&context).await;
     super::get_users(&context).await;
 
-    let users = repository
+    let paginated = repository
         .users()
         .find(users::search::Search {
             sort: None,
@@ -18,6 +18,7 @@ async fn test_find_all_users() {
         })
         .await
         .unwrap();
+    let users = paginated.users;
 
     assert_eq!(users.len(), 9);
     assert_eq!(users[0].email, "1@test.com");
@@ -30,7 +31,7 @@ async fn test_pagination_for_users() {
     let repository = super::get_repo(&context).await;
     super::get_users(&context).await;
 
-    let users = repository
+    let paginated = repository
         .users()
         .find(users::search::Search {
             sort: None,
@@ -41,6 +42,7 @@ async fn test_pagination_for_users() {
         })
         .await
         .unwrap();
+    let users = paginated.users;
 
     assert_eq!(users.len(), 1);
     assert_eq!(users[0].email, "2@test.com");
@@ -52,7 +54,7 @@ async fn test_sort_for_users() {
     let repository = super::get_repo(&context).await;
     super::get_users(&context).await;
 
-    let users = repository
+    let paginated = repository
         .users()
         .find(users::search::Search {
             sort: Some(UsersSort::Email),
@@ -63,6 +65,7 @@ async fn test_sort_for_users() {
         })
         .await
         .unwrap();
+    let users = paginated.users;
 
     assert_eq!(users.len(), 9);
     assert_eq!(users[0].email, "9@test.com");
@@ -74,7 +77,7 @@ async fn test_search_user_by_email() {
     let repository = super::get_repo(&context).await;
     super::get_users(&context).await;
 
-    let users = repository
+    let paginated = repository
         .users()
         .find(users::search::Search {
             sort: None,
@@ -85,6 +88,7 @@ async fn test_search_user_by_email() {
         })
         .await
         .unwrap();
+    let users = paginated.users;
 
     assert_eq!(users.len(), 1);
     assert_eq!(users[0].email, "1@test.com");
@@ -102,7 +106,7 @@ async fn test_find_all_users_and_properly_add_session() {
     entity::mock::create_session(&context.db, &user, None, None, true).await;
     let last_session = entity::mock::create_session(&context.db, &user, None, None, false).await;
 
-    let users = repository
+    let paginated = repository
         .users()
         .find(users::search::Search {
             sort: None,
@@ -113,10 +117,21 @@ async fn test_find_all_users_and_properly_add_session() {
         })
         .await
         .unwrap();
+    let users = paginated.users;
 
     assert_eq!(users.len(), 9);
     assert_eq!(users[0].email, "1@test.com");
     assert!(users[0].last_session.is_some());
     assert_eq!(users[0].last_session.clone().unwrap().id, last_session.id);
     assert_eq!(users[1].email, "2@test.com");
+}
+
+#[async_std::test]
+async fn test_delete_user() {
+    let context = Context::mock_sqlite().await;
+    let repository = super::get_repo(&context).await;
+    let users = super::get_users(&context).await;
+    let user = users.get(0).unwrap().clone();
+
+    repository.users().delete(user.id).await.unwrap();
 }

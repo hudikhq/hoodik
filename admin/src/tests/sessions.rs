@@ -1,3 +1,4 @@
+use chrono::Utc;
 use context::Context;
 
 #[async_std::test]
@@ -7,7 +8,7 @@ async fn test_find_sessions() {
     let user = super::get_users(&context).await.get(0).unwrap().clone();
     let _sessions = super::create_sessions(&context, &user).await;
 
-    let sessions = repository
+    let paginated = repository
         .sessions()
         .find(crate::data::sessions::search::Search {
             with_deleted: None,
@@ -21,6 +22,7 @@ async fn test_find_sessions() {
         })
         .await
         .unwrap();
+    let sessions = paginated.sessions;
 
     assert_eq!(sessions.len(), 5);
 }
@@ -32,7 +34,7 @@ async fn test_find_sessions_by_ip() {
     let user = super::get_users(&context).await.get(0).unwrap().clone();
     let _sessions = super::create_sessions(&context, &user).await;
 
-    let sessions = repository
+    let paginated = repository
         .sessions()
         .find(crate::data::sessions::search::Search {
             with_deleted: None,
@@ -46,6 +48,7 @@ async fn test_find_sessions_by_ip() {
         })
         .await
         .unwrap();
+    let sessions = paginated.sessions;
 
     assert_eq!(sessions.len(), 1);
 }
@@ -69,7 +72,7 @@ async fn test_find_sessions_by_email() {
     )
     .await;
 
-    let sessions = repository
+    let paginated = repository
         .sessions()
         .find(crate::data::sessions::search::Search {
             with_deleted: None,
@@ -83,6 +86,7 @@ async fn test_find_sessions_by_email() {
         })
         .await
         .unwrap();
+    let sessions = paginated.sessions;
 
     assert_eq!(sessions.len(), 1);
 }
@@ -94,7 +98,7 @@ async fn test_find_sessions_by_user_agent() {
     let user = super::get_users(&context).await.get(0).unwrap().clone();
     let _sessions = super::create_sessions(&context, &user).await;
 
-    let sessions = repository
+    let paginated = repository
         .sessions()
         .find(crate::data::sessions::search::Search {
             with_deleted: None,
@@ -108,6 +112,64 @@ async fn test_find_sessions_by_user_agent() {
         })
         .await
         .unwrap();
+    let sessions = paginated.sessions;
 
     assert_eq!(sessions.len(), 1);
+}
+
+#[async_std::test]
+async fn test_session_killing() {
+    let context = Context::mock_sqlite().await;
+    let repository = crate::tests::get_repo(&context).await;
+    let user = super::get_users(&context).await.get(0).unwrap().clone();
+    let sessions = super::create_sessions(&context, &user).await;
+
+    let session = sessions.get(0).unwrap().clone();
+
+    let _ = repository.sessions().kill(session.id).await.unwrap();
+
+    let paginated = repository
+        .sessions()
+        .find(crate::data::sessions::search::Search {
+            with_deleted: Some(true),
+            with_expired: Some(true),
+            user_id: None,
+            search: None,
+            sort: None,
+            order: None,
+            limit: None,
+            offset: None,
+        })
+        .await
+        .unwrap();
+
+    let sessions = paginated.sessions;
+    let should_be_expired = sessions.iter().find(|s| s.id == session.id).unwrap();
+
+    assert!(should_be_expired.deleted_at.is_some());
+    assert!(should_be_expired.expires_at <= Utc::now().timestamp());
+
+    repository.sessions().kill_for(user.id).await.unwrap();
+
+    let paginated = repository
+        .sessions()
+        .find(crate::data::sessions::search::Search {
+            with_deleted: Some(true),
+            with_expired: Some(true),
+            user_id: None,
+            search: None,
+            sort: None,
+            order: None,
+            limit: None,
+            offset: None,
+        })
+        .await
+        .unwrap();
+
+    let sessions = paginated.sessions;
+
+    for session in sessions {
+        assert!(session.deleted_at.is_some());
+        assert!(session.expires_at <= Utc::now().timestamp());
+    }
 }
