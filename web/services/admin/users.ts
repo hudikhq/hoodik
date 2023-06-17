@@ -1,5 +1,18 @@
 import Api from '!/api'
-import type { Paginated, Response, Search } from 'types/admin/users'
+import type { Paginated, Response, Search, Update } from 'types/admin/users'
+
+/**
+ * Update user information
+ */
+export async function update(id: string, update: Update): Promise<Response> {
+  const response = await Api.put<Update, Response>(`/api/admin/users/${id}`, undefined, update)
+
+  if (!response.body) {
+    throw new Error('Failed to update user')
+  }
+
+  return response.body
+}
 
 /**
  * Get single usee, its object and stats

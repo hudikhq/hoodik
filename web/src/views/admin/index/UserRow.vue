@@ -9,27 +9,33 @@ const props = defineProps<{
   user: User
 }>()
 
+const user = computed(() => {
+  return props.user
+})
+
 const createdAt = computed(() => {
-  return formatPrettyDate(props.user.created_at)
+  return formatPrettyDate(user.value.created_at)
 })
 
 const emailVerifiedAt = computed(() => {
-  if (!props.user.email_verified_at) return 'not-verified'
+  if (!user.value.email_verified_at) return 'not-verified'
 
-  return formatPrettyDate(props.user.email_verified_at)
+  return formatPrettyDate(user.value.email_verified_at)
 })
 
 const lastActiveAt = computed(() => {
-  if (!props.user.last_session) return 'no data'
+  if (!user.value.last_session) return 'no data'
 
-  return formatPrettyDate(props.user.last_session.updated_at)
+  return formatPrettyDate(user.value.last_session.updated_at)
 })
 </script>
 <template>
   <tr>
     <td>{{ user.email }}</td>
     <td>{{ user.secret ? 'yes' : 'no' }}</td>
-    <td>{{ user.role }}</td>
+    <td>
+      {{ user.role ? user.role : 'n/a' }}
+    </td>
     <td>{{ emailVerifiedAt }}</td>
     <td>{{ createdAt }}</td>
     <td>{{ lastActiveAt }}</td>

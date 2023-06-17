@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { stats } from '!/admin/files'
 import { computed, onMounted, ref } from 'vue'
-import SectionMain from '@/components/ui/SectionMain.vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import CardBoxComponentHeader from '@/components/ui/CardBoxComponentHeader.vue'
-import CardBoxComponentFooter from '@/components/ui/CardBoxComponentFooter.vue'
 import { formatSize } from '!/index'
 import StatsTable from '@/components/files/stats/StatsTable.vue'
 import type { Response } from 'types/admin/files'
 import { mdiRefresh } from '@mdi/js'
+
+const props = defineProps<{
+  class?: string
+}>()
 
 const data = ref<Response>()
 
@@ -29,20 +31,16 @@ onMounted(async () => {
 })
 </script>
 <template>
-  <SectionMain>
-    <CardBox class="sm:w-1/2">
-      <CardBoxComponentHeader
-        title="Files"
-        :button-icon="mdiRefresh"
-        @button-click="stats"
-        class="mb-4"
-      />
+  <CardBox :class="props.class">
+    <CardBoxComponentHeader
+      title="Storage overview"
+      :button-icon="mdiRefresh"
+      @button-click="stats"
+      class="mb-4"
+    />
 
-      <StatsTable v-if="data" :data="data.stats" :max="data.available_space" />
-    </CardBox>
+    <StatsTable v-if="data" :data="data.stats" :max="data.available_space" />
 
-    <CardBoxComponentFooter
-      >Storage space usage: {{ usedSpace }} / {{ availableSpace }}
-    </CardBoxComponentFooter>
-  </SectionMain>
+    <div class="mt-4">Storage space usage: {{ usedSpace }} / {{ availableSpace }}</div>
+  </CardBox>
 </template>

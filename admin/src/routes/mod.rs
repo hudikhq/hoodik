@@ -13,6 +13,7 @@ pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
         .service(sessions::kill_for_user)
         .service(users::get)
         .service(users::index)
+        .service(users::update)
         .service(users::remove)
         .service(users::remove_tfa);
 }

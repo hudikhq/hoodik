@@ -7,7 +7,7 @@ use entity::{
 use error::{AppResult, Error};
 use validr::Validation;
 
-use crate::data::users::{response::Paginated, search::Search, user::User};
+use crate::data::users::{response::Paginated, search::Search, update::Update, user::User};
 
 use super::Repository;
 
@@ -94,6 +94,32 @@ where
             .ok_or_else(|| Error::NotFound("User not found".to_string()))?;
 
         Ok(user)
+    }
+
+    /// Update user information
+    pub(crate) async fn update(&self, user_id: Uuid, update: Update) -> AppResult<User> {
+        let update = update.validate()?;
+
+        let user = self
+            .join_query()
+            .filter(users::Column::Id.eq(user_id))
+            .into_model::<User>()
+            .one(self.repository.connection())
+            .await?
+            .ok_or_else(|| Error::NotFound("User not found".to_string()))?;
+
+        let active_model = users::ActiveModel {
+            id: ActiveValue::Set(user.id),
+            role: ActiveValue::Set(update.role),
+            updated_at: ActiveValue::Set(Utc::now().timestamp()),
+            ..Default::default()
+        };
+
+        users::Entity::update(active_model)
+            .exec(self.repository.connection())
+            .await?;
+
+        self.get(user_id).await
     }
 
     /// Delete the user forever and all of their linked entities

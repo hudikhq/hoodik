@@ -67,7 +67,6 @@ const cancel = () => {
         :disabled="props.disabled"
         :roundedFull="props.roundedFull"
         :noBorder="props.noBorder"
-        :class="props.class"
         :dropdownEl="props.dropdownEl"
         @click="clicked = true"
       />

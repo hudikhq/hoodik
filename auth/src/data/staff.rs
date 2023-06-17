@@ -30,6 +30,17 @@ impl Staff {
 
         Err(Error::Forbidden("auth::data::staff|not_admin".to_string()))
     }
+
+    /// Check if the user is trying to update themselves
+    pub fn forbidden_self(&self, user_id: entity::Uuid) -> AppResult<()> {
+        if self.claims.sub == user_id {
+            return Err(Error::Forbidden(
+                "auth::data::staff|forbidden_self".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
 }
 
 impl FromRequest for Staff {

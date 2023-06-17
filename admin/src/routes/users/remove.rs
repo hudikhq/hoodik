@@ -16,6 +16,8 @@ pub(crate) async fn remove(
     staff.is_admin_or_err()?;
 
     let id = util::actix::path_var::<Uuid>(&req, "id")?;
+    staff.forbidden_self(id)?;
+
     let context = context.into_inner();
 
     Repository::new(&context, &context.db)

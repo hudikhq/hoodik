@@ -4,22 +4,32 @@ import CardBox from '@/components/ui/CardBox.vue'
 import CardBoxComponentHeader from '@/components/ui/CardBoxComponentHeader.vue'
 import LayoutAdminWithLoader from '@/layouts/LayoutAdminWithLoader.vue'
 import StatsTable from '@/components/files/stats/StatsTable.vue'
-import type { Response } from 'types/admin/users'
+import type { Response, User } from 'types/admin/users'
 import { users } from '!/admin'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { mdiDelete, mdiRefresh } from '@mdi/js'
+import { mdiDelete, mdiRefresh, mdiHuman } from '@mdi/js'
 import { formatPrettyDate } from '!/index'
 import BaseButtonConfirm from '@/components/ui/BaseButtonConfirm.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import SessionsInner from './users/SessionsInner.vue'
 
 const route = useRoute()
 const router = useRouter()
 const data = ref<Response>()
 
-const user = computed(() => {
-  if (!data.value) return null
-  return data.value.user
+const user = computed({
+  get(): User | null {
+    if (!data.value) return null
+
+    return data.value.user
+  },
+  set(value: User | null) {
+    if (!data.value) return
+    if (!value) return
+
+    data.value.user = value
+  }
 })
 
 const createdAt = computed(() => {
@@ -59,6 +69,16 @@ const get = async () => {
   if (!user.value) return
 
   data.value = await users.get(user.value.id)
+}
+
+const setRole = async (role?: 'admin') => {
+  if (!user.value) return
+
+  const response = await users.update(user.value.id, {
+    role
+  })
+
+  user.value = response.user
 }
 
 watch(
@@ -103,10 +123,8 @@ watch(
           </div>
           <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
             <div class="flex flex-col w-6/12">Has two factor</div>
-            <div class="flex flex-col w-3/2">{{ user.secret ? 'yes' : 'no' }}</div>
-            <div class="flex flex-col w-3/2">
+            <div class="flex flex-col w-6/2">
               <BaseButtonConfirm
-                class="ml-2"
                 :icon="mdiDelete"
                 color="danger"
                 small
@@ -114,7 +132,31 @@ watch(
                 label="Disable TFA"
                 confirm-label="Confirm"
                 @confirm="disableTfa"
-                :disabled="!user.secret"
+                v-if="user.secret"
+              />
+              <BaseButton label="No" :small="true" class="cursor-auto" />
+            </div>
+          </div>
+          <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+            <div class="flex flex-col w-6/12">User role</div>
+            <div class="flex flex-col w-6/2">
+              <BaseButtonConfirm
+                v-if="!user.role"
+                :icon="mdiHuman"
+                small
+                rounded-full
+                label="Set as admin"
+                confirm-label="Confirm"
+                @confirm="setRole('admin')"
+              />
+              <BaseButtonConfirm
+                v-if="user.role"
+                :icon="mdiDelete"
+                small
+                rounded-full
+                :label="`Remove ${user.role}`"
+                confirm-label="Confirm"
+                @confirm="setRole()"
               />
             </div>
           </div>

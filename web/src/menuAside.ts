@@ -1,4 +1,4 @@
-import { mdiMonitor, mdiLink, mdiViewDashboard, mdiHuman } from '@mdi/js'
+import { mdiMonitor, mdiLink, mdiHuman } from '@mdi/js'
 import type { RouteLocation } from 'vue-router'
 
 export interface AsideMenuItemType {
@@ -21,14 +21,8 @@ export default [
   },
   {
     to: { name: 'admin-dashboard' },
-    icon: mdiViewDashboard,
-    label: 'Stats',
-    roles: ['admin']
-  },
-  {
-    to: { name: 'admin-users' },
     icon: mdiHuman,
-    label: 'Users',
+    label: 'Manage',
     roles: ['admin']
   }
 ] as AsideMenuItemType[]

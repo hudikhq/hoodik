@@ -7,6 +7,10 @@ export interface Paginated {
   total: number
 }
 
+export interface Update {
+  role?: string
+}
+
 export interface User {
   id: string
   role: string
