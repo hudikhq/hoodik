@@ -12,7 +12,7 @@ import { mdiDelete, mdiRefresh, mdiHuman } from '@mdi/js'
 import { formatPrettyDate } from '!/index'
 import BaseButtonConfirm from '@/components/ui/BaseButtonConfirm.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import SessionsInner from './users/SessionsInner.vue'
+import SessionsInner from './user/SessionsInner.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -98,20 +98,20 @@ watch(
         <CardBox class="sm:w-1/2" v-if="user">
           <CardBoxComponentHeader
             title="User details"
-            class="mb-4"
             :button-icon="mdiRefresh"
             @button-click="get"
-          />
-          <BaseButtonConfirm
-            class="mb-2"
-            :icon="mdiDelete"
-            color="danger"
-            small
-            rounded-full
-            label="Delete user"
-            confirm-label="Confirm"
-            @confirm="remove"
-          />
+          >
+            <BaseButtonConfirm
+              :icon="mdiDelete"
+              color="danger"
+              class="mt-1"
+              small
+              rounded-full
+              label="Delete user"
+              confirm-label="Confirm"
+              @confirm="remove"
+            />
+          </CardBoxComponentHeader>
 
           <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
             <div class="flex flex-col w-1/2">Email</div>

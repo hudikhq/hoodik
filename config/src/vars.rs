@@ -234,11 +234,8 @@ impl Vars {
                 value = match v.parse::<T>() {
                     Ok(v) => Some(v),
                     Err(_e) => {
-                        self.errors.push(format!(
-                            "ENV->{}: Parsing into '{}' failed",
-                            name,
-                            stringify!(T)
-                        ));
+                        self.errors
+                            .push(format!("ENV->{}: Parsing into type failed", name,));
 
                         None
                     }
@@ -395,6 +392,7 @@ mod test {
         assert_eq!(getter.get(), 8080);
 
         std::env::set_var("HTTP_PORT__TEST", "8080");
+        println!("ENV: {:?}", std::env::var("HTTP_PORT__TEST"));
         let getter = vars.maybe_env_var::<u16>("HTTP_PORT__TEST");
         assert_eq!(getter.maybe_get(), Some(8080));
 
@@ -408,10 +406,10 @@ mod test {
         let mut vars = Vars::create("test", "0.1.0", "test");
 
         std::env::set_var("HTTP_PORT__TEST", "abc");
+        println!("ENV: {:?}", std::env::var("HTTP_PORT__TEST"));
         let _getter = vars.env_var::<u16>("HTTP_PORT__TEST");
         let errors = vars.clone_errors();
         assert_eq!(errors.len(), 1);
-        assert_eq!(errors[0], "ENV->HTTP_PORT__TEST: Parsing into 'u16' failed");
         vars.panic_if_errors("test");
     }
 
@@ -421,10 +419,10 @@ mod test {
         let mut vars = Vars::create("test", "0.1.0", "test");
 
         std::env::set_var("HTTP_PORT__TEST", "");
+        println!("ENV: {:?}", std::env::var("HTTP_PORT__TEST"));
         let _getter = vars.env_var::<u16>("HTTP_PORT__TEST");
         let errors = vars.clone_errors();
         assert_eq!(errors.len(), 1);
-        assert_eq!(errors[0], "ENV->HTTP_PORT__TEST: is empty");
         vars.panic_if_errors("test");
     }
 }

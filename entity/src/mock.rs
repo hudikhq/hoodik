@@ -74,7 +74,6 @@ pub async fn create_session<T: super::ConnectionTrait>(
         created_at: ActiveValue::Set((Utc::now().naive_utc() - Duration::minutes(5)).timestamp()),
         updated_at: ActiveValue::Set((Utc::now().naive_utc() - Duration::minutes(5)).timestamp()),
         expires_at: ActiveValue::Set(expires_at),
-        deleted_at: ActiveValue::NotSet,
     };
 
     super::sessions::Entity::insert(session)

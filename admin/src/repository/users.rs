@@ -1,8 +1,8 @@
 use chrono::Utc;
 use entity::{
     sessions, sort::Sortable, users, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, Expr,
-    IntoCondition, JoinType, ModelTrait, PaginatorTrait, QueryFilter, QuerySelect, RelationTrait,
-    Select, Uuid,
+    IntoCondition, JoinType, ModelTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
+    RelationTrait, Select, Uuid,
 };
 use error::{AppResult, Error};
 use validr::Validation;
@@ -37,11 +37,12 @@ where
                 .on_condition(move |_left, right| {
                     Expr::col((right, sessions::Column::ExpiresAt))
                         .gt(Utc::now().timestamp())
-                        .and(sessions::Column::DeletedAt.is_null())
+                        .and(sessions::Column::Refresh.is_not_null())
                         .into_condition()
                 }),
         );
 
+        query = query.order_by_desc(sessions::Column::UpdatedAt);
         query = query.group_by(users::Column::Id);
 
         query

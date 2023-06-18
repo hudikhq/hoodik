@@ -156,7 +156,6 @@ impl<'ctx> Auth<'ctx> {
     pub(crate) async fn get_by_refresh(&self, refresh: Uuid) -> AppResult<Authenticated> {
         let result = sessions::Entity::find()
             .filter(sessions::Column::Refresh.eq(refresh))
-            .filter(sessions::Column::DeletedAt.is_null())
             .inner_join(users::Entity)
             .select_also(users::Entity)
             .one(&self.context.db)
@@ -175,7 +174,7 @@ impl<'ctx> Auth<'ctx> {
     pub(crate) async fn get_by_device_id(&self, device_id: Uuid) -> AppResult<Authenticated> {
         let result = sessions::Entity::find()
             .filter(sessions::Column::DeviceId.eq(device_id))
-            .filter(sessions::Column::DeletedAt.is_null())
+            .filter(sessions::Column::Refresh.is_not_null())
             .inner_join(users::Entity)
             .select_also(users::Entity)
             .one(&self.context.db)
@@ -212,7 +211,6 @@ impl<'ctx> Auth<'ctx> {
             created_at: ActiveValue::Set(Utc::now().timestamp()),
             updated_at: ActiveValue::Set(Utc::now().timestamp()),
             expires_at: ActiveValue::Set(expires_at.timestamp()),
-            deleted_at: ActiveValue::NotSet,
         };
 
         sessions::Entity::insert(active_model)
@@ -244,7 +242,6 @@ impl<'ctx> Auth<'ctx> {
             created_at: ActiveValue::Set(session.created_at),
             updated_at: ActiveValue::Set(Utc::now().timestamp()),
             expires_at: ActiveValue::Set(expires_at.timestamp()),
-            deleted_at: ActiveValue::NotSet,
         };
 
         active_model.update(&self.context.db).await?;
@@ -267,7 +264,6 @@ impl<'ctx> Auth<'ctx> {
             created_at: ActiveValue::Set(session.created_at),
             updated_at: ActiveValue::Set(Utc::now().timestamp()),
             expires_at: ActiveValue::Set(Utc::now().timestamp()),
-            deleted_at: ActiveValue::Set(Some(Utc::now().timestamp())),
         };
 
         let session = active_model.update(&self.context.db).await?;
@@ -281,8 +277,7 @@ impl<'ctx> Auth<'ctx> {
         authenticated: &Authenticated,
         issuer: &str,
     ) -> AppResult<(Cookie<'static>, Cookie<'static>)> {
-        let destroy =
-            authenticated.session.deleted_at.is_some() || authenticated.session.refresh.is_none();
+        let destroy = authenticated.session.refresh.is_none();
 
         let mut refresh = authenticated
             .session

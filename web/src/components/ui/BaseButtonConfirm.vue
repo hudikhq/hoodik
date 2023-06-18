@@ -6,7 +6,7 @@ import type { RouteLocation } from 'vue-router'
 import { mdiCancel } from '@mdi/js'
 
 const props = defineProps<{
-  confirmLabel: string
+  confirmLabel?: string
   cancelLabel?: string
   label?: string | number
   icon?: string
@@ -73,7 +73,7 @@ const cancel = () => {
 
       <div class="inline-block rounded overflow-clip" v-else>
         <BaseButton
-          :label="props.confirmLabel"
+          :label="props.confirmLabel || ''"
           :icon="props.icon"
           :iconSize="props.iconSize"
           :href="props.href"

@@ -38,10 +38,6 @@ where
             query = query.filter(sessions::Column::ExpiresAt.gt(Utc::now().timestamp()));
         }
 
-        if !sessions.with_deleted.unwrap_or(false) {
-            query = query.filter(sessions::Column::DeletedAt.is_null());
-        }
-
         if let Some(user_id) = sessions.user_id {
             query = query.filter(sessions::Column::UserId.eq(user_id));
         }
@@ -91,7 +87,6 @@ where
         let active_model = ActiveModel {
             id: ActiveValue::Set(session.id),
             expires_at: ActiveValue::Set(Utc::now().timestamp()),
-            deleted_at: ActiveValue::Set(Some(Utc::now().timestamp())),
             refresh: ActiveValue::Set(None),
             ..Default::default()
         };
@@ -107,14 +102,13 @@ where
     pub(crate) async fn kill_for(&self, user_id: Uuid) -> AppResult<u64> {
         let active_model = ActiveModel {
             expires_at: ActiveValue::Set(Utc::now().timestamp()),
-            deleted_at: ActiveValue::Set(Some(Utc::now().timestamp())),
             refresh: ActiveValue::Set(None),
             ..Default::default()
         };
 
         let results = sessions::Entity::update_many()
             .filter(sessions::Column::UserId.eq(user_id))
-            .filter(sessions::Column::DeletedAt.is_null())
+            .filter(sessions::Column::Refresh.is_not_null())
             .set(active_model)
             .exec(self.repository.connection())
             .await?;

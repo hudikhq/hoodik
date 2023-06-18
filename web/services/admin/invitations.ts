@@ -30,12 +30,6 @@ export async function create(create: Create): Promise<Invitation> {
 /**
  * Expire an invitation so it cannot be used when registering
  */
-export async function expire(id: string): Promise<Invitation> {
-  const response = await Api.delete<Invitation>(`/api/admin/invitations/${id}`)
-
-  if (!response.body) {
-    throw new Error('Failed to expire invitation')
-  }
-
-  return response.body
+export async function expire(id: string): Promise<void> {
+  await Api.delete<Invitation>(`/api/admin/invitations/${id}`)
 }

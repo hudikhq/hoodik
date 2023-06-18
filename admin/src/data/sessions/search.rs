@@ -5,7 +5,6 @@ use validr::*;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Search {
-    pub with_deleted: Option<bool>,
     pub with_expired: Option<bool>,
     pub user_id: Option<Uuid>,
     pub search: Option<String>,
@@ -161,7 +160,6 @@ mod test {
     #[test]
     fn test_serialize_search_struct() {
         let search = super::Search {
-            with_deleted: None,
             with_expired: None,
             user_id: None,
             search: None,
@@ -175,14 +173,13 @@ mod test {
 
         assert_eq!(
             serialized,
-            "{\"with_deleted\":null,\"with_expired\":null,\"user_id\":null,\"search\":null,\"sort\":\"id\",\"order\":null,\"limit\":null,\"offset\":null}"
+            "{\"with_expired\":null,\"user_id\":null,\"search\":null,\"sort\":\"id\",\"order\":null,\"limit\":null,\"offset\":null}"
         );
     }
 
     #[test]
     fn test_deserialize_search_struct() {
         let search = super::Search {
-            with_deleted: None,
             with_expired: None,
             user_id: None,
             search: None,
@@ -193,7 +190,7 @@ mod test {
         };
 
         let deserialized = serde_json::from_str::<super::Search>(
-            "{\"with_deleted\":null,\"with_expired\":null,\"user_id\":null,\"search\":null,\"sort\":\"id\",\"order\":null,\"limit\":null,\"offset\":null}",
+            "{\"with_expired\":null,\"user_id\":null,\"search\":null,\"sort\":\"id\",\"order\":null,\"limit\":null,\"offset\":null}",
         )
         .unwrap();
 

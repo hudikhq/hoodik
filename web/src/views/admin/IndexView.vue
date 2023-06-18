@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import LayoutAdminWithLoader from '@/layouts/LayoutAdminWithLoader.vue'
-import IndexInner from './index/IndexInner.vue'
-import UsersInner from './index/UsersInner.vue'
+import StatsCard from './index/StatsCard.vue'
+import UsersCard from './index/UsersCard.vue'
+import InvitationsCard from './index/InvitationsCard.vue'
 import SectionMain from '@/components/ui/SectionMain.vue'
 </script>
 <template>
@@ -9,8 +10,9 @@ import SectionMain from '@/components/ui/SectionMain.vue'
     <Suspense>
       <SectionMain>
         <div class="flex flex-wrap">
-          <UsersInner class="w-full md:w-1/2" />
-          <IndexInner class="w-full mt-2 md:mt-0 md:w-1/2 md:ml-2 md:-mr-2" />
+          <UsersCard class="w-full p-2" />
+          <InvitationsCard class="w-full p-2 md:w-1/2" />
+          <StatsCard class="w-full p-2 md:w-1/2" />
         </div>
       </SectionMain>
     </Suspense>

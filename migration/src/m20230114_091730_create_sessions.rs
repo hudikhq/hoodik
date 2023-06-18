@@ -28,7 +28,6 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Sessions::CreatedAt).big_integer().not_null())
                     .col(ColumnDef::new(Sessions::UpdatedAt).big_integer().not_null())
                     .col(ColumnDef::new(Sessions::ExpiresAt).big_integer().not_null())
-                    .col(ColumnDef::new(Sessions::DeletedAt).big_integer())
                     .foreign_key(&mut foreign_key)
                     .to_owned(),
             )
@@ -55,5 +54,4 @@ pub(crate) enum Sessions {
     CreatedAt,
     UpdatedAt,
     ExpiresAt,
-    DeletedAt,
 }

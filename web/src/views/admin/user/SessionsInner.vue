@@ -6,7 +6,7 @@ import SortableName from '@/components/ui/SortableName.vue'
 import PuppyLoader from '@/components/ui/PuppyLoader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import SessionRow from './SessionRow.vue'
-import { index, killForUser } from '!/admin/sessions'
+import { index, killForUser, kill } from '!/admin/sessions'
 import { computed, ref, watch } from 'vue'
 import type { Paginated, Search } from 'types/admin/sessions'
 import { AppField } from '@/components/form'
@@ -20,10 +20,9 @@ const props = defineProps<{
 
 const paginated = ref<Paginated>()
 const query = ref<Search>({
-  with_deleted: false,
-  with_expired: false,
-  sort: undefined,
-  order: undefined,
+  with_expired: true,
+  sort: 'updated_at',
+  order: 'desc',
   search: undefined,
   limit: 15,
   offset: 0
@@ -73,40 +72,48 @@ const killAll = async () => {
   query.value = { ...query.value, limit: 15, offset: 0 }
 }
 
+const killOne = async (id: string) => {
+  await kill(id)
+
+  await find()
+}
+
 watch(query, find, { deep: true, immediate: true })
 </script>
 <template>
   <CardBox>
     <CardBoxComponentHeader :title="`User Sessions (${total})`" class="mb-4">
-      <div class="flex">
+      <div class="flex space-x-2 pt-2">
+        <div class="mt-1 mr-2">
+          <UniversalCheckbox
+            name="with_expired"
+            label="With Expired"
+            v-model="query.with_expired"
+          />
+        </div>
         <BaseButtonConfirm
           color="danger"
           label="Kill all sessions"
           confirm-label="Confirm"
           @confirm="killAll"
           :icon="mdiDelete"
-          class="mr-2 mt-0.5"
           :disabled="total === 0"
         />
 
-        <AppField name="search" placeholder="Search (IP, User Agent, ID)" v-model="search" />
-
-        <BaseButton
-          :icon="mdiSearchWeb"
-          @click="query.search = search"
-          class="ml-1 mt-0.5 h-10 w-10 rounded-lg"
+        <AppField
+          name="search"
+          placeholder="Search (IP, User Agent, ID)"
+          v-model="search"
+          class-add="text-sm pt-1 pl-1 pr-1 pb-1 h-[34px]"
+          @confirm="query.search = search"
+          :no-outer-margin="true"
         />
+
+        <div>
+          <BaseButton :icon="mdiSearchWeb" @click="query.search = search" :small="true" />
+        </div>
       </div>
     </CardBoxComponentHeader>
-
-    <div class="flex justify-start space-x-2">
-      <div class="mt-2">
-        <UniversalCheckbox name="with_killed" label="With Killed" v-model="query.with_deleted" />
-      </div>
-      <div class="mt-2">
-        <UniversalCheckbox name="with_expired" label="With Expired" v-model="query.with_expired" />
-      </div>
-    </div>
 
     <div class="overflow-x-auto" v-if="paginated">
       <table class="w-full">
@@ -126,11 +133,18 @@ watch(query, find, { deep: true, immediate: true })
             <th class="text-left">
               <SortableName label="Expires" name="expires_at" v-model="query" />
             </th>
+            <th class="text-left">Killed</th>
+            <th class="text-left"></th>
           </tr>
         </thead>
 
         <tbody>
-          <SessionRow :session="session" v-for="session in paginated.sessions" :key="session.id" />
+          <SessionRow
+            :session="session"
+            v-for="session in paginated.sessions"
+            :key="session.id"
+            @kill="killOne(session.id)"
+          />
         </tbody>
       </table>
 

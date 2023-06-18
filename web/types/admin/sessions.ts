@@ -14,11 +14,10 @@ export interface Session {
   created_at: number
   updated_at: number
   expires_at: number
-  deleted_at?: number
+  active: boolean
 }
 
 export interface Search extends Query {
-  with_deleted?: boolean
   with_expired?: boolean
   user_id?: string
   search?: string

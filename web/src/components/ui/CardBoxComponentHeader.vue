@@ -30,14 +30,14 @@ const buttonClick = (event: Event) => {
     <div class="flex items-center py-3 grow font-bold" :class="[icon ? 'px-4' : 'px-6']">
       <BaseIcon v-if="icon" :path="icon" class="mr-3" />
       <h1 class="text-2xl">{{ title }}</h1>
+      <button
+        v-if="buttonIcon"
+        class="flex items-center ml-2 justify-center ring-redish-700 focus:ring"
+        @click="buttonClick"
+      >
+        <BaseIcon :path="buttonIcon" />
+      </button>
     </div>
-    <button
-      v-if="buttonIcon"
-      class="flex items-center p-2 justify-center ring-redish-700 focus:ring"
-      @click="buttonClick"
-    >
-      <BaseIcon :path="buttonIcon" />
-    </button>
     <slot />
   </header>
 </template>

@@ -31,16 +31,20 @@ onMounted(async () => {
 })
 </script>
 <template>
-  <CardBox :class="props.class">
-    <CardBoxComponentHeader
-      title="Storage overview"
-      :button-icon="mdiRefresh"
-      @button-click="stats"
-      class="mb-4"
-    />
+  <div :class="props.class">
+    <CardBox class="flex w-full">
+      <CardBoxComponentHeader
+        title="Storage overview"
+        :button-icon="mdiRefresh"
+        @button-click="stats"
+        class="mb-4"
+      >
+        <div class="mt-4" title="Storage capacity usage">
+          {{ usedSpace }} / {{ availableSpace }}
+        </div>
+      </CardBoxComponentHeader>
 
-    <StatsTable v-if="data" :data="data.stats" :max="data.available_space" />
-
-    <div class="mt-4">Storage space usage: {{ usedSpace }} / {{ availableSpace }}</div>
-  </CardBox>
+      <StatsTable v-if="data" :data="data.stats" :max="data.available_space" />
+    </CardBox>
+  </div>
 </template>

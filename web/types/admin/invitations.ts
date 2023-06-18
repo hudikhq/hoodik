@@ -1,7 +1,7 @@
 import type { Query } from '!/api'
 
 export interface Paginated {
-  sessions: Invitation[]
+  invitations: Invitation[]
   total: number
 }
 
@@ -24,6 +24,7 @@ export interface Invitation {
   id: string
   user_id?: string
   email: string
+  message?: string
   created_at: number
   expires_at: number
 }

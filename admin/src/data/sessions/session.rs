@@ -32,8 +32,8 @@ pub struct Session {
     /// The expiration datetime of the session
     pub expires_at: i64,
 
-    /// The expiration datetime of the session
-    pub deleted_at: Option<i64>,
+    /// Is the session active
+    pub active: bool,
 }
 
 impl FromQueryResult for Session {
@@ -58,7 +58,7 @@ impl From<(&users::Model, &sessions::Model)> for Session {
             created_at: session.created_at,
             updated_at: session.updated_at,
             expires_at: session.expires_at,
-            deleted_at: session.deleted_at,
+            active: session.refresh.is_some(),
         }
     }
 }

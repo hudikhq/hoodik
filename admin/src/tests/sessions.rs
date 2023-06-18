@@ -11,7 +11,6 @@ async fn test_find_sessions() {
     let paginated = repository
         .sessions()
         .find(crate::data::sessions::search::Search {
-            with_deleted: None,
             with_expired: None,
             user_id: None,
             search: None,
@@ -37,7 +36,6 @@ async fn test_find_sessions_by_ip() {
     let paginated = repository
         .sessions()
         .find(crate::data::sessions::search::Search {
-            with_deleted: None,
             with_expired: None,
             user_id: None,
             search: Some("123.123.123.1".to_string()),
@@ -75,7 +73,6 @@ async fn test_find_sessions_by_email() {
     let paginated = repository
         .sessions()
         .find(crate::data::sessions::search::Search {
-            with_deleted: None,
             with_expired: None,
             user_id: None,
             search: Some(user2.email.clone()),
@@ -101,7 +98,6 @@ async fn test_find_sessions_by_user_agent() {
     let paginated = repository
         .sessions()
         .find(crate::data::sessions::search::Search {
-            with_deleted: None,
             with_expired: None,
             user_id: None,
             search: Some("brave".to_string()),
@@ -131,7 +127,6 @@ async fn test_session_killing() {
     let paginated = repository
         .sessions()
         .find(crate::data::sessions::search::Search {
-            with_deleted: Some(true),
             with_expired: Some(true),
             user_id: None,
             search: None,
@@ -146,7 +141,6 @@ async fn test_session_killing() {
     let sessions = paginated.sessions;
     let should_be_expired = sessions.iter().find(|s| s.id == session.id).unwrap();
 
-    assert!(should_be_expired.deleted_at.is_some());
     assert!(should_be_expired.expires_at <= Utc::now().timestamp());
 
     repository.sessions().kill_for(user.id).await.unwrap();
@@ -154,9 +148,8 @@ async fn test_session_killing() {
     let paginated = repository
         .sessions()
         .find(crate::data::sessions::search::Search {
-            with_deleted: Some(true),
             with_expired: Some(true),
-            user_id: None,
+            user_id: Some(user.id),
             search: None,
             sort: None,
             order: None,
@@ -169,7 +162,7 @@ async fn test_session_killing() {
     let sessions = paginated.sessions;
 
     for session in sessions {
-        assert!(session.deleted_at.is_some());
+        assert!(!session.active);
         assert!(session.expires_at <= Utc::now().timestamp());
     }
 }
