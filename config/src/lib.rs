@@ -5,7 +5,7 @@ pub mod email;
 pub mod ssl;
 pub mod vars;
 
-pub use config::Config;
+pub use crate::config::Config;
 
 impl Config {
     pub fn get_app_name(&self) -> String {
