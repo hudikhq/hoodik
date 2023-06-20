@@ -10,7 +10,7 @@ use validr::Validation;
 
 use crate::{
     data::invitations::{create::Create, response::Paginated, search::Search},
-    emails::invite::send,
+    emails::invite,
 };
 
 use super::Repository;
@@ -86,7 +86,7 @@ where
     /// if the platform has turned off free registration of the users, this invitation
     /// will be the only way to register
     pub(crate) async fn create(&self, invitation: Create) -> AppResult<invitations::Model> {
-        let (email, message, expires_at) = invitation.into_values()?;
+        let (email, message, role, quota, expires_at) = invitation.into_values()?;
 
         let user = users::Entity::find()
             .filter(users::Column::Email.eq(email.as_str()))
@@ -104,6 +104,8 @@ where
         let model = ActiveModel {
             id: ActiveValue::Set(id),
             email: ActiveValue::Set(email.clone()),
+            role: ActiveValue::Set(role),
+            quota: ActiveValue::Set(quota),
             expires_at: ActiveValue::Set(expires_at),
             created_at: ActiveValue::Set(Utc::now().timestamp()),
             ..Default::default()
@@ -119,12 +121,7 @@ where
             .await?
             .ok_or_else(|| Error::NotFound("Invitation not found".to_string()))?;
 
-        send(
-            self.repository.context(),
-            &invitation,
-            message.unwrap_or_default(),
-        )
-        .await?;
+        invite::send(self.repository.context(), &invitation, message).await?;
 
         Ok(invitation)
     }

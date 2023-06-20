@@ -1,12 +1,11 @@
-use std::{
-    fs::{self, DirBuilder},
-    path,
-};
+use std::fs::{self, DirBuilder};
 
-use path_absolutize::Absolutize;
 use url::Url;
 
-use crate::vars::Vars;
+use crate::{
+    helpers::{absolute_path, remove_trailing_slash},
+    vars::Vars,
+};
 
 #[derive(Debug, Clone)]
 pub struct AppConfig {
@@ -145,7 +144,7 @@ impl AppConfig {
             panic!("DATA_DIR is not writeable to the application, aborting...")
         }
 
-        self.data_dir = clean_path(data_dir);
+        self.data_dir = remove_trailing_slash(data_dir);
     }
 
     /// Set database url in the env if it wasn't already for the migration
@@ -161,22 +160,4 @@ impl AppConfig {
 
         self
     }
-}
-
-/// Convert given path into an absolute path
-fn absolute_path(path: &str) -> Option<String> {
-    let p = path::Path::new(path);
-
-    Some(p.absolutize().ok()?.to_string_lossy().to_string())
-}
-
-/// Remove the leading slash from the path
-fn clean_path(path: String) -> String {
-    let mut path = path.trim().to_string();
-
-    if path.ends_with('/') {
-        let _ = path.pop();
-    }
-
-    path
 }

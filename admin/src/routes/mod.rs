@@ -1,6 +1,7 @@
 pub mod files;
 pub mod invitations;
 pub mod sessions;
+pub mod settings;
 pub mod users;
 
 pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
@@ -15,5 +16,7 @@ pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
         .service(users::index)
         .service(users::update)
         .service(users::remove)
+        .service(settings::index)
+        .service(settings::update)
         .service(users::remove_tfa);
 }

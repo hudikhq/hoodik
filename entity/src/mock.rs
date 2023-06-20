@@ -17,6 +17,7 @@ pub async fn create_user<T: super::ConnectionTrait>(
     let user = UserActiveModel {
         id: ActiveValue::Set(id),
         role: ActiveValue::NotSet,
+        quota: ActiveValue::NotSet,
         email: ActiveValue::Set(email.to_string()),
         password: ActiveValue::Set(Some("".to_string())),
         secret: ActiveValue::NotSet,
@@ -166,6 +167,8 @@ pub async fn create_invitation<T: super::ConnectionTrait>(
         id: ActiveValue::Set(id),
         user_id: ActiveValue::NotSet,
         email: ActiveValue::Set(email.to_string()),
+        role: ActiveValue::NotSet,
+        quota: ActiveValue::NotSet,
         created_at: ActiveValue::Set(Utc::now().timestamp()),
         expires_at: ActiveValue::Set((Utc::now() + chrono::Duration::days(7)).timestamp()),
     };

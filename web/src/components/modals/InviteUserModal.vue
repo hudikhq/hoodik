@@ -5,6 +5,7 @@ import { AppForm, AppField } from '@/components/form'
 import * as yup from 'yup'
 import type { ErrorResponse } from '!/api'
 import { create } from '!/admin/invitations'
+import type { Create } from 'types/admin/invitations'
 
 const props = defineProps<{
   modelValue?: boolean | undefined
@@ -19,12 +20,15 @@ const init = () => {
   config.value = {
     initialValues: {
       email: '',
-      message: ''
+      message: '',
+      quota: undefined,
+      role: undefined
     },
     validationSchema: yup.object().shape({
-      email: yup.string().email().required('Email is required')
+      email: yup.string().email().required('Email is required'),
+      quota: yup.number().min(0)
     }),
-    onSubmit: async (values: { email: string; message?: string }, ctx: any) => {
+    onSubmit: async (values: Create, ctx: any) => {
       try {
         await create(values)
         ctx.resetForm()

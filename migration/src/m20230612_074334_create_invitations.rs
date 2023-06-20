@@ -28,6 +28,8 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(Invitations::UserId).uuid())
                     .col(ColumnDef::new(Invitations::Email).string().not_null())
+                    .col(ColumnDef::new(Invitations::Role).string())
+                    .col(ColumnDef::new(Invitations::Quota).big_integer())
                     .col(
                         ColumnDef::new(Invitations::CreatedAt)
                             .big_integer()
@@ -58,6 +60,8 @@ pub(crate) enum Invitations {
     Id,
     UserId,
     Email,
+    Role,
+    Quota,
     CreatedAt,
     ExpiresAt,
 }

@@ -12,6 +12,8 @@ async fn test_invite_user() {
         .invitations()
         .create(Create {
             email: Some("eleven@test.com".to_string()),
+            role: None,
+            quota: None,
             message: None,
             expires_at: None,
         })
@@ -46,6 +48,8 @@ async fn test_expire_invitation() {
         .invitations()
         .create(Create {
             email: Some("eleven@test.com".to_string()),
+            role: None,
+            quota: None,
             message: None,
             expires_at: None,
         })

@@ -12,6 +12,7 @@ members = [
   "hoodik",
   "links",
   "migration",
+  "settings",
   "storage",
   "util",
 ]

@@ -106,6 +106,6 @@ impl FromQueryResult for AppLink {
 
 impl IntoFilename for AppLink {
     fn filename(&self) -> AppResult<Filename> {
-        Ok(Filename::new(self.file_created_at, self.file_id))
+        Ok(Filename::new(self.file_id).with_timestamp(self.file_created_at))
     }
 }

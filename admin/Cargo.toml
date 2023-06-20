@@ -15,12 +15,13 @@ strum = "0.24"
 strum_macros = "0.24"
 chrono = { version = "^0.4", features = ["serde"] }
 
-util = { path = "../util" }
 auth = { path = "../auth" }
 context = { path = "../context" }
 entity = { path = "../entity" }
 error = { path = "../error" }
 fs = { path = "../fs" }
+settings = { path = "../settings" }
+util = { path = "../util" }
 
 [dev-dependencies]
 async-std = { version = "^1", features = ["attributes", "tokio1"] }

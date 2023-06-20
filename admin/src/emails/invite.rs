@@ -6,7 +6,7 @@ use error::AppResult;
 pub(crate) async fn send(
     context: &Context,
     invitation: &invitations::Model,
-    message: String,
+    message: Option<String>,
 ) -> AppResult<()> {
     let sender = match &context.sender {
         Some(s) => s,
@@ -18,10 +18,9 @@ pub(crate) async fn send(
     };
 
     let content = r#"
-    <h1>Join the {{app_name}}</h1>
-    <p>
+    <h1>You have been invited to join the {{app_name}}</h1>
         {{message}}
-    </p>
+        {{role}}
     <p>
         This invitation is valid until: {{expires_at}}
     </p>
@@ -34,7 +33,12 @@ pub(crate) async fn send(
     "#
     .to_string();
 
-    let link = format!("{}/auth/register", context.config.get_client_url());
+    let link = format!(
+        "{}/auth/register?invitation_id={}&email={}",
+        context.config.get_client_url(),
+        invitation.id,
+        &invitation.email
+    );
     let app_name = context.config.get_app_name();
     let expires_at = util::datetime::from_timestamp(invitation.expires_at)
         .format("%Y-%m-%d %H:%M:%S")
@@ -50,7 +54,15 @@ pub(crate) async fn send(
     )?;
 
     template.add_template_var("link", &link);
-    template.add_template_var("message", &message);
+
+    if let Some(message) = message {
+        template.add_template_var("message", format!("<p>{}</p>", message).as_str());
+    }
+
+    if let Some(role) = invitation.role.as_deref() {
+        template.add_template_var("role", format!("<p>With role: {}</p>", role).as_str());
+    }
+
     template.add_template_var("app_name", &app_name);
     template.add_template_var("expires_at", &expires_at);
     template.register_content_template(content.as_str())?;

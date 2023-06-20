@@ -31,7 +31,7 @@ impl IntoFilename for Model {
             ));
         }
 
-        Ok(Filename::new(self.created_at, self.id))
+        Ok(Filename::new(self.id).with_timestamp(self.created_at))
     }
 }
 

@@ -9,6 +9,12 @@ pub trait FsProviderContract {
     /// Get the available space on the storage provider
     async fn available_space(&self) -> AppResult<u64>;
 
+    /// Direct read of the file data
+    async fn read<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<u8>>;
+
+    /// Direct write of the file data
+    async fn write<T: IntoFilename>(&self, filename: &T, data: &[u8]) -> AppResult<()>;
+
     /// Check if the chunk already exists in the storage provider
     async fn exists<T: IntoFilename>(&self, filename: &T, chunk: i32) -> AppResult<bool>;
 

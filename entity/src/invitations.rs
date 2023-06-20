@@ -10,6 +10,8 @@ pub struct Model {
     pub id: Uuid,
     pub user_id: Option<Uuid>,
     pub email: String,
+    pub role: Option<String>,
+    pub quota: Option<i64>,
     pub created_at: i64,
     pub expires_at: i64,
 }

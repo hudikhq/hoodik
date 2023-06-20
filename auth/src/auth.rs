@@ -6,8 +6,8 @@ use actix_web::cookie::{time::OffsetDateTime, Cookie, CookieBuilder, SameSite};
 use chrono::{Duration, Utc};
 use context::Context;
 use entity::{
-    sessions, users, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, PaginatorTrait,
-    QueryFilter, TransactionTrait, Uuid,
+    invitations, sessions, users, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait,
+    PaginatorTrait, QueryFilter, TransactionTrait, Uuid,
 };
 use error::{AppResult, Error};
 
@@ -36,7 +36,8 @@ impl<'ctx> Auth<'ctx> {
 
     /// Create a new user
     pub(crate) async fn register(&self, data: CreateUser) -> AppResult<users::Model> {
-        let email = data.email.clone();
+        let email = data.email.clone().unwrap();
+        let invitation_id = data.invitation_id;
 
         let mut active_model = data.into_active_model()?;
 
@@ -44,7 +45,7 @@ impl<'ctx> Auth<'ctx> {
             .ok_or(Error::as_wrong_id("user"))?;
 
         // We can unwrap here because it would fail validation before this
-        if self.get_by_email(email.unwrap().as_str()).await.is_ok() {
+        if self.get_by_email(&email).await.is_ok() {
             return Err(Error::as_validation("email", "invalid_email"));
         }
 
@@ -52,7 +53,16 @@ impl<'ctx> Auth<'ctx> {
             active_model.email_verified_at = ActiveValue::Set(Some(Utc::now().timestamp()));
         }
 
-        if self.count().await? == 0 {
+        if let Some(id) = invitation_id {
+            let invitation = self.get_invitation(id).await?;
+
+            if invitation.email != email {
+                return Err(Error::as_validation("invitation_id", "invalid_invitation"));
+            }
+
+            active_model.role = ActiveValue::Set(invitation.role);
+            active_model.quota = ActiveValue::Set(invitation.quota);
+        } else if self.count().await? == 0 {
             active_model.role = ActiveValue::Set(Some("admin".to_string()));
         }
 
@@ -65,6 +75,20 @@ impl<'ctx> Auth<'ctx> {
         crate::emails::activate::send(self.context, &user).await?;
 
         Ok(user)
+    }
+
+    /// Load the invitation when registering the user
+    pub(crate) async fn get_invitation(&self, id: Uuid) -> AppResult<invitations::Model> {
+        let invitation = invitations::Entity::find_by_id(id)
+            .one(&self.context.db)
+            .await?
+            .ok_or_else(|| Error::NotFound("invitation_not_found".to_string()))?;
+
+        if invitation.expires_at < Utc::now().timestamp() {
+            return Err(Error::as_not_found("invitation_not_found"));
+        }
+
+        Ok(invitation)
     }
 
     /// Perform activation of the user

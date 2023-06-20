@@ -17,16 +17,46 @@ impl<'ctx> Fs<'ctx> {
         Self { config }
     }
 
+    /// Local file system provider for rw operations on the
+    /// local machine filesystem.
+    pub fn local<'provider>(&self) -> impl FsProviderContract + 'provider
+    where
+        'ctx: 'provider,
+    {
+        self.local_in(&self.config.app.data_dir)
+    }
+
+    /// Local file system provider with provided data_dir
+    pub fn local_in<'provider>(
+        &self,
+        data_dir: &'provider str,
+    ) -> impl FsProviderContract + 'provider
+    where
+        'ctx: 'provider,
+    {
+        fs::FsProvider::<'provider>::new(data_dir)
+    }
+
+    /// Default storage provider for rw operations on either local, or any
+    /// other provider that the application configuration specifies.
     fn provider<'provider>(&self) -> impl FsProviderContract + 'provider
     where
         'ctx: 'provider,
     {
-        fs::FsProvider::<'provider>::new(&self.config.app.data_dir)
+        self.local_in(&self.config.app.data_dir)
     }
 }
 
 #[async_trait]
 impl<'ctx> FsProviderContract for Fs<'ctx> {
+    async fn read<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<u8>> {
+        self.provider().read(filename).await
+    }
+
+    async fn write<T: IntoFilename>(&self, filename: &T, data: &[u8]) -> AppResult<()> {
+        self.provider().write(filename, data).await
+    }
+
     async fn available_space(&self) -> AppResult<u64> {
         self.provider().available_space().await
     }

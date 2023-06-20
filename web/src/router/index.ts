@@ -105,6 +105,12 @@ const router = createRouter({
       component: () => import('../views/admin/IndexView.vue')
     },
     {
+      path: '/admin/settings',
+      name: 'admin-settings',
+      meta: { title: 'Admin Settings' },
+      component: () => import('../views/admin/SettingsView.vue')
+    },
+    {
       path: '/admin/users/:id',
       name: 'admin-users-single',
       meta: { title: 'User details' },

@@ -18,6 +18,8 @@ export interface Create {
   email: string
   message?: string
   expires_at?: number
+  quota?: number
+  role?: 'admin'
 }
 
 export interface Invitation {

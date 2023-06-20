@@ -7,6 +7,7 @@ use sea_orm::Database;
 pub use sea_orm::DatabaseConnection;
 
 pub use email::contract::SenderContract;
+use settings::{factory::Factory, Settings};
 
 /// Holder of the application context
 /// all the available database connections
@@ -16,6 +17,7 @@ pub struct Context {
     pub config: Config,
     pub db: DatabaseConnection,
     pub sender: Option<Sender>,
+    pub settings: Settings,
 }
 
 /// We need to implement clone for the context manually because
@@ -42,6 +44,7 @@ impl Clone for Context {
                 }
             },
             sender: self.sender.clone(),
+            settings: self.settings.clone(),
         }
     }
 }
@@ -57,28 +60,39 @@ impl Context {
 
         let sender = email::Sender::new(&config)?;
 
-        Ok(Context { config, db, sender })
+        let settings = Settings::default().create(&config).await?;
+
+        Ok(Context {
+            config,
+            db,
+            sender,
+            settings,
+        })
     }
 
     #[cfg(feature = "mock")]
     pub fn mock_inject(db: DatabaseConnection) -> Context {
         let config = Config::mock_with_env();
+        let settings = Settings::mock();
 
         Context {
             config,
             db,
             sender: None,
+            settings,
         }
     }
 
     #[cfg(feature = "mock")]
     pub fn mock() -> Context {
         let config = Config::mock_with_env();
+        let settings = Settings::mock();
 
         Context {
             config,
             db: DatabaseConnection::Disconnected,
             sender: None,
+            settings,
         }
     }
 
@@ -94,11 +108,13 @@ impl Context {
         }
 
         let db = Database::connect("sqlite::memory:?mode=rwc").await.unwrap();
+        let settings = Settings::mock();
 
         let context = Context {
             config,
             db,
             sender: None,
+            settings,
         };
 
         migration::Migrator::up(&context.db, None).await.unwrap();
@@ -117,11 +133,13 @@ impl Context {
         }
 
         let db = Database::connect("sqlite::memory:?mode=rwc").await.unwrap();
+        let settings = Settings::mock();
 
         let context = Context {
             config,
             db,
             sender: None,
+            settings,
         };
 
         migration::Migrator::up(&context.db, None).await.unwrap();
