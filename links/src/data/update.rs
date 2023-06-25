@@ -1,5 +1,4 @@
 use ::error::AppResult;
-use chrono::NaiveDateTime;
 use serde::Deserialize;
 use validr::*;
 
@@ -21,14 +20,13 @@ impl Validation for Update {
 }
 
 impl Update {
-    pub fn into_value(self) -> AppResult<Option<NaiveDateTime>> {
+    pub fn into_value(self) -> AppResult<Option<i64>> {
         let data = self.validate()?;
 
         let expires_at = match data.expires_at.as_deref() {
-            Some(v) => Some(util::datetime::parse_into_naive_datetime(
-                v,
-                Some("expires_at"),
-            )?),
+            Some(v) => {
+                Some(util::datetime::parse_into_naive_datetime(v, Some("expires_at"))?.timestamp())
+            }
             None => None,
         };
 

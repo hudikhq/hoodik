@@ -1,4 +1,3 @@
-use chrono::NaiveDateTime;
 use context::Context;
 use entity::{
     files,
@@ -77,7 +76,7 @@ impl<'ctx> Repository<'ctx> {
         &self,
         id: Uuid,
         user_id: Uuid,
-        expires_at: Option<NaiveDateTime>,
+        expires_at: Option<i64>,
     ) -> AppResult<AppLink> {
         let link = links::Entity::find_by_id(id)
             .one(&self.context.db)

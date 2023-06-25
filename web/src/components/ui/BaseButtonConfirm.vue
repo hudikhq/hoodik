@@ -6,7 +6,7 @@ import type { RouteLocation } from 'vue-router'
 import { mdiCancel } from '@mdi/js'
 
 const props = defineProps<{
-  confirmLabel: string
+  confirmLabel?: string
   cancelLabel?: string
   label?: string | number
   icon?: string
@@ -35,6 +35,11 @@ const emits = defineEmits<{
 
 const clicked = ref(false)
 
+const confirm = () => {
+  clicked.value = false
+  emits('confirm')
+}
+
 const cancel = () => {
   clicked.value = false
   emits('cancel')
@@ -62,14 +67,13 @@ const cancel = () => {
         :disabled="props.disabled"
         :roundedFull="props.roundedFull"
         :noBorder="props.noBorder"
-        :class="props.class"
         :dropdownEl="props.dropdownEl"
         @click="clicked = true"
       />
 
       <div class="inline-block rounded overflow-clip" v-else>
         <BaseButton
-          :label="props.confirmLabel"
+          :label="props.confirmLabel || ''"
           :icon="props.icon"
           :iconSize="props.iconSize"
           :href="props.href"
@@ -86,7 +90,7 @@ const cancel = () => {
           :roundedFull="false"
           :notRounded="true"
           :noBorder="props.noBorder"
-          @click="emits('confirm')"
+          @click="confirm"
         />
         <BaseButton
           :label="props.cancelLabel ?? ''"

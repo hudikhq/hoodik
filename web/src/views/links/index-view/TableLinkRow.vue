@@ -156,7 +156,7 @@ const singleClick = () => {
       <TruncatedSpan :text="linkCreatedAt" />
     </div>
 
-    <div :class="sizes.expiresAt" :title="props.link.expires_at">
+    <div :class="sizes.expiresAt" :title="linkExpiresAt">
       <span v-if="isExpired" class="inline-block text-redish-200">expired</span>
       <TruncatedSpan v-else :text="linkExpiresAt" />
     </div>

@@ -30,6 +30,7 @@ pub mod routes {
     //!
     //! Collection of all the routes used in the application pulled
     //! from various packages we depend on.
+    pub use admin::routes as admin_routes;
     pub use auth::routes as auth_routes;
     pub use links::routes as links_routes;
     pub use storage::routes as storage_routes;
@@ -39,6 +40,7 @@ pub mod routes {
 
 /// Inject the application modules into the server
 fn configure(cfg: &mut web::ServiceConfig) {
+    admin::routes::configure(cfg);
     auth::routes::configure(cfg);
     links::routes::configure(cfg);
     storage::routes::configure(cfg);

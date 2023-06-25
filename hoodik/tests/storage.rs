@@ -33,6 +33,7 @@ async fn test_creating_file_and_uploading_chunks() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            invitation_id: None,
         })
         .to_request();
 
@@ -50,6 +51,7 @@ async fn test_creating_file_and_uploading_chunks() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            invitation_id: None,
         })
         .to_request();
 

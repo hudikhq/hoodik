@@ -21,6 +21,8 @@ pub struct Claims {
     pub iat: i64,
     /// Authenticated device id
     pub device: Uuid,
+    /// User role
+    pub role: Option<String>,
 }
 
 impl From<&Authenticated> for Claims {
@@ -28,9 +30,10 @@ impl From<&Authenticated> for Claims {
         Self {
             iss: String::from("fresh"),
             sub: authenticated.user.id,
-            exp: authenticated.session.expires_at.timestamp(),
+            exp: authenticated.session.expires_at,
             iat: chrono::Utc::now().timestamp(),
             device: authenticated.session.device_id,
+            role: authenticated.user.role.clone(),
         }
     }
 }

@@ -4,7 +4,6 @@ import Api from '!/api'
 import * as meta from './meta'
 import * as crypto from './crypto'
 import type { AppLink, CreateLink, EncryptedAppLink, KeyPair, AppFile } from 'types'
-import { utcStringFromLocal } from '..'
 
 export { meta, crypto }
 
@@ -163,7 +162,7 @@ export const store = defineStore('links', () => {
     let expires_at
 
     if (expiresAt) {
-      expires_at = utcStringFromLocal(expiresAt)
+      expires_at = Math.floor(expiresAt.valueOf() / 1000)
     }
 
     const link = takeItem(id)

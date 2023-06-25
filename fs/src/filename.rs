@@ -1,5 +1,3 @@
-use chrono::NaiveDateTime;
-use entity::Uuid;
 use error::AppResult;
 use std::fmt::{Display, Formatter, Result};
 
@@ -8,50 +6,50 @@ use std::fmt::{Display, Formatter, Result};
 /// when trying to use the fs.
 #[derive(Clone, Debug)]
 pub struct Filename {
-    created_at: NaiveDateTime,
-    file_id: Uuid,
+    timestamp: Option<String>,
+    inner_name: String,
     extension: Option<String>,
     chunk: Option<String>,
 }
 
 impl Display for Filename {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let timestamp = self.created_at.timestamp();
-        let file_id = self.file_id.to_string();
-
-        let part = self
-            .chunk
-            .as_ref()
-            .map(|c| format!(".part.{}", c))
-            .unwrap_or_default();
-
-        let extension = self
-            .extension
-            .as_ref()
-            .map(|c| format!(".{}", c))
-            .unwrap_or_default();
-
-        write!(f, "{timestamp}-{file_id}{part}{extension}")
+        write!(
+            f,
+            "{}{}{}{}",
+            self.timestamp.as_deref().unwrap_or(""),
+            self.inner_name,
+            self.chunk.as_deref().unwrap_or(""),
+            self.extension.as_deref().unwrap_or("")
+        )
     }
 }
 
 impl Filename {
-    pub fn new(created_at: NaiveDateTime, file_id: Uuid) -> Self {
+    pub fn new<T: ToString>(name: T) -> Self {
         Self {
-            created_at,
-            file_id,
+            timestamp: None,
+            inner_name: name.to_string(),
             extension: None,
             chunk: None,
         }
     }
 
+    pub fn with_timestamp<T: ToString>(mut self, timestamp: T) -> Self {
+        self.timestamp = Some(format!("{}-", timestamp.to_string()));
+
+        self
+    }
+
     pub fn with_extension<T: ToString>(mut self, extension: T) -> Self {
-        self.extension = Some(extension.to_string());
+        self.extension = Some(format!(".{}", extension.to_string()));
+
         self
     }
 
     pub fn with_chunk<T: ToString>(mut self, chunk: T) -> Self {
-        self.chunk = Some(chunk.to_string());
+        self.chunk = Some(format!(".part.{}", chunk.to_string()));
+
         self
     }
 }

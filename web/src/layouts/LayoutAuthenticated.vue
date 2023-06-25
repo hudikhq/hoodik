@@ -77,6 +77,7 @@ const menuClick = (event: Event, item: NavBarItem) => {
         v-if="login.authenticated"
         :is-aside-mobile-expanded="isAsideMobileExpanded"
         :is-aside-lg-active="isAsideLgActive"
+        :role="login.authenticated?.user?.role"
         :menu="menuAside"
         @menu-click="menuClick"
         @aside-lg-close-click="isAsideLgActive = false"

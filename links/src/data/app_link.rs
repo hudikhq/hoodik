@@ -1,4 +1,3 @@
-use chrono::NaiveDateTime;
 use entity::{files, links, users, DbErr, FromQueryResult, QueryResult, Uuid};
 use error::{AppResult, Error};
 use fs::{prelude::Filename, IntoFilename};
@@ -36,12 +35,12 @@ pub struct AppLink {
     /// it is decrypted in memory before the file is downloaded.
     #[serde(skip_serializing)]
     pub encrypted_file_key: Option<String>,
-    pub created_at: NaiveDateTime,
-    pub file_created_at: NaiveDateTime,
+    pub created_at: i64,
+    pub file_created_at: i64,
     /// Date when the link will expire, automated cron job
     /// will periodically empty out the expired links of all the
     /// file metadata and encrypted file key.
-    pub expires_at: Option<NaiveDateTime>,
+    pub expires_at: Option<i64>,
 }
 
 impl AppLink {
@@ -70,7 +69,7 @@ impl AppLink {
 
     /// Let us know if the link has expired so we can prevent it from being downloaded.
     pub fn is_expired(&self) -> bool {
-        let now = chrono::Utc::now().naive_utc();
+        let now = chrono::Utc::now().timestamp();
 
         self.expires_at
             .map(|expires_at| expires_at < now)
@@ -107,6 +106,6 @@ impl FromQueryResult for AppLink {
 
 impl IntoFilename for AppLink {
     fn filename(&self) -> AppResult<Filename> {
-        Ok(Filename::new(self.file_created_at, self.file_id))
+        Ok(Filename::new(self.file_id).with_timestamp(self.file_created_at))
     }
 }

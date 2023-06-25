@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import * as crypto from '../cryptfns'
 import { default as Api, type InnerValidationErrors } from '../api'
 import type { Authenticated, CreateUser, CryptoStore, LoginStore, User } from 'types'
+import type { RouteLocation } from 'vue-router'
 
 export const store = defineStore('register', () => {
   const _createUser = ref<CreateUser>({
@@ -35,6 +36,19 @@ export const store = defineStore('register', () => {
    */
   function getErrors(): InnerValidationErrors | null {
     return _errors.value
+  }
+
+  /**
+   * Take the route and preload the registration form with the data
+   */
+  function preload(route: RouteLocation) {
+    if (route.query.email) {
+      _createUser.value.email = route.query.email as string
+    }
+
+    if (route.query.invitation_id) {
+      _createUser.value.invitation_id = route.query.invitation_id as string
+    }
   }
 
   /**
@@ -132,6 +146,7 @@ export const store = defineStore('register', () => {
     register,
     getTwoFactorSecret,
     verifyEmail,
+    preload,
 
     // Errors
     errors,
