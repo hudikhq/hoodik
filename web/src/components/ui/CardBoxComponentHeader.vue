@@ -24,17 +24,20 @@ const buttonClick = (event: Event) => {
 </script>
 
 <template>
-  <header class="flex items-stretch border-b border-brownish-100 dark:border-brownish-800">
+  <header
+    class="flex flex-wrap items-stretch border-b border-brownish-100 dark:border-brownish-800"
+  >
     <div class="flex items-center py-3 grow font-bold" :class="[icon ? 'px-4' : 'px-6']">
       <BaseIcon v-if="icon" :path="icon" class="mr-3" />
-      {{ title }}
+      <h1 class="text-2xl">{{ title }}</h1>
+      <button
+        v-if="buttonIcon"
+        class="flex items-center ml-2 justify-center ring-redish-700 focus:ring"
+        @click="buttonClick"
+      >
+        <BaseIcon :path="buttonIcon" />
+      </button>
     </div>
-    <button
-      v-if="buttonIcon"
-      class="flex items-center p-2 justify-center ring-redish-700 focus:ring"
-      @click="buttonClick"
-    >
-      <BaseIcon :path="buttonIcon" />
-    </button>
+    <slot />
   </header>
 </template>

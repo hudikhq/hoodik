@@ -6,6 +6,7 @@ export interface CreateUser {
   pubkey: string
   fingerprint: string
   encrypted_private_key?: string
+  invitation_id?: string
 
   /**
    * Optional parameters that are only used for the registration process

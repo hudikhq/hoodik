@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "admin",
   "auth",
   "config",
   "context",
@@ -11,6 +12,7 @@ members = [
   "hoodik",
   "links",
   "migration",
+  "settings",
   "storage",
   "util",
 ]

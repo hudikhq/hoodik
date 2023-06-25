@@ -57,9 +57,9 @@ export interface EncryptedAppLink {
   encrypted_name: string
   encrypted_link_key: string
   encrypted_thumbnail?: string
-  created_at: string
-  file_created_at: string
-  expires_at?: string
+  created_at: number
+  file_created_at: number
+  expires_at?: number
 }
 
 export interface EncryptedLink {
@@ -71,7 +71,7 @@ export interface EncryptedLink {
   encrypted_name: string
   encrypted_link_key: string
   encrypted_thumbnail?: string
-  created_at: string
-  expires_at: string
+  created_at: number
+  expires_at?: number
   link_key_hex?: string
 }

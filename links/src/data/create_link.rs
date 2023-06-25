@@ -51,10 +51,9 @@ impl CreateLink {
         let data = self.validate()?;
 
         let expires_at = match data.expires_at.as_deref() {
-            Some(v) => Some(util::datetime::parse_into_naive_datetime(
-                v,
-                Some("expires_at"),
-            )?),
+            Some(v) => {
+                Some(util::datetime::parse_into_naive_datetime(v, Some("expires_at"))?.timestamp())
+            }
             None => None,
         };
 
@@ -76,7 +75,7 @@ impl CreateLink {
                 encrypted_link_key: ActiveValue::Set(data.encrypted_link_key.unwrap()),
                 encrypted_thumbnail: ActiveValue::Set(data.encrypted_thumbnail),
                 encrypted_file_key: ActiveValue::Set(data.encrypted_file_key),
-                created_at: ActiveValue::Set(Utc::now().naive_utc()),
+                created_at: ActiveValue::Set(Utc::now().timestamp()),
                 expires_at: ActiveValue::Set(expires_at),
             },
             data.signature.unwrap(),

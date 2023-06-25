@@ -36,8 +36,12 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(UserFiles::UserId).uuid().not_null())
                     .col(ColumnDef::new(UserFiles::EncryptedKey).string().not_null())
                     .col(ColumnDef::new(UserFiles::IsOwner).boolean().not_null())
-                    .col(ColumnDef::new(UserFiles::CreatedAt).timestamp().not_null())
-                    .col(ColumnDef::new(UserFiles::ExpiresAt).timestamp())
+                    .col(
+                        ColumnDef::new(UserFiles::CreatedAt)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(UserFiles::ExpiresAt).big_integer())
                     .foreign_key(&mut foreign_key_file_id)
                     .foreign_key(&mut foreign_key_user_id)
                     .to_owned(),

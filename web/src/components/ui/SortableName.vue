@@ -1,20 +1,54 @@
 <script lang="ts" setup>
+import { computed } from 'vue'
 import BaseIcon from './BaseIcon.vue'
 import { mdiArrowDown, mdiArrowUp } from '@mdi/js'
 const props = defineProps<{
   name: string
   label: string
-  sortOptions: { parameter: string; order: string }
+  sortOptions?: { sort?: string; parameter?: string; order?: string }
+  modelValue?: { sort?: string; parameter?: string; order?: string }
 }>()
 
+const sortOptions = computed(() => {
+  if (props.modelValue) return props.modelValue
+
+  return props.sortOptions || { sort: null, parameter: null, order: null }
+})
+
 const emits = defineEmits<{
+  (event: 'update:modelValue', value: { sort?: string; parameter?: string; order?: string }): void
   (event: 'sort', order: string): void
 }>()
 
+const sort = computed(() => {
+  if (sortOptions.value.sort) return sortOptions.value.sort
+  if (sortOptions.value.parameter) return sortOptions.value.parameter
+
+  return null
+})
+
+const order = computed(() => {
+  if (sortOptions.value.order) return sortOptions.value.order
+
+  return 'asc'
+})
+
 const set = () => {
-  if (props.sortOptions.parameter === props.name) {
-    emits('sort', props.sortOptions.order === 'asc' ? `${props.name}|desc` : `${props.name}|asc`)
+  if (sortOptions.value.parameter === props.name) {
+    emits('sort', sortOptions.value.order === 'asc' ? `${props.name}|desc` : `${props.name}|asc`)
+    emits('update:modelValue', {
+      ...sortOptions.value,
+      sort: props.name,
+      parameter: props.name,
+      order: sortOptions.value.order === 'asc' ? 'desc' : 'asc'
+    })
   } else {
+    emits('update:modelValue', {
+      ...sortOptions.value,
+      sort: props.name,
+      parameter: props.name,
+      order: 'asc'
+    })
     emits('sort', `${props.name}|asc`)
   }
 }
@@ -28,8 +62,8 @@ const set = () => {
   >
     <span class="inline-block">{{ label }}</span>
     <BaseIcon
-      v-if="name === props.sortOptions.parameter"
-      :path="props.sortOptions.order === 'asc' ? mdiArrowDown : mdiArrowUp"
+      v-if="name === sort"
+      :path="order === 'asc' ? mdiArrowDown : mdiArrowUp"
       :size="23"
       class="ml-1"
     />

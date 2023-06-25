@@ -3,7 +3,7 @@ import { AppForm, AppField, AppButton } from '@/components/form'
 import * as yup from 'yup'
 import { zxcvbn } from '@zxcvbn-ts/core'
 import { store } from '!/auth/register'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ref } from 'vue'
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
@@ -13,11 +13,14 @@ import * as logger from '!/logger'
 
 const register = store()
 const router = useRouter()
+const route = useRoute()
 
 const config = ref()
 const working = ref(false)
 
 const init = () => {
+  register.preload(route)
+
   const initialValues = register.createUser
   const initialErrors = register.errors || {}
 
@@ -63,7 +66,13 @@ init()
           class="mt-8 space-y-6"
           v-slot="{ form }"
         >
-          <AppField :form="form" label="Your email" name="email" placeholder="your@email.com" />
+          <AppField
+            :form="form"
+            label="Your email"
+            name="email"
+            placeholder="your@email.com"
+            :disabled="form.values.invitation_id"
+          />
           <AppField
             type="password"
             :form="form"

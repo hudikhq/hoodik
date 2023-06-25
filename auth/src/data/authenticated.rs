@@ -19,7 +19,7 @@ pub struct Authenticated {
 
 impl Authenticated {
     pub fn is_expired(&self) -> bool {
-        self.session.expires_at.timestamp() < chrono::Utc::now().timestamp()
+        self.session.expires_at < chrono::Utc::now().timestamp()
     }
 }
 

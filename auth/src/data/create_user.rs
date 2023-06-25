@@ -1,6 +1,6 @@
 use ::error::AppResult;
 use chrono::Utc;
-use entity::{users::ActiveModel, ActiveValue};
+use entity::{users::ActiveModel, ActiveValue, Uuid};
 use serde::{Deserialize, Serialize};
 use util::{
     password::hash,
@@ -17,6 +17,7 @@ pub struct CreateUser {
     pub pubkey: Option<String>,
     pub fingerprint: Option<String>,
     pub encrypted_private_key: Option<String>,
+    pub invitation_id: Option<Uuid>,
 }
 
 impl Validation for CreateUser {
@@ -106,6 +107,8 @@ impl CreateUser {
 
         Ok(ActiveModel {
             id: ActiveValue::Set(entity::Uuid::new_v4()),
+            role: ActiveValue::NotSet,
+            quota: ActiveValue::NotSet,
             email: ActiveValue::Set(data.email.unwrap()),
             password: ActiveValue::Set(data.password.map(hash)),
             secret: ActiveValue::Set(data.secret),
@@ -113,8 +116,8 @@ impl CreateUser {
             fingerprint: ActiveValue::Set(data.fingerprint.unwrap()),
             encrypted_private_key: ActiveValue::Set(data.encrypted_private_key),
             email_verified_at: ActiveValue::Set(None),
-            created_at: ActiveValue::Set(Utc::now().naive_utc()),
-            updated_at: ActiveValue::Set(Utc::now().naive_utc()),
+            created_at: ActiveValue::Set(Utc::now().timestamp()),
+            updated_at: ActiveValue::Set(Utc::now().timestamp()),
         })
     }
 }

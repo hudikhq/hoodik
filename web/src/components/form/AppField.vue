@@ -27,13 +27,14 @@ const props = defineProps<{
   wrapperClass?: string
   help?: string
   autofocus?: boolean
+  noOuterMargin?: boolean
 }>()
 
 const input = ref(null)
 
 defineExpose({ input })
 
-const emit = defineEmits(['update:modelValue', 'change'])
+const emit = defineEmits(['update:modelValue', 'change', 'confirm'])
 
 function change(e: Event) {
   if (props.form) {
@@ -53,6 +54,10 @@ function update(e: Event) {
   emit('change', (e.target as HTMLInputElement).value)
 }
 
+function confirm(e: Event) {
+  emit('confirm', (e.target as HTMLInputElement).value)
+}
+
 const model = computed<string>({
   get: () => {
     if (props.form) {
@@ -67,6 +72,10 @@ const componentClass = ref<string>(
   `${props.class ? props.class : (props.classAdd || '') + ' ' + originalClass}`
 )
 
+const wrapClass = computed(
+  () => `${props.noOuterMargin ? '' : 'mb-6 last:mb-0'} ${props.wrapperClass || ''}`
+)
+
 const copied = ref(false)
 
 const copy = () => {
@@ -79,7 +88,7 @@ const copy = () => {
 </script>
 
 <template>
-  <div class="mb-6 last:mb-0">
+  <div :class="wrapClass">
     <div class="w-full block">
       <div class="float-left" :class="{ 'w-1/2': allowCopy }" v-if="label">
         <label :for="name"> {{ label }} </label>
@@ -119,11 +128,12 @@ const copy = () => {
           v-bind="field"
           @input="change"
           @change="change"
-          :class="componentClass"
           :type="type || 'text'"
           :placeholder="placeholder || ''"
           :disabled="disabled || form?.isSubmitting.value"
           :autofocus="!!props.autofocus"
+          :class="componentClass"
+          @keyup.enter="confirm"
         />
       </Field>
     </div>

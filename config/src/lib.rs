@@ -2,10 +2,13 @@ pub mod app;
 pub mod auth;
 pub mod config;
 pub mod email;
+pub(crate) mod helpers;
 pub mod ssl;
 pub mod vars;
 
-pub use config::Config;
+use helpers::remove_trailing_slash;
+
+pub use crate::config::Config;
 
 impl Config {
     pub fn get_app_name(&self) -> String {
@@ -17,11 +20,11 @@ impl Config {
     }
 
     pub fn get_app_url(&self) -> String {
-        self.app.app_url.to_string()
+        remove_trailing_slash(self.app.app_url.to_string())
     }
 
     pub fn get_client_url(&self) -> String {
-        self.app.client_url.to_string()
+        remove_trailing_slash(self.app.client_url.to_string())
     }
 
     pub fn get_full_bind_address(&self) -> String {

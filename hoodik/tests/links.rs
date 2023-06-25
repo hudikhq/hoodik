@@ -33,6 +33,7 @@ async fn test_creating_and_downloading_link() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            invitation_id: None,
         })
         .to_request();
 

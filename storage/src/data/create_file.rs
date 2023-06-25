@@ -148,9 +148,10 @@ impl CreateFile {
                             util::datetime::parse_into_naive_datetime(&i, Some("file_created_at"))
                                 .unwrap()
                         })
-                        .unwrap_or(now),
+                        .unwrap_or(now)
+                        .timestamp(),
                 ),
-                created_at: ActiveValue::Set(now),
+                created_at: ActiveValue::Set(now.timestamp()),
                 finished_upload_at: ActiveValue::Set(None),
             },
             data.encrypted_key.unwrap(),

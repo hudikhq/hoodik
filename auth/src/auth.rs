@@ -6,8 +6,8 @@ use actix_web::cookie::{time::OffsetDateTime, Cookie, CookieBuilder, SameSite};
 use chrono::{Duration, Utc};
 use context::Context;
 use entity::{
-    sessions, users, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, QueryFilter,
-    TransactionTrait, Uuid,
+    invitations, sessions, users, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait,
+    PaginatorTrait, QueryFilter, TransactionTrait, Uuid,
 };
 use error::{AppResult, Error};
 
@@ -36,7 +36,8 @@ impl<'ctx> Auth<'ctx> {
 
     /// Create a new user
     pub(crate) async fn register(&self, data: CreateUser) -> AppResult<users::Model> {
-        let email = data.email.clone();
+        let email = data.email.clone().unwrap();
+        let invitation_id = data.invitation_id;
 
         let mut active_model = data.into_active_model()?;
 
@@ -44,12 +45,25 @@ impl<'ctx> Auth<'ctx> {
             .ok_or(Error::as_wrong_id("user"))?;
 
         // We can unwrap here because it would fail validation before this
-        if self.get_by_email(email.unwrap().as_str()).await.is_ok() {
+        if self.get_by_email(&email).await.is_ok() {
             return Err(Error::as_validation("email", "invalid_email"));
         }
 
         if self.context.sender.is_none() {
-            active_model.email_verified_at = ActiveValue::Set(Some(Utc::now().naive_utc()));
+            active_model.email_verified_at = ActiveValue::Set(Some(Utc::now().timestamp()));
+        }
+
+        if let Some(id) = invitation_id {
+            let invitation = self.get_invitation(id).await?;
+
+            if invitation.email != email {
+                return Err(Error::as_validation("invitation_id", "invalid_invitation"));
+            }
+
+            active_model.role = ActiveValue::Set(invitation.role);
+            active_model.quota = ActiveValue::Set(invitation.quota);
+        } else if self.count().await? == 0 {
+            active_model.role = ActiveValue::Set(Some("admin".to_string()));
         }
 
         users::Entity::insert(active_model)
@@ -61,6 +75,20 @@ impl<'ctx> Auth<'ctx> {
         crate::emails::activate::send(self.context, &user).await?;
 
         Ok(user)
+    }
+
+    /// Load the invitation when registering the user
+    pub(crate) async fn get_invitation(&self, id: Uuid) -> AppResult<invitations::Model> {
+        let invitation = invitations::Entity::find_by_id(id)
+            .one(&self.context.db)
+            .await?
+            .ok_or_else(|| Error::NotFound("invitation_not_found".to_string()))?;
+
+        if invitation.expires_at < Utc::now().timestamp() {
+            return Err(Error::as_not_found("invitation_not_found"));
+        }
+
+        Ok(invitation)
     }
 
     /// Perform activation of the user
@@ -83,7 +111,7 @@ impl<'ctx> Auth<'ctx> {
 
         let mut active_model: users::ActiveModel = user.into();
 
-        active_model.email_verified_at = ActiveValue::Set(Some(Utc::now().naive_utc()));
+        active_model.email_verified_at = ActiveValue::Set(Some(Utc::now().timestamp()));
 
         active_model.update(&tx).await?;
 
@@ -92,6 +120,13 @@ impl<'ctx> Auth<'ctx> {
         tx.commit().await?;
 
         self.get_by_id(id).await
+    }
+
+    pub(crate) async fn count(&self) -> AppResult<u64> {
+        users::Entity::find()
+            .count(&self.context.db)
+            .await
+            .map_err(Error::from)
     }
 
     /// Get a user by id
@@ -145,7 +180,6 @@ impl<'ctx> Auth<'ctx> {
     pub(crate) async fn get_by_refresh(&self, refresh: Uuid) -> AppResult<Authenticated> {
         let result = sessions::Entity::find()
             .filter(sessions::Column::Refresh.eq(refresh))
-            .filter(sessions::Column::DeletedAt.is_null())
             .inner_join(users::Entity)
             .select_also(users::Entity)
             .one(&self.context.db)
@@ -164,7 +198,7 @@ impl<'ctx> Auth<'ctx> {
     pub(crate) async fn get_by_device_id(&self, device_id: Uuid) -> AppResult<Authenticated> {
         let result = sessions::Entity::find()
             .filter(sessions::Column::DeviceId.eq(device_id))
-            .filter(sessions::Column::DeletedAt.is_null())
+            .filter(sessions::Column::Refresh.is_not_null())
             .inner_join(users::Entity)
             .select_also(users::Entity)
             .one(&self.context.db)
@@ -198,10 +232,9 @@ impl<'ctx> Auth<'ctx> {
             ip: ActiveValue::Set(ip.to_string()),
             user_agent: ActiveValue::Set(user_agent.to_string()),
             refresh: ActiveValue::Set(Some(Uuid::new_v4())),
-            created_at: ActiveValue::Set(Utc::now().naive_utc()),
-            updated_at: ActiveValue::Set(Utc::now().naive_utc()),
-            expires_at: ActiveValue::Set(expires_at.naive_utc()),
-            deleted_at: ActiveValue::NotSet,
+            created_at: ActiveValue::Set(Utc::now().timestamp()),
+            updated_at: ActiveValue::Set(Utc::now().timestamp()),
+            expires_at: ActiveValue::Set(expires_at.timestamp()),
         };
 
         sessions::Entity::insert(active_model)
@@ -231,9 +264,8 @@ impl<'ctx> Auth<'ctx> {
             user_agent: ActiveValue::Set(session.user_agent.clone()),
             refresh: ActiveValue::Set(Some(Uuid::new_v4())),
             created_at: ActiveValue::Set(session.created_at),
-            updated_at: ActiveValue::Set(Utc::now().naive_utc()),
-            expires_at: ActiveValue::Set(expires_at),
-            deleted_at: ActiveValue::NotSet,
+            updated_at: ActiveValue::Set(Utc::now().timestamp()),
+            expires_at: ActiveValue::Set(expires_at.timestamp()),
         };
 
         active_model.update(&self.context.db).await?;
@@ -254,9 +286,8 @@ impl<'ctx> Auth<'ctx> {
             user_agent: ActiveValue::Set(session.user_agent.clone()),
             refresh: ActiveValue::Set(None),
             created_at: ActiveValue::Set(session.created_at),
-            updated_at: ActiveValue::Set(Utc::now().naive_utc()),
-            expires_at: ActiveValue::Set(Utc::now().naive_utc()),
-            deleted_at: ActiveValue::Set(Some(Utc::now().naive_utc())),
+            updated_at: ActiveValue::Set(Utc::now().timestamp()),
+            expires_at: ActiveValue::Set(Utc::now().timestamp()),
         };
 
         let session = active_model.update(&self.context.db).await?;
@@ -270,8 +301,7 @@ impl<'ctx> Auth<'ctx> {
         authenticated: &Authenticated,
         issuer: &str,
     ) -> AppResult<(Cookie<'static>, Cookie<'static>)> {
-        let destroy =
-            authenticated.session.deleted_at.is_some() || authenticated.session.refresh.is_none();
+        let destroy = authenticated.session.refresh.is_none();
 
         let mut refresh = authenticated
             .session

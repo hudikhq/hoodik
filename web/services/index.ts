@@ -58,7 +58,11 @@ export function uuidv4() {
  * Takes the UTC date and creates a local date
  * @throws
  */
-export function localDateFromUtcString(utc?: string | Date | null): Date {
+export function localDateFromUtcString(utc?: string | Date | number | null): Date {
+  if (typeof utc === 'number') {
+    utc = new Date(utc * 1000)
+  }
+
   if (!utc || new Date(utc as string).toDateString() === 'Invalid Date') {
     throw new Error('Invalid date')
   }
@@ -75,7 +79,7 @@ export function localDateFromUtcString(utc?: string | Date | null): Date {
 /**
  * Takes the LOCAL date and creates an UTC date
  */
-export function utcStringFromLocal(local?: string | Date): string {
+export function utcStringFromLocal(local?: string | Date | number): string {
   if (local instanceof Date) {
     local = new Date(local.getTime() + local.getTimezoneOffset() * 60000)
   }
@@ -87,7 +91,11 @@ export function utcStringFromLocal(local?: string | Date): string {
  * Make the format function bit more versatile
  * @throws
  */
-export function format(date: Date | string, formatString?: string): string {
+export function format(date: Date | string | number, formatString?: string): string {
+  if (typeof date === 'number') {
+    date = new Date(date * 1000)
+  }
+
   if (!date || typeof date === 'string') {
     date = localDateFromUtcString(date)
   }
@@ -98,14 +106,31 @@ export function format(date: Date | string, formatString?: string): string {
 /**
  * Single point of doing the 'pretty' dates for the entire app
  */
-export function formatPrettyDate(date: Date | string): string {
+export function formatPrettyDate(date: Date | string | number): string {
+  if (typeof date === 'number') {
+    date = new Date(date * 1000)
+  }
+
   return format(date, 'MMM do yyyy, HH:mm')
 }
 
 /**
  * Format bytes to human readable string
  */
-export function formatSize(b?: number | string): string {
+export function formatSize(b?: number | string, unit?: 'B' | 'KB' | 'MB' | 'GB'): string {
+  if (unit) {
+    const sizes = {
+      B: b,
+      KB: b ? (b as number) / 1024 : undefined,
+      MB: b ? (b as number) / 1024 / 1024 : undefined,
+      GB: b ? (b as number) / 1024 / 1024 / 1024 : undefined
+    }
+
+    if (typeof sizes[unit] !== 'undefined') {
+      return `${(sizes[unit] as number).toFixed(2)} ${unit}`
+    }
+  }
+
   if (b === undefined || b === null) {
     return '0 B'
   }

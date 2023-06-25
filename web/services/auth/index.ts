@@ -59,6 +59,22 @@ export async function ensureAuthenticated(
 }
 
 /**
+ * Ensure current user is a staff user
+ */
+export async function ensureAdmin(
+  router: Router,
+  route: RouteLocationNormalizedLoaded
+): Promise<void | NavigationFailure> {
+  const store = login.store()
+
+  await ensureAuthenticated(router, route)
+
+  if (!store.authenticated?.user.role) {
+    return router.push({ name: 'files', replace: true })
+  }
+}
+
+/**
  * One final try to attempt to purge the session and move to login page
  */
 async function bounce(
