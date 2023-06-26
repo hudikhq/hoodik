@@ -39,9 +39,9 @@ pub async fn create_file<'ctx>(
         size,
         chunks,
         file_id: file_id.map(|f| f.to_string()),
-        file_created_at: None,
+        file_modified_at: None,
     };
 
-    let (am, _, tokens, _) = file.into_active_model()?;
+    let (am, _, tokens, _, _) = file.into_active_model()?;
     repository.manage(user.id).create(am, name, tokens).await
 }

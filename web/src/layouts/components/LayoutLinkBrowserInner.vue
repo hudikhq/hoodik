@@ -37,6 +37,9 @@ const removeAll = () => {
 
 const load = async () => {
   await Links.find(Crypto.keypair)
+
+  // Load or re-load the stats for the user so it can be properly displayed
+  await Storage.loadStats()
 }
 
 load()

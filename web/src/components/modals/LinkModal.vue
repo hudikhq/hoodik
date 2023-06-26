@@ -72,9 +72,9 @@ const downloads = computed(() => {
   return link.value.downloads || 0
 })
 
-const fileCreatedAt = computed(() => {
+const fileModifiedAt = computed(() => {
   if (!link.value) return null
-  return link.value?.file_created_at ? formatPrettyDate(link.value?.file_created_at) : ''
+  return link.value?.file_modified_at ? formatPrettyDate(link.value?.file_modified_at) : ''
 })
 
 const expiresAt = ref()
@@ -261,7 +261,7 @@ watch(
         </div>
         <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
           <div class="flex flex-col w-1/2">Link Created</div>
-          <div class="flex flex-col w-1/2">{{ fileCreatedAt }}</div>
+          <div class="flex flex-col w-1/2">{{ fileModifiedAt }}</div>
         </div>
         <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
           <div class="flex flex-col w-1/2">Downloads</div>

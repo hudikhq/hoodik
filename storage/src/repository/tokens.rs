@@ -94,18 +94,13 @@ where
     /// Delete all tokens for a file and then recreate them.
     /// This is used when renaming a file or doing file content update. It is not the most
     /// efficient way to get this done, but it is the easiest.
-    #[allow(dead_code)]
-    pub(crate) async fn rename(
-        &self,
-        file: &files::Model,
-        hashed_tokens: Vec<String>,
-    ) -> AppResult<u64> {
+    pub(crate) async fn rename(&self, id: Uuid, hashed_tokens: Vec<String>) -> AppResult<u64> {
         file_tokens::Entity::delete_many()
-            .filter(file_tokens::Column::FileId.eq(file.id))
+            .filter(file_tokens::Column::FileId.eq(id))
             .exec(self.repository.connection())
             .await?;
 
-        self.upsert(file.id, hashed_tokens).await
+        self.upsert(id, hashed_tokens).await
     }
 
     /// Create a new token

@@ -1,18 +1,27 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import { AppForm, AppField } from '@/components/form'
 import * as yup from 'yup'
 import type { ErrorResponse } from '!/api'
-import type { CryptoStore, FilesStore } from 'types'
+import type { AppFile, CryptoStore, FilesStore } from 'types'
 
 const props = defineProps<{
-  modelValue?: boolean | undefined
+  modelValue?: AppFile | undefined
   Storage: FilesStore
   Crypto: CryptoStore
 }>()
 
 const emit = defineEmits(['update:modelValue', 'cancel', 'confirm'])
+
+const file = computed({
+  get() {
+    return props.modelValue
+  },
+  set(value) {
+    emit('update:modelValue', value)
+  }
+})
 
 const config = ref()
 const errorMessage = ref()
@@ -20,18 +29,19 @@ const errorMessage = ref()
 const init = () => {
   config.value = {
     initialValues: {
-      name: ''
+      name: file.value?.name
     },
     validationSchema: yup.object().shape({
-      name: yup.string().required('Directory name is required')
+      name: yup.string().required('New name is required')
     }),
     onSubmit: async (values: { name: string }, ctx: any) => {
       try {
-        await props.Storage.createDir(props.Crypto.keypair, values.name, props.Storage.dir?.id)
+        if (!file.value) throw new Error('File not found')
+
+        await props.Storage.rename(props.Crypto.keypair, file.value, values.name)
         ctx.resetForm()
-        props.Storage.find(props.Crypto.keypair, props.Storage.dir?.id || undefined)
         emit('confirm')
-        emit('update:modelValue', false)
+        emit('update:modelValue', undefined)
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
@@ -41,17 +51,17 @@ const init = () => {
   }
 }
 
-init()
+watch(() => props.modelValue, init, { immediate: true })
 </script>
 
 <template>
   <AppForm v-if="config" :config="config" v-slot="{ form }">
     <CardBoxModal
-      :modelValue="props.modelValue"
-      @update:modelValue="$emit('update:modelValue', $event)"
-      title="Create a directory"
+      :modelValue="!!file"
+      @update:modelValue="$emit('update:modelValue', $event ? file : undefined)"
+      :title="`Rename a ${file?.mime === 'dir' ? 'directory' : 'file'}`"
       button="info"
-      buttonLabel="Create"
+      buttonLabel="Rename"
       has-cancel
       @cancel="$emit('cancel')"
       :form="form"
@@ -60,7 +70,7 @@ init()
         {{ errorMessage }}
       </p>
 
-      <AppField :form="form" label="Directory name" name="name" placeholder="Documents" autofocus />
+      <AppField :form="form" label="Name" name="name" placeholder="new name" autofocus />
     </CardBoxModal>
   </AppForm>
 </template>

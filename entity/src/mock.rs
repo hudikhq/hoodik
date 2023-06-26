@@ -116,7 +116,7 @@ pub async fn create_file<T: super::ConnectionTrait>(
         size: ActiveValue::Set(size),
         chunks: ActiveValue::Set(chunks),
         chunks_stored: ActiveValue::Set(chunks),
-        file_created_at: ActiveValue::Set(Utc::now().timestamp()),
+        file_modified_at: ActiveValue::Set(Utc::now().timestamp()),
         created_at: ActiveValue::Set(Utc::now().timestamp()),
         finished_upload_at: ActiveValue::Set(Some(Utc::now().timestamp())),
     };

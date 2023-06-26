@@ -9,7 +9,9 @@ use entity::{
 };
 use error::{AppResult, Error};
 
-use crate::data::{app_file::AppFile, query::Query as RequestQuery, response::Response};
+use crate::data::{
+    app_file::AppFile, query::Query as RequestQuery, rename::Rename, response::Response,
+};
 
 use super::Repository;
 
@@ -66,7 +68,7 @@ where
 
         if let Some(order_by) = request_query.order_by.as_ref() {
             let column = match order_by.as_str() {
-                "created_at" => files::Column::FileCreatedAt,
+                "created_at" => files::Column::FileModifiedAt,
                 "size" => files::Column::Size,
                 _ => return Err(Error::BadRequest("invalid_order_by".to_string())),
             };
@@ -201,7 +203,7 @@ where
     /// Load the file from the database by its name hash and by its parent id
     /// this method can be used to verify if you already have a file with the same name
     /// in the directory. In case the file already exist we can check if we could resume its upload
-    pub(crate) async fn by_name<V>(&self, hash: V, parent_id: Option<i32>) -> AppResult<AppFile>
+    pub(crate) async fn by_name<V>(&self, hash: V, parent_id: Option<Uuid>) -> AppResult<AppFile>
     where
         V: Into<Value> + Display + Clone,
     {
@@ -226,6 +228,30 @@ where
             .await
             .map_err(Error::from)?
             .ok_or_else(|| Error::NotFound("file_not_found".to_string()))
+    }
+
+    /// Rename a file or directory for the owner
+    pub(crate) async fn rename(&self, id: Uuid, data: Rename) -> AppResult<AppFile> {
+        let (active_model, hashed_tokens, name_hash) = data.into_active_model(id)?;
+
+        let file = self.repository.by_id(id, self.owner_id).await?;
+
+        if self.by_name(&name_hash, file.file_id).await.is_ok() {
+            return Err(Error::BadRequest("file_already_exists".to_string()));
+        }
+
+        if !file.is_owner || file.user_id != self.owner_id {
+            return Err(Error::NotFound("file_not_found".to_string()));
+        }
+
+        active_model.update(self.repository.connection()).await?;
+
+        self.repository
+            .tokens(self.owner_id)
+            .rename(id, hashed_tokens)
+            .await?;
+
+        self.repository.by_id(file.id, file.user_id).await
     }
 
     /// Delete many files or directories for the owner

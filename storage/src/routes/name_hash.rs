@@ -1,6 +1,7 @@
 use actix_web::{route, web, HttpRequest, HttpResponse};
 use auth::data::claims::Claims;
 use context::Context;
+use entity::Uuid;
 use error::AppResult;
 use fs::prelude::*;
 
@@ -18,7 +19,7 @@ pub(crate) async fn name_hash(
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let name_hash = util::actix::path_var::<String>(&req, "name_hash")?;
-    let file_id = util::actix::query_var::<i32>(&req, "parent_id").ok();
+    let file_id = util::actix::query_var::<Uuid>(&req, "parent_id").ok();
 
     let mut file = Repository::new(&context.db)
         .manage(claims.sub)

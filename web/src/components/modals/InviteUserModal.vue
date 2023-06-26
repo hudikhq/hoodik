@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import { AppForm, AppField } from '@/components/form'
+import QuotaSlider from '@/components/ui/QuotaSlider.vue'
 import * as yup from 'yup'
 import type { ErrorResponse } from '!/api'
 import { create } from '!/admin/invitations'
@@ -23,7 +24,7 @@ const init = () => {
       message: '',
       quota: undefined,
       role: undefined
-    },
+    } as Create,
     validationSchema: yup.object().shape({
       email: yup.string().email().required('Email is required'),
       quota: yup.number().min(0)
@@ -64,6 +65,12 @@ init()
 
       <AppField :form="form" label="Email" name="email" autofocus />
       <AppField :form="form" label="Message" name="message" :textarea="true" />
+
+      <QuotaSlider
+        :model-value="form.values.quota"
+        @update:model-value="(v) => form.setValues({ quota: v })"
+        title="Storage quota"
+      />
     </CardBoxModal>
   </AppForm>
 </template>

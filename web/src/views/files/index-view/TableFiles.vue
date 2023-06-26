@@ -29,6 +29,7 @@ const emits = defineEmits<{
   (event: 'link', file: AppFile): void
   (event: 'remove', file: AppFile): void
   (event: 'details', file: AppFile): void
+  (event: 'rename', file: AppFile): void
   (event: 'browse'): void
   (event: 'directory'): void
   (event: 'remove-all', files: AppFile[], fileId: string | null | undefined): void
@@ -160,7 +161,7 @@ const sizes = {
 
     <div :class="`${sizes.modifiedAt} ${borderClass}`">
       <SortableName
-        name="file_created_at"
+        name="file_modified_at"
         label="Modified"
         :sort-options="sortOptions"
         @sort="(v: string) => emits('set-sort-simple', v)"
@@ -191,6 +192,7 @@ const sizes = {
         @actions="(f: AppFile) => emits('actions', f)"
         @details="(f: AppFile) => emits('details', f)"
         @download="(f: AppFile) => emits('download', f)"
+        @rename="(f: AppFile) => emits('rename', f)"
         @link="(f: AppFile) => emits('link', f)"
         @remove="(f: AppFile) => emits('remove', f)"
         @select-one="(v: boolean, f: AppFile) => emits('select-one', v, f)"

@@ -44,6 +44,18 @@ export interface FileResponse {
   children: AppFile[]
 }
 
+export interface Stats {
+  mime: string
+  size: number
+  count: number
+}
+
+export interface StorageStatsResponse {
+  stats: Stats[]
+  used_space: number
+  quota?: number
+}
+
 export interface SingleChunk {
   data: Uint8Array
   chunk: number

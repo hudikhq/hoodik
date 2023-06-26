@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import PureButton from '@/components/ui/PureButton.vue'
-import { mdiTrashCan, mdiEye, mdiDownload, mdiLink } from '@mdi/js'
+import { mdiTrashCan, mdiEye, mdiDownload, mdiLink, mdiPencil } from '@mdi/js'
 import type { AppFile } from 'types'
 import { computed } from 'vue'
 
@@ -15,6 +15,7 @@ const emits = defineEmits<{
   (event: 'details', file: AppFile): void
   (event: 'remove', file: AppFile): void
   (event: 'link', file: AppFile): void
+  (event: 'rename', file: AppFile): void
   (event: 'download', file: AppFile): void
 }>()
 
@@ -78,6 +79,15 @@ const canHaveALink = computed(() => {
     @click="emits('remove', file)"
     label="Delete"
     name="delete"
+    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
+  />
+
+  <PureButton
+    v-if="file.is_owner && (file.finished_upload_at || file.mime === 'dir')"
+    :icon="mdiPencil"
+    @click="emits('rename', file)"
+    label="Rename"
+    name="rename"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
   />
 </template>

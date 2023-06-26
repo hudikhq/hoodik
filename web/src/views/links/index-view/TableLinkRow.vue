@@ -50,7 +50,7 @@ const linkCreatedAt = computed(() => {
 })
 
 const fileCreatedAt = computed(() => {
-  return props.link.file_created_at ? formatPrettyDate(props.link.file_created_at) : ''
+  return props.link.file_modified_at ? formatPrettyDate(props.link.file_modified_at) : ''
 })
 
 const linkExpiresAt = computed(() => {

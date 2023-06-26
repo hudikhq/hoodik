@@ -1,7 +1,7 @@
 use actix_web::{route, web, HttpResponse};
 use auth::data::claims::Claims;
 use context::Context;
-use entity::{TransactionTrait, Value};
+use entity::TransactionTrait;
 use error::{AppResult, Error};
 
 use crate::{data::create_file::CreateFile, repository::Repository};
@@ -19,8 +19,9 @@ pub(crate) async fn create(
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let connection = context.db.begin().await?;
-    let (create_file, encrypted_metadata, hashed_tokens, file_size) =
+    let (create_file, encrypted_metadata, hashed_tokens, file_size, file_id) =
         data.into_inner().into_active_model()?;
+
     let repository = Repository::new(&connection);
 
     if let Some(quota) = claims.get_quota(&context).await {
@@ -39,11 +40,6 @@ pub(crate) async fn create(
         .into_value()
         .unwrap()
         .unwrap::<String>();
-
-    let file_id = match create_file.file_id.clone().into_value().unwrap() {
-        Value::Int(v) => v,
-        _ => None,
-    };
 
     if manage.by_name(&name_hash, file_id).await.is_ok() {
         return Err(Error::BadRequest("file_or_directory_exists".to_string()));

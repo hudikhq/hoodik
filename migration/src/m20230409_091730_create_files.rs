@@ -28,7 +28,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Files::ChunksStored).integer())
                     .col(ColumnDef::new(Files::FileId).uuid())
                     .col(
-                        ColumnDef::new(Files::FileCreatedAt)
+                        ColumnDef::new(Files::FileModifiedAt)
                             .big_integer()
                             .not_null(),
                     )
@@ -60,7 +60,7 @@ pub(crate) enum Files {
     Chunks,
     ChunksStored,
     FileId,
-    FileCreatedAt,
+    FileModifiedAt,
     CreatedAt,
     FinishedUploadAt,
 }

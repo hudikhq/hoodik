@@ -4,8 +4,7 @@ import UniversalCheckbox from '@/components/ui/UniversalCheckbox.vue'
 import type { Data } from 'types/admin/settings'
 import ListInput from '@/components/ui/ListInput.vue'
 import { computed } from 'vue'
-import { formatSize } from '!/index'
-import SliderInput from '@/components/ui/SliderInput.vue'
+import QuotaSlider from '@/components/ui/QuotaSlider.vue'
 
 const props = defineProps<{
   modelValue?: Data
@@ -20,31 +19,6 @@ const data = computed({
   },
   set(value) {
     emits('update:modelValue', value)
-  }
-})
-
-const displayQuota = computed(() => {
-  return formatSize(data.value?.users.quota_bytes || 0)
-})
-
-const unlimitedQuota = computed({
-  get() {
-    return typeof data.value?.users.quota_bytes !== 'number'
-  },
-  set(value) {
-    const d = data.value
-
-    if (!d) {
-      return
-    }
-
-    if (value) {
-      d.users.quota_bytes = undefined
-    } else {
-      d.users.quota_bytes = 0
-    }
-
-    data.value = d
   }
 })
 </script>
@@ -111,20 +85,10 @@ const unlimitedQuota = computed({
     </span>
 
     <h3 class="text-lg mt-4">Storage quota for users</h3>
-    <UniversalCheckbox
-      label="Allow users to use unlimited storage"
-      name="unlimited_quota"
-      v-model="unlimitedQuota"
+    <QuotaSlider
+      v-model="data.users.quota_bytes"
       :disabled="loading"
+      title="Default quota for new users"
     />
-
-    <div class="flex flex-col mb-4" v-if="!unlimitedQuota">
-      <div class="">
-        <SliderInput v-model="data.users.quota_bytes" :max="1024 * 1024 * 1024 * 1024" />
-      </div>
-      <div class="flex w-2/12">
-        {{ displayQuota }}
-      </div>
-    </div>
   </CardBox>
 </template>

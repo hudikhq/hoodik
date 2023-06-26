@@ -157,11 +157,10 @@ fn validate_chunk_size(file: &AppFile, chunk: i32, data_len: usize) -> AppResult
     }
 
     let max_size = chunk_size + chunk_size * 0.01;
-    let min_size = chunk_size - chunk_size * 0.01;
 
-    if !(data_len as f32 <= max_size && data_len as f32 >= min_size) {
+    if data_len as f32 > max_size {
         let error = format!(
-            "chunk_size_mismatch: expected {} +-1%, but received {}",
+            "chunk_size_mismatch: expected max {}, but received {}",
             chunk_size, data_len
         );
 

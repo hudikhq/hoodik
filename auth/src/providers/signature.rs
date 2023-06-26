@@ -21,7 +21,7 @@ impl<'ctx> AuthProviderContract for SignatureProvider<'ctx> {
     async fn authenticate(&self, user_agent: &str, ip: &str) -> AppResult<Authenticated> {
         let (fingerprint, signature) = self.data.into_tuple()?;
 
-        let user = match self.auth.get_by_fingerprint(&fingerprint).await {
+        let mut user = match self.auth.get_by_fingerprint(&fingerprint).await {
             Ok(v) => v,
             Err(e) => {
                 if e.is_not_found() {
@@ -31,6 +31,18 @@ impl<'ctx> AuthProviderContract for SignatureProvider<'ctx> {
                 return Err(e);
             }
         };
+
+        if user.quota.is_none() {
+            user.quota = self
+                .auth
+                .context
+                .settings
+                .inner()
+                .await
+                .users
+                .quota_bytes()
+                .map(|v| v as i64);
+        }
 
         let nonce = Auth::generate_fingerprint_nonce(&user.fingerprint);
 

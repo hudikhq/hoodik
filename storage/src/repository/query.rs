@@ -7,7 +7,7 @@ use entity::{
 };
 use error::{AppResult, Error};
 
-use crate::data::app_file::AppFile;
+use crate::data::{app_file::AppFile, stats::Stats};
 
 use super::Repository;
 
@@ -46,7 +46,6 @@ where
     }
 
     /// Sum all of the used space for the user so we can check if the user is over the quota limit
-    #[allow(dead_code)]
     pub(crate) async fn used_space(&self) -> AppResult<i64> {
         let user_id = self.user_id;
 
@@ -66,10 +65,26 @@ where
             )
             .column_as(files::Column::Size.sum(), "sum_of_size")
             .group_by(user_files::Column::UserId)
-            .into_tuple::<i64>()
+            .into_tuple::<Option<i64>>()
             .one(self.repository.connection())
             .await?;
 
-        Ok(used_space.unwrap_or(0))
+        Ok(used_space.unwrap_or_default().unwrap_or(0))
+    }
+
+    /// Get the stats for the user about the used space and the quota
+    pub(crate) async fn stats(&self) -> AppResult<Vec<Stats>> {
+        let stats = files::Entity::find()
+            .select_only()
+            .filter(files::Column::Mime.ne("dir"))
+            .column_as(files::Column::Mime, "mime")
+            .column_as(files::Column::Size.sum(), "size")
+            .column_as(files::Column::Id.count(), "count")
+            .group_by(files::Column::Mime)
+            .into_model::<Stats>()
+            .all(self.repository.connection())
+            .await?;
+
+        Ok(stats)
     }
 }
