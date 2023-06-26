@@ -121,7 +121,7 @@ impl Validation for CreateFile {
 }
 
 impl CreateFile {
-    pub fn into_active_model(self) -> AppResult<(ActiveModelFile, String, Vec<String>)> {
+    pub fn into_active_model(self) -> AppResult<(ActiveModelFile, String, Vec<String>, i64)> {
         let data = self.validate()?;
         let now = Utc::now().naive_utc();
 
@@ -156,6 +156,7 @@ impl CreateFile {
             },
             data.encrypted_key.unwrap(),
             data.search_tokens_hashed.unwrap_or_default(),
+            data.size.unwrap_or(0),
         ))
     }
 }

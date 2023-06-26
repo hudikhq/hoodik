@@ -19,8 +19,18 @@ pub(crate) async fn create(
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let connection = context.db.begin().await?;
-    let (create_file, encrypted_metadata, hashed_tokens) = data.into_inner().into_active_model()?;
+    let (create_file, encrypted_metadata, hashed_tokens, file_size) =
+        data.into_inner().into_active_model()?;
     let repository = Repository::new(&connection);
+
+    if let Some(quota) = claims.get_quota(&context).await {
+        let used_space = repository.query(claims.sub).used_space().await? + file_size;
+
+        if used_space > quota as i64 {
+            return Err(Error::BadRequest("quota_exceeded".to_string()));
+        }
+    }
+
     let manage = repository.manage(claims.sub);
 
     let name_hash = create_file

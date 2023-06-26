@@ -92,8 +92,8 @@ async fn test_creating_and_downloading_link() {
             .to_request();
 
         let body = test::call_and_read_body(&mut app, req).await;
-        // let string_body = String::from_utf8(body.to_vec()).unwrap();
-        // println!("string_body: {}", string_body);
+        let string_body = String::from_utf8(body.to_vec()).unwrap();
+        println!("string_body: {}", string_body);
         file = serde_json::from_slice(&body).unwrap();
         uploaded.push(i as i32);
 

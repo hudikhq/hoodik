@@ -80,3 +80,30 @@ async fn create_files_and_try_searching() {
     assert_eq!(first.id, dir2.id);
     assert_eq!(second.id, dir.id);
 }
+
+#[actix_web::test]
+async fn create_files_and_try_getting_total_used_space() {
+    let context = Context::mock_sqlite().await;
+    let repository = Repository::new(&context.db);
+    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
+
+    let file = create_file(&context, &user, "hello", None, Some("application/json"))
+        .await
+        .unwrap();
+
+    let file2 = create_file(
+        &context,
+        &user,
+        "hello hello",
+        None,
+        Some("application/json"),
+    )
+    .await
+    .unwrap();
+
+    let total = file.size.unwrap() + file2.size.unwrap();
+
+    let used_space = repository.query(user.id).used_space().await.unwrap();
+
+    assert_eq!(total, used_space)
+}
