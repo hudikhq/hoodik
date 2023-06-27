@@ -4,6 +4,10 @@ on:
   push:
     branches: ["master"]
 
+env:
+  HANDLE: hoodik
+  NAME: Hoodik
+
 jobs:
   push_to_registry:
     name: Push Docker image to Docker Hub
@@ -27,8 +31,8 @@ jobs:
       - name: Install wasm pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-      - name: Read the crate version
-        run: echo "CARGO_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')" >> $GITHUB_ENV
+      - name: Read the binary crate version
+        run: echo "CARGO_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "${{ env.HANDLE }}") | .version')" >> $GITHUB_ENV
 
       - name: Log in to Docker Hub
         uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
@@ -46,7 +50,7 @@ jobs:
       - name: Generate .env
         run: |
           echo "APP_VERSION=${{ env.CARGO_VERSION }}" >> $PWD/.env
-          echo "APP_NAME=Hoodik" >> $PWD/.env
+          echo "NAME=${{ env.NAME }}" >> $PWD/.env
 
       - name: Install yarn
         run: npm install -g yarn
@@ -68,7 +72,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/hoodik:v${{ env.CARGO_VERSION }}, ${{ secrets.DOCKER_USERNAME }}/hoodik:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/${{ env.HANDLE }}:v${{ env.CARGO_VERSION }}, ${{ secrets.DOCKER_USERNAME }}/${{ env.HANDLE }}:latest
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Update repo description
@@ -76,7 +80,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-          repository: ${{ secrets.DOCKER_USERNAME }}/hoodik
+          repository: ${{ secrets.DOCKER_USERNAME }}/${{ env.HANDLE }}
           short-description: ${{ github.event.repository.description }}
           readme-filepath: ./README.md
           enable-url-completion: true
