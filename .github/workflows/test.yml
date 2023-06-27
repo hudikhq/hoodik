@@ -2,8 +2,9 @@ name: Test
 
 on:
   push:
-    branches:
-      - "*" # All branches
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
 
 env:
   CARGO_TERM_COLOR: always
