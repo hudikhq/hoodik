@@ -8,7 +8,7 @@ cargo build --bin hoodik --release
 
 RUST_LOG=error $PWD/target/release/hoodik -c .env.e2e &
 
-node_modules/.bin/wait-on -t 300000 https://127.0.0.1:5443/api/liveness || (kill -9 $! && exit 1)
+node_modules/.bin/wait-on -t 600000 https://127.0.0.1:5443/api/liveness || (kill -9 $! && exit 1)
 
 export ENV_FILE="../.env.e2e"
 
