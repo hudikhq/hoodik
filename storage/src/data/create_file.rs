@@ -8,7 +8,7 @@
 //! If not, the file will be corrupted and we have no way of knowing if that is the case.
 use ::error::AppResult;
 use chrono::Utc;
-use entity::{files::ActiveModel as ActiveModelFile, option_string_to_uuid, ActiveValue};
+use entity::{files::ActiveModel as ActiveModelFile, option_string_to_uuid, ActiveValue, Uuid};
 use serde::{Deserialize, Serialize};
 use validr::*;
 
@@ -35,7 +35,7 @@ pub struct CreateFile {
     /// ID of the directory the file is located in (directories are files too)
     pub file_id: Option<String>,
     /// Date of the file creation from the disk, if not provided we set it to now
-    pub file_created_at: Option<String>,
+    pub file_modified_at: Option<String>,
 }
 
 impl Validation for CreateFile {
@@ -103,9 +103,9 @@ impl Validation for CreateFile {
                     error.add("required")
                 }
             }),
-            Rule::new("file_created_at", |obj: &CreateFile, error| {
-                if let Some(v) = &obj.file_created_at {
-                    if util::datetime::parse_into_naive_datetime(v, Some("file_created_at"))
+            Rule::new("file_modified_at", |obj: &CreateFile, error| {
+                if let Some(v) = &obj.file_modified_at {
+                    if util::datetime::parse_into_naive_datetime(v, Some("file_modified_at"))
                         .is_err()
                     {
                         error.add("invalid_date")
@@ -120,8 +120,10 @@ impl Validation for CreateFile {
     }
 }
 
+pub type CreateFileData = (ActiveModelFile, String, Vec<String>, i64, Option<Uuid>);
+
 impl CreateFile {
-    pub fn into_active_model(self) -> AppResult<(ActiveModelFile, String, Vec<String>)> {
+    pub fn into_active_model(self) -> AppResult<CreateFileData> {
         let data = self.validate()?;
         let now = Utc::now().naive_utc();
 
@@ -130,6 +132,8 @@ impl CreateFile {
         } else {
             None
         };
+
+        let file_id = option_string_to_uuid(data.file_id.clone());
 
         Ok((
             ActiveModelFile {
@@ -142,10 +146,10 @@ impl CreateFile {
                 chunks: ActiveValue::Set(data.chunks),
                 chunks_stored: ActiveValue::Set(chunks_stored),
                 file_id: ActiveValue::Set(option_string_to_uuid(data.file_id)),
-                file_created_at: ActiveValue::Set(
-                    data.file_created_at
+                file_modified_at: ActiveValue::Set(
+                    data.file_modified_at
                         .map(|i| {
-                            util::datetime::parse_into_naive_datetime(&i, Some("file_created_at"))
+                            util::datetime::parse_into_naive_datetime(&i, Some("file_modified_at"))
                                 .unwrap()
                         })
                         .unwrap_or(now)
@@ -156,6 +160,8 @@ impl CreateFile {
             },
             data.encrypted_key.unwrap(),
             data.search_tokens_hashed.unwrap_or_default(),
+            data.size.unwrap_or(0),
+            file_id,
         ))
     }
 }

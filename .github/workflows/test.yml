@@ -1,9 +1,8 @@
 name: Test
 
 on:
-  push:
-    branches:
-      - "*" # All branches
+  pull_request:
+    branches: ["master"]
 
 env:
   CARGO_TERM_COLOR: always
@@ -27,20 +26,29 @@ jobs:
             target
           key: ${{ runner.os }}-cargo
 
+      - name: Run Clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Unit test Rust workspace
+        run: cargo test --workspace --lib -- --nocapture
+
+      - name: Integration test authentication
+        run: cargo test --test web_authentication -- --nocapture
+
+      - name: Integration test storage
+        run: cargo test --test storage -- --nocapture
+
+      - name: Integration test links
+        run: cargo test --test links -- --nocapture
+
+      - name: Integration test email
+        run: cargo test --test email -- --nocapture
+
       - name: Install wasm pack tool
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Install yarn
-        run: npm install -g yarn
-
-      - name: Unit test Rust
-        run: ./rust-unit
-
-      - name: Integration test Rust
-        run: ./rust-integration
-
-      - name: Install yarn dependencies
-        run: yarn install
+        run: npm install -g yarn && yarn install
 
       - name: Wasm pack cryptfns
         run: yarn workspace @hoodik/cryptfns wasm-pack

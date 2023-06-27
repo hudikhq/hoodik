@@ -14,7 +14,8 @@ import type {
   FileResponse,
   Parameters,
   EncryptedAppFile,
-  KeyPair
+  KeyPair,
+  StorageStatsResponse
 } from 'types'
 
 export { meta, upload, download, queue }
@@ -84,6 +85,11 @@ export const store = defineStore('files', () => {
    * fetch the files from the backend.
    */
   const error = ref<string | null>(null)
+
+  /**
+   * Storage stats for the current user
+   */
+  const stats = ref<StorageStatsResponse>()
 
   /**
    * Files selected to be deleted from various places
@@ -174,6 +180,13 @@ export const store = defineStore('files', () => {
 
     return [...directories, ...files]
   })
+
+  /**
+   * Load the storage stats
+   */
+  async function loadStats(): Promise<void> {
+    stats.value = await meta.stats()
+  }
 
   /**
    * Head over to backend and do a lookup for the current directory
@@ -362,11 +375,27 @@ export const store = defineStore('files', () => {
       name,
       mime: 'dir',
       file_id: dir_id,
-      file_created_at: utcStringFromLocal(new Date()),
+      file_modified_at: utcStringFromLocal(new Date()),
       search_tokens_hashed
     }
 
     return meta.create(keypair, createFile)
+  }
+
+  /**
+   * Create a directory in the storage
+   */
+  async function rename(keypair: KeyPair, file: AppFile, name: string): Promise<AppFile> {
+    const search_tokens_hashed = cryptfns.stringToHashedTokens(name.toLowerCase())
+
+    const renamed = await meta.rename(keypair, file, {
+      name,
+      search_tokens_hashed
+    })
+
+    updateItem(renamed)
+
+    return renamed
   }
 
   /**
@@ -468,7 +497,10 @@ export const store = defineStore('files', () => {
     updateItem,
     upsertItem,
     setSort,
-    getSort
+    getSort,
+    stats,
+    loadStats,
+    rename
   }
 })
 

@@ -1,3 +1,4 @@
+import type { Rename, EncryptedRename } from 'types'
 import Api from '../api'
 import * as cryptfns from '../cryptfns'
 
@@ -11,7 +12,9 @@ import type {
   EncryptedAppFile,
   SearchQuery,
   AppFileEncryptedPart,
-  AppFileUnencryptedPart
+  AppFileUnencryptedPart,
+  StorageStatsResponse,
+  Rename
 } from 'types'
 
 /**
@@ -81,7 +84,7 @@ export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise
     size: unencrypted.size,
     chunks: unencrypted.chunks,
     file_id: unencrypted.file_id,
-    file_created_at: unencrypted.file_created_at,
+    file_modified_at: unencrypted.file_modified_at,
     ...encryptedParts
   }
 
@@ -100,6 +103,49 @@ export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise
 
   return {
     ...file,
+    ...unencryptedPart
+  }
+}
+
+/**
+ * Rename a file or a directory
+ */
+export async function rename(
+  keypair: KeyPair,
+  file: AppFile,
+  unencrypted: Rename
+): Promise<AppFile> {
+  if (!keypair.publicKey) {
+    throw new Error('Cannot rename file without public key')
+  }
+
+  if (!keypair.input) {
+    throw new Error('Cannot rename file without private key')
+  }
+
+  const encryptedParts = await encrypt({ key: file.key, name: unencrypted.name }, keypair.publicKey)
+
+  const rename: EncryptedRename = {
+    search_tokens_hashed: unencrypted.search_tokens_hashed,
+    name_hash: cryptfns.sha256.digest(unencrypted.name),
+    encrypted_name: encryptedParts.encrypted_name
+  }
+
+  const response = await Api.put<EncryptedRename, AppFile>(
+    `/api/storage/${file.id}`,
+    undefined,
+    rename
+  )
+
+  if (!response?.body?.id) {
+    throw new Error('Failed to create file')
+  }
+
+  const renamedFile = response.body
+  const unencryptedPart = await decrypt(renamedFile, keypair.input)
+
+  return {
+    ...renamedFile,
     ...unencryptedPart
   }
 }
@@ -166,6 +212,15 @@ export async function find(parameters: Parameters): Promise<FileResponse> {
   const response = await Api.get<FileResponse>(`/api/storage`, parameters)
 
   return response.body || { children: [], parents: [] }
+}
+
+/**
+ * Get users storage stats
+ */
+export async function stats(): Promise<StorageStatsResponse> {
+  const response = await Api.post<undefined, StorageStatsResponse>(`/api/storage/stats`)
+
+  return response.body || { stats: [], used_space: 0, quota: undefined }
 }
 
 /**

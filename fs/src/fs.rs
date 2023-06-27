@@ -43,6 +43,8 @@ impl<'ctx> Fs<'ctx> {
     where
         'ctx: 'provider,
     {
+        // TODO: Use the config to decide which provider we will be using
+        // for file storage. Once S3 is implemented...
         self.local_in(&self.config.app.data_dir)
     }
 }

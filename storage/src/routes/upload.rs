@@ -8,7 +8,7 @@ use error::{AppResult, Error};
 use fs::prelude::*;
 
 use crate::{
-    data::meta::Meta,
+    data::{app_file::AppFile, meta::Meta},
     repository::{cached::get_file, Repository},
 };
 
@@ -17,8 +17,8 @@ use crate::{
 /// Query: [crate::data::meta::Meta]
 ///
 /// Request:
-///  - Content-Type: application/octet-stream [chunk content bytes]
-///  - Body: [chunk content bytes]
+///  - Content-Type: application/octet-stream (chunk content bytes)
+///  - Body: (chunk content bytes)
 ///
 /// Response: [crate::data::app_file::AppFile]
 ///
@@ -54,6 +54,8 @@ pub(crate) async fn upload(
     let mut file = get_file(&context, claims.sub, file_id)
         .await
         .ok_or_else(|| Error::NotFound("file_not_found".to_string()))?;
+
+    validate_chunk_size(&file, chunk, request_body.len())?;
 
     let chunks = file
         .chunks
@@ -131,4 +133,39 @@ fn encrypt_request_body(key: &str, request_body: web::Bytes) -> AppResult<web::B
     let encrypted = cryptfns::aes::encrypt(key, request_body.to_vec())?;
 
     Ok(web::Bytes::from(encrypted))
+}
+
+/// Validate the chunk size of the uploaded chunk.
+/// This is done by comparing the size of the chunk to the size of the file
+/// and the number of chunks the file should have.
+/// If the chunk size is not equal to the size of the file divided by the number of chunks
+/// then we know that the chunk is not the last chunk and we can validate the size.
+fn validate_chunk_size(file: &AppFile, chunk: i32, data_len: usize) -> AppResult<()> {
+    let size = file
+        .size
+        .ok_or(Error::BadRequest("file_has_no_size".to_string()))?;
+
+    let chunks = file
+        .chunks
+        .ok_or(Error::BadRequest("file_has_no_chunks".to_string()))?;
+
+    let chunk_size = size as f32 / chunks as f32;
+    let chunks = file.chunks.unwrap_or(0);
+
+    if chunk == chunks {
+        return Ok(());
+    }
+
+    let max_size = chunk_size + chunk_size * 0.01;
+
+    if data_len as f32 > max_size {
+        let error = format!(
+            "chunk_size_mismatch: expected max {}, but received {}",
+            chunk_size, data_len
+        );
+
+        return Err(Error::as_validation("chunk", &error));
+    }
+
+    Ok(())
 }

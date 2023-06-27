@@ -9,6 +9,7 @@ import AsideMenuItem from '@/components/ui/AsideMenuItem.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import type { AsideMenuItemType } from '@/menuAside'
 import { useRouter } from 'vue-router'
+import StatsLi from '../files/StatsLi.vue'
 
 defineProps<{
   menu: AsideMenuItemType[]
@@ -83,8 +84,11 @@ const logoutAction = async () => {
       </div>
 
       <ul>
+        <StatsLi />
         <AsideMenuItem :item="lockAccountItem" @menu-click="logoutAction" />
       </ul>
+
+      <div></div>
     </div>
   </aside>
 </template>

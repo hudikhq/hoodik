@@ -2,8 +2,7 @@ name: Publish Docker image
 
 on:
   push:
-    branches:
-      - "master"
+    branches: ["master"]
 
 jobs:
   push_to_registry:
@@ -65,9 +64,19 @@ jobs:
         run: cargo build --bin hoodik --release
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+        uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          tags: ${{ steps.vars.outputs.tags }} ${{ secrets.DOCKER_USERNAME }}/hoodik:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/hoodik:v${{ env.CARGO_VERSION }}, ${{ secrets.DOCKER_USERNAME }}/hoodik:latest
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Update repo description
+        uses: peter-evans/dockerhub-description@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          repository: ${{ secrets.DOCKER_USERNAME }}/hoodik
+          short-description: ${{ github.event.repository.description }}
+          readme-filepath: ./README.md
+          enable-url-completion: true

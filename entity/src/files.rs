@@ -18,7 +18,7 @@ pub struct Model {
     pub chunks: Option<i32>,
     pub chunks_stored: Option<i32>,
     pub file_id: Option<Uuid>,
-    pub file_created_at: i64,
+    pub file_modified_at: i64,
     pub created_at: i64,
     pub finished_upload_at: Option<i64>,
 }

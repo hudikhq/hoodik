@@ -335,14 +335,6 @@ impl Vars {
                 .required(false),
         )
         .arg(
-            Arg::new("config_path")
-                .id("CONFIG_PATH")
-                .short('c')
-                .long("config")
-                .help("Specify the custom config location where the env variables will be loaded from")
-                .required(false),
-        )
-        .arg(
             Arg::new("log")
                 .id("RUST_LOG")
                 .short('l')

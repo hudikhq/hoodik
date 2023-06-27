@@ -34,6 +34,7 @@ const emits = defineEmits<{
   (event: 'download', file: AppFile): void
   (event: 'link', file: AppFile): void
   (event: 'remove', file: AppFile): void
+  (event: 'rename', file: AppFile): void
   (event: 'select-one', value: boolean, file: AppFile): void
   (event: 'deselect-all'): void
 }>()
@@ -70,7 +71,7 @@ const fileSize = computed(() => {
 })
 
 const fileModifiedAt = computed(() => {
-  return props.file.file_created_at ? formatPrettyDate(props.file.file_created_at) : ''
+  return props.file.file_modified_at ? formatPrettyDate(props.file.file_modified_at) : ''
 })
 
 const progressValue = computed(() => {
@@ -183,15 +184,8 @@ const singleClick = () => {
       <TruncatedSpan :text="props.file.mime" />
     </div>
 
-    <div :class="sizes.modifiedAt" :title="props.file.file_created_at">
-      <TruncatedSpan v-if="props.file.file_created_at" :text="fileModifiedAt" />
-      <progress
-        class="self-center w-full"
-        :max="100"
-        :value="progressValue"
-        v-else-if="props.file.mime !== 'dir'"
-        title="Uploading... If you stop the upload, or it gets interrupted simply select the same file again and it will continue where it left off"
-      />
+    <div :class="sizes.modifiedAt" :title="fileModifiedAt">
+      <TruncatedSpan :text="fileModifiedAt" />
     </div>
 
     <div :class="sizes.buttons">
@@ -214,6 +208,7 @@ const singleClick = () => {
         @download="(f: AppFile) => emits('download', f)"
         @link="(f: AppFile) => emits('link', f)"
         @remove="(f: AppFile) => emits('remove', f)"
+        @rename="(f: AppFile) => emits('rename', f)"
       />
     </div>
   </div>
@@ -221,8 +216,7 @@ const singleClick = () => {
   <div
     :class="{
       [sharedClass]: true,
-      'block sm:hidden': true,
-      'border-b-2 border-greeny-800 dark:border-greeny-400': showProgress
+      'border-b-2 border-greeny-800 dark:border-greeny-400 -pb-2': showProgress
     }"
     :style="{
       width: progressValue + '%'

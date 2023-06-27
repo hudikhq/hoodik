@@ -118,7 +118,7 @@ export interface EncryptedAppFile extends AppFileEncryptedPart {
    * This is an optional field that can be
    * set to the original file creation date
    */
-  file_created_at: number
+  file_modified_at: number
 
   /**
    * Database file creation date
