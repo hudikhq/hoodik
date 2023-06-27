@@ -240,7 +240,7 @@ export const store = defineStore('upload', () => {
       mime: file.type || 'application/octet-stream',
       chunks: Math.ceil(file.size / CHUNK_SIZE_BYTES),
       file_id: parent_id,
-      file_created_at: utcStringFromLocal(modified),
+      file_modified_at: utcStringFromLocal(modified),
       search_tokens_hashed,
       thumbnail
     }

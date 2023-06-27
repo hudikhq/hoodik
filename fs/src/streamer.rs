@@ -4,7 +4,6 @@ use futures_util::stream::StreamExt;
 use std::pin::Pin;
 
 /// Wrapper around a stream of bytes.
-/// Because it cannot be implemented directly on the trait
 pub struct Streamer {
     pub(crate) inner: Pin<Box<dyn futures_util::Stream<Item = AppResult<actix_web::web::Bytes>>>>,
     pub(crate) map_fn: Box<dyn FnMut(AppResult<web::Bytes>) -> AppResult<web::Bytes>>,

@@ -27,6 +27,7 @@ const emits = defineEmits<{
   (event: 'download', file: AppFile): void
   (event: 'link', file: AppFile): void
   (event: 'remove', file: AppFile): void
+  (event: 'rename', file: AppFile): void
   (event: 'select-one', value: boolean, file: AppFile): void
   (event: 'deselect-all'): void
 }>()
@@ -71,6 +72,7 @@ onMounted(() => {
       :highlighted="props.highlighted"
       @actions="(f: AppFile) => emits('actions', f)"
       @details="(f: AppFile) => emits('details', f)"
+      @rename="(f: AppFile) => emits('rename', f)"
       @download="(f: AppFile) => emits('download', f)"
       @link="(f: AppFile) => emits('link', f)"
       @remove="(f: AppFile) => emits('remove', f)"

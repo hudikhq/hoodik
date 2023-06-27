@@ -22,6 +22,7 @@ const menuHeight = ref(0)
 const emits = defineEmits<{
   (event: 'remove', file: AppFile): void
   (event: 'details', file: AppFile): void
+  (event: 'rename', file: AppFile): void
   (event: 'link', file: AppFile): void
   (event: 'download', file: AppFile): void
   (event: 'update:modelValue', value: AppFile): void
@@ -35,6 +36,11 @@ const file = computed({
 const remove = () => {
   close()
   emits('remove', file.value)
+}
+
+const rename = () => {
+  close()
+  emits('rename', file.value)
 }
 
 const details = () => {
@@ -136,6 +142,7 @@ window.addEventListener('keydown', (e) => {
         @details="details"
         @link="link"
         @download="download"
+        @rename="rename"
       />
     </div>
   </div>

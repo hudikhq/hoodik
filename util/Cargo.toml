@@ -20,5 +20,6 @@ bcrypt = "^0.14"
 chrono = "^0.4"
 qstring = "^0.7"
 actix-web = "^4"
+url = "^2"
 
 error = { path = "../error" }

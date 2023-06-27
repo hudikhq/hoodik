@@ -1,9 +1,9 @@
-pub const CHUNKS: usize = 5;
-pub const CHUNK_SIZE_BYTES: i32 = 1024 * 1024;
+pub(crate) const CHUNKS: usize = 5;
+pub(crate) const CHUNK_SIZE_BYTES: i32 = 1024 * 1024;
 
 /// Helper for testing to extract the cookies
 #[allow(dead_code)]
-pub fn extract_cookies(
+pub(crate) fn extract_cookies(
     headers: &actix_web::http::header::HeaderMap,
 ) -> (
     Option<actix_web::cookie::Cookie<'static>>,
@@ -28,7 +28,7 @@ pub fn extract_cookies(
 
 /// Helper to create some mock file for uploading
 #[allow(dead_code)]
-pub fn create_byte_chunks() -> (Vec<Vec<u8>>, i64, String) {
+pub(crate) fn create_byte_chunks() -> (Vec<Vec<u8>>, i64, String) {
     let one_chunk_size = CHUNK_SIZE_BYTES as usize;
     let mut byte_chunks = vec![];
     let mut body = vec![];

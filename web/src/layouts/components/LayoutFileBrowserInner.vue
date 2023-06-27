@@ -2,6 +2,7 @@
 import CreateDirectoryModal from '@/components/files/modals/CreateDirectoryModal.vue'
 import DeleteMultipleModal from '@/components/files/modals/DeleteMultipleModal.vue'
 import ActionsModal from '@/components/files/modals/ActionsModal.vue'
+import RenameModal from '@/components/files/modals/RenameModal.vue'
 import DeleteModal from '@/components/files/modals/DeleteModal.vue'
 import DetailsModal from '@/components/files/modals/DetailsModal.vue'
 import UploadButton from '@/components/files/browser/UploadButton.vue'
@@ -25,6 +26,10 @@ const props = defineProps<{
 
 const route = useRoute()
 const parentId = computed(() => {
+  if (props.parentId) {
+    return props.parentId
+  }
+
   if (!route.params.file_id) {
     return undefined
   }
@@ -41,10 +46,11 @@ const openBrowseWindow = ref(false)
 const isModalCreateDirActive = ref(false)
 const isModalDeleteMultipleActive = ref(false)
 
-const detailsView = ref<AppFile>()
-const singleRemove = ref<AppFile>()
+const detailsFile = ref<AppFile>()
+const singleRemoveFile = ref<AppFile>()
 const actionFile = ref<AppFile>()
-const linkView = ref<AppFile>()
+const renameFile = ref<AppFile>()
+const linkFile = ref<AppFile>()
 
 /**
  * Opens a modal for a file to display actions
@@ -60,7 +66,7 @@ const actions = (file: AppFile) => {
  */
 const details = (file: AppFile) => {
   actionFile.value = undefined
-  detailsView.value = file
+  detailsFile.value = file
 }
 
 /**
@@ -72,7 +78,15 @@ const link = (file: AppFile) => {
   }
 
   actionFile.value = undefined
-  linkView.value = file
+  linkFile.value = file
+}
+
+/**
+ * Open a modal to rename a file
+ */
+const rename = (file: AppFile) => {
+  actionFile.value = undefined
+  renameFile.value = file
 }
 
 /**
@@ -87,7 +101,7 @@ const removeAll = () => {
  */
 const remove = (file: AppFile) => {
   actionFile.value = undefined
-  singleRemove.value = file
+  singleRemoveFile.value = file
 }
 
 /**
@@ -117,6 +131,9 @@ const load = async () => {
   // because that means we already have some files and
   // we want to scroll down to them.
   await Storage.find(Crypto.keypair, parentId.value, !route.hash)
+
+  // Load or re-load the stats for the user so it can be properly
+  await Storage.loadStats()
 }
 
 watch(
@@ -127,6 +144,7 @@ watch(
 </script>
 <template>
   <UploadButton v-model="openBrowseWindow" :dir="Storage.dir" :kp="Crypto.keypair" />
+  <RenameModal v-if="renameFile" v-model="renameFile" :Storage="Storage" :Crypto="Crypto" />
   <CreateDirectoryModal
     v-model="isModalCreateDirActive"
     :Crypto="Crypto"
@@ -134,9 +152,9 @@ watch(
     @cancel="isModalCreateDirActive = false"
   />
   <ActionsModal v-model="actionFile" @remove="remove" @download="download" @details="details" />
-  <DeleteModal v-model="singleRemove" :Storage="Storage" :kp="Crypto.keypair" />
-  <DetailsModal v-model="detailsView" :Storage="Storage" :kp="Crypto.keypair" />
-  <LinkModal v-model="linkView" :Storage="Storage" :Links="Links" :kp="Crypto.keypair" />
+  <DeleteModal v-model="singleRemoveFile" :Storage="Storage" :kp="Crypto.keypair" />
+  <DetailsModal v-model="detailsFile" :Storage="Storage" :kp="Crypto.keypair" />
+  <LinkModal v-model="linkFile" :Storage="Storage" :Links="Links" :kp="Crypto.keypair" />
   <DeleteMultipleModal
     v-model="isModalDeleteMultipleActive"
     :Storage="Storage"
@@ -158,6 +176,7 @@ watch(
       download,
       link,
       remove,
+      rename,
       'remove-all': removeAll,
       'select-one': Storage.selectOne,
       'select-all': Storage.selectAll,

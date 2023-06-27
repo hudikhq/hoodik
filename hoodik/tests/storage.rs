@@ -73,7 +73,7 @@ async fn test_creating_file_and_uploading_chunks() {
         chunks: Some(data.len() as i32),
         file_id: None,
         /// Date of the file creation from the disk, if not provided we set it to now
-        file_created_at: None,
+        file_modified_at: None,
     };
 
     let req = test::TestRequest::post()

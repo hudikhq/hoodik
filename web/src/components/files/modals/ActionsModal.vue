@@ -15,6 +15,7 @@ const emits = defineEmits<{
   (event: 'link', file: AppFile): void
   (event: 'download', file: AppFile): void
   (event: 'details', file: AppFile): void
+  (event: 'rename', file: AppFile): void
 }>()
 
 const file = computed(() => props.modelValue)
@@ -30,6 +31,7 @@ const file = computed(() => props.modelValue)
       @links="emits('link', file)"
       @details="emits('details', file)"
       @download="emits('download', file)"
+      @rename="emits('rename', file)"
     />
   </DropdownModal>
 </template>

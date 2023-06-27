@@ -55,7 +55,7 @@ async fn test_creating_and_downloading_link() {
         chunks: Some(data.len() as i32),
         file_id: None,
         /// Date of the file creation from the disk, if not provided we set it to now
-        file_created_at: None,
+        file_modified_at: None,
     };
 
     let req = test::TestRequest::post()
@@ -94,6 +94,7 @@ async fn test_creating_and_downloading_link() {
         let body = test::call_and_read_body(&mut app, req).await;
         // let string_body = String::from_utf8(body.to_vec()).unwrap();
         // println!("string_body: {}", string_body);
+
         file = serde_json::from_slice(&body).unwrap();
         uploaded.push(i as i32);
 

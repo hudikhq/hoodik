@@ -42,23 +42,6 @@ Files are split and stored in chunks of max size defined in the `fs::MAX_CHUNK_S
 
 ***there is an option for encrypt and decrypt on the server, it can be used as a fallback option in case the client is running on a toaster and doesn't have enough compute power to encrypt/decrypt. But generally, this will probably never be used*
 
-
-
-# Application state
-
-The application is currently still in a pre alpha version, it doesn't even have proper tagging for releases. 
-
-There are some issues that need to be worked out before the app is released in the alpha version:
- - Wasm crypto functions are fast, but not as I wish they were
- - Files cannot be shared
- - ~~No public links can be made with files~~
- - Settings for the users account are non-existent
- - Overall database design is still in the early stages and might change without a migration (still dropping when upgrading)
- - ~~Frontend application has lost testing ability once the app switched to credentials mode of authentication (Jest cannot deal with http only cookies)~~
- - ~~Currently, its using AES-AEAD encryption for files, that might change and would be a breaking change~~
- - ~~Files are stored on disk in chunks, that is currently working and it won't change most likely, but.. It might be necessary for performance~~
- - ...I don't feel like it being ready yet.
-
 # Installing via docker
 
 The application itself can handle incoming traffic, but for best results, use a reverse proxy, something like [Nginx Proxy Manager](https://nginxproxymanager.com/).

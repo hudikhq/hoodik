@@ -1,5 +1,16 @@
 import type { AppFileUnencryptedPart } from './file'
 
+export interface Rename {
+  name: string
+  search_tokens_hashed?: string[]
+}
+
+export interface EncryptedRename {
+  encrypted_name: string
+  name_hash: string
+  search_tokens_hashed?: string[]
+}
+
 export interface CreateFile extends AppFileUnencryptedPart {
   /**
    * Unencrypted file name
@@ -35,7 +46,7 @@ export interface CreateFile extends AppFileUnencryptedPart {
   /**
    * When was the file created on disk
    */
-  file_created_at?: string
+  file_modified_at?: string
 
   /**
    * Tokenize the unencrypted file name or any search data,
@@ -86,5 +97,5 @@ export interface EncryptedCreateFile {
   /**
    * When was the file created on disk
    */
-  file_created_at?: string
+  file_modified_at?: string
 }

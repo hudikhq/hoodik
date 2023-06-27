@@ -32,9 +32,9 @@ const size = computed(() => {
   return formatSize(file.value.size)
 })
 
-const created = computed(() => {
+const modified = computed(() => {
   if (!file.value) return ''
-  return file.value?.file_created_at ? formatPrettyDate(file.value?.file_created_at) : ''
+  return file.value?.file_modified_at ? formatPrettyDate(file.value?.file_modified_at) : ''
 })
 
 const fileFinishedUploadAt = computed(() => {
@@ -85,8 +85,8 @@ const cancel = () => {
       <div class="flex flex-col w-1/2">{{ size }}</div>
     </div>
     <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
-      <div class="flex flex-col w-1/2">Created</div>
-      <div class="flex flex-col w-1/2">{{ created }}</div>
+      <div class="flex flex-col w-1/2">Modified</div>
+      <div class="flex flex-col w-1/2">{{ modified }}</div>
     </div>
     <div v-if="!isDir" class="flex flex-row p-2 border-b-[1px] border-brownish-700">
       <div class="flex flex-col w-1/2">Uploaded</div>

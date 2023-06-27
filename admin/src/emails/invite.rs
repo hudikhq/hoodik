@@ -1,6 +1,6 @@
 use context::{Context, SenderContract};
 use entity::invitations;
-use error::AppResult;
+use error::{AppResult, Error};
 
 /// Send an invitation email to the provided email address
 pub(crate) async fn send(
@@ -33,12 +33,18 @@ pub(crate) async fn send(
     "#
     .to_string();
 
-    let link = format!(
-        "{}/auth/register?invitation_id={}&email={}",
-        context.config.get_client_url(),
-        invitation.id,
-        &invitation.email
-    );
+    let link = format!("{}/auth/register", context.config.get_client_url());
+
+    let mut link = util::url::generate(&link).ok_or_else(|| {
+        log::error!("Invalid link generated: {}", &link);
+
+        Error::InternalError("invalid_link".to_string())
+    })?;
+
+    link.query_pairs_mut()
+        .append_pair("invitation_id", &invitation.id.to_string())
+        .append_pair("email", &invitation.email);
+
     let app_name = context.config.get_app_name();
     let expires_at = util::datetime::from_timestamp(invitation.expires_at)
         .format("%Y-%m-%d %H:%M:%S")

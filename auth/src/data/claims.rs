@@ -23,6 +23,8 @@ pub struct Claims {
     pub device: Uuid,
     /// User role
     pub role: Option<String>,
+    /// User quota for the storage
+    pub quota: Option<i64>,
 }
 
 impl From<&Authenticated> for Claims {
@@ -34,6 +36,7 @@ impl From<&Authenticated> for Claims {
             iat: chrono::Utc::now().timestamp(),
             device: authenticated.session.device_id,
             role: authenticated.user.role.clone(),
+            quota: authenticated.user.quota,
         }
     }
 }
@@ -51,6 +54,17 @@ impl Claims {
 
     pub fn is_valid(&self) -> bool {
         !self.is_expired()
+    }
+
+    pub async fn get_quota(&self, context: &Context) -> Option<u64> {
+        match self.quota {
+            Some(v) => Some(v as u64),
+            None => {
+                let settings = context.settings.inner().await;
+
+                settings.users.quota_bytes()
+            }
+        }
     }
 }
 
