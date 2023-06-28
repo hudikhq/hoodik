@@ -84,7 +84,7 @@ watch(fileId, (v) => {
 
       <TableFiles
         :searchedFileId="fileId"
-        :for-delete="Storage.forDelete"
+        :selected="Storage.selected"
         :parents="Storage.parents"
         :items="Storage.items"
         :sortOptions="Storage.sortOptions"

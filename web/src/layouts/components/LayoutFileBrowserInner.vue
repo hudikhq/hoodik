@@ -113,6 +113,20 @@ const download = (file: AppFile) => {
 }
 
 /**
+ * Sends multiple selected files to the download queue if they are files
+ * that have finished uploading
+ */
+const downloadMany = async () => {
+  for (const file of Storage.selected) {
+    if (file.mime === 'dir' || !file.finished_upload_at) {
+      continue
+    }
+
+    await Download.push(file)
+  }
+}
+
+/**
  * Opens the file browser to select files
  */
 const browse = () => {
@@ -169,6 +183,12 @@ watch(
     :download="Download"
     :loading="Storage.loading"
     :on="{
+      'deselect-all': Storage.deselectAll,
+      'download-many': downloadMany,
+      'remove-all': removeAll,
+      'select-all': Storage.selectAll,
+      'select-one': Storage.selectOne,
+      'set-sort-simple': Storage.setSortSimple,
       actions,
       browse,
       details,
@@ -176,12 +196,7 @@ watch(
       download,
       link,
       remove,
-      rename,
-      'remove-all': removeAll,
-      'select-one': Storage.selectOne,
-      'select-all': Storage.selectAll,
-      'deselect-all': Storage.deselectAll,
-      'set-sort-simple': Storage.setSortSimple
+      rename
     }"
   />
 </template>

@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { mdiTrashCanOutline, mdiFolderPlusOutline, mdiFilePlusOutline } from '@mdi/js'
+import {
+  mdiTrashCanOutline,
+  mdiFolderPlusOutline,
+  mdiFilePlusOutline,
+  mdiDownloadMultiple,
+  mdiPencil,
+  mdiEye,
+  mdiInformationOutline
+} from '@mdi/js'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import TableFileRowWatcher from './TableFileRowWatcher.vue'
 import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
@@ -9,7 +17,7 @@ import { computed, ref, watch } from 'vue'
 import type { AppFile } from 'types'
 
 const props = defineProps<{
-  forDelete: AppFile[]
+  selected: AppFile[]
   items: AppFile[]
   parents: AppFile[]
   dir: AppFile | null
@@ -32,10 +40,11 @@ const emits = defineEmits<{
   (event: 'rename', file: AppFile): void
   (event: 'browse'): void
   (event: 'directory'): void
-  (event: 'remove-all', files: AppFile[], fileId: string | null | undefined): void
   (event: 'select-one', select: boolean, file: AppFile): void
   (event: 'select-all', files: AppFile[], fileId: string | null | undefined): void
   (event: 'deselect-all'): void
+  (event: 'download-many'): void
+  (event: 'remove-all'): void
   (event: 'set-sort-simple', value: string): void
 }>()
 
@@ -51,12 +60,27 @@ const dirId = computed<string | null>(() => {
 
 const checkedRows = computed(() => {
   return props.items.filter((item) => {
-    return props.forDelete.find((file) => file.id === item.id)
+    return props.selected.find((file) => file.id === item.id)
   })
 })
 
 const showDeleteAll = computed(() => {
   return (checked.value || checkedRows.value.length > 0) && !props.hideDelete
+})
+
+const showDownloadMany = computed(() => {
+  const hasDirsChecked = checkedRows.value.some((item) => item.mime === 'dir')
+  const hasIncompleteUploads = checkedRows.value.some((item) => !item.finished_upload_at)
+
+  return checkedRows.value.length > 0 && !hasDirsChecked && !hasIncompleteUploads
+})
+
+const singleSelected = computed(() => {
+  if (checkedRows.value.length !== 1) {
+    return null
+  }
+
+  return checkedRows.value[0]
 })
 
 watch(
@@ -97,13 +121,53 @@ const sizes = {
     v-if="showActions"
   >
     <BaseButton
-      title="Delete selected files and folders"
+      title="Delete"
       :iconSize="20"
       :xs="true"
       :icon="mdiTrashCanOutline"
       color="danger"
       v-if="showDeleteAll"
-      @click="() => emits('remove-all', checkedRows, props.file_id)"
+      @click="() => emits('remove-all')"
+    />
+
+    <BaseButton
+      title="Add to download queue"
+      :iconSize="20"
+      :xs="true"
+      :icon="mdiDownloadMultiple"
+      color="light"
+      v-if="showDownloadMany"
+      @click="() => emits('download-many')"
+    />
+
+    <BaseButton
+      title="Rename file or folder"
+      :iconSize="20"
+      :xs="true"
+      :icon="mdiPencil"
+      color="light"
+      v-if="singleSelected"
+      @click="() => emits('rename', singleSelected as AppFile)"
+    />
+
+    <BaseButton
+      title="Preview"
+      :iconSize="20"
+      :xs="true"
+      :icon="mdiEye"
+      color="light"
+      v-if="singleSelected && singleSelected.thumbnail"
+      :to="{ name: 'file-preview', params: { id: singleSelected.id } }"
+    />
+
+    <BaseButton
+      title="Details"
+      :iconSize="20"
+      :xs="true"
+      :icon="mdiInformationOutline"
+      color="light"
+      v-if="singleSelected"
+      @click="() => emits('details', singleSelected as AppFile)"
     />
 
     <BaseButton
@@ -114,6 +178,7 @@ const sizes = {
       :icon="mdiFolderPlusOutline"
       color="light"
       @click="emits('directory')"
+      v-if="!checkedRows.length"
     />
 
     <BaseButton
@@ -124,6 +189,7 @@ const sizes = {
       :icon="mdiFilePlusOutline"
       color="light"
       @click="emits('browse')"
+      v-if="!checkedRows.length"
     />
   </div>
 

@@ -15,16 +15,16 @@ export const store = defineStore('links', () => {
   /**
    * Files selected to be deleted from various places
    */
-  const forDelete = ref<AppLink[]>([])
+  const selected = ref<AppLink[]>([])
 
   /**
    * Add single link to select list
    */
   function selectOne(select: boolean, link: AppLink) {
     if (select) {
-      forDelete.value.push(link)
+      selected.value.push(link)
     } else {
-      forDelete.value = forDelete.value.filter((f) => f.id !== link.id)
+      selected.value = selected.value.filter((f) => f.id !== link.id)
     }
   }
 
@@ -32,14 +32,14 @@ export const store = defineStore('links', () => {
    * Select all the links
    */
   function selectAll(links: AppLink[]) {
-    forDelete.value = links
+    selected.value = links
   }
 
   /**
    * Remove all the selected links
    */
   function deselectAll() {
-    forDelete.value = []
+    selected.value = []
   }
 
   /**
@@ -150,7 +150,7 @@ export const store = defineStore('links', () => {
     )
 
     items.value = []
-    forDelete.value = []
+    selected.value = []
 
     await find(kp)
   }
@@ -251,7 +251,7 @@ export const store = defineStore('links', () => {
     updateItem,
     upsertItem,
     deselectAll,
-    forDelete,
+    selected,
     items,
     loading
   }

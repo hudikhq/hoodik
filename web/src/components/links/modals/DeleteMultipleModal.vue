@@ -16,7 +16,7 @@ const emits = defineEmits<{
  * Confirms removing multiple links that were selected
  */
 const confirmRemoveAll = async () => {
-  await props.Links.removeAll(props.kp, props.Links.forDelete)
+  await props.Links.removeAll(props.kp, props.Links.selected)
   emits('update:modelValue', false)
 }
 </script>
@@ -33,7 +33,7 @@ const confirmRemoveAll = async () => {
   >
     <p>
       Are you sure you want to delete
-      {{ Links.forDelete.length }} {{ Links.forDelete.length == 1 ? 'item' : 'items' }}?
+      {{ Links.selected.length }} {{ Links.selected.length == 1 ? 'item' : 'items' }}?
     </p>
   </CardBoxModal>
 </template>

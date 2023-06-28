@@ -8,7 +8,7 @@ import { mdiTrashCanOutline } from '@mdi/js'
 import type { AppLink } from 'types'
 
 const props = defineProps<{
-  forDelete: AppLink[]
+  selected: AppLink[]
   items: AppLink[]
   searchedFileId?: string
   hideCheckbox?: boolean
@@ -27,7 +27,7 @@ const checked = ref(false)
 
 const checkedRows = computed(() => {
   return props.items.filter((item) => {
-    return props.forDelete.find((link) => link.id === item.id)
+    return props.selected.find((link) => link.id === item.id)
   })
 })
 
