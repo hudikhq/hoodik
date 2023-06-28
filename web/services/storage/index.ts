@@ -189,6 +189,24 @@ export const store = defineStore('files', () => {
   }
 
   /**
+   * Return all the directories for the current directory
+   */
+  async function directories(kp: KeyPair, dir_id: string | undefined): Promise<AppFile[]> {
+    const query = {
+      ...parameters.value,
+      dir_id,
+      dirs_only: true,
+      is_owner: true
+    }
+
+    const response = await meta.find(query)
+
+    const children = response.children || []
+
+    return Promise.all(children.map(async (item) => decryptItem(item, kp)))
+  }
+
+  /**
    * Head over to backend and do a lookup for the current directory
    */
   async function find(
@@ -484,8 +502,8 @@ export const store = defineStore('files', () => {
     decryptItem,
     deselectAll,
     dir,
+    directories,
     find,
-    selected,
     get,
     getItem,
     getSort,
@@ -503,6 +521,7 @@ export const store = defineStore('files', () => {
     rename,
     replaceItem,
     selectAll,
+    selected,
     selectOne,
     setSort,
     setSortSimple,

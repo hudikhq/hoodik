@@ -14,6 +14,7 @@ const props = defineProps<{
   button?: ColorType
   buttonLabel?: string
   hasCancel?: boolean
+  hasClose?: boolean
   hideSubmit?: boolean
   modelValue: boolean | undefined
   form?: FormType
@@ -58,7 +59,7 @@ window.addEventListener('keydown', (e) => {
     >
       <CardBoxComponentTitle v-if="title" :title="title">
         <BaseButton
-          v-if="hasCancel"
+          v-if="hasCancel || hasClose"
           :icon="mdiClose"
           color="dark"
           small

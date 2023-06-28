@@ -42,12 +42,15 @@ where
         Ok(file)
     }
 
-    /// Find all files that are shared with the user
+    /// Find all files and folders that are shared with the user
     pub(crate) async fn find(&self, request_query: RequestQuery) -> AppResult<Response> {
         let mut parents = vec![];
 
         let user_id = self.owner_id;
-        let mut selector = self.repository.selector(user_id, true);
+        let mut selector = self
+            .repository
+            .selector(user_id, true)
+            .filter(user_files::Column::IsOwner.eq(request_query.is_owner.unwrap_or(true)));
 
         if let Some(dir_id) = request_query.dir_id.as_ref() {
             let file_id = Uuid::from_str(dir_id)?;
@@ -59,6 +62,10 @@ where
             selector = selector.filter(files::Column::FileId.is_null());
         }
 
+        if request_query.dirs_only.unwrap_or(false) {
+            selector = selector.filter(files::Column::Mime.eq("dir"));
+        }
+
         let mut order = Order::Asc;
         if let Some(ord) = &request_query.order {
             if ord == "desc" {
@@ -68,7 +75,7 @@ where
 
         if let Some(order_by) = request_query.order_by.as_ref() {
             let column = match order_by.as_str() {
-                "created_at" => files::Column::FileModifiedAt,
+                "modified_at" => files::Column::FileModifiedAt,
                 "size" => files::Column::Size,
                 _ => return Err(Error::BadRequest("invalid_order_by".to_string())),
             };

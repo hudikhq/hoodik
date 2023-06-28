@@ -6,7 +6,9 @@ import {
   mdiDownloadMultiple,
   mdiPencil,
   mdiEye,
-  mdiInformationOutline
+  mdiInformationOutline,
+  mdiFolderMove,
+  mdiLink
 } from '@mdi/js'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import TableFileRowWatcher from './TableFileRowWatcher.vue'
@@ -45,6 +47,7 @@ const emits = defineEmits<{
   (event: 'deselect-all'): void
   (event: 'download-many'): void
   (event: 'remove-all'): void
+  (event: 'move-all'): void
   (event: 'set-sort-simple', value: string): void
 }>()
 
@@ -65,7 +68,11 @@ const checkedRows = computed(() => {
 })
 
 const showDeleteAll = computed(() => {
-  return (checked.value || checkedRows.value.length > 0) && !props.hideDelete
+  return checkedRows.value.length > 0 && !props.hideDelete
+})
+
+const showMoveAll = computed(() => {
+  return checkedRows.value.length > 0
 })
 
 const showDownloadMany = computed(() => {
@@ -141,6 +148,18 @@ const sizes = {
     />
 
     <BaseButton
+      title="Move"
+      :iconSize="20"
+      :xs="true"
+      :icon="mdiFolderMove"
+      color="light"
+      v-if="showMoveAll"
+      @click="() => emits('move-all')"
+    />
+
+    <span class="p-1" v-if="showMoveAll && singleSelected">|</span>
+
+    <BaseButton
       title="Rename file or folder"
       :iconSize="20"
       :xs="true"
@@ -168,6 +187,16 @@ const sizes = {
       color="light"
       v-if="singleSelected"
       @click="() => emits('details', singleSelected as AppFile)"
+    />
+
+    <BaseButton
+      title="File link"
+      :iconSize="20"
+      :xs="true"
+      :icon="mdiLink"
+      color="light"
+      v-if="singleSelected && singleSelected.mime !== 'dir' && singleSelected.finished_upload_at"
+      @click="() => emits('link', singleSelected as AppFile)"
     />
 
     <BaseButton

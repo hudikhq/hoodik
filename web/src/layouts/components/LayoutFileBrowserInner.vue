@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import CreateDirectoryModal from '@/components/files/modals/CreateDirectoryModal.vue'
 import DeleteMultipleModal from '@/components/files/modals/DeleteMultipleModal.vue'
+import MoveMultipleModal from '@/components/files/modals/MoveMultipleModal.vue'
 import ActionsModal from '@/components/files/modals/ActionsModal.vue'
 import RenameModal from '@/components/files/modals/RenameModal.vue'
 import DeleteModal from '@/components/files/modals/DeleteModal.vue'
@@ -44,6 +45,7 @@ const Links = linksStore()
 
 const openBrowseWindow = ref(false)
 const isModalCreateDirActive = ref(false)
+const isModalMoveMultipleActive = ref(false)
 const isModalDeleteMultipleActive = ref(false)
 
 const detailsFile = ref<AppFile>()
@@ -87,6 +89,13 @@ const link = (file: AppFile) => {
 const rename = (file: AppFile) => {
   actionFile.value = undefined
   renameFile.value = file
+}
+
+/**
+ * Opens a modal to select a directory to move the selected files to
+ */
+const moveAll = () => {
+  isModalMoveMultipleActive.value = true
 }
 
 /**
@@ -174,6 +183,7 @@ watch(
     :Storage="Storage"
     :kp="Crypto.keypair"
   />
+  <MoveMultipleModal v-model="isModalMoveMultipleActive" :Storage="Storage" :kp="Crypto.keypair" />
 
   <slot
     :authenticated="props.authenticated"
@@ -185,6 +195,7 @@ watch(
     :on="{
       'deselect-all': Storage.deselectAll,
       'download-many': downloadMany,
+      'move-all': moveAll,
       'remove-all': removeAll,
       'select-all': Storage.selectAll,
       'select-one': Storage.selectOne,
