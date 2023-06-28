@@ -9,11 +9,11 @@ use entity::{
 };
 use error::{AppResult, Error};
 
+use super::Repository;
 use crate::data::{
     app_file::AppFile, query::Query as RequestQuery, rename::Rename, response::Response,
 };
-
-use super::Repository;
+use futures::future::try_join_all;
 
 pub(crate) struct Manage<'repository, T: ConnectionTrait> {
     repository: &'repository Repository<'repository, T>,
@@ -230,6 +230,40 @@ where
             .ok_or_else(|| Error::NotFound("file_not_found".to_string()))
     }
 
+    /// Move multiple files and folders to a new parent directory
+    pub(crate) async fn move_many(
+        &self,
+        mut ids: Vec<Uuid>,
+        file_id: Option<Uuid>,
+    ) -> AppResult<u64> {
+        ids.sort();
+        ids.dedup();
+
+        let existing_file_ids = self
+            .repository
+            .selector(self.owner_id, true)
+            .filter(files::Column::Id.is_in(ids))
+            .into_model::<AppFile>()
+            .all(self.repository.connection())
+            .await?
+            .into_iter()
+            .map(|f| f.id)
+            .collect::<Vec<_>>();
+
+        let active_model = files::ActiveModel {
+            file_id: ActiveValue::Set(file_id),
+            ..Default::default()
+        };
+
+        let results = files::Entity::update_many()
+            .filter(files::Column::Id.is_in(existing_file_ids))
+            .set(active_model)
+            .exec(self.repository.connection())
+            .await?;
+
+        Ok(results.rows_affected)
+    }
+
     /// Rename a file or directory for the owner
     pub(crate) async fn rename(&self, id: Uuid, data: Rename) -> AppResult<AppFile> {
         let (active_model, hashed_tokens, name_hash) = data.into_active_model(id)?;
@@ -255,13 +289,27 @@ where
     }
 
     /// Delete many files or directories for the owner
-    pub(crate) async fn delete_many(&self, ids: Vec<Uuid>) -> AppResult<u64> {
-        let results = files::Entity::delete_many()
+    pub(crate) async fn delete_many(&self, ids: Vec<Uuid>) -> AppResult<Vec<AppFile>> {
+        let mut files = try_join_all(ids.into_iter().map(|id| self.file_tree(id)))
+            .await?
+            .into_iter()
+            .flatten()
+            .filter(|f| f.is_owner)
+            .collect::<Vec<AppFile>>();
+
+        // Sort files by id and then run dedup_by to remove all duplicates,
+        // without sorting, this won't remove all duplicates
+        files.sort_by(|a, b| a.id.cmp(&b.id));
+        files.dedup_by(|a, b| a.id == b.id);
+
+        let ids: Vec<Uuid> = files.iter().map(|f| f.id).collect();
+
+        files::Entity::delete_many()
             .filter(files::Column::Id.is_in(ids))
             .exec(self.repository.connection())
             .await?;
 
-        Ok(results.rows_affected)
+        Ok(files)
     }
 
     /// Create a file entry in the database and set the owner with the

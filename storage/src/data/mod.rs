@@ -1,6 +1,8 @@
 pub mod app_file;
 pub mod create_file;
+pub mod delete_many;
 pub mod meta;
+pub mod move_many;
 pub mod query;
 pub mod rename;
 pub mod response;
