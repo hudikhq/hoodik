@@ -246,6 +246,12 @@ where
         ids.sort();
         ids.dedup();
 
+        if let Some(f) = file_id {
+            if ids.contains(&f) {
+                return Err(Error::BadRequest("cannot_move_to_itself".to_string()));
+            }
+        }
+
         let existing_file_ids = self
             .repository
             .selector(self.owner_id, true)

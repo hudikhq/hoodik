@@ -113,7 +113,7 @@ export const store = defineStore('upload', () => {
     if (isDone || file.finished_upload_at) {
       logger.debug(`File ${file.name} has finished uploading, pushing to the done list...`)
 
-      file.finished_upload_at = utcStringFromLocal(new Date())
+      file.finished_upload_at = Math.floor(new Date().valueOf() / 1000)
       done.value.push(file)
 
       return
