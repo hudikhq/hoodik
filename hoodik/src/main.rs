@@ -14,9 +14,9 @@ async fn main() -> AppResult<()> {
 
     // Initialize the configuration of the app
     let mut config = Config::new(
-        "My app",
+        "Hoodik",
         env!("CARGO_PKG_VERSION"),
-        "This is a first try at a drive app",
+        "Hoodik is a simple, fast and end to end encrypted cloud storage.",
     );
 
     config.app.ensure_data_dir(None);
