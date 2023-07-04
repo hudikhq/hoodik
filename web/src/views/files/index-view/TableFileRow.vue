@@ -216,7 +216,7 @@ const singleClick = () => {
   <div
     :class="{
       [sharedClass]: true,
-      'border-b-2 border-greeny-800 dark:border-greeny-400 -pb-2': showProgress
+      'border-b-2 border-greeny-800 dark:border-greeny-400 -mt-1': showProgress
     }"
     :style="{
       width: progressValue + '%'

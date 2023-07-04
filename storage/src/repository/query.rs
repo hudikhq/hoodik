@@ -5,7 +5,7 @@ use entity::{
     files, user_files, ColumnTrait, ConnectionTrait, EntityTrait, Expr, IntoCondition, JoinType,
     QueryFilter, QuerySelect, RelationTrait, Uuid,
 };
-use error::{AppResult, Error};
+use error::AppResult;
 
 use crate::data::{app_file::AppFile, stats::Stats};
 
@@ -30,17 +30,6 @@ where
     /// Get any kind of file for the user
     pub(crate) async fn get(&self, id: Uuid) -> AppResult<AppFile> {
         let file = self.repository.by_id(id, self.user_id).await?;
-
-        Ok(file)
-    }
-
-    /// Alias to get the file metadata for the user
-    pub(crate) async fn file(&self, id: Uuid) -> AppResult<AppFile> {
-        let file = self.repository.by_id(id, self.user_id).await?;
-
-        if file.is_dir() {
-            return Err(Error::BadRequest("file_not_found".to_string()));
-        }
 
         Ok(file)
     }

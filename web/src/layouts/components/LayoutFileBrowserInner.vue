@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import CreateDirectoryModal from '@/components/files/modals/CreateDirectoryModal.vue'
 import DeleteMultipleModal from '@/components/files/modals/DeleteMultipleModal.vue'
+import MoveMultipleModal from '@/components/files/modals/MoveMultipleModal.vue'
 import ActionsModal from '@/components/files/modals/ActionsModal.vue'
 import RenameModal from '@/components/files/modals/RenameModal.vue'
 import DeleteModal from '@/components/files/modals/DeleteModal.vue'
@@ -44,6 +45,7 @@ const Links = linksStore()
 
 const openBrowseWindow = ref(false)
 const isModalCreateDirActive = ref(false)
+const isModalMoveMultipleActive = ref(false)
 const isModalDeleteMultipleActive = ref(false)
 
 const detailsFile = ref<AppFile>()
@@ -90,6 +92,13 @@ const rename = (file: AppFile) => {
 }
 
 /**
+ * Opens a modal to select a directory to move the selected files to
+ */
+const moveAll = () => {
+  isModalMoveMultipleActive.value = true
+}
+
+/**
  * Opens a modal to confirm removing multiple files
  */
 const removeAll = () => {
@@ -110,6 +119,20 @@ const remove = (file: AppFile) => {
 const download = (file: AppFile) => {
   actionFile.value = undefined
   return Download.push(file)
+}
+
+/**
+ * Sends multiple selected files to the download queue if they are files
+ * that have finished uploading
+ */
+const downloadMany = async () => {
+  for (const file of Storage.selected) {
+    if (file.mime === 'dir' || !file.finished_upload_at) {
+      continue
+    }
+
+    await Download.push(file)
+  }
 }
 
 /**
@@ -160,6 +183,7 @@ watch(
     :Storage="Storage"
     :kp="Crypto.keypair"
   />
+  <MoveMultipleModal v-model="isModalMoveMultipleActive" :Storage="Storage" :kp="Crypto.keypair" />
 
   <slot
     :authenticated="props.authenticated"
@@ -169,6 +193,13 @@ watch(
     :download="Download"
     :loading="Storage.loading"
     :on="{
+      'deselect-all': Storage.deselectAll,
+      'download-many': downloadMany,
+      'move-all': moveAll,
+      'remove-all': removeAll,
+      'select-all': Storage.selectAll,
+      'select-one': Storage.selectOne,
+      'set-sort-simple': Storage.setSortSimple,
       actions,
       browse,
       details,
@@ -176,12 +207,7 @@ watch(
       download,
       link,
       remove,
-      rename,
-      'remove-all': removeAll,
-      'select-one': Storage.selectOne,
-      'select-all': Storage.selectAll,
-      'deselect-all': Storage.deselectAll,
-      'set-sort-simple': Storage.setSortSimple
+      rename
     }"
   />
 </template>

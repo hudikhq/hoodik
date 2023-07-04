@@ -1866,6 +1866,7 @@ checksum = "23342abe12aba583913b2e62f22225ff9c950774065e4bfb61a19cd9770fec40"
 dependencies = [
  "futures-channel",
  "futures-core",
+ "futures-executor",
  "futures-io",
  "futures-sink",
  "futures-task",
@@ -2167,7 +2168,7 @@ dependencies = [
 
 [[package]]
 name = "hoodik"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "actix-cors",
  "actix-web",
@@ -4401,6 +4402,7 @@ dependencies = [
  "entity",
  "error",
  "fs",
+ "futures",
  "log",
  "serde",
  "serde_json",

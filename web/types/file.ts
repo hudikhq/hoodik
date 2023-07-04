@@ -1,6 +1,21 @@
 import type { EncryptedLink } from './links'
 import type { WorkerErrorType } from './worker'
 
+/**
+ * Delete many files at once
+ */
+export interface DeleteManyFiles {
+  ids: string[]
+}
+
+/**
+ * Move many files to a new directory
+ */
+export interface MoveManyFiles {
+  ids: string[]
+  file_id?: string | null | undefined
+}
+
 export interface UploadAppFile extends AppFile {
   /**
    * File system file

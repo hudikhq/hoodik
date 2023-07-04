@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import FileViewInner from './FileViewInner.vue'
+import PreviewInner from '@/components/preview/PreviewInner.vue'
 import { useRoute } from 'vue-router'
 import type { FilesStore, KeyPair, AppFile } from 'types'
 import { ref, watch } from 'vue'
@@ -41,7 +41,7 @@ watch(file, async (f: AppFile) => {
 })
 </script>
 <template>
-  <FileViewInner
+  <PreviewInner
     v-if="file"
     :kp="props.kp"
     :Storage="Storage"

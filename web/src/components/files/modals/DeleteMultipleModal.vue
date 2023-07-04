@@ -16,7 +16,7 @@ const emits = defineEmits<{
  * Confirms removing multiple files that were selected
  */
 const confirmRemoveAll = async () => {
-  await props.Storage.removeAll(props.kp, props.Storage.forDelete)
+  await props.Storage.removeAll(props.kp, props.Storage.selected)
   emits('update:modelValue', false)
 }
 </script>
@@ -31,11 +31,11 @@ const confirmRemoveAll = async () => {
     @cancel="emits('update:modelValue', false)"
     @confirm="confirmRemoveAll"
   >
-    <template v-if="Storage.forDelete && Storage.forDelete.length > 1">
-      <p>Are you sure you want to delete {{ Storage.forDelete.length }} items?</p>
+    <template v-if="Storage.selected && Storage.selected.length > 1">
+      <p>Are you sure you want to delete {{ Storage.selected.length }} items?</p>
     </template>
 
-    <template v-else v-for="file in Storage.forDelete" :key="file.id">
+    <template v-else v-for="file in Storage.selected" :key="file.id">
       <p>
         Are you sure you want to delete forever '{{ file?.name }}'
         <span v-if="file?.mime === 'dir'"> directory</span>

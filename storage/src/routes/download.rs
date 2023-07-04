@@ -7,7 +7,7 @@ use entity::Uuid;
 use error::{AppResult, Error};
 use fs::prelude::*;
 
-use crate::repository::{cached::get_file, Repository};
+use crate::repository::cached::get_file;
 
 /// Get file content by its id
 ///
@@ -68,41 +68,23 @@ pub(crate) async fn head(
     let file_id = Uuid::from_str(&file_id)?;
     let chunk = util::actix::query_var::<i32>(&req, "chunk").ok();
 
-    let file = Repository::new(&context.db)
-        .query(claims.sub)
-        .file(file_id)
-        .await?;
-
-    let storage = Fs::new(&context.config);
-
-    if let Some(c) = chunk {
-        let _fs_file = storage
-            .get(&file, c)
-            .await
-            .map_err(|_| error::Error::NotFound("file_not_found".to_string()))?;
-    } else {
-        let chunks = storage
-            .get_uploaded_chunks(&file)
-            .await
-            .map_err(|_| error::Error::NotFound("file_not_found".to_string()))?;
-
-        // check that all the chunks are available
-        for chunk in chunks {
-            let _fs_file = storage
-                .get(&file, chunk)
-                .await
-                .map_err(|_| error::Error::NotFound("file_not_found".to_string()))?;
-        }
-    }
+    let file = get_file(&context, claims.sub, file_id)
+        .await
+        .ok_or_else(|| Error::NotFound("file_not_found".to_string()))?;
 
     let filename = match chunk {
         Some(chunk) => file.filename()?.with_chunk(chunk).with_extension(".enc"),
         None => file.filename()?.with_extension(".enc"),
     };
 
-    Ok(HttpResponse::NoContent()
+    let file_size = match chunk {
+        Some(_) => file.size.unwrap_or(1) / file.chunks.unwrap_or(0) as i64,
+        None => file.size.unwrap_or(0),
+    };
+
+    Ok(HttpResponse::Ok()
         .insert_header(("Content-Type", "application/octet-stream"))
-        .insert_header(("Content-Length", file.size.unwrap_or(0)))
+        .insert_header(("Content-Length", file_size))
         .insert_header((
             "Content-Disposition",
             format!("attachment; filename=\"{}\"", filename),

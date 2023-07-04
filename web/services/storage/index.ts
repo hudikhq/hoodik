@@ -92,9 +92,9 @@ export const store = defineStore('files', () => {
   const stats = ref<StorageStatsResponse>()
 
   /**
-   * Files selected to be deleted from various places
+   * Selected files
    */
-  const forDelete = ref<AppFile[]>([])
+  const selected = ref<AppFile[]>([])
 
   /**
    * Current dir sort options
@@ -186,6 +186,24 @@ export const store = defineStore('files', () => {
    */
   async function loadStats(): Promise<void> {
     stats.value = await meta.stats()
+  }
+
+  /**
+   * Return all the directories for the current directory
+   */
+  async function directories(kp: KeyPair, dir_id: string | undefined): Promise<AppFile[]> {
+    const query = {
+      ...parameters.value,
+      dir_id,
+      dirs_only: true,
+      is_owner: true
+    }
+
+    const response = await meta.find(query)
+
+    const children = response.children || []
+
+    return Promise.all(children.map(async (item) => decryptItem(item, kp)))
   }
 
   /**
@@ -322,7 +340,7 @@ export const store = defineStore('files', () => {
    */
   function removeItem(id: string): void {
     _items.value = _items.value.filter((item) => item.id !== id)
-    forDelete.value = forDelete.value.filter((item) => item.id !== id)
+    selected.value = selected.value.filter((item) => item.id !== id)
   }
 
   /**
@@ -366,6 +384,32 @@ export const store = defineStore('files', () => {
   }
 
   /**
+   * Delete many files from the list right away
+   */
+  async function removeAll(kp: KeyPair, files: AppFile[]): Promise<void> {
+    await meta.removeAll({ ids: files.map((f) => f.id) })
+    files.forEach((file) => removeItem(file.id))
+    return find(kp, fileId.value, true)
+  }
+
+  /**
+   * Move many files into a new directory
+   */
+  async function moveAll(
+    kp: KeyPair,
+    files: AppFile[],
+    file_id?: string | null | undefined
+  ): Promise<void> {
+    await meta.moveMany({ ids: files.map((f) => f.id), file_id })
+
+    if (file_id !== fileId.value) {
+      files.forEach((file) => removeItem(file.id))
+    }
+
+    return find(kp, fileId.value, true)
+  }
+
+  /**
    * Create a directory in the storage
    */
   async function createDir(keypair: KeyPair, name: string, dir_id?: string): Promise<AppFile> {
@@ -403,9 +447,9 @@ export const store = defineStore('files', () => {
    */
   function selectOne(select: boolean, file: AppFile) {
     if (select) {
-      forDelete.value.push(file)
+      selected.value.push(file)
     } else {
-      forDelete.value = forDelete.value.filter((f) => f.id !== file.id)
+      selected.value = selected.value.filter((f) => f.id !== file.id)
     }
   }
 
@@ -413,7 +457,7 @@ export const store = defineStore('files', () => {
    * Add single file to select list
    */
   function selectAll(files: AppFile[], fileId?: string | null) {
-    forDelete.value = files.filter((f) => {
+    selected.value = files.filter((f) => {
       if (fileId && f.file_id !== fileId) {
         return false
       }
@@ -426,23 +470,7 @@ export const store = defineStore('files', () => {
    * Add single file to select list
    */
   function deselectAll() {
-    forDelete.value = []
-  }
-
-  /**
-   * Remove all the files on the selected list
-   */
-  async function removeAll(kp: KeyPair, files: AppFile[]) {
-    await Promise.all(
-      files.map(async (file) => {
-        await meta.remove(file.id)
-        removeItem(file.id)
-      })
-    )
-
-    forDelete.value = []
-
-    await find(kp, fileId.value)
+    selected.value = []
   }
 
   /**
@@ -469,38 +497,40 @@ export const store = defineStore('files', () => {
   }
 
   return {
-    dir,
-    parents,
-    loading,
-    title,
-    items,
-    parameters,
-    forDelete,
-    sortOptions,
     addItem,
     createDir,
     decryptItem,
-    setSortSimple,
+    deselectAll,
+    dir,
+    directories,
     find,
     get,
     getItem,
+    getSort,
     hasItem,
+    items,
+    loading,
+    loadStats,
     metadata,
+    moveAll,
+    parameters,
+    parents,
     remove,
     removeAll,
     removeItem,
+    rename,
     replaceItem,
     selectAll,
-    deselectAll,
+    selected,
     selectOne,
-    takeItem,
-    updateItem,
-    upsertItem,
     setSort,
-    getSort,
+    setSortSimple,
+    sortOptions,
     stats,
-    loadStats,
-    rename
+    takeItem,
+    title,
+    updateItem,
+    upsertItem
   }
 })
 
