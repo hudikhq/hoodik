@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>Hoodik</Name>
+  <Repository>hudik/hoodik:latest</Repository>
+  <Registry>https://hub.docker.com/r/hudik/hoodik</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support/>
+  <Project>https://github.com/hudikhq/hoodik</Project>
+  <Overview>A lightweight, secure, and self-hosted cloud storage solution built in Rust and Vue. With end-to-end encryption, your data is protected from prying eyes and hackers. Hoodik supports file uploading and downloading, as well as file sharing with other users. Its simple and intuitive web interface makes managing your files easier than ever. Plus, with Rust's focus on speed and performance, your data transfers will be lightning fast.</Overview>
+  <Category>Backup: Cloud: Security: Tools: Status:Beta</Category>
+  <WebUI>https://[IP]:[PORT:4554]/</WebUI>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/hudikhq/hoodik/master/web/public/android-chrome-512x512.png?token=GHSAT0AAAAAACA2UURTCXTPTGGHJRLBN6OUZFELDUA</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled>1688492900</DateInstalled>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="DATA_DIR" Target="/data" Default="/mnt/user/hoodik/" Mode="rw" Description="Maps a location for the data directory of the drive where all the data will be stored." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/hoodik/</Config>
+  <Config Name="PORT" Target="5443" Default="4554" Mode="tcp" Description="Application port" Type="Port" Display="always" Required="false" Mask="false">4554</Config>
+  <Config Name="MAILER_TYPE" Target="MAILER_TYPE" Default="" Mode="" Description="Email sender, currently supported: smtp" Type="Variable" Display="always" Required="false" Mask="false">smtp</Config>
+  <Config Name="SMTP_ADDRESS" Target="SMTP_ADDRESS" Default="smtp.gmail.com" Mode="" Description="Address of the SMTP server (if MAILER_TYPE=smtp)" Type="Variable" Display="always" Required="false" Mask="false">smtp.gmail.com</Config>
+  <Config Name="SMTP_USERNAME" Target="SMTP_USERNAME" Default="username@gmail.com" Mode="" Description="Username of the SMTP server (if MAILER_TYPE=smtp)" Type="Variable" Display="always" Required="false" Mask="false">htunlogic@gmail.com</Config>
+  <Config Name="SMTP_PASSWORD" Target="SMTP_PASSWORD" Default="GOOGLE-APP-PASSWORD" Mode="" Description="Password of the SMTP server (if MAILER_TYPE=smtp)&#13;&#10;&#13;&#10;For Gmail, you will have to use https://myaccount.google.com/u/0/apppasswords" Type="Variable" Display="always" Required="false" Mask="true">wpmmdwcjlswepobh</Config>
+  <Config Name="SMTP_PORT" Target="SMTP_PORT" Default="465" Mode="" Description="Port of the SMTP server (if MAILER_TYPE=smtp)&#13;&#10;&#13;&#10;Not required, default is automatically set to 465" Type="Variable" Display="always" Required="false" Mask="false">465</Config>
+  <Config Name="SMTP_DEFAULT_FROM" Target="SMTP_DEFAULT_FROM" Default="Your Name " Mode="" Description="Default FROM sender for emails (if MAILER_TYPE=smtp)&#13;&#10;Format: Full Name " Type="Variable" Display="always" Required="false" Mask="false">HoodikDrive - Unraid &lt;htunlogic@gmail.com&gt;</Config>
+  <Config Name="APP_URL" Target="APP_URL" Default="" Mode="" Description="This is the application path as seen from the browser, you should use the URL you will be entering to get to the application, eg. https://hoodik.local" Type="Variable" Display="always" Required="true" Mask="false">https://drive.hudik.eu</Config>
+  <Config Name="APP_CLIENT_URL" Target="APP_CLIENT_URL" Default="" Mode="" Description="Application client URL, this will in 99.9% of the cases be exactly the same as the APP_URL, but in case you are hosting a separate frontend for this application you can define it to its own address. " Type="Variable" Display="always" Required="true" Mask="false">https://drive.hudik.eu</Config>
+  <Config Name="SSL_CERT_FILE" Target="SSL_CERT_FILE" Default="" Mode="" Description="Location of the SSL cert file for the application. If the file doesn't exist, it will be created and filled with a self signed cert. That will only happen if both cert and key files are missing." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="SSL_KEY_FILE" Target="SSL_KEY_FILE" Default="" Mode="" Description="Location of the SSL key file for the application. If the file doesn't exist, it will be created and filled with a self signed key. That will only happen if both cert and key files are missing." Type="Variable" Display="always" Required="false" Mask="false"/>
+</Container>
