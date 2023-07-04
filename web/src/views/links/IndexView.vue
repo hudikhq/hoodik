@@ -7,7 +7,7 @@ import TableLinks from './index-view/TableLinks.vue'
 <template>
   <LayoutLinkBrowser :clear="false" v-slot="{ Links, on }">
     <SectionMain>
-      <TableLinks :items="Links.items" :forDelete="Links.forDelete" v-on="on" />
+      <TableLinks :items="Links.items" :selected="Links.selected" v-on="on" />
     </SectionMain>
   </LayoutLinkBrowser>
 </template>

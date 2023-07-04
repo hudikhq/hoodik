@@ -30,6 +30,8 @@ export interface Parameters extends Query {
   dir_id?: string | null
   order?: 'asc' | 'desc'
   order_by?: 'created_at' | 'size'
+  dirs_only?: boolean
+  is_owner?: boolean
 }
 
 export interface SearchQuery {

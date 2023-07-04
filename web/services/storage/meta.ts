@@ -1,4 +1,3 @@
-import type { Rename, EncryptedRename } from 'types'
 import Api from '../api'
 import * as cryptfns from '../cryptfns'
 
@@ -14,7 +13,10 @@ import type {
   AppFileEncryptedPart,
   AppFileUnencryptedPart,
   StorageStatsResponse,
-  Rename
+  Rename,
+  EncryptedRename,
+  DeleteManyFiles,
+  MoveManyFiles
 } from 'types'
 
 /**
@@ -254,4 +256,18 @@ export async function search(input: string, dir_id?: string): Promise<EncryptedA
  */
 export async function remove(fileId: string): Promise<void> {
   await Api.delete(`/api/storage/${fileId}`)
+}
+
+/**
+ * Remove many files and folders at once
+ */
+export async function removeAll(body: DeleteManyFiles): Promise<void> {
+  await Api.post<DeleteManyFiles, undefined>(`/api/storage/delete-many`, undefined, body)
+}
+
+/**
+ * Remove many files and folders at once
+ */
+export async function moveMany(body: MoveManyFiles): Promise<void> {
+  await Api.post<MoveManyFiles, undefined>(`/api/storage/move-many`, undefined, body)
 }

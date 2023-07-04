@@ -26,8 +26,8 @@ const emits = defineEmits(['remove'])
       :outline="false"
       @click="emits('remove', file, props.type)"
     />
-    <BaseIcon v-if="props.isUpload" :path="mdiArrowDownBoldOutline" h="h-5" w="w-5" />
-    <BaseIcon v-else :path="mdiArrowUpBoldOutline" h="h-5" w="w-5" />
+    <BaseIcon v-if="props.isUpload" :path="mdiArrowUpBoldOutline" h="h-5" w="w-5" />
+    <BaseIcon v-else :path="mdiArrowDownBoldOutline" h="h-5" w="w-5" />
     <BaseIcon :path="mdiCheck" h="h-5" w="w-5" />
   </div>
   <div class="py-2 flex-1 text-left inline-block truncate">

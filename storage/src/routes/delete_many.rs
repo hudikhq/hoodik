@@ -1,28 +1,30 @@
-use actix_web::{route, web, HttpRequest, HttpResponse};
+use actix_web::{route, web, HttpResponse};
 use auth::data::claims::Claims;
 use context::Context;
-use entity::{TransactionTrait, Uuid};
+use entity::TransactionTrait;
 use error::AppResult;
 use fs::prelude::*;
 
-use crate::repository::Repository;
+use crate::{data::delete_many::DeleteMany, repository::Repository};
 
-/// Delete a file or directory by its id
-/// Also, deletes recursively all files and directories inside the directory
-#[route("/api/storage/{file_id}", method = "DELETE")]
-pub(crate) async fn delete(
-    req: HttpRequest,
+/// Delete many files and folders with their children recursively
+/// all at once.
+///
+/// Request: [crate::data::delete_many::DeleteMany]
+#[route("/api/storage/delete-many", method = "POST")]
+pub(crate) async fn delete_many(
     claims: Claims,
     context: web::Data<Context>,
+    data: web::Json<DeleteMany>,
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
-    let file_id: Uuid = util::actix::path_var(&req, "file_id")?;
+    let ids = data.into_inner().into_value()?;
 
     let fs = Fs::new(&context.config);
     let connection = context.db.begin().await?;
     let mut files = Repository::new(&connection)
         .manage(claims.sub)
-        .delete_many(vec![file_id])
+        .delete_many(ids)
         .await?;
     connection.commit().await?;
 
