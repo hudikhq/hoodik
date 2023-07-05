@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { store as uploadStore } from '!/storage/upload'
 import { ref, watch } from 'vue'
 import type { KeyPair, AppFile } from 'types'
 
@@ -11,30 +10,16 @@ const props = defineProps<{
 
 const emits = defineEmits<{
   (event: 'update:modelValue', value: boolean): void
+  (event: 'upload-many', files: FileList): void
 }>()
 
-const upload = uploadStore()
 const input = ref()
 /**
  * Adds selected files to the upload queue
  */
 const addFiles = async () => {
   if (input.value && input.value?.files?.length) {
-    for (let i = 0; i < input.value?.files?.length; i++) {
-      try {
-        await upload.push(props.kp, input.value?.files?.[i], props.dir?.id || undefined)
-      } catch (error) {
-        // TODO: Add some kind of notifications store...
-      }
-    }
-  }
-
-  if (input.value) {
-    input.value.value = ''
-  }
-
-  if (!upload.active) {
-    upload.active = true
+    emits('upload-many', input.value.files)
   }
 }
 

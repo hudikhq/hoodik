@@ -186,7 +186,7 @@ export async function getByName(
 
   const nameHash = cryptfns.sha256.digest(name)
 
-  if (parent_id !== undefined || typeof parent_id !== 'number') {
+  if (parent_id !== undefined && typeof parent_id !== 'string') {
     parent_id = undefined
   }
 

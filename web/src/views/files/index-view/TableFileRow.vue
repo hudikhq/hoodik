@@ -11,6 +11,8 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
+const isDropZone = ref(false)
+
 const props = defineProps<{
   file: AppFile
   checkedRows: Partial<AppFile>[]
@@ -30,13 +32,14 @@ const props = defineProps<{
 
 const emits = defineEmits<{
   (event: 'actions', file: AppFile): void
+  (event: 'deselect-all'): void
   (event: 'details', file: AppFile): void
   (event: 'download', file: AppFile): void
   (event: 'link', file: AppFile): void
   (event: 'remove', file: AppFile): void
   (event: 'rename', file: AppFile): void
   (event: 'select-one', value: boolean, file: AppFile): void
-  (event: 'deselect-all'): void
+  (event: 'upload-many', files: FileList, dirId?: string): void
 }>()
 
 const selectOne = (value: boolean) => {
@@ -146,14 +149,63 @@ const singleClick = () => {
   emits('deselect-all')
   selectOne(!checked.value)
 }
+
+const dragend = (e: DragEvent) => {
+  if (props.file.mime !== 'dir') {
+    return
+  }
+
+  isDropZone.value = false
+
+  e.preventDefault()
+  e.stopPropagation()
+}
+
+const dragover = (e: DragEvent) => {
+  if (props.file.mime !== 'dir') {
+    return
+  }
+
+  isDropZone.value = true
+
+  e.preventDefault()
+  e.stopPropagation()
+}
+
+const drop = (e: DragEvent) => {
+  if (props.file.mime !== 'dir') {
+    return
+  }
+
+  isDropZone.value = false
+
+  e.preventDefault()
+  e.stopPropagation()
+
+  if (e.dataTransfer?.files && e.dataTransfer.files.length) {
+    emits('upload-many', e.dataTransfer.files, props.file.id)
+
+    setTimeout(() => {
+      router.push({ name: 'files', params: { file_id: props.file.id } })
+    }, 100)
+  }
+}
 </script>
 
 <template>
   <div
-    class="w-full flex"
+    @dragenter="dragover"
+    @dragleave="dragend"
+    @dragend="dragend"
+    @dragover="dragover"
+    @drop="drop"
+    name="file-row"
+    accesskey="test"
+    class="w-full flex border-2 border-brownish-900"
     :class="{
       'bg-brownish-50 dark:bg-brownish-700': !!checked,
-      [sharedClass]: true
+      [sharedClass]: true,
+      'border-auto border-redish-300 border-spacing-0 z-10': isDropZone
     }"
   >
     <div :class="sizes.checkbox">

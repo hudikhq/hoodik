@@ -23,13 +23,14 @@ const props = defineProps<{
 
 const emits = defineEmits<{
   (event: 'actions', file: AppFile): void
+  (event: 'deselect-all'): void
   (event: 'details', file: AppFile): void
   (event: 'download', file: AppFile): void
   (event: 'link', file: AppFile): void
   (event: 'remove', file: AppFile): void
   (event: 'rename', file: AppFile): void
   (event: 'select-one', value: boolean, file: AppFile): void
-  (event: 'deselect-all'): void
+  (event: 'upload-many', files: FileList, dirId?: string): void
 }>()
 
 const referenceObject = ref()
@@ -71,13 +72,14 @@ onMounted(() => {
       :sizes="props.sizes"
       :highlighted="props.highlighted"
       @actions="(f: AppFile) => emits('actions', f)"
+      @deselect-all="() => emits('deselect-all')"
       @details="(f: AppFile) => emits('details', f)"
-      @rename="(f: AppFile) => emits('rename', f)"
       @download="(f: AppFile) => emits('download', f)"
       @link="(f: AppFile) => emits('link', f)"
       @remove="(f: AppFile) => emits('remove', f)"
+      @rename="(f: AppFile) => emits('rename', f)"
       @select-one="(v: boolean, f: AppFile) => emits('select-one', v, f)"
-      @deselect-all="() => emits('deselect-all')"
+      @upload-many="(f: FileList, d?: string) => emits('upload-many', f, d)"
     />
   </Suspense>
   <div ref="referenceObject" :id="props.file.id"></div>

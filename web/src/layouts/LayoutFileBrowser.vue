@@ -8,19 +8,26 @@ const props = defineProps<{
   share?: boolean
   clear?: boolean
 }>()
+
+const drop = (e: DragEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+}
 </script>
 <template>
-  <LayoutAuthenticatedWithLoader :clear="props.clear" v-slot="{ authenticated, keypair }">
-    <LayoutFileBrowserInner
-      v-if="authenticated"
-      :parentId="props.parentId"
-      :hideDelete="props.hideDelete"
-      :share="props.share"
-      :authenticated="authenticated"
-      :keypair="keypair"
-      v-slot="all"
-    >
-      <slot v-bind="all" />
-    </LayoutFileBrowserInner>
-  </LayoutAuthenticatedWithLoader>
+  <div @drop="drop" @dragover="drop">
+    <LayoutAuthenticatedWithLoader :clear="props.clear" v-slot="{ authenticated, keypair }">
+      <LayoutFileBrowserInner
+        v-if="authenticated"
+        :parentId="props.parentId"
+        :hideDelete="props.hideDelete"
+        :share="props.share"
+        :authenticated="authenticated"
+        :keypair="keypair"
+        v-slot="all"
+      >
+        <slot v-bind="all" />
+      </LayoutFileBrowserInner>
+    </LayoutAuthenticatedWithLoader>
+  </div>
 </template>
