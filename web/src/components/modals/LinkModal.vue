@@ -125,6 +125,7 @@ const getIfExists = async () => {
     logger.debug('Getting link for file', file.value)
     const key = await cryptfns.rsa.decryptMessage(props.kp, file.value.link.encrypted_link_key)
     loadedLink.value = await props.Links.get(file.value.link.id, key)
+    logger.debug('Got some link', loadedLink.value)
   }
 
   loading.value = false
@@ -139,6 +140,7 @@ const create = async () => {
 
   logger.debug('Creating link for file', file.value)
   loadedLink.value = await props.Links.create(file.value, props.kp)
+  await props.Storage.find(props.kp, file.value.file_id)
   loading.value = false
 }
 

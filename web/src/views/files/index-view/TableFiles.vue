@@ -35,30 +35,32 @@ const props = defineProps<{
 
 const emits = defineEmits<{
   (event: 'actions', file: AppFile): void
+  (event: 'browse'): void
+  (event: 'deselect-all'): void
+  (event: 'details', file: AppFile): void
+  (event: 'directory'): void
+  (event: 'download-many'): void
   (event: 'download', file: AppFile): void
   (event: 'link', file: AppFile): void
-  (event: 'remove', file: AppFile): void
-  (event: 'details', file: AppFile): void
-  (event: 'rename', file: AppFile): void
-  (event: 'browse'): void
-  (event: 'directory'): void
-  (event: 'select-one', select: boolean, file: AppFile): void
-  (event: 'select-all', files: AppFile[], fileId: string | null | undefined): void
-  (event: 'deselect-all'): void
-  (event: 'download-many'): void
-  (event: 'remove-all'): void
   (event: 'move-all'): void
+  (event: 'remove-all'): void
+  (event: 'remove', file: AppFile): void
+  (event: 'rename', file: AppFile): void
+  (event: 'select-all', files: AppFile[], fileId: string | null | undefined): void
+  (event: 'select-one', select: boolean, file: AppFile): void
   (event: 'set-sort-simple', value: string): void
+  (event: 'upload-many', files: FileList, dirId?: string): void
 }>()
 
 const checked = ref(false)
+const isDropZone = ref(false)
 
-const dirId = computed<string | null>(() => {
+const dirId = computed<string | undefined>(() => {
   if (props.dir) {
     return props.dir.id
   }
 
-  return null
+  return undefined
 })
 
 const checkedRows = computed(() => {
@@ -109,6 +111,31 @@ watch(
     }
   }
 )
+
+const dragend = (e: DragEvent) => {
+  isDropZone.value = false
+
+  e.preventDefault()
+  e.stopPropagation()
+}
+
+const dragover = (e: DragEvent) => {
+  isDropZone.value = true
+
+  e.preventDefault()
+  e.stopPropagation()
+}
+
+const drop = (e: DragEvent) => {
+  isDropZone.value = false
+
+  e.preventDefault()
+  e.stopPropagation()
+
+  if (e.dataTransfer?.files && e.dataTransfer.files.length) {
+    emits('upload-many', e.dataTransfer.files, dirId.value)
+  }
+}
 
 const borderClass = 'sm:border-l-2 sm:border-brownish-50 sm:dark:border-brownish-900'
 
@@ -222,77 +249,89 @@ const sizes = {
     />
   </div>
 
-  <div class="w-full flex rounded-t-lg bg-brownish-100 dark:bg-brownish-950">
-    <div :class="sizes.checkbox">
-      <TableCheckboxCell v-model="checked" v-if="!props.hideCheckbox" />
-    </div>
-
-    <div :class="`${sizes.name}`">
-      <SortableName
-        name="name"
-        label="Name"
-        :sort-options="sortOptions"
-        @sort="(v: string) => emits('set-sort-simple', v)"
-      />
-    </div>
-
-    <div :class="`${sizes.size} ${borderClass}`">
-      <SortableName
-        name="size"
-        label="Size"
-        :sort-options="sortOptions"
-        @sort="(v: string) => emits('set-sort-simple', v)"
-      />
-    </div>
-
-    <div :class="`${sizes.type} ${borderClass}`">
-      <SortableName
-        name="mime"
-        label="Type"
-        :sort-options="sortOptions"
-        @sort="(v: string) => emits('set-sort-simple', v)"
-      />
-    </div>
-
-    <div :class="`${sizes.modifiedAt} ${borderClass}`">
-      <SortableName
-        name="file_modified_at"
-        label="Modified"
-        :sort-options="sortOptions"
-        @sort="(v: string) => emits('set-sort-simple', v)"
-      />
-    </div>
-
-    <div :class="`${sizes.buttons}`"></div>
-  </div>
-
   <div
-    v-if="props.loading"
-    class="w-full pt-20 rounded-b-lg bg-brownish-100 dark:bg-brownish-900 h-52 text-center"
+    :class="{
+      'border-2 border-redish-300 border-spacing-0 m-[-2px]': isDropZone
+    }"
+    @dragenter="dragover"
+    @dragleave="dragend"
+    @dragend="dragend"
+    @dragover="dragover"
+    @drop="drop"
   >
-    <span class="w-1/2 h-1/2">
-      <SpinnerIcon :size="200" />
-    </span>
-  </div>
-  <div v-else class="flex flex-col rounded-b-lg">
-    <template v-for="file in props.items" :key="file.id">
-      <TableFileRowWatcher
-        :file="file"
-        :sizes="sizes"
-        :checkedRows="checkedRows"
-        :hideCheckbox="props.hideCheckbox"
-        :hideDelete="props.hideDelete"
-        :share="props.share"
-        :highlighted="props.searchedFileId === file.id"
-        @actions="(f: AppFile) => emits('actions', f)"
-        @details="(f: AppFile) => emits('details', f)"
-        @download="(f: AppFile) => emits('download', f)"
-        @rename="(f: AppFile) => emits('rename', f)"
-        @link="(f: AppFile) => emits('link', f)"
-        @remove="(f: AppFile) => emits('remove', f)"
-        @select-one="(v: boolean, f: AppFile) => emits('select-one', v, f)"
-        @deselect-all="emits('deselect-all')"
-      />
-    </template>
+    <div class="w-full flex rounded-t-lg bg-brownish-100 dark:bg-brownish-950">
+      <div :class="sizes.checkbox">
+        <TableCheckboxCell v-model="checked" v-if="!props.hideCheckbox" />
+      </div>
+
+      <div :class="`${sizes.name}`">
+        <SortableName
+          name="name"
+          label="Name"
+          :sort-options="sortOptions"
+          @sort="(v: string) => emits('set-sort-simple', v)"
+        />
+      </div>
+
+      <div :class="`${sizes.size} ${borderClass}`">
+        <SortableName
+          name="size"
+          label="Size"
+          :sort-options="sortOptions"
+          @sort="(v: string) => emits('set-sort-simple', v)"
+        />
+      </div>
+
+      <div :class="`${sizes.type} ${borderClass}`">
+        <SortableName
+          name="mime"
+          label="Type"
+          :sort-options="sortOptions"
+          @sort="(v: string) => emits('set-sort-simple', v)"
+        />
+      </div>
+
+      <div :class="`${sizes.modifiedAt} ${borderClass}`">
+        <SortableName
+          name="file_modified_at"
+          label="Modified"
+          :sort-options="sortOptions"
+          @sort="(v: string) => emits('set-sort-simple', v)"
+        />
+      </div>
+
+      <div :class="`${sizes.buttons}`"></div>
+    </div>
+
+    <div
+      v-if="props.loading"
+      class="w-full pt-20 rounded-b-lg bg-brownish-100 dark:bg-brownish-900 h-52 text-center"
+    >
+      <span class="w-1/2 h-1/2">
+        <SpinnerIcon :size="200" />
+      </span>
+    </div>
+    <div v-else class="flex flex-col rounded-b-lg">
+      <template v-for="file in props.items" :key="file.id">
+        <TableFileRowWatcher
+          :file="file"
+          :sizes="sizes"
+          :checkedRows="checkedRows"
+          :hideCheckbox="props.hideCheckbox"
+          :hideDelete="props.hideDelete"
+          :share="props.share"
+          :highlighted="props.searchedFileId === file.id"
+          @actions="(f: AppFile) => emits('actions', f)"
+          @deselect-all="emits('deselect-all')"
+          @details="(f: AppFile) => emits('details', f)"
+          @download="(f: AppFile) => emits('download', f)"
+          @link="(f: AppFile) => emits('link', f)"
+          @remove="(f: AppFile) => emits('remove', f)"
+          @rename="(f: AppFile) => emits('rename', f)"
+          @select-one="(v: boolean, f: AppFile) => emits('select-one', v, f)"
+          @upload-many="(f: FileList, d?: string) => emits('upload-many', f, d)"
+        />
+      </template>
+    </div>
   </div>
 </template>

@@ -9,6 +9,7 @@ import DetailsModal from '@/components/files/modals/DetailsModal.vue'
 import UploadButton from '@/components/files/browser/UploadButton.vue'
 import LinkModal from '@/components/modals/LinkModal.vue'
 import { store as downloadStore } from '!/storage/download'
+import { store as uploadStore } from '!/storage/upload'
 import { store as storageStore } from '!/storage'
 import { store as cryptoStore } from '!/crypto'
 import { store as linksStore } from '!/links'
@@ -38,6 +39,7 @@ const parentId = computed(() => {
   return `${route.params.file_id}`
 })
 
+const Upload = uploadStore()
 const Download = downloadStore()
 const Storage = storageStore()
 const Crypto = cryptoStore()
@@ -134,6 +136,34 @@ const downloadMany = async () => {
     await Download.push(file)
   }
 }
+/**
+ * Takes the FileList object and adds all the selected files into upload queue
+ */
+const uploadMany = async (files?: FileList, dirId?: string) => {
+  console.log('uploadMany', files, dirId)
+  if (!files) return
+
+  if (files.length) {
+    for (let i = 0; i < files.length; i++) {
+      try {
+        await files[i].slice(0, 1).arrayBuffer()
+      } catch (err) {
+        continue
+        // it's a directory!
+      }
+
+      try {
+        await Upload.push(props.keypair, files[i], dirId)
+      } catch (error) {
+        // TODO: Add some kind of notifications store...
+      }
+    }
+  }
+
+  if (!Upload.active) {
+    Upload.active = true
+  }
+}
 
 /**
  * Opens the file browser to select files
@@ -166,7 +196,12 @@ watch(
 )
 </script>
 <template>
-  <UploadButton v-model="openBrowseWindow" :dir="Storage.dir" :kp="Crypto.keypair" />
+  <UploadButton
+    v-model="openBrowseWindow"
+    :dir="Storage.dir"
+    :kp="Crypto.keypair"
+    @upload-many="(f: FileList) => uploadMany(f, parentId)"
+  />
   <RenameModal v-if="renameFile" v-model="renameFile" :Storage="Storage" :Crypto="Crypto" />
   <CreateDirectoryModal
     v-model="isModalCreateDirActive"
@@ -200,6 +235,7 @@ watch(
       'select-all': Storage.selectAll,
       'select-one': Storage.selectOne,
       'set-sort-simple': Storage.setSortSimple,
+      'upload-many': uploadMany,
       actions,
       browse,
       details,
