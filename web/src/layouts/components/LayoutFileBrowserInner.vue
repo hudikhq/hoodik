@@ -140,7 +140,6 @@ const downloadMany = async () => {
  * Takes the FileList object and adds all the selected files into upload queue
  */
 const uploadMany = async (files?: FileList, dirId?: string) => {
-  console.log('uploadMany', files, dirId)
   if (!files) return
 
   if (files.length) {
