@@ -3,7 +3,7 @@ use context::Context;
 use entity::Uuid;
 use error::AppResult;
 
-use crate::auth::Auth;
+use crate::{auth::Auth, contracts::register::Register};
 
 /// Activation link in the email will point towards frontend application
 /// which you can verify in the `crate::emails::activate`

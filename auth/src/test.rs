@@ -7,7 +7,9 @@ use log::debug;
 
 use crate::{
     auth::Auth,
-    contract::AuthProviderContract,
+    contracts::{
+        cookies::Cookies, provider::AuthProvider, register::Register, repository::Repository,
+    },
     data::{create_user::CreateUser, credentials::Credentials},
     providers::credentials::CredentialsProvider,
 };
@@ -359,10 +361,7 @@ async fn test_set_cookie_for_both() {
         .await
         .unwrap();
 
-    let (jwt, refresh) = auth
-        .manage_cookies(&authenticated, module_path!())
-        .await
-        .unwrap();
+    let (jwt, refresh) = auth.manage_cookies(&authenticated, module_path!()).unwrap();
 
     let mut res = HttpResponse::Ok();
 

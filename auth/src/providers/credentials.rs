@@ -1,6 +1,6 @@
 use crate::{
     auth::Auth,
-    contract::AuthProviderContract,
+    contracts::{provider::AuthProvider, repository::Repository, sessions::Sessions},
     data::{authenticated::Authenticated, credentials::Credentials},
 };
 use error::{AppResult, Error};
@@ -17,7 +17,7 @@ impl<'ctx> CredentialsProvider<'ctx> {
 }
 
 #[async_trait::async_trait]
-impl<'ctx> AuthProviderContract for CredentialsProvider<'ctx> {
+impl<'ctx> AuthProvider for CredentialsProvider<'ctx> {
     async fn authenticate(&self, user_agent: &str, ip: &str) -> AppResult<Authenticated> {
         let (email, password, token) = self.data.into_tuple()?;
 
@@ -52,10 +52,8 @@ impl<'ctx> AuthProviderContract for CredentialsProvider<'ctx> {
             return Err(Error::Unauthorized("invalid_credentials".to_string()));
         }
 
-        if let Some(secret) = &user.secret {
-            if !util::validation::validate_otp(secret, token.as_ref()) {
-                return Err(Error::Unauthorized("invalid_otp_token".to_string()));
-            }
+        if !user.verify_tfa(token) {
+            return Err(Error::Unauthorized("invalid_otp_token".to_string()));
         }
 
         let session = self.auth.generate_session(&user, user_agent, ip).await?;

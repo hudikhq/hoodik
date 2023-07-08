@@ -1,4 +1,5 @@
 pub mod authenticated;
+pub mod change_password;
 pub mod claims;
 pub mod create_user;
 pub mod credentials;

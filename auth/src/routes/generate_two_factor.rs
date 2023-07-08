@@ -1,7 +1,7 @@
 use actix_web::{route, HttpResponse};
 use error::AppResult;
 
-use crate::auth::Auth;
+use crate::{auth::Auth, contracts::register::Register};
 
 /// Generate a two factor secret for the user
 ///

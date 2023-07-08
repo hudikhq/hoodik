@@ -3,7 +3,9 @@ use context::Context;
 use error::AppResult;
 
 use crate::{
-    auth::Auth, contract::AuthProviderContract, data::signature::Signature,
+    auth::Auth,
+    contracts::{cookies::Cookies, provider::AuthProvider},
+    data::signature::Signature,
     providers::signature::SignatureProvider,
 };
 
@@ -27,7 +29,7 @@ pub(crate) async fn signature(
 
     let mut response = HttpResponse::Ok();
 
-    let (jwt, refresh) = auth.manage_cookies(&authenticated, module_path!()).await?;
+    let (jwt, refresh) = auth.manage_cookies(&authenticated, module_path!())?;
 
     response.cookie(jwt);
     response.cookie(refresh);

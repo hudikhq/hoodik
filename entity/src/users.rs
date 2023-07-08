@@ -22,6 +22,15 @@ pub struct Model {
     pub updated_at: i64,
 }
 
+impl Model {
+    pub fn verify_tfa(&self, token: Option<String>) -> bool {
+        match self.secret.as_deref() {
+            Some(secret) => util::validation::validate_otp(secret, token.as_ref()),
+            None => true,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(has_many = "super::sessions::Entity")]

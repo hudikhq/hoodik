@@ -6,6 +6,7 @@ use actix_web::web;
 
 pub mod action;
 pub mod authenticated_self;
+pub mod change_password;
 pub mod credentials;
 pub mod generate_two_factor;
 pub mod logout;
@@ -23,6 +24,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(logout::logout);
     cfg.service(register::register);
     cfg.service(signature::signature);
+    cfg.service(change_password::change_password);
 
     // Refresh is defined this way because we cannot use constant as path in `web::resource` macro
     cfg.service(web::resource(crate::REFRESH_PATH).route(web::post().to(refresh::refresh)));
