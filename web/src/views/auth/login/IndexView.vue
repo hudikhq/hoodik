@@ -99,6 +99,13 @@ init()
               class="text-primary-700 hover:underline dark:text-primary-500"
               >Create an Account</router-link
             >
+            <br />
+            Forgot your password?
+            <router-link
+              :to="{ name: 'forgot-password' }"
+              class="text-primary-700 hover:underline dark:text-primary-500"
+              >Recover your account here</router-link
+            >
           </div>
         </AppForm>
       </CardBox>

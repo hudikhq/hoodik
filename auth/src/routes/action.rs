@@ -13,7 +13,7 @@ use crate::{auth::Auth, contracts::register::Register};
 /// which will verify users account.
 ///
 /// Response: [entity::users::Model]
-#[route("/api/auth/{action}/{id}", method = "POST")]
+#[route("/api/auth/action/{action}/{id}", method = "POST")]
 pub(crate) async fn action(
     req: HttpRequest,
     context: web::Data<Context>,

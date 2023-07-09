@@ -13,6 +13,7 @@ import { store as uploadStore } from '!/storage/upload'
 import { store as storageStore } from '!/storage'
 import { store as cryptoStore } from '!/crypto'
 import { store as linksStore } from '!/links'
+import { errorNotification } from '!/index'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Authenticated, KeyPair, AppFile } from 'types'
@@ -147,14 +148,14 @@ const uploadMany = async (files?: FileList, dirId?: string) => {
       try {
         await files[i].slice(0, 1).arrayBuffer()
       } catch (err) {
+        errorNotification(`File ${files[i].name} is a directory`)
         continue
-        // it's a directory!
       }
 
       try {
         await Upload.push(props.keypair, files[i], dirId)
       } catch (error) {
-        // TODO: Add some kind of notifications store...
+        errorNotification(error)
       }
     }
   }

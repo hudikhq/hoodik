@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@aws-crypto/sha256-browser": "^4.0.0",
+    "@kyvg/vue3-notification": "^2.9.1",
     "@mdi/js": "^7.2.96",
     "@openpgp/asmcrypto.js": "^2.3.3-0",
     "@vueuse/components": "^10.1.2",

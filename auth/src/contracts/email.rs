@@ -45,7 +45,7 @@ where
             .for_user(user, "activate-email")
             .await?;
 
-        let link = self.generate_link(&action)?;
+        let link = self.generate_client_link(&action)?;
 
         let mut template = sender.template(
             format!("Account activation token: {}", &action.id).as_str(),
@@ -66,7 +66,7 @@ where
     }
 
     /// Generate link for email activation
-    fn generate_link(&self, action: &user_actions::Model) -> AppResult<String> {
+    fn generate_client_link(&self, action: &user_actions::Model) -> AppResult<String> {
         Ok(format!(
             "{}/auth/{}/{}",
             self.ctx().config.get_client_url(),

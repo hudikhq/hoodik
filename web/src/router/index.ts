@@ -40,6 +40,10 @@ const router = createRouter({
       },
       component: () => import('../views/links/LinkView.vue')
     },
+
+    /**
+     * Auth routes
+     */
     {
       path: '/auth/pin/lock',
       name: 'lock',
@@ -63,6 +67,12 @@ const router = createRouter({
       name: 'login',
       meta: { title: 'Login - Credentials' },
       component: () => import('../views/auth/login/IndexView.vue')
+    },
+    {
+      path: '/auth/forgot-password',
+      name: 'forgot-password',
+      meta: { title: 'Recover your password' },
+      component: () => import('../views/auth/ForgotPasswordView.vue')
     },
     {
       path: '/auth/register',
@@ -93,6 +103,22 @@ const router = createRouter({
       name: 'activate-email',
       meta: { title: 'Create Account - Verify Email' },
       component: () => import('../views/auth/VerifyEmailView.vue')
+    },
+
+    /**
+     * Auth account routes
+     */
+    {
+      path: '/account',
+      name: 'account',
+      meta: { title: 'My Account' },
+      component: () => import('../views/account/IndexView.vue')
+    },
+    {
+      path: '/account/change-password',
+      name: 'account-change-password',
+      meta: { title: 'Change my password' },
+      component: () => import('../views/account/ChangePasswordView.vue')
     },
 
     /**

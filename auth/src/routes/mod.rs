@@ -19,12 +19,12 @@ pub mod signature;
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(action::action);
     cfg.service(authenticated_self::authenticated_self);
+    cfg.service(change_password::change_password);
     cfg.service(credentials::credentials);
     cfg.service(generate_two_factor::generate_two_factor);
     cfg.service(logout::logout);
     cfg.service(register::register);
     cfg.service(signature::signature);
-    cfg.service(change_password::change_password);
 
     // Refresh is defined this way because we cannot use constant as path in `web::resource` macro
     cfg.service(web::resource(crate::REFRESH_PATH).route(web::post().to(refresh::refresh)));

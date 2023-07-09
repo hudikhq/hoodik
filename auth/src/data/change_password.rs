@@ -6,6 +6,9 @@ use validr::*;
 /// Change password data
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ChangePassword {
+    /// Email of the user that is trying to change its password
+    pub email: Option<String>,
+
     /// Two factor token if the user has tfa enabled
     pub token: Option<String>,
 
@@ -30,6 +33,8 @@ pub struct ChangePassword {
 impl Validation for ChangePassword {
     fn rules(&self) -> Vec<Rule<Self>> {
         vec![
+            rule_required!(email),
+            rule_email!(email),
             rule_required!(password),
             rule_required!(encrypted_private_key),
             Rule::new("password", |obj: &Self, error| {
@@ -56,6 +61,7 @@ impl Validation for ChangePassword {
 pub(crate) type ChangePasswordData = (
     String,
     String,
+    String,
     Option<String>,
     Option<String>,
     Option<String>,
@@ -66,6 +72,7 @@ impl ChangePassword {
         let data = self.validate()?;
 
         Ok((
+            data.email.unwrap(),
             data.password.unwrap(),
             data.encrypted_private_key.unwrap(),
             data.current_password,
