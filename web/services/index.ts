@@ -5,8 +5,35 @@ export { auth, crypto, api }
 import { parseISO, format as f } from 'date-fns'
 import type { WorkerErrorType } from '../types'
 import type { ErrorResponse } from './api'
+import { notify } from '@kyvg/vue3-notification'
 
 const DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+
+/**
+ * Unify way to handle every kind of error as an error notification
+ */
+export function errorNotification(error: string | Error | ErrorResponse<any> | unknown) {
+  if (typeof error === 'string') {
+    return notification(error ?? 'Something went wrong', undefined, 'error')
+  }
+
+  notification((error as Error).message, (error as ErrorResponse<any>).description, 'error')
+}
+
+/**
+ * Regular notification sender
+ */
+export function notification(
+  title: string,
+  text?: string,
+  type: 'success' | 'error' | 'info' = 'info'
+) {
+  notify({
+    type,
+    title,
+    text
+  })
+}
 
 /**
  * Async/Await setTimeout

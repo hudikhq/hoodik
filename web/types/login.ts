@@ -13,6 +13,7 @@ export interface User {
   created_at: number
   updated_at: number
   email_verified_at?: number
+  secret: boolean
 }
 
 export interface Session {

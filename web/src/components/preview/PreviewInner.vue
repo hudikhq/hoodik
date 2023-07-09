@@ -240,8 +240,23 @@ const keydown = (e: KeyboardEvent) => {
   if (e.key === '-' && props.modelValue) {
     minus()
   }
+
   if (e.key === ' ' && props.modelValue) {
     fit()
+  }
+
+  if (e.key === 'ArrowLeft' && props.modelValue && previousId.value) {
+    router.push({
+      name: 'file-preview',
+      params: { id: previousId.value }
+    })
+  }
+
+  if (e.key === 'ArrowRight' && props.modelValue && nextId.value) {
+    router.push({
+      name: 'file-preview',
+      params: { id: nextId.value }
+    })
   }
 }
 

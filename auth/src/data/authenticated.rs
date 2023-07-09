@@ -7,7 +7,7 @@ use error::Error;
 use futures_util::Future;
 use serde::{Deserialize, Serialize};
 
-use crate::auth::Auth;
+use crate::{auth::Auth, contracts::repository::Repository};
 
 use super::claims::Claims;
 

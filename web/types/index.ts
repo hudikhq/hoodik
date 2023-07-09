@@ -17,6 +17,7 @@ export * from './queue'
 export * from './register'
 export * from './worker'
 export * from './admin'
+export * from './account'
 
 export type UploadStore = ReturnType<typeof uploadStore>
 export type DownloadStore = ReturnType<typeof downloadStore>

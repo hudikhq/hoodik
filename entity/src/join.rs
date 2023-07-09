@@ -8,17 +8,20 @@ use sea_orm::{EntityTrait, QueryTrait};
 ///
 /// Example query build:
 /// ```
-/// let mut selector = links::Entity::find().select_only();
+/// use entity::{RelationTrait, ColumnTrait, EntityTrait, QuerySelect, QueryFilter, QueryTrait};
 ///
-/// entity::join::add_columns_with_prefix::<_, links::Entity>(&mut selector, "link");
-/// entity::join::add_columns_with_prefix::<_, users::Entity>(&mut selector, "user");
-/// entity::join::add_columns_with_prefix::<_, files::Entity>(&mut selector, "file");
+/// let id = entity::Uuid::new_v4();
+/// let mut selector = entity::links::Entity::find().select_only();
+///
+/// entity::join::add_columns_with_prefix::<_, entity::links::Entity>(&mut selector, "link");
+/// entity::join::add_columns_with_prefix::<_, entity::users::Entity>(&mut selector, "user");
+/// entity::join::add_columns_with_prefix::<_, entity::files::Entity>(&mut selector, "file");
 ///
 /// selector
-///     .filter(links::Column::Id.eq(id))
-///     .join(JoinType::LeftJoin, links::Relation::Users.def())
-///     .join(JoinType::LeftJoin, links::Relation::Files.def())
-///     .build(DbBackend::Sqlite)
+///     .filter(entity::links::Column::Id.eq(id))
+///     .join(entity::JoinType::LeftJoin, entity::links::Relation::Users.def())
+///     .join(entity::JoinType::LeftJoin, entity::links::Relation::Files.def())
+///     .build(entity::DbBackend::Sqlite)
 ///     .to_string();
 /// ```
 ///

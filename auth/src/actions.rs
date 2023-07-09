@@ -1,28 +1,17 @@
-use context::Context;
 use entity::{user_actions, users, ConnectionTrait, EntityTrait};
 use error::{AppResult, Error};
 
 pub(crate) struct UserActions<'ctx, T: ConnectionTrait> {
-    context: &'ctx Context,
-    connection: Option<&'ctx T>,
+    connection: &'ctx T,
 }
 
 impl<'ctx, T> UserActions<'ctx, T>
 where
     T: ConnectionTrait,
 {
-    pub(crate) fn new(context: &'ctx Context) -> Self {
-        Self {
-            context,
-            connection: None,
-        }
-    }
-
     /// Define what connection will be used
-    pub(crate) fn with_connection(mut self, connection: &'ctx T) -> Self {
-        self.connection = Some(connection);
-
-        self
+    pub(crate) fn new(connection: &'ctx T) -> Self {
+        UserActions { connection }
     }
 
     /// Create a new user action
@@ -34,15 +23,12 @@ where
             .ok_or_else(|| Error::BadRequest("user_action_no_id".to_string()))?;
 
         user_actions::Entity::insert(user_action)
-            .exec_without_returning(&self.context.db)
+            .exec_without_returning(self.connection)
             .await?;
 
         let select = user_actions::Entity::find_by_id(id);
 
-        let result = match self.connection {
-            Some(c) => select.one(c).await?,
-            None => select.one(&self.context.db).await?,
-        };
+        let result = select.one(self.connection).await?;
 
         result.ok_or(Error::NotFound("user_action_not_found".to_string()))
     }
@@ -75,11 +61,7 @@ where
             .inner_join(users::Entity)
             .select_also(users::Entity);
 
-        let result = match self.connection {
-            Some(c) => query.one(c).await?,
-            None => query.one(&self.context.db).await?,
-        }
-        .ok_or(Error::NotFound(
+        let result = query.one(self.connection).await?.ok_or(Error::NotFound(
             "user_action_not_found_or_executed".to_string(),
         ))?;
 
@@ -89,12 +71,9 @@ where
 
     /// Delete user action after it has been executed
     pub(crate) async fn delete(&self, id: entity::Uuid) -> AppResult<()> {
-        let statement = user_actions::Entity::delete_by_id(id);
-
-        match self.connection {
-            Some(c) => statement.exec(c).await?,
-            None => statement.exec(&self.context.db).await?,
-        };
+        user_actions::Entity::delete_by_id(id)
+            .exec(self.connection)
+            .await?;
 
         Ok(())
     }
