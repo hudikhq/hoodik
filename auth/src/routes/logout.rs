@@ -2,7 +2,11 @@ use actix_web::{route, web, HttpResponse};
 use context::Context;
 use error::AppResult;
 
-use crate::{auth::Auth, data::authenticated::Authenticated};
+use crate::{
+    auth::Auth,
+    contracts::{cookies::Cookies, sessions::Sessions},
+    data::authenticated::Authenticated,
+};
 
 /// Logout user and perform session destroy
 #[route("/api/auth/logout", method = "POST")]
@@ -16,7 +20,7 @@ pub(crate) async fn logout(
 
     let mut response = HttpResponse::NoContent();
 
-    let (jwt, refresh) = auth.manage_cookies(&authenticated, "logout").await?;
+    let (jwt, refresh) = auth.manage_cookies(&authenticated, "logout")?;
     response.cookie(jwt);
     response.cookie(refresh);
 

@@ -2,7 +2,11 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use context::Context;
 use error::{AppResult, Error};
 
-use crate::{auth::Auth, data::extractor::Extractor};
+use crate::{
+    auth::Auth,
+    contracts::{cookies::Cookies, repository::Repository, sessions::Sessions},
+    data::extractor::Extractor,
+};
 
 /// This route behaves same as the [crate::routes::authenticated_self] route,
 /// but the claims it requires do not have to be still valid, they can be expired.
@@ -23,7 +27,7 @@ pub(crate) async fn refresh(req: HttpRequest) -> AppResult<HttpResponse> {
     let authenticated = auth.get_by_refresh(refresh_token).await?;
     let authenticated = auth.refresh_session(&authenticated.session).await?;
 
-    let (jwt, refresh) = auth.manage_cookies(&authenticated, module_path!()).await?;
+    let (jwt, refresh) = auth.manage_cookies(&authenticated, module_path!())?;
 
     Ok(HttpResponse::Ok()
         .cookie(jwt)

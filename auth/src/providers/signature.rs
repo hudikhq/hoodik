@@ -1,8 +1,9 @@
 use crate::{
     auth::Auth,
-    contract::AuthProviderContract,
+    contracts::{provider::AuthProvider, repository::Repository, sessions::Sessions},
     data::{authenticated::Authenticated, signature::Signature},
 };
+use chrono::Utc;
 use error::{AppResult, Error};
 
 pub(crate) struct SignatureProvider<'ctx> {
@@ -14,10 +15,18 @@ impl<'ctx> SignatureProvider<'ctx> {
     pub(crate) fn new(auth: &'ctx Auth, data: Signature) -> Self {
         Self { auth, data }
     }
+
+    pub(crate) fn generate_nonce_minutes() -> String {
+        format!("{}", Utc::now().timestamp() / 60)
+    }
+
+    pub(crate) fn generate_fingerprint_nonce(fingerprint: &str) -> String {
+        format!("{}-{}", fingerprint, Self::generate_nonce_minutes())
+    }
 }
 
 #[async_trait::async_trait]
-impl<'ctx> AuthProviderContract for SignatureProvider<'ctx> {
+impl<'ctx> AuthProvider for SignatureProvider<'ctx> {
     async fn authenticate(&self, user_agent: &str, ip: &str) -> AppResult<Authenticated> {
         let (fingerprint, signature) = self.data.into_tuple()?;
 
@@ -44,7 +53,7 @@ impl<'ctx> AuthProviderContract for SignatureProvider<'ctx> {
                 .map(|v| v as i64);
         }
 
-        let nonce = Auth::generate_fingerprint_nonce(&user.fingerprint);
+        let nonce = Self::generate_fingerprint_nonce(&user.fingerprint);
 
         cryptfns::rsa::public::verify(&nonce, &signature, &user.pubkey)?;
 

@@ -134,7 +134,7 @@ export const store = defineStore('register', () => {
    */
   async function verifyEmail(token: string): Promise<User> {
     const action = 'activate-email'
-    const response = await Api.post(`/api/auth/${action}/${token}`)
+    const response = await Api.post(`/api/auth/action/${action}/${token}`)
 
     return response.body as User
   }

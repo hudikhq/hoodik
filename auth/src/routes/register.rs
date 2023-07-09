@@ -5,6 +5,7 @@ use validr::Validation;
 
 use crate::{
     auth::Auth,
+    contracts::{cookies::Cookies, register::Register, sessions::Sessions},
     data::{authenticated::Authenticated, create_user::CreateUser},
 };
 
@@ -42,7 +43,7 @@ pub(crate) async fn register(
 
     let mut response = HttpResponse::Created();
 
-    let (jwt, refresh) = auth.manage_cookies(&authenticated, module_path!()).await?;
+    let (jwt, refresh) = auth.manage_cookies(&authenticated, module_path!())?;
 
     response.cookie(jwt);
     response.cookie(refresh);

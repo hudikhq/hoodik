@@ -222,7 +222,11 @@ const sizes = {
       :xs="true"
       :icon="mdiLink"
       color="light"
-      v-if="singleSelected && singleSelected.mime !== 'dir' && singleSelected.finished_upload_at"
+      v-if="
+        singleSelected &&
+        singleSelected.mime !== 'dir' &&
+        singleSelected.chunks === singleSelected.chunks_stored
+      "
       @click="() => emits('link', singleSelected as AppFile)"
     />
 

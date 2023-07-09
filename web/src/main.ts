@@ -6,6 +6,7 @@ import { store as style } from '!/style'
 import { lightModeKey, styleKey } from '@/config'
 import { greeting } from '!/logger'
 import * as logger from '!/logger'
+import Notifications, { notify } from '@kyvg/vue3-notification'
 import './css/main.css'
 
 greeting()
@@ -25,10 +26,18 @@ try {
   logger.error('Registration failed', error)
 }
 
+window.addEventListener('unhandledrejection', function (event) {
+  notify({
+    title: event.reason.message || 'Something went wrong',
+    text: event.reason.description,
+    type: 'error'
+  })
+})
+
 const pinia = createPinia()
 
 /* Create Vue app */
-createApp(App).use(router).use(pinia).mount('#app')
+createApp(App).use(Notifications).use(router).use(pinia).mount('#app')
 
 /* Init Pinia stores */
 const styleStore = style(pinia)

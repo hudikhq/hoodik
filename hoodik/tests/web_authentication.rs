@@ -176,7 +176,7 @@ async fn test_register_and_verify_user_email() {
     let _uuid = entity::Uuid::from_str(&id).unwrap();
 
     let req = test::TestRequest::post()
-        .uri(format!("/api/auth/activate-email/{id}").as_str())
+        .uri(format!("/api/auth/action/activate-email/{id}").as_str())
         .to_request();
 
     let resp = test::call_service(&mut app, req).await;
