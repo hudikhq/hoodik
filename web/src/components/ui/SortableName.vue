@@ -7,6 +7,7 @@ const props = defineProps<{
   label: string
   sortOptions?: { sort?: string; parameter?: string; order?: string }
   modelValue?: { sort?: string; parameter?: string; order?: string }
+  class?: string
 }>()
 
 const sortOptions = computed(() => {
@@ -59,6 +60,7 @@ const set = () => {
     class="p-1 m-0 flex hover:bg-brownish-500 rounded-md"
     :name="label"
     :title="label"
+    :class="props.class"
   >
     <span class="inline-block">{{ label }}</span>
     <BaseIcon
