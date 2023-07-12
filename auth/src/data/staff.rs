@@ -1,8 +1,15 @@
-use std::pin::Pin;
-
+//! Staff data claims
+//!
+//! This is a struct wraps around the [Claims] struct and provides some
+//! additional methods for checking if the user is a staff member or not.
+//!
+//! Also, when the [Staff] struct is extracted from the request, it will
+//! automatically check if the user is a staff member or not. If they are not,
+//! then it will return an [Error::Forbidden] error.
 use actix_web::FromRequest;
 use error::{AppResult, Error};
 use futures_util::Future;
+use std::pin::Pin;
 
 use super::claims::Claims;
 

@@ -1,7 +1,7 @@
-use entity::{users, ActiveValue};
+use entity::{users, ActiveValue, Uuid};
 use error::{AppResult, Error};
 
-use crate::data::change_password::ChangePassword;
+use crate::data::{change_password::ChangePassword, two_factor::Enable};
 
 use super::repository::Repository;
 
@@ -34,6 +34,43 @@ where
             },
         )
         .await
+    }
+
+    /// Disable the two factor authentication for the user
+    async fn disable_two_factor(&self, id: Uuid, token: Option<String>) -> AppResult<()> {
+        let user = self.get_by_id(id).await?;
+
+        if !user.verify_tfa(token) {
+            return Err(Error::Unauthorized("invalid_otp_token".to_string()));
+        }
+
+        self.update_user(
+            user.id,
+            users::ActiveModel {
+                secret: ActiveValue::Set(None),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    /// Enable two factor authentication for the user
+    async fn enable_two_factor(&self, id: Uuid, data: Enable) -> AppResult<()> {
+        let user = self.get_by_id(id).await?;
+        let secret = data.into_value()?;
+
+        self.update_user(
+            user.id,
+            users::ActiveModel {
+                secret: ActiveValue::Set(secret),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        Ok(())
     }
 }
 
