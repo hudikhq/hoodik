@@ -58,8 +58,12 @@ where
 
     /// Enable two factor authentication for the user
     async fn enable_two_factor(&self, id: Uuid, data: Enable) -> AppResult<()> {
-        let user = self.get_by_id(id).await?;
         let secret = data.into_value()?;
+        let user = self.get_by_id(id).await?;
+
+        if user.secret.is_some() {
+            return Err(Error::BadRequest("two_factor_already_enabled".to_string()));
+        }
 
         self.update_user(
             user.id,

@@ -8,10 +8,10 @@ use crate::{
     data::{claims::Claims, two_factor::Enable},
 };
 
-/// Generate a two factor secret for the user
+/// Enable two factor authentication for the user
 ///
-/// Response [String]
-#[route("/api/auth/two-factor-secret", method = "DELETE")]
+/// Request: [Enable]
+#[route("/api/auth/two-factor", method = "POST")]
 pub(crate) async fn enable_two_factor(
     context: web::Data<Context>,
     claims: Claims,

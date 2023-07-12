@@ -8,10 +8,10 @@ use crate::{
     data::{claims::Claims, two_factor::Disable},
 };
 
-/// Generate a two factor secret for the user
+/// Disable two factor authentication for the user
 ///
-/// Response [String]
-#[route("/api/auth/two-factor-secret", method = "DELETE")]
+/// Request: [Disable]
+#[route("/api/auth/two-factor/disable", method = "POST")]
 pub(crate) async fn disable_two_factor(
     context: web::Data<Context>,
     claims: Claims,

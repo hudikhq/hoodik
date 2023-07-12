@@ -23,7 +23,7 @@ impl Disable {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Enable {
     pub token: Option<String>,
     pub secret: Option<String>,
@@ -46,9 +46,7 @@ impl Validation for Enable {
 }
 
 impl Enable {
-    pub fn into_value(&self) -> AppResult<Option<String>> {
-        let data = self.clone().validate().unwrap();
-
-        Ok(data.secret)
+    pub fn into_value(self) -> AppResult<Option<String>> {
+        Ok(self.validate()?.secret)
     }
 }
