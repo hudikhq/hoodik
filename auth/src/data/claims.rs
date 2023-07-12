@@ -1,11 +1,13 @@
-use std::pin::Pin;
-
+//! # Authenticated Claims data
+//! This data is the result of the JWT object provided by the user
+//! either in the header or cookie.
 use actix_web::{web, FromRequest, HttpRequest};
 use context::Context;
 use entity::Uuid;
 use error::Error;
 use futures_util::Future;
 use serde::{Deserialize, Serialize};
+use std::pin::Pin;
 
 use super::{authenticated::Authenticated, extractor::Extractor};
 

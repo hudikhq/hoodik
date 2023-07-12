@@ -8,6 +8,8 @@ pub mod action;
 pub mod authenticated_self;
 pub mod change_password;
 pub mod credentials;
+pub mod disable_two_factor;
+pub mod enable_two_factor;
 pub mod generate_two_factor;
 pub mod logout;
 pub mod refresh;
@@ -21,6 +23,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(authenticated_self::authenticated_self);
     cfg.service(change_password::change_password);
     cfg.service(credentials::credentials);
+    cfg.service(disable_two_factor::disable_two_factor);
+    cfg.service(enable_two_factor::enable_two_factor);
     cfg.service(generate_two_factor::generate_two_factor);
     cfg.service(logout::logout);
     cfg.service(register::register);

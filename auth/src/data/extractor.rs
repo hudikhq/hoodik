@@ -1,10 +1,10 @@
-use std::marker::PhantomData;
-
+//! # Request data extractors
 use crate::data::claims::Claims;
 use actix_web::HttpRequest;
 use context::Context;
 use entity::Uuid;
 use error::AppResult;
+use std::marker::PhantomData;
 
 pub(crate) struct Extractor<'ext, T> {
     extractor: T,

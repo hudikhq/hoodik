@@ -1,3 +1,4 @@
+//! # Authentication by private key
 use ::error::AppResult;
 use serde::{Deserialize, Serialize};
 use validr::*;

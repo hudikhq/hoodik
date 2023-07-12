@@ -1,4 +1,5 @@
-use std::pin::Pin;
+//! # Authenticated data object
+//! All the data about the user and the current session is returned as this struct
 
 use actix_web::{web, FromRequest};
 use context::Context;
@@ -6,6 +7,7 @@ use entity::{sessions, users};
 use error::Error;
 use futures_util::Future;
 use serde::{Deserialize, Serialize};
+use std::pin::Pin;
 
 use crate::{auth::Auth, contracts::repository::Repository};
 

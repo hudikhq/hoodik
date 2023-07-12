@@ -5,5 +5,6 @@ pub mod create_user;
 pub mod credentials;
 pub mod signature;
 pub mod staff;
+pub mod two_factor;
 
 pub(crate) mod extractor;
