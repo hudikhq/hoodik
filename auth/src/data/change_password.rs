@@ -1,3 +1,4 @@
+//! # Change password data
 use ::error::AppResult;
 use serde::{Deserialize, Serialize};
 use util::validation::validate_password;

@@ -1,3 +1,4 @@
+//! # User registration data
 use ::error::AppResult;
 use chrono::Utc;
 use entity::{users::ActiveModel, ActiveValue, Uuid};

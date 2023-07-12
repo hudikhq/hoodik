@@ -119,16 +119,6 @@ export const store = defineStore('register', () => {
   }
 
   /**
-   * Ask backend to generate two factor secret
-   * @throws
-   */
-  async function getTwoFactorSecret(): Promise<string | null> {
-    const response = await Api.get<{ secret: string }>('/api/auth/two-factor-secret')
-
-    return response.body?.secret as string
-  }
-
-  /**
    * Verify email with provided token from the route params (email)
    * @throws
    */
@@ -144,7 +134,6 @@ export const store = defineStore('register', () => {
     set,
     clear,
     register,
-    getTwoFactorSecret,
     verifyEmail,
     preload,
 

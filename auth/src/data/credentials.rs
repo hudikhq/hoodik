@@ -1,3 +1,4 @@
+//! # Authentication by credentials data
 use ::error::AppResult;
 use serde::{Deserialize, Serialize};
 use validr::*;

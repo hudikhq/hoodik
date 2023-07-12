@@ -2,14 +2,16 @@
 import { formatPrettyDate } from '!/index'
 import type { User } from 'types'
 import { computed } from 'vue'
-import { mdiDelete, mdiPassport } from '@mdi/js'
-import BaseButton from '@/components/ui/BaseButton.vue'
+import { mdiDelete, mdiPassport, mdiLock } from '@mdi/js'
 import CardBox from '@/components/ui/CardBox.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import CardBoxComponentHeader from '@/components/ui/CardBoxComponentHeader.vue'
 
 const props = defineProps<{
   user: User
 }>()
+
+const emits = defineEmits(['disableTfa', 'enableTfa'])
 
 const emailVerifiedAt = computed(() => {
   if (props.user.email_verified_at) {
@@ -21,10 +23,6 @@ const emailVerifiedAt = computed(() => {
 const createdAt = computed(() => {
   return formatPrettyDate(props.user.created_at)
 })
-
-const disableTfa = () => {
-  console.log('disableTfa')
-}
 </script>
 <template>
   <CardBox class="sm:w-1/2" v-if="user">
@@ -58,10 +56,18 @@ const disableTfa = () => {
           small
           rounded-full
           label="Disable TFA"
-          @confirm="disableTfa"
+          @click="emits('disableTfa')"
           v-if="user.secret"
         />
-        <BaseButton label="No" :small="true" class="cursor-auto" />
+        <BaseButton
+          v-else
+          :icon="mdiLock"
+          color="info"
+          small
+          rounded-full
+          label="Enable TFA"
+          @click="emits('enableTfa')"
+        />
       </div>
     </div>
     <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">

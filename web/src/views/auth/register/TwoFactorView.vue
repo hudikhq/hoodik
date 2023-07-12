@@ -4,6 +4,7 @@ import * as yup from 'yup'
 import { store } from '!/auth/register'
 import { store as loginStore } from '!/auth/login'
 import { store as cryptoStore } from '!/crypto'
+import { getTwoFactorSecret } from '!/account'
 import { useRouter } from 'vue-router'
 import { computed, ref } from 'vue'
 import type { ErrorResponse } from '!/api'
@@ -33,7 +34,7 @@ const qrcode = computed(() => {
 const init = async () => {
   const initialValues = register.createUser
   const initialErrors = register.errors || {}
-  secret.value = (await register.getTwoFactorSecret()) as string
+  secret.value = (await getTwoFactorSecret()) as string
   email.value = register.createUser.email
 
   config.value = {
