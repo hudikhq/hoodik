@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct Users {
     quota_bytes: Option<u64>,
     allow_register: bool,
+    enforce_email_activation: bool,
     email_whitelist: Option<Whitelist>,
     email_blacklist: Option<Blacklist>,
 }
@@ -17,6 +18,7 @@ impl Default for Users {
         Self {
             quota_bytes: None,
             allow_register: true,
+            enforce_email_activation: false,
             email_whitelist: None,
             email_blacklist: None,
         }
@@ -33,6 +35,14 @@ impl Users {
     /// or the ones that were invited.
     pub fn allow_register(&self) -> bool {
         self.allow_register
+    }
+
+    /// Should the application enforce email activation.
+    /// This will prevent users from logging in until they activate their email.
+    ///
+    /// In case the activation is not possible (no sender, or something else) it will be skipped
+    pub fn enforce_email_activation(&self) -> bool {
+        self.enforce_email_activation
     }
 
     /// Validate users email if its allowed to register.

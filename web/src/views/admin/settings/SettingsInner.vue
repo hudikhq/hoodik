@@ -6,6 +6,7 @@ import UserSettings from './UserSettings.vue'
 import CardBoxComponentFooter from '@/components/ui/CardBoxComponentFooter.vue'
 import type { ErrorResponse } from '!/api'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import { notify } from '@kyvg/vue3-notification'
 
 const loading = ref(false)
 const settings = ref<Data>()
@@ -25,6 +26,7 @@ const update = async () => {
 
   try {
     settings.value = await updateInner(settings.value)
+    notify('Settings updated')
   } catch (err) {
     const error = err as ErrorResponse<unknown>
     updateError.value = error.description

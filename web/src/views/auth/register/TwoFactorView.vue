@@ -53,10 +53,15 @@ const init = async () => {
       register.set(values)
 
       try {
-        await register.register(register.createUser, login, crypto)
+        const authenticated = await register.register(register.createUser, login, crypto)
 
-        register.clear()
-        router.push({ name: 'files' })
+        if (authenticated) {
+          register.clear()
+          router.push({ name: 'files' })
+        } else {
+          register.clear()
+          router.push({ name: 'register-resend-activation' })
+        }
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         register.setErrors(error.validation)
