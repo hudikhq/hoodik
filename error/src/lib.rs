@@ -56,6 +56,7 @@ pub enum Error {
     AddressError(AddressError),
     HandlebarsRenderError(RenderError),
     HandlebarsTemplateError(TemplateError),
+    TooManyRequests(String),
 }
 
 impl Error {
@@ -412,6 +413,11 @@ impl From<&Error> for ErrorResponse {
             },
             Error::HandlebarsTemplateError(message) => ErrorResponse {
                 status: 500,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::TooManyRequests(message) => ErrorResponse {
+                status: 429,
                 message: message.to_string(),
                 context: None,
             },

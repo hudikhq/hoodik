@@ -15,6 +15,7 @@ import StatusBar from '@/components/files/io/StatusBar.vue'
 import { store as cryptoStore } from '!/crypto'
 import SearchButton from '@/components/files/search/SearchButton.vue'
 import SearchModal from '@/components/files/search/SearchModal.vue'
+import ResendActivationNotification from './components/ResendActivationNotification.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -84,13 +85,7 @@ const menuClick = (event: Event, item: NavBarItem) => {
       />
       <SearchModal :keypair="crypto.keypair" v-model="isSearchModalActive" />
 
-      <div
-        v-if="login.authenticated && !login.authenticated?.user?.email_verified_at"
-        class="block bg-redish-100 dark:bg-redish-950 text-redish-950 dark:text-redish-100 rounded-lg p-4 mx-1 xl:mx-6"
-      >
-        You account is not activated, please check your email for the activation link, it might end
-        up in spam folder, so check that too.
-      </div>
+      <ResendActivationNotification :authenticated="login.authenticated" />
 
       <slot :authenticated="login.authenticated" :keypair="crypto.keypair" />
 

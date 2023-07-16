@@ -14,6 +14,7 @@ pub mod generate_two_factor;
 pub mod logout;
 pub mod refresh;
 pub mod register;
+pub mod resend_activation;
 pub mod signature;
 
 /// Register the authentication routes
@@ -28,6 +29,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(generate_two_factor::generate_two_factor);
     cfg.service(logout::logout);
     cfg.service(register::register);
+    cfg.service(resend_activation::resend_activation);
     cfg.service(signature::signature);
 
     // Refresh is defined this way because we cannot use constant as path in `web::resource` macro

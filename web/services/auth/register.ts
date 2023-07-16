@@ -81,12 +81,16 @@ export const store = defineStore('register', () => {
     privateKey: string,
     login: LoginStore,
     store: CryptoStore
-  ): Promise<Authenticated> {
+  ): Promise<Authenticated | null> {
     const response = await Api.post<CreateUser, Authenticated>(
       '/api/auth/register',
       undefined,
       data
     )
+
+    if (!response.body) {
+      return null
+    }
 
     login.setupAuthenticated(response.body as Authenticated, privateKey, store)
     await store.set(privateKey)
@@ -102,7 +106,7 @@ export const store = defineStore('register', () => {
     data: CreateUser,
     login: LoginStore,
     store: CryptoStore
-  ): Promise<Authenticated> {
+  ): Promise<Authenticated | null> {
     const privateKey = data.unencrypted_private_key as string
 
     if (data.unencrypted_private_key) {
@@ -129,12 +133,20 @@ export const store = defineStore('register', () => {
     return response.body as User
   }
 
+  /**
+   * Attempt to resend email verification
+   */
+  async function resendActivation(email: string): Promise<void> {
+    await Api.post(`/api/auth/action/resend`, undefined, { email })
+  }
+
   return {
     createUser,
     set,
     clear,
     register,
     verifyEmail,
+    resendActivation,
     preload,
 
     // Errors
