@@ -1,6 +1,6 @@
 use crate::{
     auth::Auth,
-    contracts::{provider::AuthProvider, repository::Repository, sessions::Sessions},
+    contracts::{ctx::Ctx, provider::AuthProvider, repository::Repository, sessions::Sessions},
     data::{authenticated::Authenticated, credentials::Credentials},
 };
 use error::{AppResult, Error};
@@ -54,6 +54,10 @@ impl<'ctx> AuthProvider for CredentialsProvider<'ctx> {
 
         if !user.verify_tfa(token) {
             return Err(Error::Unauthorized("invalid_otp_token".to_string()));
+        }
+
+        if self.auth.enforce_email_activation().await && user.email_verified_at.is_none() {
+            return Err(Error::Unauthorized("inactive_account".to_string()));
         }
 
         let session = self.auth.generate_session(&user, user_agent, ip).await?;

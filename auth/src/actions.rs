@@ -1,4 +1,6 @@
-use entity::{user_actions, users, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
+use entity::{
+    user_actions, users, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder,
+};
 use error::{AppResult, Error};
 
 pub(crate) struct UserActions<'ctx, T: ConnectionTrait> {
@@ -78,6 +80,7 @@ where
         let query = user_actions::Entity::find()
             .filter(user_actions::Column::Email.eq(email))
             .filter(user_actions::Column::Action.eq(action))
+            .order_by_desc(user_actions::Column::CreatedAt)
             .inner_join(users::Entity)
             .select_also(users::Entity);
 

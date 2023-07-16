@@ -13,7 +13,7 @@ use crate::{
 /// or the account is already verified.
 ///
 /// Request: [ResendActivation]
-#[route("/api/auth/resend-activation", method = "POST")]
+#[route("/api/auth/action/resend", method = "POST")]
 pub(crate) async fn resend_activation(
     context: web::Data<Context>,
     data: web::Json<ResendActivation>,
@@ -22,7 +22,7 @@ pub(crate) async fn resend_activation(
     let email = data.into_inner().into_value()?;
 
     if let Ok(user) = auth.get_by_email(&email).await {
-        if !user.email_verified_at.is_some() {
+        if user.email_verified_at.is_none() {
             auth.resend_activation(&user).await?;
         }
     }

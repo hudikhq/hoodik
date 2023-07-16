@@ -1,4 +1,4 @@
-//! # Authentication by credentials data
+//! # Trigger the re-send of an activation email for the user
 use ::error::AppResult;
 use serde::{Deserialize, Serialize};
 use validr::*;

@@ -5,15 +5,21 @@ use validr::Validation;
 
 use crate::{
     auth::Auth,
-    contracts::{cookies::Cookies, register::Register, sessions::Sessions},
+    contracts::{cookies::Cookies, ctx::Ctx, register::Register, sessions::Sessions},
     data::{authenticated::Authenticated, create_user::CreateUser},
 };
 
-/// Register a new user
+/// Register a new user.
+///
+/// This method will either authenticated the user right after
+/// the registration. Or will simply return an empty response.
+///
+/// This is due the user maybe needs to activate the account first
+/// based on the application settings and the availability of a sender.
 ///
 /// Request: [crate::data::create_user::CreateUser]
 ///
-/// Response: [Authenticated]
+/// Response: [Authenticated] || 204 No Content
 #[route("/api/auth/register", method = "POST")]
 pub(crate) async fn register(
     req: HttpRequest,
@@ -27,17 +33,25 @@ pub(crate) async fn register(
     let email = data.email.clone().unwrap();
 
     if data.invitation_id.is_none() {
-        context
-            .settings
-            .inner()
-            .await
-            .users
-            .can_register_or_else(&email, || {
-                Err(Error::as_validation("email", "not allowed to register"))
-            })?;
+        auth.can_register_or_else(&email, || {
+            Err(Error::as_validation("email", "not allowed to register"))
+        })
+        .await?;
     }
 
     let user = auth.register(data).await?;
+
+    if context
+        .settings
+        .inner()
+        .await
+        .users
+        .enforce_email_activation()
+        && user.email_verified_at.is_none()
+    {
+        return Ok(HttpResponse::NoContent().finish());
+    }
+
     let session = auth.generate_session(&user, &user_agent, &ip).await?;
     let authenticated = Authenticated { user, session };
 

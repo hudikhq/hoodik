@@ -21,11 +21,12 @@ where
 
     /// Resend activation email to the user, if the cooldown has passed.
     async fn resend_activation(&self, user: &users::Model) -> AppResult<()> {
-        if let Ok((action, _)) = UserActions::<DatabaseConnection>::new(&self.ctx().db)
+        if let Ok((user_action, _)) = UserActions::<DatabaseConnection>::new(&self.ctx().db)
             .get_by_email_and_action(&user.email, ACTION_NAME)
             .await
         {
-            if action.created_at + (ACTION_COOLDOWN_IN_MINUTES * 60)
+            println!("user_action: {:?}", user_action);
+            if user_action.created_at + (ACTION_COOLDOWN_IN_MINUTES * 60)
                 > chrono::Utc::now().timestamp()
             {
                 return Err(Error::TooManyRequests("too_soon".to_string()));

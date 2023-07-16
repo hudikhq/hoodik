@@ -31,6 +31,14 @@ const data = computed({
       v-model="data.users.allow_register"
       :disabled="loading"
     />
+
+    <UniversalCheckbox
+      label="Enforce email activation"
+      name="enforce_email_activation"
+      v-model="data.users.enforce_email_activation"
+      :disabled="loading"
+    />
+
     <span class="text-sm text-brownish-300">
       If the registration is turned off, users will be able to register only when they are invited,
       or if their email matches any of the whitelist (and not blacklist) rules below
@@ -39,6 +47,7 @@ const data = computed({
     <div class="mt-4">
       <ListInput v-model="data.users.email_whitelist" label="Whitelist" :disabled="loading" />
     </div>
+
     <span class="text-sm text-brownish-300">
       Add patterns that will be used to validate the email address of the user. You can use asterisk
       (*) to create a pattern. <br />

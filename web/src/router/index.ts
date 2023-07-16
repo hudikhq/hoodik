@@ -69,6 +69,12 @@ const router = createRouter({
       component: () => import('../views/auth/login/IndexView.vue')
     },
     {
+      path: '/auth/login/private-key',
+      name: 'login-private-key',
+      meta: { title: 'Login' },
+      component: () => import('../views/auth/login/PrivateKeyView.vue')
+    },
+    {
       path: '/auth/forgot-password',
       name: 'forgot-password',
       meta: { title: 'Recover your password' },
@@ -87,16 +93,16 @@ const router = createRouter({
       component: () => import('../views/auth/register/KeyView.vue')
     },
     {
-      path: '/auth/login/private-key',
-      name: 'login-private-key',
-      meta: { title: 'Login' },
-      component: () => import('../views/auth/login/PrivateKeyView.vue')
-    },
-    {
       path: '/auth/register/two-factor',
       name: 'register-two-factor',
       meta: { title: 'Create Account - Two Factor Authentication' },
       component: () => import('../views/auth/register/TwoFactorView.vue')
+    },
+    {
+      path: '/auth/register/resend',
+      name: 'register-resend-activation',
+      meta: { title: 'Create Account - Resend Activation Email' },
+      component: () => import('../views/auth/register/ResendActivation.vue')
     },
     {
       path: '/auth/activate-email/:token',
