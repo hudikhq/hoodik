@@ -1,4 +1,4 @@
-use entity::{user_actions, users, ConnectionTrait, EntityTrait};
+use entity::{user_actions, users, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
 use error::{AppResult, Error};
 
 pub(crate) struct UserActions<'ctx, T: ConnectionTrait> {
@@ -58,6 +58,26 @@ where
         id: entity::Uuid,
     ) -> AppResult<(user_actions::Model, users::Model)> {
         let query = user_actions::Entity::find_by_id(id)
+            .inner_join(users::Entity)
+            .select_also(users::Entity);
+
+        let result = query.one(self.connection).await?.ok_or(Error::NotFound(
+            "user_action_not_found_or_executed".to_string(),
+        ))?;
+
+        // Its okay to unwrap here, we did inner_join
+        Ok((result.0, result.1.unwrap()))
+    }
+
+    /// Find user action by email and action name
+    pub(crate) async fn get_by_email_and_action(
+        &self,
+        email: &str,
+        action: &str,
+    ) -> AppResult<(user_actions::Model, users::Model)> {
+        let query = user_actions::Entity::find()
+            .filter(user_actions::Column::Email.eq(email))
+            .filter(user_actions::Column::Action.eq(action))
             .inner_join(users::Entity)
             .select_also(users::Entity);
 
