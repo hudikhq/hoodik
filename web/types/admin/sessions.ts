@@ -1,10 +1,5 @@
 import type { Query } from '!/api'
 
-export interface Paginated {
-  sessions: Session[]
-  total: number
-}
-
 export interface Session {
   id: string
   user_id: string

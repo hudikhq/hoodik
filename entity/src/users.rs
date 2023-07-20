@@ -7,7 +7,7 @@ fn option_into_bool<S>(x: &Option<String>, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    s.serialize_bool(x.clone().map(|_| true).unwrap_or(false))
+    s.serialize_bool(x.is_some())
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, DeriveEntityModel, Eq)]

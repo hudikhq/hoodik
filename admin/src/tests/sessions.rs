@@ -21,7 +21,7 @@ async fn test_find_sessions() {
         })
         .await
         .unwrap();
-    let sessions = paginated.sessions;
+    let sessions = paginated.data;
 
     assert_eq!(sessions.len(), 5);
 }
@@ -46,7 +46,7 @@ async fn test_find_sessions_by_ip() {
         })
         .await
         .unwrap();
-    let sessions = paginated.sessions;
+    let sessions = paginated.data;
 
     assert_eq!(sessions.len(), 1);
 }
@@ -83,7 +83,7 @@ async fn test_find_sessions_by_email() {
         })
         .await
         .unwrap();
-    let sessions = paginated.sessions;
+    let sessions = paginated.data;
 
     assert_eq!(sessions.len(), 1);
 }
@@ -108,7 +108,7 @@ async fn test_find_sessions_by_user_agent() {
         })
         .await
         .unwrap();
-    let sessions = paginated.sessions;
+    let sessions = paginated.data;
 
     assert_eq!(sessions.len(), 1);
 }
@@ -138,7 +138,7 @@ async fn test_session_killing() {
         .await
         .unwrap();
 
-    let sessions = paginated.sessions;
+    let sessions = paginated.data;
     let should_be_expired = sessions.iter().find(|s| s.id == session.id).unwrap();
 
     assert!(should_be_expired.expires_at <= Utc::now().timestamp());
@@ -159,7 +159,7 @@ async fn test_session_killing() {
         .await
         .unwrap();
 
-    let sessions = paginated.sessions;
+    let sessions = paginated.data;
 
     for session in sessions {
         assert!(!session.active);

@@ -27,6 +27,11 @@ export type LoginStore = ReturnType<typeof loginStore>
 export type CryptoStore = ReturnType<typeof cryptoStore>
 export type LinksStore = ReturnType<typeof linksStore>
 
+export interface Paginated<T> {
+  data: T[]
+  total: number
+}
+
 export interface Parameters extends Query {
   dir_id?: string | null
   order?: 'asc' | 'desc'

@@ -57,7 +57,7 @@ impl<'ctx> AuthProvider for SignatureProvider<'ctx> {
 
         cryptfns::rsa::public::verify(&nonce, &signature, &user.pubkey)?;
 
-        let session = self.auth.generate_session(&user, user_agent, ip).await?;
+        let session = self.auth.generate(&user, user_agent, ip).await?;
 
         Ok(Authenticated { user, session })
     }

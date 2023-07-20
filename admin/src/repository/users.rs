@@ -1,13 +1,13 @@
 use chrono::Utc;
 use entity::{
-    sessions, sort::Sortable, users, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, Expr,
-    IntoCondition, JoinType, ModelTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
-    RelationTrait, Select, Uuid,
+    paginated::Paginated, sessions, sort::Sortable, users, ActiveValue, ColumnTrait,
+    ConnectionTrait, EntityTrait, Expr, IntoCondition, JoinType, ModelTrait, PaginatorTrait,
+    QueryFilter, QueryOrder, QuerySelect, RelationTrait, Select, Uuid,
 };
 use error::{AppResult, Error};
 use validr::Validation;
 
-use crate::data::users::{response::Paginated, search::Search, update::Update, user::User};
+use crate::data::users::{search::Search, update::Update, user::User};
 
 use super::Repository;
 
@@ -49,7 +49,7 @@ where
     }
 
     /// Search through users
-    pub(crate) async fn find(&self, users: Search) -> AppResult<Paginated> {
+    pub(crate) async fn find(&self, users: Search) -> AppResult<Paginated<User>> {
         let users = users.validate()?;
 
         let mut query = self.join_query();
@@ -81,7 +81,7 @@ where
             .all(self.repository.connection())
             .await?;
 
-        Ok(Paginated { users, total })
+        Ok(Paginated::new(users, total))
     }
 
     /// Find a single user by their id

@@ -21,6 +21,7 @@ export interface Session {
   user_id: string
   device_id?: string
   ip: string
+  refresh: boolean
   user_agent: string
   created_at: number
   updated_at: number

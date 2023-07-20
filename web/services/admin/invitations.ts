@@ -1,11 +1,12 @@
 import Api from '!/api'
-import type { Search, Invitation, Create, Paginated } from 'types/admin/invitations'
+import type { Paginated } from 'types'
+import type { Search, Invitation, Create } from 'types/admin/invitations'
 
 /**
  * Get paginated array of the invitations sent to the potential new users
  */
-export async function index(search: Search): Promise<Paginated> {
-  const response = await Api.get<Paginated>(`/api/admin/invitations`, search)
+export async function index(search: Search): Promise<Paginated<Invitation>> {
+  const response = await Api.get<Paginated<Invitation>>(`/api/admin/invitations`, search)
 
   if (!response.body) {
     throw new Error('Failed to get invitations')

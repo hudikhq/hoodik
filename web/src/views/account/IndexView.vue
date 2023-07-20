@@ -6,6 +6,7 @@ import StorageStats from './index/StorageStats.vue'
 import EnableTfaModal from '@/components/modals/EnableTfaModal.vue'
 import DisableTfaModal from '@/components/modals/DisableTfaModal.vue'
 import { ref } from 'vue'
+import ActivityInner from './index/ActivityInner.vue'
 
 const disableTfaModal = ref(false)
 const enableTfaModal = ref(false)
@@ -33,6 +34,10 @@ const enableTfaModal = ref(false)
             @enable-tfa="enableTfaModal = true"
           />
           <StorageStats />
+        </div>
+
+        <div class="flex mt-2">
+          <ActivityInner class="w-full" />
         </div>
       </SectionMain>
     </Suspense>

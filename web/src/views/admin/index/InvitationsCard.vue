@@ -7,17 +7,18 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import InvitationRow from './InvitationRow.vue'
 import { index, expire } from '!/admin/invitations'
 import { computed, ref, watch } from 'vue'
-import type { Paginated, Search } from 'types/admin/invitations'
+import type { Invitation, Search } from 'types/admin/invitations'
 import { AppField } from '@/components/form'
 import { mdiSearchWeb, mdiPlus } from '@mdi/js'
 import UniversalCheckbox from '@/components/ui/UniversalCheckbox.vue'
 import InviteUserModal from '@/components/modals/InviteUserModal.vue'
+import type { Paginated } from 'types'
 
 const props = defineProps<{
   class?: string
 }>()
 
-const paginated = ref<Paginated>()
+const paginated = ref<Paginated<Invitation>>()
 const query = ref<Search>({
   sort: 'created_at',
   order: 'desc',
@@ -130,7 +131,7 @@ watch(query, find, { deep: true, immediate: true })
           <tbody>
             <InvitationRow
               :invitation="invitation"
-              v-for="invitation in paginated.invitations"
+              v-for="invitation in paginated.data"
               :key="invitation.id"
               @expire="expireOne(invitation.id)"
             />
@@ -140,7 +141,7 @@ watch(query, find, { deep: true, immediate: true })
         <div class="flex justify-center mt-4">
           <BaseButton label="Previous" @click="previousPage" :disabled="disablePreviousPage" />
           <div class="m-2">
-            {{ (query.offset || 0) + paginated.invitations.length }} / {{ paginated.total }}
+            {{ (query.offset || 0) + paginated.data.length }} / {{ paginated.total }}
           </div>
           <BaseButton label="Next Page" @click="nextPage" :disabled="disableNextPage" />
         </div>

@@ -1,5 +1,7 @@
 use chrono::{Duration, Utc};
-use entity::{sessions, users, ActiveModelTrait, ActiveValue, EntityTrait, Uuid};
+use entity::{
+    sessions, users, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, QueryFilter, Uuid,
+};
 use error::{AppResult, Error};
 
 use crate::data::authenticated::Authenticated;
@@ -13,7 +15,7 @@ where
     Self: Ctx + Repository,
 {
     /// Generate a new session for a user
-    async fn generate_session(
+    async fn generate(
         &self,
         user: &users::Model,
         user_agent: &str,
@@ -48,7 +50,7 @@ where
     }
 
     /// Refresh session, if it's not expired. Refreshing a session will extend the expiration date by 10 minutes.
-    async fn refresh_session(&self, session: &sessions::Model) -> AppResult<Authenticated> {
+    async fn refresh(&self, session: &sessions::Model) -> AppResult<Authenticated> {
         let expires_at = Utc::now().naive_utc()
             + Duration::seconds(self.ctx().config.auth.short_term_session_duration_seconds);
 
@@ -70,7 +72,7 @@ where
     }
 
     /// Perform the logout action
-    async fn destroy_session(&self, session: &sessions::Model) -> AppResult<Authenticated> {
+    async fn destroy(&self, session: &sessions::Model) -> AppResult<Authenticated> {
         let active_model = sessions::ActiveModel {
             id: ActiveValue::Set(session.id),
             user_id: ActiveValue::Set(session.user_id),
@@ -86,5 +88,39 @@ where
         let session = active_model.update(self.connection()).await?;
 
         self.get_by_session_id(session.id).await
+    }
+
+    /// Destroy all sessions for a user except the current one
+    async fn destroy_all(&self, id: Uuid, user_id: Uuid) -> AppResult<()> {
+        let active_model = sessions::ActiveModel {
+            refresh: ActiveValue::Set(None),
+            updated_at: ActiveValue::Set(Utc::now().timestamp()),
+            expires_at: ActiveValue::Set(Utc::now().timestamp()),
+            ..Default::default()
+        };
+
+        sessions::Entity::update_many()
+            .filter(sessions::Column::Id.ne(id))
+            .filter(sessions::Column::UserId.eq(user_id))
+            .filter(sessions::Column::Refresh.is_not_null())
+            .set(active_model)
+            .exec(self.connection())
+            .await?;
+
+        Ok(())
+    }
+
+    /// Find session by its id
+    async fn get(&self, id: Uuid, user_id: Uuid) -> AppResult<sessions::Model> {
+        let session = sessions::Entity::find_by_id(id)
+            .one(self.connection())
+            .await?
+            .ok_or(Error::NotFound("session_not_found".to_string()))?;
+
+        if session.user_id != user_id {
+            return Err(Error::NotFound("session_not_found".to_string()));
+        }
+
+        Ok(session)
     }
 }
