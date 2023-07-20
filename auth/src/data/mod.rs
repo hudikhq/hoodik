@@ -1,3 +1,4 @@
+pub mod activity_query;
 pub mod authenticated;
 pub mod change_password;
 pub mod claims;

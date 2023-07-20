@@ -16,7 +16,7 @@ pub(crate) async fn logout(
 ) -> AppResult<HttpResponse> {
     let auth = Auth::new(&context);
 
-    let authenticated = auth.destroy_session(&authenticated.session).await?;
+    let authenticated = auth.destroy(&authenticated.session).await?;
 
     let mut response = HttpResponse::NoContent();
 

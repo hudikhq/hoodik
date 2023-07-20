@@ -1,8 +1,9 @@
-use crate::data::sessions::{response::Paginated, search::Search, session::Session};
+use crate::data::sessions::{search::Search, session::Session};
 
 use super::Repository;
 use chrono::Utc;
 use entity::{
+    paginated::Paginated,
     sessions::{self, ActiveModel},
     sort::Sortable,
     users, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, JoinType, PaginatorTrait,
@@ -24,7 +25,7 @@ where
     }
 
     /// Find all the sessions
-    pub(crate) async fn find(&self, sessions: Search) -> AppResult<Paginated> {
+    pub(crate) async fn find(&self, sessions: Search) -> AppResult<Paginated<Session>> {
         let sessions = sessions.validate()?;
 
         let mut query = sessions::Entity::find().select_only();
@@ -74,7 +75,7 @@ where
             .all(self.repository.connection())
             .await?;
 
-        Ok(Paginated { sessions, total })
+        Ok(Paginated::new(sessions, total))
     }
 
     /// Kill the session instantly

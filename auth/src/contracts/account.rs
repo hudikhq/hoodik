@@ -1,7 +1,14 @@
-use entity::{users, ActiveValue, Uuid};
+use chrono::Utc;
+use entity::{
+    paginated::Paginated, sessions, sort::Sortable, users, ActiveValue, ColumnTrait, EntityTrait,
+    PaginatorTrait, QueryFilter, QuerySelect, Uuid,
+};
 use error::{AppResult, Error};
+use validr::Validation;
 
-use crate::data::{change_password::ChangePassword, two_factor::Enable};
+use crate::data::{
+    activity_query::ActivityQuery, change_password::ChangePassword, two_factor::Enable,
+};
 
 use super::repository::Repository;
 
@@ -75,6 +82,52 @@ where
         .await?;
 
         Ok(())
+    }
+
+    /// Load the paginated list of users activity (sessions)
+    async fn activity(&self, parameters: ActivityQuery) -> AppResult<Paginated<sessions::Model>> {
+        let parameters = parameters.validate()?;
+
+        let user_id = parameters
+            .user_id
+            .ok_or_else(|| Error::BadRequest("user_id_is_required".to_string()))?;
+
+        let mut query = sessions::Entity::find().filter(sessions::Column::UserId.eq(user_id));
+
+        if !parameters.with_expired.unwrap_or(false) {
+            query = query.filter(sessions::Column::ExpiresAt.gt(Utc::now().timestamp()));
+        }
+
+        if let Some(sort) = parameters.sort.as_ref() {
+            query = match parameters.order.as_deref() {
+                Some("desc") => sort.sort_desc(query),
+                _ => sort.sort_asc(query),
+            };
+        }
+
+        if let Some(search) = parameters.search {
+            let maybe_uuid = Uuid::parse_str(search.as_str()).ok();
+
+            if let Some(uuid) = maybe_uuid {
+                query = query.filter(sessions::Column::Id.eq(uuid));
+            } else {
+                query = query.filter(
+                    sessions::Column::Ip
+                        .contains(search.as_str())
+                        .or(sessions::Column::DeviceId.contains(search.as_str()))
+                        .or(sessions::Column::UserAgent.contains(search.as_str())),
+                );
+            }
+        }
+
+        let total = query.clone().count(self.connection()).await?;
+
+        query = query.limit(parameters.limit.unwrap_or(15));
+        query = query.offset(parameters.offset.unwrap_or(0));
+
+        let sessions = query.all(self.connection()).await?;
+
+        Ok(Paginated::new(sessions, total))
     }
 }
 

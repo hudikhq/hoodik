@@ -60,7 +60,7 @@ impl<'ctx> AuthProvider for CredentialsProvider<'ctx> {
             return Err(Error::Unauthorized("inactive_account".to_string()));
         }
 
-        let session = self.auth.generate_session(&user, user_agent, ip).await?;
+        let session = self.auth.generate(&user, user_agent, ip).await?;
 
         Ok(Authenticated { user, session })
     }

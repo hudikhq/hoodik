@@ -9,7 +9,7 @@ use crate::{data::invitations::search::Search, repository::Repository};
 ///
 /// Request: [crate::data::invitations::search::Search]
 ///
-/// Response: [Vec<entity::invitations::Model>]
+/// Response: [entity::paginated::Paginated<entity::invitations::Model>]
 #[route("/api/admin/invitations", method = "GET")]
 pub(crate) async fn index(
     staff: Staff,

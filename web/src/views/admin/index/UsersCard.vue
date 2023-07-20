@@ -7,16 +7,17 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import UserRow from './UserRow.vue'
 import { index } from '!/admin/users'
 import { computed, ref, watch } from 'vue'
-import type { Paginated, Search } from 'types/admin/users'
+import type { Search, User } from 'types/admin/users'
 import { AppField } from '@/components/form'
 import { mdiSearchWeb } from '@mdi/js'
 import InviteUserModal from '@/components/modals/InviteUserModal.vue'
+import type { Paginated } from 'types'
 
 const props = defineProps<{
   class?: string
 }>()
 
-const paginated = ref<Paginated>()
+const paginated = ref<Paginated<User>>()
 const query = ref<Search>({
   sort: 'created_at',
   order: 'desc',
@@ -106,14 +107,14 @@ watch(query, find, { deep: true, immediate: true })
           </thead>
 
           <tbody>
-            <UserRow :user="user" v-for="user in paginated.users" :key="user.id" />
+            <UserRow :user="user" v-for="user in paginated.data" :key="user.id" />
           </tbody>
         </table>
 
         <div class="flex justify-center mt-4">
           <BaseButton label="Previous" @click="previousPage" :disabled="disablePreviousPage" />
           <div class="m-2">
-            {{ (query.offset || 0) + paginated.users.length }} / {{ paginated.total }}
+            {{ (query.offset || 0) + paginated.data.length }} / {{ paginated.total }}
           </div>
           <BaseButton label="Next Page" @click="nextPage" :disabled="disableNextPage" />
         </div>

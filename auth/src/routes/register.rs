@@ -52,7 +52,7 @@ pub(crate) async fn register(
         return Ok(HttpResponse::NoContent().finish());
     }
 
-    let session = auth.generate_session(&user, &user_agent, &ip).await?;
+    let session = auth.generate(&user, &user_agent, &ip).await?;
     let authenticated = Authenticated { user, session };
 
     let mut response = HttpResponse::Created();
