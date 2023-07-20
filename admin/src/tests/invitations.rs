@@ -32,7 +32,7 @@ async fn test_invite_user() {
         })
         .await
         .unwrap();
-    let invitations = paginated.invitations;
+    let invitations = paginated.data;
 
     assert_eq!(invitations.len(), 1);
     assert_eq!(invitations[0].email, "eleven@test.com");
@@ -68,7 +68,7 @@ async fn test_expire_invitation() {
         })
         .await
         .unwrap();
-    let invitations = paginated.invitations;
+    let invitations = paginated.data;
 
     assert_eq!(invitations.len(), 1);
     let invitation = invitations.get(0).unwrap();
@@ -91,7 +91,7 @@ async fn test_expire_invitation() {
         })
         .await
         .unwrap();
-    let invitations = paginated.invitations;
+    let invitations = paginated.data;
 
     assert_eq!(invitations.len(), 0);
 }

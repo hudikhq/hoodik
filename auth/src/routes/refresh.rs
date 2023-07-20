@@ -25,7 +25,7 @@ pub(crate) async fn refresh(req: HttpRequest) -> AppResult<HttpResponse> {
 
     let auth = Auth::new(context);
     let authenticated = auth.get_by_refresh(refresh_token).await?;
-    let authenticated = auth.refresh_session(&authenticated.session).await?;
+    let authenticated = auth.refresh(&authenticated.session).await?;
 
     let (jwt, refresh) = auth.manage_cookies(&authenticated, module_path!())?;
 

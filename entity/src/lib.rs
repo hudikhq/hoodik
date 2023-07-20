@@ -2,6 +2,7 @@ pub mod file_tokens;
 pub mod files;
 pub mod invitations;
 pub mod links;
+pub mod paginated;
 pub mod prelude;
 pub mod sessions;
 pub mod tokens;

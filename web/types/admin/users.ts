@@ -2,11 +2,6 @@ import type { Stats } from './files'
 import type { Query } from '!/api'
 import type { Session } from './sessions'
 
-export interface Paginated {
-  users: User[]
-  total: number
-}
-
 export interface Update {
   role?: string
 }

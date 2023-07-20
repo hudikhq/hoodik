@@ -11,9 +11,3 @@ pub struct Response {
     /// Stats for the user's files.
     pub stats: Vec<Stats>,
 }
-
-#[derive(Debug, Serialize)]
-pub struct Paginated {
-    pub users: Vec<User>,
-    pub total: u64,
-}

@@ -5,23 +5,20 @@ import CardBoxComponentHeader from '@/components/ui/CardBoxComponentHeader.vue'
 import SortableName from '@/components/ui/SortableName.vue'
 import PuppyLoader from '@/components/ui/PuppyLoader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import SessionRow from './SessionRow.vue'
-import { index, killForUser, kill } from '!/admin/sessions'
+import ActivityRow from './ActivityRow.vue'
+import { activity, killAll as killAllInner, kill } from '!/account'
 import { computed, ref, watch } from 'vue'
-import type { Paginated, Search } from 'types/admin/sessions'
 import { AppField } from '@/components/form'
 import { mdiSearchWeb, mdiDelete } from '@mdi/js'
-import type { User } from 'types/admin/users'
+import { store as loginStore } from '!/auth/login'
 import UniversalCheckbox from '@/components/ui/UniversalCheckbox.vue'
+import type { Paginated, Session, ActivityQuery, Authenticated } from 'types'
 
-const props = defineProps<{
-  user: User
-}>()
-
-const paginated = ref<Paginated>()
-const query = ref<Search>({
-  with_expired: true,
-  sort: 'updated_at',
+const login = loginStore()
+const paginated = ref<Paginated<Session>>()
+const query = ref<ActivityQuery>({
+  with_expired: false,
+  sort: 'expires_at',
   order: 'desc',
   search: undefined,
   limit: 15,
@@ -63,11 +60,11 @@ const nextPage = () => {
 }
 
 const find = async () => {
-  paginated.value = await index({ ...query.value, user_id: props.user.id })
+  paginated.value = await activity({ ...query.value })
 }
 
 const killAll = async () => {
-  await killForUser(props.user.id)
+  await killAllInner()
 
   query.value = { ...query.value, limit: 15, offset: 0 }
 }
@@ -82,7 +79,7 @@ watch(query, find, { deep: true, immediate: true })
 </script>
 <template>
   <CardBox>
-    <CardBoxComponentHeader :title="`User Sessions (${total})`" class="mb-4">
+    <CardBoxComponentHeader :title="`My Activity (${total})`" class="mb-4">
       <div class="flex space-x-2 pt-2">
         <div class="mt-1 mr-2">
           <UniversalCheckbox
@@ -93,7 +90,7 @@ watch(query, find, { deep: true, immediate: true })
         </div>
         <BaseButtonConfirm
           color="danger"
-          label="Kill all sessions"
+          label="Kill all activity"
           confirm-label="Confirm"
           @confirm="killAll"
           :icon="mdiDelete"
@@ -119,9 +116,6 @@ watch(query, find, { deep: true, immediate: true })
       <table class="w-full">
         <thead>
           <tr>
-            <th class="text-left">
-              <SortableName label="Email" name="email" v-model="query" />
-            </th>
             <th class="text-left">IP</th>
             <th class="text-left">User Agent</th>
             <th class="text-left">
@@ -139,9 +133,10 @@ watch(query, find, { deep: true, immediate: true })
         </thead>
 
         <tbody>
-          <SessionRow
+          <ActivityRow
+            :authenticated="(login.authenticated as Authenticated)"
             :session="session"
-            v-for="session in paginated.sessions"
+            v-for="session in paginated.data"
             :key="session.id"
             @kill="killOne(session.id)"
           />
@@ -151,7 +146,7 @@ watch(query, find, { deep: true, immediate: true })
       <div class="flex justify-center mt-4">
         <BaseButton label="Previous" @click="previousPage" :disabled="disablePreviousPage" />
         <div class="m-2">
-          {{ (query.offset || 0) + paginated.sessions.length }} / {{ paginated.total }}
+          {{ (query.offset || 0) + paginated.data.length }} / {{ paginated.total }}
         </div>
         <BaseButton label="Next Page" @click="nextPage" :disabled="disableNextPage" />
       </div>

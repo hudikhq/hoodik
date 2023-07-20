@@ -9,7 +9,7 @@ use crate::{data::sessions::search::Search, repository::Repository};
 ///
 /// Request: [crate::data::sessions::search::Search]
 ///
-/// Response: [Vec<data::sessions::session::Session>]
+/// Response: [entity::paginated::Paginated<data::sessions::session::Session>]
 #[route("/api/admin/sessions", method = "GET")]
 pub(crate) async fn index(
     staff: Staff,

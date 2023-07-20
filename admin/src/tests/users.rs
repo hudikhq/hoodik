@@ -18,7 +18,7 @@ async fn test_find_all_users() {
         })
         .await
         .unwrap();
-    let users = paginated.users;
+    let users = paginated.data;
 
     assert_eq!(users.len(), 9);
     assert_eq!(users[0].email, "1@test.com");
@@ -42,7 +42,7 @@ async fn test_pagination_for_users() {
         })
         .await
         .unwrap();
-    let users = paginated.users;
+    let users = paginated.data;
 
     assert_eq!(users.len(), 1);
     assert_eq!(users[0].email, "2@test.com");
@@ -65,7 +65,7 @@ async fn test_sort_for_users() {
         })
         .await
         .unwrap();
-    let users = paginated.users;
+    let users = paginated.data;
 
     assert_eq!(users.len(), 9);
     assert_eq!(users[0].email, "9@test.com");
@@ -88,7 +88,7 @@ async fn test_search_user_by_email() {
         })
         .await
         .unwrap();
-    let users = paginated.users;
+    let users = paginated.data;
 
     assert_eq!(users.len(), 1);
     assert_eq!(users[0].email, "1@test.com");
@@ -117,7 +117,7 @@ async fn test_find_all_users_and_properly_add_session() {
         })
         .await
         .unwrap();
-    let users = paginated.users;
+    let users = paginated.data;
 
     assert_eq!(users.len(), 9);
     assert_eq!(users[0].email, "1@test.com");
