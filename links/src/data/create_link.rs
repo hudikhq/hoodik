@@ -25,7 +25,7 @@ pub struct CreateLink {
     pub encrypted_file_key: Option<String>,
 
     /// Optional date when the link will expire.
-    pub expires_at: Option<String>,
+    pub expires_at: Option<i64>,
 }
 
 impl Validation for CreateLink {
@@ -35,13 +35,6 @@ impl Validation for CreateLink {
             rule_required!(encrypted_name),
             rule_required!(encrypted_link_key),
             rule_required!(encrypted_file_key),
-            Rule::new("expires_at", |obj: &Self, error| {
-                if let Some(v) = obj.expires_at.as_deref() {
-                    if util::datetime::parse_into_naive_datetime(v, Some("expires_at")).is_err() {
-                        error.add("invalid_date")
-                    }
-                }
-            }),
         ]
     }
 }
@@ -49,13 +42,6 @@ impl Validation for CreateLink {
 impl CreateLink {
     pub fn into_active_model(self, user_id: Uuid) -> AppResult<(ActiveModel, String, Uuid)> {
         let data = self.validate()?;
-
-        let expires_at = match data.expires_at.as_deref() {
-            Some(v) => {
-                Some(util::datetime::parse_into_naive_datetime(v, Some("expires_at"))?.timestamp())
-            }
-            None => None,
-        };
 
         let file_id = match data.file_id.as_deref() {
             Some(v) => Uuid::parse_str(v)?,
@@ -76,7 +62,7 @@ impl CreateLink {
                 encrypted_thumbnail: ActiveValue::Set(data.encrypted_thumbnail),
                 encrypted_file_key: ActiveValue::Set(data.encrypted_file_key),
                 created_at: ActiveValue::Set(Utc::now().timestamp()),
-                expires_at: ActiveValue::Set(expires_at),
+                expires_at: ActiveValue::Set(data.expires_at),
             },
             data.signature.unwrap(),
             file_id,
