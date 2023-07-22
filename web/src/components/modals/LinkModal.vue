@@ -83,9 +83,9 @@ const linkExpiresAt = computed(() => {
 })
 
 const isExpired = computed(() => {
-  const now = new Date()
+  const now = new Date().valueOf() / 1000
 
-  return link.value?.expires_at && new Date(link.value?.expires_at) < now
+  return link.value?.expires_at && link.value?.expires_at < now
 })
 
 const linkUrl = computed(() => {
