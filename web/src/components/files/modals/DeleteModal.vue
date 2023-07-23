@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import type { FilesStore, KeyPair, AppFile } from 'types'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const props = defineProps<{
   modelValue: AppFile | undefined
@@ -19,6 +22,11 @@ const confirmRemove = async () => {
   if (!props.modelValue) return
 
   await props.Storage.remove(props.kp, props.modelValue)
+
+  router.push({
+    name: 'files',
+    params: { file_id: props.modelValue.file_id }
+  })
 
   emits('update:modelValue', undefined)
 }
