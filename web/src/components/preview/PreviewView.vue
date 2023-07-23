@@ -13,6 +13,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import PreviewImage from './PreviewImage.vue'
 import { computed, onMounted, onUnmounted } from 'vue'
 import type { Preview } from '!/preview'
+import PreviewPdf from './PreviewPdf.vue'
 
 const props = defineProps<{
   modelValue: Preview
@@ -115,11 +116,14 @@ onUnmounted(() => {
   <Suspense>
     <div
       v-if="preview"
-      class="fixed top-0 left-0 flex flex-col items-center justify-center w-full h-full dark:bg-brownish-950 pt-20 pb-20"
+      class="fixed top-0 left-0 flex flex-col items-center justify-center w-full h-full dark:bg-brownish-950 pt-12"
+      :class="{
+        'pb-20': previewType !== 'pdf'
+      }"
     >
       <slot />
       <div class="absolute top-0 w-full">
-        <div class="float-right space-x-4 p-4">
+        <div class="float-right space-x-2 p-2">
           <BaseButton
             v-if="!hideDelete"
             color="danger"
@@ -151,13 +155,10 @@ onUnmounted(() => {
             name="preview-close"
           />
         </div>
-        <div class="float-left space-x-4 p-4">
+        <div class="float-left space-x-2 p-2 hidden sm:block">
           <h1>{{ preview.name }}</h1>
         </div>
-      </div>
-
-      <div class="absolute top-12 w-full" v-if="!hidePreviousAndNext">
-        <div class="flex justify-center space-x-4 p-4" v-if="preview.is()">
+        <div class="flex justify-center space-x-2 p-2" v-if="!hidePreviousAndNext">
           <BaseButton
             :disabled="!previousId"
             color="dark"
@@ -183,6 +184,7 @@ onUnmounted(() => {
       </div>
 
       <PreviewImage v-if="previewType === 'image'" v-model="preview" />
+      <PreviewPdf v-else-if="previewType === 'pdf'" v-model="preview" />
 
       <div class="flex flex-col" v-else>
         <div class="mb-4 text-center">

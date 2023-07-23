@@ -1,5 +1,39 @@
+import type { AppLink, AppFile } from 'types'
 type NonFunctionPropertyNames<T> = { [K in keyof T]: T[K] extends Function ? never : K }[keyof T]
 export type ConstructPreview<T> = Pick<T, NonFunctionPropertyNames<T>>
+
+/**
+ * Check if the file or link is previewable
+ */
+export function isPreviewable(item: AppFile | AppLink): boolean {
+  if ((item as AppLink).file_mime) {
+    return isLinkPreviewable(item as AppLink)
+  }
+
+  return isFilePreviewable(item as AppFile)
+}
+
+/**
+ * Helper to check if the file is previewable
+ */
+function isFilePreviewable(item: AppFile): boolean {
+  return (
+    !!item.size &&
+    item.size > 0 &&
+    (item.thumbnail !== undefined || item.mime === 'application/pdf')
+  )
+}
+
+/**
+ * Helper to check if the link is previewable
+ */
+function isLinkPreviewable(item: AppLink): boolean {
+  return (
+    !!item.file_size &&
+    item.file_size > 0 &&
+    (item.thumbnail !== undefined || item.file_mime === 'application/pdf')
+  )
+}
 
 /**
  * Base class for previews, contains common properties
@@ -96,11 +130,7 @@ export abstract class Preview {
    * Lets us know if the wrapped file can have a preview at all
    */
   public is(): boolean {
-    return (
-      !!this.size &&
-      this.size > 0 &&
-      (this.thumbnail !== undefined || this.mime === 'application/pdf')
-    )
+    return isFilePreviewable(this as unknown as AppFile)
   }
 
   /**

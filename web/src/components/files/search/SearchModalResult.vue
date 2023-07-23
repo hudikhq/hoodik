@@ -15,20 +15,7 @@ const emits = defineEmits<{
 
 const url = computed(() => {
   if (props.file.mime !== 'dir') {
-    if (props.file.file_id) {
-      return {
-        name: 'files',
-        params: {
-          file_id: props.file.file_id
-        },
-        hash: `#${props.file.id}`
-      }
-    } else {
-      return {
-        name: 'files',
-        hash: `#${props.file.id}`
-      }
-    }
+    return { name: 'file-preview', params: { id: props.file.id } }
   }
 
   return {
