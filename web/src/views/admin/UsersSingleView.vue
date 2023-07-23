@@ -13,7 +13,9 @@ import { formatPrettyDate } from '!/index'
 import BaseButtonConfirm from '@/components/ui/BaseButtonConfirm.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import SessionsInner from './user/SessionsInner.vue'
+import { useTitle } from '@vueuse/core'
 
+const title = useTitle()
 const route = useRoute()
 const router = useRouter()
 const data = ref<Response>()
@@ -87,6 +89,8 @@ watch(
     id = Array.isArray(id) ? id[0] : id
 
     data.value = await users.get(id)
+
+    title.value = `${data.value.user.email} -- ${window.defaultDocumentTitle}`
   },
   { immediate: true }
 )

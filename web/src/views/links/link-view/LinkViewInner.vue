@@ -7,6 +7,7 @@ import { LinkPreview } from '!/preview/link'
 import PreviewView from '@/components/preview/PreviewView.vue'
 import { formatPrettyDate } from '!/index'
 import PreviewInfoModal from '@/components/links/modals/PreviewInfoModal.vue'
+import { useTitle } from '@vueuse/core'
 
 const props = defineProps<{
   Links: LinksStore
@@ -14,6 +15,7 @@ const props = defineProps<{
   linkKeyHex?: string
 }>()
 
+const title = useTitle()
 const infoLink = ref()
 const unlockError = ref()
 const typedLinkKeyHex = ref<string>()
@@ -56,6 +58,8 @@ const load = async () => {
 
   try {
     link.value = await props.Links.get(props.id, linkKeyHex.value)
+
+    title.value = `${link.value.name} -- ${window.defaultDocumentTitle}`
   } catch (e) {
     const error = e as ErrorResponse<unknown>
     unlockError.value = error.description || error.message

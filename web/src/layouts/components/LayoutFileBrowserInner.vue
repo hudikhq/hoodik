@@ -8,6 +8,7 @@ import ActionsModal from '@/components/files/modals/ActionsModal.vue'
 import RenameModal from '@/components/files/modals/RenameModal.vue'
 import DeleteModal from '@/components/files/modals/DeleteModal.vue'
 import LinkModal from '@/components/links/modals/LinkModal.vue'
+import type { Authenticated, KeyPair, AppFile } from 'types'
 import { store as downloadStore } from '!/storage/download'
 import { store as uploadStore } from '!/storage/upload'
 import { store as storageStore } from '!/storage'
@@ -15,8 +16,8 @@ import { store as cryptoStore } from '!/crypto'
 import { store as linksStore } from '!/links'
 import { errorNotification } from '!/index'
 import { computed, ref, watch } from 'vue'
+import { useTitle } from '@vueuse/core'
 import { useRoute } from 'vue-router'
-import type { Authenticated, KeyPair, AppFile } from 'types'
 
 const props = defineProps<{
   parentId?: string
@@ -27,6 +28,7 @@ const props = defineProps<{
   keypair: KeyPair
 }>()
 
+const title = useTitle()
 const route = useRoute()
 const parentId = computed(() => {
   if (props.parentId) {
@@ -184,6 +186,10 @@ const load = async () => {
   // because that means we already have some files and
   // we want to scroll down to them.
   await Storage.find(Crypto.keypair, parentId.value, !route.hash)
+
+  if (Storage.dir) {
+    title.value = `${Storage.dir.name} -- ${window.defaultDocumentTitle}`
+  }
 
   // Load or re-load the stats for the user so it can be properly
   await Storage.loadStats()

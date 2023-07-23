@@ -5,6 +5,7 @@ import type { FilesStore, KeyPair, AppFile } from 'types'
 import { ref, watch } from 'vue'
 import { FilePreview } from '!/preview/file'
 import type { Preview } from '!/preview'
+import { useTitle } from '@vueuse/core'
 
 const props = defineProps<{
   kp: KeyPair
@@ -30,6 +31,7 @@ const emits = defineEmits<{
   (event: 'upload-many', files: FileList, dirId?: string): void
 }>()
 
+const title = useTitle()
 const router = useRouter()
 const route = useRoute()
 const file = ref()
@@ -45,6 +47,8 @@ watch(
     const fileId = Array.isArray(id) ? id[0] : id
 
     file.value = await props.Storage.metadata(fileId, props.kp)
+
+    title.value = `${file.value.name} -- ${window.defaultDocumentTitle}`
 
     props.Storage.deselectAll()
     props.Storage.selectOne(true, file.value)

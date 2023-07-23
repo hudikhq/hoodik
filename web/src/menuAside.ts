@@ -25,13 +25,13 @@ export default [
     label: 'My Account'
   },
   {
-    to: { name: 'admin-dashboard' },
+    to: { name: 'manage-users' },
     icon: mdiHumanMaleFemale,
     label: 'App Users',
     roles: ['admin']
   },
   {
-    to: { name: 'admin-settings' },
+    to: { name: 'manage-settings' },
     icon: mdiCog,
     label: 'App Settings',
     roles: ['admin']

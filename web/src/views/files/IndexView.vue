@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import LayoutFileBrowser from '@/layouts/LayoutFileBrowser.vue'
 import SectionMain from '@/components/ui/SectionMain.vue'
-import CardBox from '@/components/ui/CardBox.vue'
 import BreadCrumbs from '@/components/files/BreadCrumbs.vue'
 import TableFiles from './index-view/TableFiles.vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -74,18 +73,13 @@ watch(fileId, (v) => {
     v-slot="{ Storage, loading, on }"
   >
     <SectionMain>
-      <CardBox rounded="rounded-md" class="mb-2 px-0 py-0" has-table>
-        <div class="w-full border-y-0">
-          <div class="float-left p-2">
-            <BreadCrumbs :parents="Storage.parents" :parentId="parentId" />
-          </div>
-        </div>
-      </CardBox>
+      <BreadCrumbs :parents="Storage.parents" :parentId="parentId" />
 
       <TableFiles
         :searchedFileId="fileId"
         :selected="Storage.selected"
         :parents="Storage.parents"
+        :parentId="parentId"
         :items="Storage.items"
         :sortOptions="Storage.sortOptions"
         :dir="Storage.dir || null"
