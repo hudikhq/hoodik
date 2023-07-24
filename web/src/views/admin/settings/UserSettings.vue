@@ -25,17 +25,23 @@ const data = computed({
 <template>
   <CardBox v-if="data">
     <h1 class="text-2xl text-white mb-4">User settings</h1>
-    <UniversalCheckbox
-      label="Allow registration to new users"
-      name="allow_register"
-      v-model="data.users.allow_register"
-      :disabled="loading"
-    />
 
     <UniversalCheckbox
       label="Enforce email activation"
       name="enforce_email_activation"
       v-model="data.users.enforce_email_activation"
+      :disabled="loading"
+    />
+
+    <span class="text-sm text-brownish-300">
+      If enabled, users will have to activate their account by clicking on a link sent to their
+      email address.
+    </span>
+
+    <UniversalCheckbox
+      label="Allow registration to new users"
+      name="allow_register"
+      v-model="data.users.allow_register"
       :disabled="loading"
     />
 
