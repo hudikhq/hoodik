@@ -54,11 +54,11 @@ if (
 }
 
 /* Default title tag */
-const defaultDocumentTitle = 'Hoodik - End 2 End Encrypted File Storage'
+window.defaultDocumentTitle = import.meta.env.APP_NAME || 'Hoodik'
 
 /* Set document title from route meta */
 router.afterEach((to) => {
   document.title = to.meta?.title
-    ? `${to.meta.title} — ${defaultDocumentTitle}`
-    : defaultDocumentTitle
+    ? `${to.meta.title} — ${window.defaultDocumentTitle}`
+    : window.defaultDocumentTitle
 })

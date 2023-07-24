@@ -42,7 +42,7 @@ const lastActiveAt = computed(() => {
     <td class="text-right">
       <BaseButton
         :to="{
-          name: 'admin-users-single',
+          name: 'manage-users-single',
           params: {
             id: user.id
           }

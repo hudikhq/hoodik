@@ -11,10 +11,10 @@ import {
   mdiLink
 } from '@mdi/js'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
+import SortableName from '@/components/ui/SortableName.vue'
 import TableFileRowWatcher from './TableFileRowWatcher.vue'
 import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import SortableName from '@/components/ui/SortableName.vue'
 import { computed, ref, watch } from 'vue'
 import type { AppFile } from 'types'
 
@@ -22,6 +22,7 @@ const props = defineProps<{
   selected: AppFile[]
   items: AppFile[]
   parents: AppFile[]
+  parentId: string | undefined
   dir: AppFile | null
   file_id?: string
   searchedFileId?: string

@@ -58,9 +58,9 @@ const linkExpiresAt = computed(() => {
 })
 
 const isExpired = computed(() => {
-  const now = new Date()
+  const now = new Date().valueOf() / 1000
 
-  return props.link?.expires_at && new Date(props.link?.expires_at) < now
+  return props.link?.expires_at && props.link?.expires_at < now
 })
 
 const sharedClass = computed(() => {

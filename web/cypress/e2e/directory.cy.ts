@@ -15,7 +15,7 @@ describe('Handle directories', () => {
 
     cy.get('button').contains('span', 'Test_dir').should('not.exist')
 
-    cy.get('a').contains('span', '/').click()
+    cy.get('a').contains('span', 'My Files').click()
     cy.contains('span', 'Test_dir')
 
     cy.get('button').contains('span', 'Test_dir')

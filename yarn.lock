@@ -8450,6 +8450,11 @@ vue-tsc@^1.2.0:
     "@vue/typescript" "1.8.4"
     semver "^7.3.8"
 
+vue3-pdf-app@^1.0.3:
+  version "1.0.3"
+  resolved "https://registry.yarnpkg.com/vue3-pdf-app/-/vue3-pdf-app-1.0.3.tgz#2f4ad738d7d86e8082a1aacbe498c5a08cb4d226"
+  integrity sha512-qegWTIF4wYKiocZ3KreB70wRXhqSdXWbdERDyyKzT7d5PbjKbS9tD6vaKkCqh3PzTM84NyKPYrQ3iuwJb60YPQ==
+
 vue@^3.3.4:
   version "3.3.4"
   resolved "https://registry.yarnpkg.com/vue/-/vue-3.3.4.tgz#8ed945d3873667df1d0fcf3b2463ada028f88bd6"
