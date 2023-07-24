@@ -4,6 +4,9 @@ import IndexView from '../views/files/IndexView.vue'
 const router = createRouter({
   history: createWebHistory(`/`),
   routes: [
+    /**
+     * File routes
+     */
     {
       path: '/:file_id?',
       name: 'files',
@@ -22,12 +25,16 @@ const router = createRouter({
       },
       component: () => import('../views/files/FileView.vue')
     },
+
+    /**
+     * Link routes
+     */
     {
       path: '/links',
       name: 'links',
       meta: {
         files: true,
-        title: 'Links'
+        title: 'My Links'
       },
       component: () => import('../views/links/IndexView.vue')
     },
@@ -39,6 +46,44 @@ const router = createRouter({
         title: 'File Link'
       },
       component: () => import('../views/links/LinkView.vue')
+    },
+
+    /**
+     * Account routes
+     */
+    {
+      path: '/account',
+      name: 'account',
+      meta: { title: 'My Account' },
+      component: () => import('../views/account/IndexView.vue')
+    },
+    {
+      path: '/account/change-password',
+      name: 'account-change-password',
+      meta: { title: 'Change my password' },
+      component: () => import('../views/account/ChangePasswordView.vue')
+    },
+
+    /**
+     * Admin routes
+     */
+    {
+      path: '/manage/users',
+      name: 'manage-users',
+      meta: { title: 'Manage Users' },
+      component: () => import('../views/admin/IndexView.vue')
+    },
+    {
+      path: '/manage/users/:id',
+      name: 'manage-users-single',
+      meta: { title: 'Manage User' },
+      component: () => import('../views/admin/UsersSingleView.vue')
+    },
+    {
+      path: '/manage/settings',
+      name: 'manage-settings',
+      meta: { title: 'Manage Settings' },
+      component: () => import('../views/admin/SettingsView.vue')
     },
 
     /**
@@ -109,44 +154,6 @@ const router = createRouter({
       name: 'activate-email',
       meta: { title: 'Create Account - Verify Email' },
       component: () => import('../views/auth/VerifyEmailView.vue')
-    },
-
-    /**
-     * Auth account routes
-     */
-    {
-      path: '/account',
-      name: 'account',
-      meta: { title: 'My Account' },
-      component: () => import('../views/account/IndexView.vue')
-    },
-    {
-      path: '/account/change-password',
-      name: 'account-change-password',
-      meta: { title: 'Change my password' },
-      component: () => import('../views/account/ChangePasswordView.vue')
-    },
-
-    /**
-     * Admin routes
-     */
-    {
-      path: '/admin',
-      name: 'admin-dashboard',
-      meta: { title: 'Admin dashboard' },
-      component: () => import('../views/admin/IndexView.vue')
-    },
-    {
-      path: '/admin/settings',
-      name: 'admin-settings',
-      meta: { title: 'Admin Settings' },
-      component: () => import('../views/admin/SettingsView.vue')
-    },
-    {
-      path: '/admin/users/:id',
-      name: 'admin-users-single',
-      meta: { title: 'User details' },
-      component: () => import('../views/admin/UsersSingleView.vue')
     }
   ]
 })

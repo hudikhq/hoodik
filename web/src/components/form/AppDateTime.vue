@@ -33,6 +33,10 @@ watch(
         date.setMinutes(parseInt(minutes))
         date.setSeconds(0)
         date.setMilliseconds(0)
+      } else {
+        date.setHours(0)
+        date.setMinutes(0)
+        time.value = '00:00'
       }
     }
 
