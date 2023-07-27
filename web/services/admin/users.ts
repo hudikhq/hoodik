@@ -1,5 +1,6 @@
 import Api from '!/api'
-import type { Paginated, Response, Search, Update } from 'types/admin/users'
+import type { Paginated } from 'types'
+import type { Response, Search, Update, User } from 'types/admin/users'
 
 /**
  * Update user information
@@ -46,8 +47,8 @@ export async function remove(id: string): Promise<void> {
 /**
  * Get paginated array of users currently registered in the app
  */
-export async function index(search: Search): Promise<Paginated> {
-  const response = await Api.get<Paginated>(`/api/admin/users`, search)
+export async function index(search: Search): Promise<Paginated<User>> {
+  const response = await Api.get<Paginated<User>>(`/api/admin/users`, search)
 
   if (!response.body) {
     throw new Error('Failed to get users')

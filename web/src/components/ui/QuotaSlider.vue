@@ -7,7 +7,7 @@ import { computed } from 'vue'
 const props = defineProps<{
   modelValue: number | undefined
   disabled?: boolean
-  title: string
+  title?: string
 }>()
 
 const emits = defineEmits(['update:modelValue'])
@@ -25,7 +25,7 @@ const displayQuota = computed(() => {
   return formatSize(model.value || 0)
 })
 
-const unlimitedQuota = computed({
+const defaultQuota = computed({
   get() {
     return typeof model.value !== 'number'
   },
@@ -35,20 +35,18 @@ const unlimitedQuota = computed({
 })
 </script>
 <template>
-  <h3 class="text-lg mt-4">{{ title }}</h3>
-  <UniversalCheckbox
-    label="Unlimited"
-    name="unlimited_quota"
-    v-model="unlimitedQuota"
-    :disabled="disabled"
-  />
-
-  <div class="flex flex-col mb-4" v-if="!unlimitedQuota">
-    <div class="">
-      <SliderInput v-model="model" :max="1024 * 1024 * 1024 * 1024" />
+  <h3 class="text-lg mt-4" v-if="title">{{ title }}</h3>
+  <div class="flex w-full">
+    <div class="pr-2">
+      <UniversalCheckbox
+        :label="!defaultQuota ? displayQuota : 'default'"
+        name="default_quota"
+        v-model="defaultQuota"
+        :disabled="disabled"
+      />
     </div>
-    <div class="flex w-2/12">
-      {{ displayQuota }}
+    <div class="w-full">
+      <SliderInput :disabled="defaultQuota" v-model="model" :max="1024 * 1024 * 1024 * 1024" />
     </div>
   </div>
 </template>

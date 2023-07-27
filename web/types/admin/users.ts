@@ -4,13 +4,15 @@ import type { Session } from './sessions'
 
 export interface Update {
   role?: string
+  quota?: number
 }
 
 export interface User {
   id: string
-  role: string
+  role?: string
   email: string
   secret: boolean
+  quota?: number
   pubkey: string
   fingerprint: string
   email_verified_at?: number
