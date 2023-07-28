@@ -23,14 +23,20 @@ pub(crate) async fn update(
 ) -> AppResult<HttpResponse> {
     staff.is_admin_or_err()?;
 
+    let mut update = update.into_inner();
     let id = util::actix::path_var::<Uuid>(&req, "id")?;
-    staff.forbidden_self(id)?;
+
+    // Admins can update all of their attributes
+    // except for their role so we override whatever with current one
+    if id == staff.claims.sub {
+        update.role = staff.claims.role;
+    }
 
     let context = context.into_inner();
 
     let user = Repository::new(&context, &context.db)
         .users()
-        .update(id, update.into_inner())
+        .update(id, update)
         .await?;
 
     let stats = Repository::new(&context, &context.db)

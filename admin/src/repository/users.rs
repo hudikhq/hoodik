@@ -112,6 +112,7 @@ where
         let active_model = users::ActiveModel {
             id: ActiveValue::Set(user.id),
             role: ActiveValue::Set(update.role),
+            quota: ActiveValue::Set(update.quota),
             updated_at: ActiveValue::Set(Utc::now().timestamp()),
             ..Default::default()
         };

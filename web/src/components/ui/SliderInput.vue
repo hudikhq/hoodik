@@ -28,10 +28,11 @@ const max = computed(() => {
     <span class="sm:block" for="slider" v-if="label"> {{ label }} </span>
     <input
       type="range"
-      class="transparent h-1.5 w-full cursor-pointer appearance-none rounded-lg border-transparent bg-neutral-200"
+      class="transparent h-1.5 w-full cursor-pointer appearance-none rounded-lg border-transparent bg-brownish-200 disabled:bg-brownish-600"
       id="slider"
       v-model="model"
       :max="max"
+      :disabled="!!props.disabled"
     />
   </div>
 </template>

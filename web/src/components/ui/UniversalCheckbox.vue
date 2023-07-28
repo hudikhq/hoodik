@@ -23,11 +23,11 @@ const model = computed<boolean | undefined>({
 </script>
 
 <template>
-  <div>
+  <div class="flex-nowrap">
     <label class="checkbox">
       <input :id="name" type="checkbox" v-model="model" :disabled="disabled" />
       <span class="check" />
-      <span class="pl-2 sm:block">
+      <span class="pl-2 w-24 sm:block">
         {{ label }}
       </span>
     </label>

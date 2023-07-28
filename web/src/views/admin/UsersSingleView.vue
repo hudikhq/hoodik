@@ -8,17 +8,20 @@ import type { Response, User } from 'types/admin/users'
 import { users } from '!/admin'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { mdiDelete, mdiRefresh, mdiHuman } from '@mdi/js'
-import { formatPrettyDate } from '!/index'
+import { mdiDelete, mdiRefresh, mdiHuman, mdiPencil, mdiClose } from '@mdi/js'
+import { formatPrettyDate, formatSize } from '!/index'
 import BaseButtonConfirm from '@/components/ui/BaseButtonConfirm.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import SessionsInner from './user/SessionsInner.vue'
 import { useTitle } from '@vueuse/core'
+import QuotaSlider from '@/components/ui/QuotaSlider.vue'
 
 const title = useTitle()
 const route = useRoute()
 const router = useRouter()
 const data = ref<Response>()
+const editQuota = ref(false)
+const currentQuota = ref()
 
 const user = computed({
   get(): User | null {
@@ -32,6 +35,12 @@ const user = computed({
 
     data.value.user = value
   }
+})
+
+const quota = computed(() => {
+  if (!user.value?.quota && typeof user.value?.quota !== 'number') return 'default'
+
+  return formatSize(user.value.quota)
 })
 
 const createdAt = computed(() => {
@@ -50,6 +59,38 @@ const lastActiveAt = computed(() => {
   if (!user.value?.last_session?.updated_at) return 'no data'
   return formatPrettyDate(user.value?.last_session?.updated_at)
 })
+
+const openQuotaEdit = () => {
+  currentQuota.value = user.value?.quota
+  editQuota.value = true
+}
+
+const closeQuotaEdit = () => {
+  if (user.value) {
+    user.value.quota = currentQuota.value
+  }
+
+  editQuota.value = false
+}
+
+const updateQuota = async () => {
+  if (!user.value) return
+
+  await update()
+
+  editQuota.value = false
+}
+
+const update = async () => {
+  if (!user.value) return
+
+  const response = await users.update(user.value.id, {
+    role: user.value.role,
+    quota: user.value.quota
+  })
+
+  user.value = response.user
+}
 
 const disableTfa = async () => {
   if (!user.value) return
@@ -75,12 +116,9 @@ const get = async () => {
 
 const setRole = async (role?: 'admin') => {
   if (!user.value) return
+  user.value.role = role
 
-  const response = await users.update(user.value.id, {
-    role
-  })
-
-  user.value = response.user
+  await update()
 }
 
 watch(
@@ -122,6 +160,46 @@ watch(
             <div class="flex flex-col w-1/2">{{ user.email }}</div>
           </div>
           <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+            <div class="flex flex-col w-1/2">Storage Quota</div>
+            <div class="flex flex-col w-1/2" v-if="!editQuota">
+              <div>
+                <BaseButton
+                  :icon="mdiPencil"
+                  :xs="true"
+                  rounded-full
+                  :label="quota"
+                  @click="openQuotaEdit"
+                />
+              </div>
+            </div>
+            <div class="flex flex-col w-1/2" v-else>
+              <div class="mb-2">
+                <QuotaSlider v-model="user.quota" />
+              </div>
+
+              <div class="w-full justify-end">
+                <BaseButton
+                  :icon="mdiClose"
+                  :xs="true"
+                  rounded-full
+                  @click="closeQuotaEdit"
+                  class="float-right"
+                  color="danger"
+                />
+
+                <BaseButtonConfirm
+                  :icon="mdiDelete"
+                  small
+                  rounded-full
+                  label="Save"
+                  confirm-label="Confirm"
+                  @confirm="updateQuota"
+                  class="mr-2 float-right"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
             <div class="flex flex-col w-1/2">Email Verified</div>
             <div class="flex flex-col w-1/2">{{ emailVerifiedAt }}</div>
           </div>
@@ -138,7 +216,7 @@ watch(
                 @confirm="disableTfa"
                 v-if="user.secret"
               />
-              <BaseButton label="No" :small="true" class="cursor-auto" />
+              <BaseButton v-else label="No" :small="true" class="cursor-auto" />
             </div>
           </div>
           <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
