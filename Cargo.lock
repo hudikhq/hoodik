@@ -264,7 +264,7 @@ checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
 
 [[package]]
 name = "admin"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "actix-web",
  "async-std",
@@ -614,7 +614,7 @@ checksum = "1181e1e0d1fce796a03db1ae795d67167da795f9cf4a39c37589e85ef57f26d3"
 
 [[package]]
 name = "auth"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "actix-web",
  "async-std",
@@ -1136,7 +1136,7 @@ dependencies = [
 
 [[package]]
 name = "config"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "clap",
@@ -1169,7 +1169,7 @@ checksum = "520fbf3c07483f94e3e3ca9d0cfd913d7718ef2483d2cfd91c0d9e91474ab913"
 
 [[package]]
 name = "context"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "actix-web",
  "config",
@@ -1309,7 +1309,7 @@ checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 
 [[package]]
 name = "cryptfns"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "ascon-aead",
  "base64 0.21.0",
@@ -1584,7 +1584,7 @@ dependencies = [
 
 [[package]]
 name = "email"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "config",
@@ -1633,7 +1633,7 @@ dependencies = [
 
 [[package]]
 name = "entity"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "cryptfns",
@@ -1688,7 +1688,7 @@ dependencies = [
 
 [[package]]
 name = "error"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "actix-multipart",
  "actix-web",
@@ -1824,7 +1824,7 @@ dependencies = [
 
 [[package]]
 name = "fs"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "actix-web",
  "async-trait",
@@ -2165,7 +2165,7 @@ dependencies = [
 
 [[package]]
 name = "hoodik"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "actix-cors",
  "actix-web",
@@ -2602,7 +2602,7 @@ checksum = "0717cef1bc8b636c6e1c1bbdefc09e6322da8a9321966e8928ef80d20f7f770f"
 
 [[package]]
 name = "links"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "actix-web",
  "auth",
@@ -2748,7 +2748,7 @@ checksum = "0fa0916b001582d253822171bd23f4a0229d32b9507fae236f5da8cad515ba7c"
 
 [[package]]
 name = "migration"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "async-std",
  "config",
@@ -4163,7 +4163,7 @@ dependencies = [
 
 [[package]]
 name = "settings"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "async-std",
  "async-trait",
@@ -4589,7 +4589,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "storage"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "actix-web",
  "auth",
@@ -5134,7 +5134,7 @@ checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
 
 [[package]]
 name = "util"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "actix-web",
  "bcrypt",
