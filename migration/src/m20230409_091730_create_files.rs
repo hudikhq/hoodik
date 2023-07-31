@@ -25,7 +25,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Files::Mime).string().not_null())
                     .col(ColumnDef::new(Files::Size).big_integer())
                     .col(ColumnDef::new(Files::Chunks).big_integer())
-                    .col(ColumnDef::new(Files::ChunksStored).integer())
+                    .col(ColumnDef::new(Files::ChunksStored).big_integer())
                     .col(ColumnDef::new(Files::FileId).uuid())
                     .col(
                         ColumnDef::new(Files::FileModifiedAt)

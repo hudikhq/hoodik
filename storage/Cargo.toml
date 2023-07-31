@@ -21,6 +21,7 @@ serde_json = "^1"
 chrono = "^0.4"
 cached = "^0.43"
 futures = "^0.3"
+num-traits = "0.2"
 
 auth = { path = "../auth" }
 context = { path = "../context" }

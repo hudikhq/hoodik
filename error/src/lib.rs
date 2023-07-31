@@ -81,10 +81,6 @@ impl Error {
 
         Error::Validation(errors)
     }
-
-    pub fn todo() -> Error {
-        Error::InternalError("todo".to_string())
-    }
 }
 
 impl std::fmt::Display for Error {

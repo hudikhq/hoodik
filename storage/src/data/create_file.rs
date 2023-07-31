@@ -31,7 +31,7 @@ pub struct CreateFile {
     /// Total size of the file
     pub size: Option<i64>,
     /// Total number of chunks, no limitations, frontend can decide
-    pub chunks: Option<i32>,
+    pub chunks: Option<i64>,
     /// ID of the directory the file is located in (directories are files too)
     pub file_id: Option<String>,
     /// Date of the file creation from the disk, if not provided we set it to now

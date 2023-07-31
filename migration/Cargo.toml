@@ -22,5 +22,5 @@ async-std = { version = "^1", features = ["attributes", "tokio1"] }
 config = { path = "../config" }
 
 [dependencies.sea-orm-migration]
-version = "^0.11"
+version = "^0.12"
 features = ["sqlx-postgres", "sqlx-sqlite", "runtime-actix-rustls"]

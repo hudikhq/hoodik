@@ -5,6 +5,7 @@ use crate::{
 };
 use error::{AppResult, Error};
 
+/// Authentication provider for logging in with credentials (email + password)
 pub(crate) struct CredentialsProvider<'ctx> {
     auth: &'ctx Auth<'ctx>,
     data: Credentials,

@@ -5,8 +5,7 @@ use error::AppResult;
 
 use crate::{auth::Auth, contracts::register::Register};
 
-/// Activation link in the email will point towards frontend application
-/// which you can verify in the `crate::emails::activate`
+/// Activation link in the email will point towards frontend application.
 ///
 /// The frontend, once the link has been opened will make a HTTP post call to the
 /// backend with the action `activate-email` and the id of the action,
