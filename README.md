@@ -1,5 +1,3 @@
-Certainly, here's your revised README:
-
 # HOODIK
 Hoodik is a lightweight, secure, and self-hosted cloud storage solution that we've built using Rust and Vue. With end-to-end encryption, your data is shielded from prying eyes and hackers. Hoodik supports file uploading and downloading - making it easy for you to share files with other users. Our web interface is simple and intuitive, making file management a breeze. Plus, thanks to Rust's focus on speed and performance, your data transfers will validate the meaning of 'lightning fast'. 
 
