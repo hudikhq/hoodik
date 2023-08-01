@@ -14,7 +14,6 @@ impl FromQueryResult for Stats {
         let size: Numeric = res.try_get_by("size")?;
         let count = res.try_get_by("count")?;
 
-        println!("mime: {}, size: {}, count: {}", mime, size, count);
         Ok(Self {
             mime,
             size: size.into(),

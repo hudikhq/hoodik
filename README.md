@@ -63,6 +63,8 @@ docker run --name hoodik -it -d \
 
 Our application supports either `Sqlite` or `Postgres` databases. `Sqlite` is enabled by default and will create a database file in your `DATA_DIR`, so it functions right out of the box. If you prefer, you can also use an external `Postgres` database - you'd just need to supply the `DATABASE_URL` for your `Postgres` connection.
 
+**Please take note: The databases used with Hoodik are not interchangeable. Should you decide to switch from one database to another after you've started using the application, this could result in potential loss of all your data.**
+
 # Configuration
 
 For a more detailed application configuration, please see our [environment example](./.env.example).
