@@ -7,11 +7,11 @@ Hoodik is a lightweight, secure, and self-hosted cloud storage solution that we'
 
 # Features
 
-We designed Hoodik with a central goal: to store your files securely, despite the server not having access to your encryption key. Your files are encrypted and decrypted in the client application during downloading and uploading.
+We designed Hoodik with a central goal: to store your files securely. Your files are encrypted and decrypted on your device during downloading and uploading.
 
 To ensure end-to-end encryption is as fast as possible and to enable file sharing among application users, we chose a hybrid encryption approach:
 - Upon registration, each user receives a generated RSA key pair.
-- We store your public key with your information on the server.
+- We store your keys with your information on the server, private key is encrypted with your passphrase (so choose a good one).
 - We encrypt files with a randomly generated AES key during upload.
 - We encrypt the file's AES key with the user's public key and store it in the database, thus linking the user and the file.
 
@@ -32,7 +32,7 @@ We created a process for publicly sharing links to files that doesn't leak the a
 
 For RSA, we employ 2048-bit [PKCS#1](https://en.wikipedia.org/wiki/PKCS_1) keys, and for AES, we use [AEAD Ascon-128a](https://ascon.iaik.tugraz.at/). We have detailed usage of the crypto in the `cryptfns` workspace member. Our encryption setup offers the best performance results we’ve seen to date.
 
-We store files in chunks (defined by the `fs::MAX_CHUNK_SIZE_BYTES` constant) and encrypt each chunk individually. This method enables concurrent uploading and downloading of chunks, thereby offsetting encryption overhead.
+We store files in chunks and encrypt each chunk individually. This method enables concurrent uploading and downloading of chunks, thereby offsetting encryption overhead.
 
 *In the case of downloading publicly linked files, the shared key solely unlocks the link. Within the link, we've encrypted the actual file key, which then decrypts the file as it downloads. This design ensures that the person receiving the shared link never receives the file key.
 
