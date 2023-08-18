@@ -1,11 +1,15 @@
-# HOODIK
+# Hoodik
+
+
+<img src="./web/public/android-icon-192x192.png" alt="Hoodik" style="float: left; margin-right: 10px; margin-bottom: 10px" />
+
 Hoodik is a lightweight, secure, and self-hosted cloud storage solution that we've built using Rust and Vue. With end-to-end encryption, your data is shielded from prying eyes and hackers. Hoodik supports file uploading and downloading - making it easy for you to share files with other users. Our web interface is simple and intuitive, making file management a breeze. Plus, thanks to Rust's focus on speed and performance, your data transfers will validate the meaning of 'lightning fast'. 
 
 <p align="center">
-  <img src="./web/public/android-chrome-512x512.png" alt="Hoodik" />
+  <img src="./screenshot.png" alt="Hoodik" />
 </p>
 
-# Features
+## Features
 
 We designed Hoodik with a central goal: to store your files securely. Your files are encrypted and decrypted on your device during downloading and uploading.
 
@@ -38,7 +42,7 @@ We store files in chunks and encrypt each chunk individually. This method enable
 
 **We offer the option of server-based encryption and decryption, which could be a fallback solution if the client is running on a device with limited computing power. However, we anticipate that this feature will rarely need to be used.*
 
-# Installing via Docker
+## Installing via Docker
 
 While the application itself can handle incoming traffic, we recommend using a reverse proxy, such as [Nginx Proxy Manager](https://nginxproxymanager.com/), for optimal results.
 
@@ -59,12 +63,16 @@ docker run --name hoodik -it -d \
   hudik/hoodik:latest
 ```
 
-# Database
+## Database
 
 Our application supports either `Sqlite` or `Postgres` databases. `Sqlite` is enabled by default and will create a database file in your `DATA_DIR`, so it functions right out of the box. If you prefer, you can also use an external `Postgres` database - you'd just need to supply the `DATABASE_URL` for your `Postgres` connection.
 
 **Please take note: The databases used with Hoodik are not interchangeable. Should you decide to switch from one database to another after you've started using the application, this could result in potential loss of all your data.**
 
-# Configuration
+## Configuration
 
 For a more detailed application configuration, please see our [environment example](./.env.example).
+
+## Contributors
+
+ - Little Hoodik by [Your Dear Designer](https://yourdeardesigner.com/) ❤️

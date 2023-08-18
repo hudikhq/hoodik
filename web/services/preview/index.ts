@@ -20,7 +20,9 @@ function isFilePreviewable(item: AppFile): boolean {
   return (
     !!item.size &&
     item.size > 0 &&
-    (item.thumbnail !== undefined || item.mime === 'application/pdf')
+    (item.thumbnail !== undefined ||
+      item.mime === 'application/pdf' ||
+      item.mime === 'image/svg+xml')
   )
 }
 
@@ -137,7 +139,7 @@ export abstract class Preview {
    * Lets us know if the preview is an image
    */
   public isImage(): boolean {
-    return this.is() && this.thumbnail !== undefined && this.mime.startsWith('image/')
+    return this.is() && this.mime.startsWith('image/')
   }
 
   /**
