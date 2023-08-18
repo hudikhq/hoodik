@@ -14,14 +14,14 @@ pub struct AppFile {
     pub name_hash: String,
     pub mime: String,
     pub size: Option<i64>,
-    pub chunks: Option<i32>,
-    pub chunks_stored: Option<i32>,
+    pub chunks: Option<i64>,
+    pub chunks_stored: Option<i64>,
     pub file_id: Option<Uuid>,
     pub file_modified_at: i64,
     pub created_at: i64,
     pub finished_upload_at: Option<i64>,
     pub is_new: bool,
-    pub uploaded_chunks: Option<Vec<i32>>,
+    pub uploaded_chunks: Option<Vec<i64>>,
     pub link: Option<links::Model>,
 }
 

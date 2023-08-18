@@ -19,6 +19,7 @@ where
         util::generate::generate_secret()
     }
 
+    /// Create a new user
     async fn register(&self, data: CreateUser) -> AppResult<users::Model> {
         let email = data.email.clone().unwrap();
         let invitation_id = data.invitation_id;

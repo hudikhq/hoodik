@@ -1,6 +1,6 @@
 [package]
 name = "context"
-version = "0.9.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
 readme = "README.md"
@@ -24,7 +24,7 @@ mock = [
 
 [dependencies]
 actix-web = "^4"
-sea-orm = { version = "^0.11", features = [
+sea-orm = { version = "^0.12", features = [
   "sqlx-postgres",
   "sqlx-sqlite",
   "runtime-actix-rustls",

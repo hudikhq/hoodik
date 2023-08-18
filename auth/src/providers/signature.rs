@@ -6,6 +6,7 @@ use crate::{
 use chrono::Utc;
 use error::{AppResult, Error};
 
+/// Authentication provider for authentication with private key
 pub(crate) struct SignatureProvider<'ctx> {
     auth: &'ctx Auth<'ctx>,
     data: Signature,

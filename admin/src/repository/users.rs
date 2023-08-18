@@ -43,7 +43,9 @@ where
         );
 
         query = query.order_by_desc(sessions::Column::UpdatedAt);
-        query = query.group_by(users::Column::Id);
+        query = query
+            .group_by(users::Column::Id)
+            .group_by(sessions::Column::Id);
 
         query
     }
@@ -143,7 +145,7 @@ where
         Ok(())
     }
 
-    /// Delete the user forever and all of their linked entities
+    /// Disable users two factor authentication
     pub(crate) async fn disable_tfa(&self, user_id: Uuid) -> AppResult<()> {
         let user = users::Entity::find_by_id(user_id)
             .one(self.repository.connection())

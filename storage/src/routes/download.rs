@@ -25,7 +25,7 @@ pub(crate) async fn download(
     let context = context.into_inner();
     let file_id: String = util::actix::path_var(&req, "file_id")?;
     let file_id = Uuid::from_str(&file_id)?;
-    let chunk = util::actix::query_var::<i32>(&req, "chunk").ok();
+    let chunk = util::actix::query_var::<i64>(&req, "chunk").ok();
 
     let file = get_file(&context, claims.sub, file_id)
         .await
@@ -41,7 +41,7 @@ pub(crate) async fn download(
     };
 
     let file_size = match chunk {
-        Some(_) => file.size.unwrap_or(1) / file.chunks.unwrap_or(0) as i64,
+        Some(_) => file.size.unwrap_or(1) / file.chunks.unwrap_or(0),
         None => file.size.unwrap_or(0),
     };
 
@@ -78,7 +78,7 @@ pub(crate) async fn head(
     };
 
     let file_size = match chunk {
-        Some(_) => file.size.unwrap_or(1) / file.chunks.unwrap_or(0) as i64,
+        Some(_) => file.size.unwrap_or(1) / file.chunks.unwrap_or(0),
         None => file.size.unwrap_or(0),
     };
 

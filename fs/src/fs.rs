@@ -63,11 +63,11 @@ impl<'ctx> FsProviderContract for Fs<'ctx> {
         self.provider().available_space().await
     }
 
-    async fn exists<T: IntoFilename>(&self, filename: &T, chunk: i32) -> AppResult<bool> {
+    async fn exists<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<bool> {
         self.provider().exists(filename, chunk).await
     }
 
-    async fn get<T: IntoFilename>(&self, filename: &T, chunk: i32) -> AppResult<File> {
+    async fn get<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<File> {
         self.provider().get(filename, chunk).await
     }
 
@@ -75,11 +75,11 @@ impl<'ctx> FsProviderContract for Fs<'ctx> {
         self.provider().all(filename).await
     }
 
-    async fn push<T: IntoFilename>(&self, filename: &T, chunk: i32, data: &[u8]) -> AppResult<()> {
+    async fn push<T: IntoFilename>(&self, filename: &T, chunk: i64, data: &[u8]) -> AppResult<()> {
         self.provider().push(filename, chunk, data).await
     }
 
-    async fn pull<T: IntoFilename>(&self, filename: &T, chunk: i32) -> AppResult<Vec<u8>> {
+    async fn pull<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<Vec<u8>> {
         self.provider().pull(filename, chunk).await
     }
 
@@ -87,14 +87,14 @@ impl<'ctx> FsProviderContract for Fs<'ctx> {
         self.provider().purge(filename).await
     }
 
-    async fn get_uploaded_chunks<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<i32>> {
+    async fn get_uploaded_chunks<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<i64>> {
         self.provider().get_uploaded_chunks(filename).await
     }
 
     async fn stream<T: IntoFilename>(
         &self,
         filename: &T,
-        chunk: Option<i32>,
+        chunk: Option<i64>,
     ) -> AppResult<Streamer> {
         self.provider().stream(filename, chunk).await
     }

@@ -2,7 +2,8 @@ name: Publish Docker image
 
 on:
   push:
-    branches: ["master"]
+    tags:
+      - v*
 
 env:
   HANDLE: hoodik
@@ -28,11 +29,14 @@ jobs:
             target
           key: ${{ runner.os }}-cargo
 
+      - name: Extract Tag
+        id: tag
+        uses: aaronbarnaby/get-tag@v1.0.0
+        with:
+          without_prefix_v: true
+
       - name: Install wasm pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-
-      - name: Read the binary crate version
-        run: echo "CARGO_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "${{ env.HANDLE }}") | .version')" >> $GITHUB_ENV
 
       - name: Log in to Docker Hub
         uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
@@ -45,11 +49,11 @@ jobs:
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
           images: ${{ secrets.DOCKER_USERNAME }}/hoodik
-          tags: ${{ env.CARGO_VERSION }}
+          tags: ${{ steps.tag.outputs.tag }}
 
       - name: Generate .env
         run: |
-          echo "APP_VERSION=${{ env.CARGO_VERSION }}" >> $PWD/.env
+          echo "APP_VERSION=${{ steps.tag.outputs.tag }}" >> $PWD/.env
           echo "NAME=${{ env.NAME }}" >> $PWD/.env
 
       - name: Install yarn
@@ -72,7 +76,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/${{ env.HANDLE }}:v${{ env.CARGO_VERSION }}, ${{ secrets.DOCKER_USERNAME }}/${{ env.HANDLE }}:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/${{ env.HANDLE }}:v${{ steps.tag.outputs.tag }}, ${{ secrets.DOCKER_USERNAME }}/${{ env.HANDLE }}:latest
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Update repo description

@@ -3,6 +3,7 @@ import { mdiPlus, mdiMinus } from '@mdi/js'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { Preview } from '!/preview'
+import SpinnerIcon from '../ui/SpinnerIcon.vue'
 
 const props = defineProps<{
   modelValue: Preview
@@ -138,7 +139,7 @@ watch(
       :width="scaleW"
     />
     <img
-      v-else
+      v-else-if="preview.thumbnail"
       key="thumbnail"
       name="loading-thumbnail"
       :src="preview.thumbnail"
@@ -146,6 +147,9 @@ watch(
       :height="scaleH"
       :width="scaleW"
     />
+    <div v-else class="flex justify-center items-center w-full h-full">
+      <SpinnerIcon />
+    </div>
   </div>
 
   <div class="absolute bottom-0 w-full">

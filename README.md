@@ -1,71 +1,77 @@
-# HOODIK
+# Hoodik
 
-A lightweight, secure, and self-hosted cloud storage solution built in Rust and Vue. With end-to-end encryption, your data is protected from prying eyes and hackers. Hoodik supports file uploading and downloading, as well as file sharing with other users. Its simple and intuitive web interface makes managing your files easier than ever. Plus, with Rust's focus on speed and performance, your data transfers will be lightning fast. 
+<img src="./web/public/android-icon-192x192.png" alt="Hoodik" style="float: left; margin-right: 10px; margin-bottom: 10px" />
+
+Hoodik is a lightweight, secure, and self-hosted cloud storage solution. It's designed and built with Rust and Vue, focusing on end-to-end encryption that shields your data from prying eyes and hackers. Hoodik supports file uploading and downloading, making it easy for you to share files with other users. The simple and intuitive web interface makes file management a breeze. Thanks to Rust's focus on speed and performance, your data transfers will be lightning fast.
 
 <p align="center">
-  <img src="./web/public/android-chrome-512x512.png" alt="Hoodik" />
+  <img src="./screenshot.png" alt="Hoodik" />
 </p>
 
-# Features
+## Features
 
-Hoodik is built to store your files encrypted, without the server having knowledge of the encryption key. Files are encrypted and decrypted* in the client application** during downloading and uploading.
+Hoodik is designed with a central goal: to store your files securely. Files are encrypted and decrypted on your device during download and upload.
 
-To enable end-to-end encryption to be as fast as possible, with the option to share files between application users, the hybrid encryption approach is used:
-- Upon registration, the user gets a generated RSA keypair.
-- The public key is stored with the user's information on the server.
-- Files are encrypted with a randomly generated AES key at the time of upload.
-- The file's AES key is encrypted with the user's public key and stored in the database, linking the user and file.
+To ensure end-to-end encryption remains fast and efficient while enabling file sharing among application users, a hybrid encryption approach is used:
+- Upon registration, each user receives a generated RSA key pair.
+- We store your keys, encrypted with your passphrase, with your information on the server (choose a robust passphrase).
+- Files are encrypted with a randomly generated AES key during upload.
+- The file's AES key is encrypted with the user's public key and stored in the database, linking the user and the file.
 
-Searching through the files without leaving plaintext metadata in the database works as follows:
-- Data considered searchable about the file (name, metadata, etc.) is tokenized.
+We've created a mechanism to enable search through your files without leaving plaintext metadata in the database:
+- Any searchable data about the file (like name, metadata, etc.) is tokenized.
 - The resulting tokens are hashed and stored in the database as file tokens.
-- During a search, the same operation is performed on the search query and sent to the server.
-- Tokens are matched to the query, and resulting files are fetched from the database.
+- When you perform a search, we perform the same operation on your search query and transmit it to the server.
+- The server matches tokens to the query and fetches the corresponding files from the database.
 
-Publicly sharing links to files without leaking the actual file's AES key is accomplished through the following steps:
+The process for publicly sharing links to files protects the actual file's AES key:
 - A random AES key is generated for the link.
-- File metadata is encrypted with the link key.
+- The file metadata is encrypted with the link key.
 - The original file's AES key is encrypted with the link key.
-- The link key is encrypted with the owner's RSA key (so the owner can retrieve the key anytime).
-- When someone clicks the link, the link key will either be included in the link `https://.../links/{id}#link-key`, or they will have to input it in the client app before starting the download.
-- On the download request, the link key is sent to the server, where the actual file key is decrypted in-memory.
-- The file content is streamed for download while it is being decrypted in-memory.
+- The link key is encrypted with the owner's RSA key (enabling the owner to retrieve the key anytime).
+- When someone clicks the link, the link key will either be included in the link `https://.../links/{id}#link-key`, or they need to input it in the client app before starting the download.
+- On the download request, the link key is sent to the server where the actual file key is decrypted in memory.
+- The file content is streamed for download and is decrypted in memory.
 
-For RSA, we use 2048-bit [PKCS#1](https://en.wikipedia.org/wiki/PKCS_1) keys, and for AES, we use [AEAD Ascon-128a](https://ascon.iaik.tugraz.at/).
-Details of the crypto usage can be found in the `cryptfns` workspace member.
-This crypto setup is used because it has shown the best performance results so far.
+For RSA, we employ 2048-bit [PKCS#1](https://en.wikipedia.org/wiki/PKCS_1) keys, and for AES, we use [AEAD Ascon-128a](https://ascon.iaik.tugraz.at/). You can find detailed usage of the crypto in the `cryptfns` workspace member. We chose this encryption setup because it offers impressive performance results.
 
-Files are split and stored in chunks of a maximum size defined in the `fs::MAX_CHUNK_SIZE_BYTES` constant. Each chunk is encrypted separately. Storing files in this way and encrypting them enables concurrent uploading and downloading of chunks to offset the encryption overhead.
+Files are stored in chunks and each chunk is encrypted individually. This enables concurrent uploading and downloading of chunks to offset encryption overhead.
 
-**In the case of downloading publicly linked files, the shared key is only used to unlock the link. Within the link, the actual file key is encrypted, which then decrypts the file as it is downloaded. This implementation ensures that the person receiving the shared link never gets the file key.*
+*Just to note, in the case of downloading publicly linked files, the shared key only unlocks the link. The actual file key is encrypted within the link and decrypts the file as it downloads. This design ensures the person receiving the shared link never gets the file key.
 
-***There is an option for encrypting and decrypting on the server. It can be used as a fallback option in case the client is running on a device with limited computing power. However, it is unlikely to be used in general.*
+**We provide the option of server-based encryption and decryption as a fallback solution if the client runs on a device with limited computing power. However, this feature is expected to be used rarely.*
 
-# Installing via Docker
+## Installing via Docker
 
-The application itself can handle incoming traffic, but for best results, use a reverse proxy, such as [Nginx Proxy Manager](https://nginxproxymanager.com/).
+While the application itself can handle incoming traffic, we recommend using a reverse proxy, such as [Nginx Proxy Manager](https://nginxproxymanager.com/), for optimal results.
 
 ```shell
 docker run --name hoodik -it -d \
--e DATA_DIR='/data' \
--e APP_URL='https://my-app.local' \
--e SSL_CERT_FILE='/data/my-cert-file.crt.pem' \
--e SSL_KEY_FILE='/data/my-key-file.key.pem' \
--e MAILER_TYPE='smtp' \
--e SMTP_ADDRESS='smtp.gmail.com' \
--e SMTP_USERNAME='email@gmail.com' \
--e SMTP_PASSWORD='google-account-app-password' \
--e SMTP_PORT='465' \
--e SMTP_DEFAULT_FROM='Hoodik Drive <email@gmail.com>' \
---volume "$(pwd)/data:/data" \
--p 4554:5443 \
-hudik/hoodik:latest
+  -e DATA_DIR='/data' \
+  -e APP_URL='https://my-app.local' \
+  -e SSL_CERT_FILE='/data/my-cert-file.crt.pem' \
+  -e SSL_KEY_FILE='/data/my-key-file.key.pem' \
+  -e MAILER_TYPE='smtp' \
+  -e SMTP_ADDRESS='smtp.gmail.com' \
+  -e SMTP_USERNAME='email@gmail.com' \
+  -e SMTP_PASSWORD='google-account-app-password' \
+  -e SMTP_PORT='465' \
+  -e SMTP_DEFAULT_FROM='Hoodik Drive <email@gmail.com>' \
+  --volume "$(pwd)/data:/data" \
+  -p 4554:5443 \
+  hudik/hoodik:latest
 ```
 
-# Database
+## Database
 
-The application supports either `Sqlite` or `Postgres` databases. `Sqlite` is enabled by default, and it creates a database file in your `DATA_DIR`, so it works out of the box. If desired, you can also use an external `Postgres` database. In that case, you will need to provide the `DATABASE_URL` for the `Postgres` connection.
+Hoodik supports either `Sqlite` or `Postgres` databases. `Sqlite` is enabled by default and it creates a database file in your `DATA_DIR` right out of the box. If you prefer an external `Postgres` database, simply provide the `DATABASE_URL` for your `Postgres` connection.
 
-# Configuration
+**Please take note: The databases used with Hoodik are not interchangeable. Should you decide to switch from one database type to another after you've begun using the application, this could result in the loss of all your data.**
 
-For more detailed application configuration, please see the [environment example](./.env.example).
+## Configuration
+
+For a more detailed application configuration, please review our [environment example](./.env.example).
+
+## Contributors
+
+- We thank [Your Dear Designer](https://yourdeardesigner.com/) for the Little Hoodik logo. ❤️

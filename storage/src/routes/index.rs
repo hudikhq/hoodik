@@ -28,7 +28,7 @@ pub(crate) async fn index(
         if file.is_file() {
             let chunks = Fs::new(&context.config).get_uploaded_chunks(file).await?;
 
-            file.chunks_stored = Some(chunks.len() as i32);
+            file.chunks_stored = Some(chunks.len() as i64);
             file.uploaded_chunks = Some(chunks);
         }
     }

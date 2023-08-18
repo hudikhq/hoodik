@@ -5,6 +5,8 @@ use crate::client::{_CLIENT, _DEFAULT};
 use actix_web::{get, web, HttpRequest, HttpResponse, Responder};
 use context::Context;
 
+const CACHE_CONTROL: &str = "public, max-age=3600, immutable";
+
 /// Get content type from a filename
 fn content_type(filename: &str) -> &str {
     match filename.split('.').last().unwrap_or("") {
@@ -34,7 +36,10 @@ pub(crate) async fn client(
 
             log::debug!("Client: {} -> {}", filename, content_type);
 
-            return HttpResponse::Ok().content_type(content_type).body(contents);
+            return HttpResponse::Ok()
+                .insert_header(("Cache-Control", CACHE_CONTROL))
+                .content_type(content_type)
+                .body(contents);
         }
     }
 
@@ -42,7 +47,7 @@ pub(crate) async fn client(
 
     if path.len() == 1 && !filename.starts_with("/api/") {
         return HttpResponse::Ok()
-            .insert_header(("Cache-Control", "no-cache"))
+            .insert_header(("Cache-Control", CACHE_CONTROL))
             .content_type("text/html; charset=utf-8")
             .body(_DEFAULT);
     }

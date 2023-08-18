@@ -13,8 +13,11 @@ pub mod users;
 pub mod join;
 pub mod sort;
 
+pub mod numeric;
+
 pub use prelude::*;
 
+pub use sea_orm::prelude::BigDecimal;
 pub use sea_orm::{
     entity::prelude::Uuid,
     entity::{ActiveModelTrait, ColumnTrait, EntityTrait, RelationTrait},

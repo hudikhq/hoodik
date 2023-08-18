@@ -74,7 +74,7 @@ pub(crate) async fn upload(
     if file.is_file() {
         let chunks = storage.get_uploaded_chunks(&file).await?;
 
-        file.chunks_stored = Some(chunks.len() as i32);
+        file.chunks_stored = Some(chunks.len() as i64);
         file.uploaded_chunks = Some(chunks);
     }
 
@@ -140,7 +140,7 @@ fn encrypt_request_body(key: &str, request_body: web::Bytes) -> AppResult<web::B
 /// and the number of chunks the file should have.
 /// If the chunk size is not equal to the size of the file divided by the number of chunks
 /// then we know that the chunk is not the last chunk and we can validate the size.
-fn validate_chunk_size(file: &AppFile, chunk: i32, data_len: usize) -> AppResult<()> {
+fn validate_chunk_size(file: &AppFile, chunk: i64, data_len: usize) -> AppResult<()> {
     let size = file
         .size
         .ok_or(Error::BadRequest("file_has_no_size".to_string()))?;

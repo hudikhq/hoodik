@@ -8,7 +8,7 @@ use crate::{
     data::{activity_query::ActivityQuery, claims::Claims},
 };
 
-/// Change the users password with the provided current password or private key
+/// Get all the users sessions
 ///
 /// Request: [entity::paginated::Paginated<entity::sessions::Model>]
 #[route("/api/auth/account/activity", method = "GET")]

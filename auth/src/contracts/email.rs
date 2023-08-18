@@ -48,17 +48,17 @@ where
         };
 
         let content = r#"
-    <h1>Activate your account</h1>
-    <p>
-        Please click the link below to activate your account.
-    </p>
-    <p>
-        <a href="{{link}}" class="btn-primary">Activate</a>
-    </p>
-    <p>
-        <a href="{{link}}">{{link}}</a>
-    </p>
-    "#
+        <h1>Activate your account</h1>
+        <p>
+            Please click the link below to activate your account.
+        </p>
+        <p>
+            <a href="{{link}}" class="btn-primary">Activate</a>
+        </p>
+        <p>
+            <a href="{{link}}">{{link}}</a>
+        </p>
+        "#
         .to_string();
 
         let action = UserActions::<DatabaseConnection>::new(&self.ctx().db)
