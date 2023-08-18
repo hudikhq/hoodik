@@ -1,6 +1,8 @@
 # Hoodik
 
-<img src="./web/public/android-icon-192x192.png" alt="Hoodik" style="float: left; margin-right: 10px; margin-bottom: 10px" />
+<p align="center">
+  <img src="./web/public/android-icon-192x192.png" alt="Hoodik" />
+</p>
 
 Hoodik is a lightweight, secure, and self-hosted cloud storage solution. It's designed and built with Rust and Vue, focusing on end-to-end encryption that shields your data from prying eyes and hackers. Hoodik supports file uploading and downloading, making it easy for you to share files with other users. The simple and intuitive web interface makes file management a breeze. Thanks to Rust's focus on speed and performance, your data transfers will be lightning fast.
 
@@ -74,4 +76,4 @@ For a more detailed application configuration, please review our [environment ex
 
 ## Contributors
 
-- We thank [Your Dear Designer](https://yourdeardesigner.com/) for the Little Hoodik logo. ❤️
+- We thank [Nikola Matošević -Your Dear Designer](https://yourdeardesigner.com/) for the Little Hoodik logo. ❤️
