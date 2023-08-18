@@ -1,9 +1,8 @@
 # Hoodik
 
-
 <img src="./web/public/android-icon-192x192.png" alt="Hoodik" style="float: left; margin-right: 10px; margin-bottom: 10px" />
 
-Hoodik is a lightweight, secure, and self-hosted cloud storage solution that we've built using Rust and Vue. With end-to-end encryption, your data is shielded from prying eyes and hackers. Hoodik supports file uploading and downloading - making it easy for you to share files with other users. Our web interface is simple and intuitive, making file management a breeze. Plus, thanks to Rust's focus on speed and performance, your data transfers will validate the meaning of 'lightning fast'. 
+Hoodik is a lightweight, secure, and self-hosted cloud storage solution. It's designed and built with Rust and Vue, focusing on end-to-end encryption that shields your data from prying eyes and hackers. Hoodik supports file uploading and downloading, making it easy for you to share files with other users. The simple and intuitive web interface makes file management a breeze. Thanks to Rust's focus on speed and performance, your data transfers will be lightning fast.
 
 <p align="center">
   <img src="./screenshot.png" alt="Hoodik" />
@@ -11,36 +10,36 @@ Hoodik is a lightweight, secure, and self-hosted cloud storage solution that we'
 
 ## Features
 
-We designed Hoodik with a central goal: to store your files securely. Your files are encrypted and decrypted on your device during downloading and uploading.
+Hoodik is designed with a central goal: to store your files securely. Files are encrypted and decrypted on your device during download and upload.
 
-To ensure end-to-end encryption is as fast as possible and to enable file sharing among application users, we chose a hybrid encryption approach:
+To ensure end-to-end encryption remains fast and efficient while enabling file sharing among application users, a hybrid encryption approach is used:
 - Upon registration, each user receives a generated RSA key pair.
-- We store your keys with your information on the server, private key is encrypted with your passphrase (so choose a good one).
-- We encrypt files with a randomly generated AES key during upload.
-- We encrypt the file's AES key with the user's public key and store it in the database, thus linking the user and the file.
+- We store your keys, encrypted with your passphrase, with your information on the server (choose a robust passphrase).
+- Files are encrypted with a randomly generated AES key during upload.
+- The file's AES key is encrypted with the user's public key and stored in the database, linking the user and the file.
 
-To enable you to search through your files without leaving plaintext metadata in the database, we've set the following mechanism in place:
-- We tokenize any data about the file considered searchable (name, metadata, etc.).
-- We hash the resulting tokens and store them in the database as file tokens.
+We've created a mechanism to enable search through your files without leaving plaintext metadata in the database:
+- Any searchable data about the file (like name, metadata, etc.) is tokenized.
+- The resulting tokens are hashed and stored in the database as file tokens.
 - When you perform a search, we perform the same operation on your search query and transmit it to the server.
-- The server matches tokens to the query, and fetches corresponding files from the database.
+- The server matches tokens to the query and fetches the corresponding files from the database.
 
-We created a process for publicly sharing links to files that doesn't leak the actual file's AES key:
-- We generate a random AES key for the link.
-- We encrypt the file metadata with the link key.
-- We encrypt the original file's AES key with the link key.
-- We encrypt the link key with the owner's RSA key (enabling the owner to retrieve the key anytime).
-- When someone clicks the link, the link key will either be included in the link `https://.../links/{id}#link-key`, or the user will have to input it in the client app before starting the download.
-- On the download request, the link key is sent to the server where the actual file key is decrypted in-memory.
-- The file content is streamed for download while being decrypted in-memory.
+The process for publicly sharing links to files protects the actual file's AES key:
+- A random AES key is generated for the link.
+- The file metadata is encrypted with the link key.
+- The original file's AES key is encrypted with the link key.
+- The link key is encrypted with the owner's RSA key (enabling the owner to retrieve the key anytime).
+- When someone clicks the link, the link key will either be included in the link `https://.../links/{id}#link-key`, or they need to input it in the client app before starting the download.
+- On the download request, the link key is sent to the server where the actual file key is decrypted in memory.
+- The file content is streamed for download and is decrypted in memory.
 
-For RSA, we employ 2048-bit [PKCS#1](https://en.wikipedia.org/wiki/PKCS_1) keys, and for AES, we use [AEAD Ascon-128a](https://ascon.iaik.tugraz.at/). We have detailed usage of the crypto in the `cryptfns` workspace member. Our encryption setup offers the best performance results we’ve seen to date.
+For RSA, we employ 2048-bit [PKCS#1](https://en.wikipedia.org/wiki/PKCS_1) keys, and for AES, we use [AEAD Ascon-128a](https://ascon.iaik.tugraz.at/). You can find detailed usage of the crypto in the `cryptfns` workspace member. We chose this encryption setup because it offers impressive performance results.
 
-We store files in chunks and encrypt each chunk individually. This method enables concurrent uploading and downloading of chunks, thereby offsetting encryption overhead.
+Files are stored in chunks and each chunk is encrypted individually. This enables concurrent uploading and downloading of chunks to offset encryption overhead.
 
-*In the case of downloading publicly linked files, the shared key solely unlocks the link. Within the link, we've encrypted the actual file key, which then decrypts the file as it downloads. This design ensures that the person receiving the shared link never receives the file key.
+*Just to note, in the case of downloading publicly linked files, the shared key only unlocks the link. The actual file key is encrypted within the link and decrypts the file as it downloads. This design ensures the person receiving the shared link never gets the file key.
 
-**We offer the option of server-based encryption and decryption, which could be a fallback solution if the client is running on a device with limited computing power. However, we anticipate that this feature will rarely need to be used.*
+**We provide the option of server-based encryption and decryption as a fallback solution if the client runs on a device with limited computing power. However, this feature is expected to be used rarely.*
 
 ## Installing via Docker
 
@@ -65,14 +64,14 @@ docker run --name hoodik -it -d \
 
 ## Database
 
-Our application supports either `Sqlite` or `Postgres` databases. `Sqlite` is enabled by default and will create a database file in your `DATA_DIR`, so it functions right out of the box. If you prefer, you can also use an external `Postgres` database - you'd just need to supply the `DATABASE_URL` for your `Postgres` connection.
+Hoodik supports either `Sqlite` or `Postgres` databases. `Sqlite` is enabled by default and it creates a database file in your `DATA_DIR` right out of the box. If you prefer an external `Postgres` database, simply provide the `DATABASE_URL` for your `Postgres` connection.
 
-**Please take note: The databases used with Hoodik are not interchangeable. Should you decide to switch from one database to another after you've started using the application, this could result in potential loss of all your data.**
+**Please take note: The databases used with Hoodik are not interchangeable. Should you decide to switch from one database type to another after you've begun using the application, this could result in the loss of all your data.**
 
 ## Configuration
 
-For a more detailed application configuration, please see our [environment example](./.env.example).
+For a more detailed application configuration, please review our [environment example](./.env.example).
 
 ## Contributors
 
- - Little Hoodik by [Your Dear Designer](https://yourdeardesigner.com/) ❤️
+- We thank [Your Dear Designer](https://yourdeardesigner.com/) for the Little Hoodik logo. ❤️
