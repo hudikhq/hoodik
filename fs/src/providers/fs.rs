@@ -32,7 +32,7 @@ impl<'provider> FsProvider<'provider> {
     async fn inner_stream<T: IntoFilename>(
         &self,
         filename: &T,
-        chunk: Option<i32>,
+        chunk: Option<i64>,
     ) -> impl futures_util::Stream<Item = AppResult<actix_web::web::Bytes>> {
         let mut files: Vec<File> = match chunk {
             Some(chunk) => match self.get(filename, chunk).await {
@@ -107,7 +107,7 @@ impl<'ctx> FsProviderContract for FsProvider<'ctx> {
         Ok(())
     }
 
-    async fn exists<T: IntoFilename>(&self, filename: &T, chunk: i32) -> AppResult<bool> {
+    async fn exists<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<bool> {
         Ok(std::path::Path::new(
             self.full_path(&filename.filename()?.with_chunk(chunk))
                 .as_str(),
@@ -115,7 +115,7 @@ impl<'ctx> FsProviderContract for FsProvider<'ctx> {
         .exists())
     }
 
-    async fn get<T: IntoFilename>(&self, filename: &T, chunk: i32) -> AppResult<File> {
+    async fn get<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<File> {
         let filename = filename.filename()?.with_chunk(chunk);
 
         OpenOptions::new()
@@ -139,7 +139,7 @@ impl<'ctx> FsProviderContract for FsProvider<'ctx> {
         Ok(files)
     }
 
-    async fn push<T: IntoFilename>(&self, filename: &T, chunk: i32, data: &[u8]) -> AppResult<()> {
+    async fn push<T: IntoFilename>(&self, filename: &T, chunk: i64, data: &[u8]) -> AppResult<()> {
         let filename = filename.filename()?.with_chunk(chunk);
 
         let file = File::create(self.full_path(&filename)).await?;
@@ -151,7 +151,7 @@ impl<'ctx> FsProviderContract for FsProvider<'ctx> {
         Ok(())
     }
 
-    async fn pull<T: IntoFilename>(&self, filename: &T, chunk: i32) -> AppResult<Vec<u8>> {
+    async fn pull<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<Vec<u8>> {
         let filename = filename.filename()?.with_chunk(chunk);
 
         let mut file = File::open(self.full_path(&filename)).await?;
@@ -174,7 +174,7 @@ impl<'ctx> FsProviderContract for FsProvider<'ctx> {
         Ok(())
     }
 
-    async fn get_uploaded_chunks<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<i32>> {
+    async fn get_uploaded_chunks<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<i64>> {
         let filename = filename.filename()?.with_chunk("*");
         let pattern = self.full_path(&filename);
         let paths = glob::glob(&pattern)?;
@@ -188,7 +188,7 @@ impl<'ctx> FsProviderContract for FsProvider<'ctx> {
                 .split('.')
                 .last()
                 .unwrap_or_default()
-                .parse::<i32>()
+                .parse::<i64>()
                 .map_err(|_| {
                     Error::InternalError(
                         "Failed to parse chunk number while getting uploaded chunks".to_string(),
@@ -206,7 +206,7 @@ impl<'ctx> FsProviderContract for FsProvider<'ctx> {
     async fn stream<T: IntoFilename>(
         &self,
         filename: &T,
-        chunk: Option<i32>,
+        chunk: Option<i64>,
     ) -> AppResult<Streamer> {
         let filename = filename.filename()?;
         let stream = self.inner_stream(&filename, chunk).await;

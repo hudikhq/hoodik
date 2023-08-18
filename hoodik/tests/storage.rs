@@ -70,7 +70,7 @@ async fn test_creating_file_and_uploading_chunks() {
         name_hash: Some(checksum.clone()),
         mime: Some("text/plain".to_string()),
         size: Some(size),
-        chunks: Some(data.len() as i32),
+        chunks: Some(data.len() as i64),
         file_id: None,
         /// Date of the file creation from the disk, if not provided we set it to now
         file_modified_at: None,
@@ -111,10 +111,10 @@ async fn test_creating_file_and_uploading_chunks() {
         // let string_body = String::from_utf8(body.to_vec()).unwrap();
         // println!("string_body: {}", string_body);
         file = serde_json::from_slice(&body).unwrap();
-        uploaded.push(i as i32);
+        uploaded.push(i as i64);
 
         assert_eq!(file.uploaded_chunks.clone().unwrap(), uploaded);
-        assert_eq!(file.chunks_stored.unwrap(), i as i32 + 1);
+        assert_eq!(file.chunks_stored.unwrap(), i as i64 + 1);
     }
 
     assert!(file.finished_upload_at.is_some());

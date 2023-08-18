@@ -20,7 +20,7 @@ where
         Self { repository }
     }
 
-    /// Get file stats for a single user
+    /// Get global file stats
     pub(crate) async fn stats(&self) -> AppResult<Vec<Stats>> {
         let stats = files::Entity::find()
             .select_only()
@@ -80,7 +80,7 @@ where
         Ok(files)
     }
 
-    /// Delete many files at once
+    /// Delete many files at once, remove the storage data as well
     pub(crate) async fn delete_many(&self, files: Vec<files::Model>) -> AppResult<u64> {
         let fs = Fs::new(&self.repository.context().config);
 

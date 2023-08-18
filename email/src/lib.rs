@@ -65,7 +65,7 @@ impl contract::SenderContract for Sender {
         self.inner.send(emails).await
     }
 
-    /// We will override the default behaviour here because we want it to always have
+    /// We will override the default behavior here because we want it to always have
     /// app version and name in production settings, and this will enable that.
     fn template(&self, subject: &str, pre_header: &str) -> AppResult<template::Template> {
         let mut template = template::Template::new(subject, pre_header)?;

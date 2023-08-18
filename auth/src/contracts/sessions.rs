@@ -49,7 +49,7 @@ where
         result.ok_or(Error::NotFound("session_not_found".to_string()))
     }
 
-    /// Refresh session, if it's not expired. Refreshing a session will extend the expiration date by 10 minutes.
+    /// Refresh session, if it's not expired. Refreshing a session will extend the expiration date by N minutes.
     async fn refresh(&self, session: &sessions::Model) -> AppResult<Authenticated> {
         let expires_at = Utc::now().naive_utc()
             + Duration::seconds(self.ctx().config.auth.short_term_session_duration_seconds);

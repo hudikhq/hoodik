@@ -17,6 +17,7 @@ import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { computed, ref, watch } from 'vue'
 import type { AppFile } from 'types'
+import { isPreviewable } from '!/preview'
 
 const props = defineProps<{
   selected: AppFile[]
@@ -203,7 +204,7 @@ const sizes = {
       :xs="true"
       :icon="mdiEye"
       color="light"
-      v-if="singleSelected && singleSelected.thumbnail"
+      v-if="singleSelected && isPreviewable(singleSelected)"
       :to="{ name: 'file-preview', params: { id: singleSelected.id } }"
     />
 

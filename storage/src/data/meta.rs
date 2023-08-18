@@ -8,13 +8,13 @@ use ::error::AppResult;
 use serde::{Deserialize, Serialize};
 use validr::*;
 
-pub type MetaTuple = (i32, Option<String>, Option<String>, Option<String>);
+pub type MetaTuple = (i64, Option<String>, Option<String>, Option<String>);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Meta {
     /// The chunk number that is being uploaded
     /// this is used for resumable uploads
-    pub chunk: Option<i32>,
+    pub chunk: Option<i64>,
     /// Checksum of the currently uploading chunk
     /// this is used for verifying the integrity of the chunk
     pub checksum: Option<String>,

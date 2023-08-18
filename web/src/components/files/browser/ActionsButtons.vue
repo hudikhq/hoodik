@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isPreviewable } from '!/preview'
 import PureButton from '@/components/ui/PureButton.vue'
 import { mdiTrashCan, mdiEye, mdiDownload, mdiLink, mdiPencil } from '@mdi/js'
 import type { AppFile } from 'types'
@@ -22,7 +23,7 @@ const emits = defineEmits<{
 const file = computed(() => props.modelValue)
 
 const hasPreview = computed(() => {
-  return file.value?.thumbnail && file.value?.finished_upload_at
+  return isPreviewable(file.value)
 })
 
 const hasDownload = computed(() => {

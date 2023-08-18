@@ -5,7 +5,7 @@ use migration::{Migrator, MigratorTrait};
 #[actix_web::main]
 async fn main() -> AppResult<()> {
     // Catch any panic from any thread running and dump it here
-    // This enables us to kill the entire process if any of the inner threads die
+    // This enables us to kill the entire process if any of the child threads die
     let origin_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
         origin_hook(panic_info);

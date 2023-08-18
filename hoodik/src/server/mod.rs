@@ -16,28 +16,6 @@ use error::{AppResult, Error};
 pub mod client;
 pub mod cors;
 
-pub mod middleware {
-    //! # Middleware
-    //!
-    //! Collection of all the middleware used in the application pulled
-    //! from various packages we depend on.
-    //!
-    //! Currently, there are no middleware used in the application.
-}
-
-pub mod routes {
-    //! # Routes
-    //!
-    //! Collection of all the routes used in the application pulled
-    //! from various packages we depend on.
-    pub use admin::routes as admin_routes;
-    pub use auth::routes as auth_routes;
-    pub use links::routes as links_routes;
-    pub use storage::routes as storage_routes;
-
-    pub use super::client::client;
-}
-
 /// Inject the application modules into the server
 fn configure(cfg: &mut web::ServiceConfig) {
     admin::routes::configure(cfg);
@@ -88,7 +66,7 @@ pub fn app(
                     .json(serde_json::json!({"METHOD": "HEAD", "message": "I am alive"}))
             }),
         )
-        .service(routes::client)
+        .service(client::client)
 }
 
 /// Start the server

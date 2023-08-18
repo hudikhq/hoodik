@@ -200,7 +200,7 @@ watch(
     :hide-submit="true"
     @cancel="cancel"
   >
-    <CardBoxComponentTitle :icon="mdiLink" title="Public link for a link">
+    <CardBoxComponentTitle :icon="mdiLink" title="Public link for a file">
       <BaseButton
         title="Close modal"
         :icon="mdiClose"
