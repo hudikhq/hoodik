@@ -51,7 +51,7 @@ impl Users {
             return whitelist.valid(input);
         }
 
-        true
+        false
     }
 
     /// Validate users email if its not blacklisted.

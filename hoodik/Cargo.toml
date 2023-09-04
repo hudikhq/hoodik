@@ -39,3 +39,4 @@ cryptfns = { path = "../cryptfns", features = ["mock"] }
 email = { path = "../email", features = ["mock"] }
 links = { path = "../links", features = ["mock"] }
 storage = { path = "../storage", features = ["mock"] }
+settings = { path = "../settings", features = [] }
