@@ -6,3 +6,4 @@ cargo test --test email -- --nocapture
 cargo test --test links -- --nocapture
 cargo test --test storage -- --nocapture
 cargo test --test web_authentication -- --nocapture
+cargo test --test web_registration -- --nocapture
