@@ -1209,7 +1209,7 @@ dependencies = [
 
 [[package]]
 name = "cryptfns"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "ascon-aead",
  "base64 0.21.0",
