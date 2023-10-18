@@ -40,7 +40,7 @@ impl Validation for Meta {
             // rule_required!(checksum),
             rule_in!(
                 checksum_function,
-                vec!["crc16".to_string(), "sha256".to_string()]
+                Into::<Vec<String>>::into(["crc16".to_string(), "sha256".to_string()])
             ),
             Rule::new("chunk", |obj: &Self, error| {
                 if let Some(v) = obj.chunk {

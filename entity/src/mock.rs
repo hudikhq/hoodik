@@ -64,7 +64,7 @@ pub async fn create_session<T: super::ConnectionTrait>(
         user_agent: ActiveValue::Set(
             user_agent
                 .map(|user_agent| user_agent.to_string())
-                .unwrap_or_else(|| "".to_string()),
+                .unwrap_or_default(),
         ),
         device_id: ActiveValue::Set(Uuid::new_v4()),
         ip: ActiveValue::Set(

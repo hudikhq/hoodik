@@ -1,6 +1,6 @@
 [package]
 name = "cryptfns"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
 license-file = "../LICENSE.md"
@@ -39,11 +39,6 @@ chacha20poly1305 = "0.10.1"
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
 # code size when deploying.
 console_error_panic_hook = { version = "0.1.6", optional = true }
-
-# `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
-# compared to the default allocator's ~10K. It is slower than the default
-# allocator, however.
-wee_alloc = { version = "0.4.5", optional = true }
 
 [dependencies.num-traits]
 version = "0.2.9"

@@ -18,7 +18,7 @@ impl Validation for Create {
         vec![
             rule_required!(email),
             rule_email!(email),
-            rule_in!(role, vec!["admin".to_string()]),
+            rule_in!(role, Into::<Vec<String>>::into(["admin".to_string()])),
             Rule::new("quota", |obj: &Self, error| {
                 if let Some(v) = obj.quota {
                     if v < MAX_CHUNK_SIZE_BYTES as i64 {

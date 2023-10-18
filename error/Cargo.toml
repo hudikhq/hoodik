@@ -1,6 +1,6 @@
 [package]
 name = "error"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
 readme = "README.md"
@@ -24,7 +24,6 @@ validr = "^0.3"
 actix-multipart = "^0.6"
 actix-web = "^4"
 rsa = "^0.8"
-sequoia-openpgp = "^1"
 base64 = "^0.21"
 hex = "^0.4"
 jsonwebtoken = "^8"
