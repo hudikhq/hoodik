@@ -11,7 +11,7 @@ impl Validation for Update {
     fn rules(&self) -> Vec<Rule<Self>> {
         vec![rule_in!(
             role,
-            vec!["admin".to_string(), "user".to_string()]
+            Into::<Vec<String>>::into(["admin".to_string(), "user".to_string()])
         )]
     }
 }

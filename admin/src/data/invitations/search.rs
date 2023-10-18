@@ -16,7 +16,7 @@ impl Validation for Search {
     fn rules(&self) -> Vec<Rule<Self>> {
         vec![rule_in!(
             order,
-            vec!["asc".to_string(), "desc".to_string(),]
+            Into::<Vec<String>>::into(["asc".to_string(), "desc".to_string()])
         )]
     }
 
