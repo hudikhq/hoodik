@@ -16,7 +16,6 @@ use sea_orm::{
     error::{ColumnFromStrErr, DbErr, RuntimeErr},
     TransactionError,
 };
-use sequoia_openpgp::Error as PGPError;
 use serde::Serialize;
 use serde_json::Error as SerdeJsonError;
 use std::io::Error as IoError;
@@ -42,7 +41,6 @@ pub enum Error {
     Base64DecodeError(DecodeError),
     HexDecodeError(FromHexError),
     FromUtf8Error(FromUtf8Error),
-    PGPError(PGPError),
     JWTError(JWTError),
     ReqwestError(ReqwestError),
     StorageError(String),
@@ -167,12 +165,6 @@ impl From<FromHexError> for Error {
 impl From<FromUtf8Error> for Error {
     fn from(source: FromUtf8Error) -> Error {
         Error::FromUtf8Error(source)
-    }
-}
-
-impl From<PGPError> for Error {
-    fn from(source: PGPError) -> Error {
-        Error::PGPError(source)
     }
 }
 
@@ -338,11 +330,6 @@ impl From<&Error> for ErrorResponse {
                 context: None,
             },
             Error::FromUtf8Error(message) => ErrorResponse {
-                status: 500,
-                message: message.to_string(),
-                context: None,
-            },
-            Error::PGPError(message) => ErrorResponse {
                 status: 500,
                 message: message.to_string(),
                 context: None,

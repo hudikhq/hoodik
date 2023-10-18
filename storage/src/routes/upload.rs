@@ -156,13 +156,11 @@ fn validate_chunk_size(file: &AppFile, chunk: i64, data_len: usize) -> AppResult
         return Ok(());
     }
 
-    let max_size = chunk_size + chunk_size * 0.01;
+    let max_size = chunk_size + chunk_size * 0.05;
 
     if data_len as f32 > max_size {
-        let error = format!(
-            "chunk_size_mismatch: expected max {}, but received {}",
-            chunk_size, data_len
-        );
+        let error =
+            format!("chunk_size_mismatch: expected max {max_size}, but received {data_len}",);
 
         return Err(Error::as_validation("chunk", &error));
     }
