@@ -4044,7 +4044,6 @@ dependencies = [
  "bytes",
  "hex",
  "sha2",
- "tokio",
 ]
 
 [[package]]

@@ -20,7 +20,7 @@ mock = []
 [dependencies]
 rand = "^0.8"
 rsa = { version = "^0.8", features = ["sha2"] }
-sha256 = "^1"
+sha256 = { version = "^1", default-features = false }
 base64 = "^0.21"
 hex = "^0.4"
 serde = "^1"
