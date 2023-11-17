@@ -54,7 +54,7 @@ async fn test_creating_and_downloading_link() {
         size: Some(size),
         chunks: Some(data.len() as i64),
         file_id: None,
-        /// Date of the file creation from the disk, if not provided we set it to now
+        // Date of the file creation from the disk, if not provided we set it to now
         file_modified_at: None,
     };
 

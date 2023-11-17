@@ -5,7 +5,7 @@ use auth::data::claims::Claims;
 use context::Context;
 use entity::Uuid;
 use error::{AppResult, Error};
-use fs::prelude::*;
+use fs::{prelude::*, MAX_CHUNK_SIZE_BYTES};
 
 use crate::{
     data::{app_file::AppFile, meta::Meta},
@@ -140,27 +140,14 @@ fn encrypt_request_body(key: &str, request_body: web::Bytes) -> AppResult<web::B
 /// and the number of chunks the file should have.
 /// If the chunk size is not equal to the size of the file divided by the number of chunks
 /// then we know that the chunk is not the last chunk and we can validate the size.
-fn validate_chunk_size(file: &AppFile, chunk: i64, data_len: usize) -> AppResult<()> {
-    let size = file
-        .size
-        .ok_or(Error::BadRequest("file_has_no_size".to_string()))?;
+fn validate_chunk_size(_file: &AppFile, _chunk: i64, data_len: usize) -> AppResult<()> {
+    let max_size = MAX_CHUNK_SIZE_BYTES as f64 + (MAX_CHUNK_SIZE_BYTES as f64 * 0.01);
 
-    let chunks = file
-        .chunks
-        .ok_or(Error::BadRequest("file_has_no_chunks".to_string()))?;
-
-    let chunk_size = size as f32 / chunks as f32;
-    let chunks = file.chunks.unwrap_or(0);
-
-    if chunk == chunks {
-        return Ok(());
-    }
-
-    let max_size = chunk_size + chunk_size * 0.05;
-
-    if data_len as f32 > max_size {
-        let error =
-            format!("chunk_size_mismatch: expected max {max_size}, but received {data_len}",);
+    if data_len as f64 > max_size {
+        let error = format!(
+            "chunk_size_mismatch: expected max {}, but received {}",
+            max_size, data_len
+        );
 
         return Err(Error::as_validation("chunk", &error));
     }

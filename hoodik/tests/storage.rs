@@ -7,7 +7,7 @@ use fs::IntoFilename;
 use hoodik::server;
 use storage::data::app_file::AppFile;
 
-use crate::helpers::{create_byte_chunks, CHUNKS, CHUNK_SIZE_BYTES};
+use crate::helpers::{calculate_checksum, create_byte_chunks, CHUNKS, CHUNK_SIZE_BYTES};
 
 #[actix_web::test]
 async fn test_creating_file_and_uploading_chunks() {
@@ -59,8 +59,20 @@ async fn test_creating_file_and_uploading_chunks() {
     let (second_jwt, _) = helpers::extract_cookies(&resp.headers());
     let second_jwt = second_jwt.unwrap();
 
-    let (data, size, checksum) = create_byte_chunks();
+    let (mut data, mut size, _) = create_byte_chunks();
     assert_eq!(data.len(), size as usize / CHUNK_SIZE_BYTES as usize);
+
+    let mut another = vec![];
+
+    for _i in 0..(CHUNK_SIZE_BYTES / 2) {
+        another.extend(b"b");
+    }
+
+    data.push(another);
+
+    size = size + (CHUNK_SIZE_BYTES / 2) as i64;
+
+    let checksum = calculate_checksum(data.clone());
 
     let random_file = storage::data::create_file::CreateFile {
         encrypted_key: Some("encrypted-gibberish".to_string()),
@@ -72,7 +84,7 @@ async fn test_creating_file_and_uploading_chunks() {
         size: Some(size),
         chunks: Some(data.len() as i64),
         file_id: None,
-        /// Date of the file creation from the disk, if not provided we set it to now
+        // Date of the file creation from the disk, if not provided we set it to now
         file_modified_at: None,
     };
 
@@ -108,9 +120,17 @@ async fn test_creating_file_and_uploading_chunks() {
             .to_request();
 
         let body = test::call_and_read_body(&mut app, req).await;
-        // let string_body = String::from_utf8(body.to_vec()).unwrap();
-        // println!("string_body: {}", string_body);
-        file = serde_json::from_slice(&body).unwrap();
+
+        file = match serde_json::from_slice(&body) {
+            Ok(f) => f,
+            Err(_) => {
+                let string_body = String::from_utf8(body.to_vec()).unwrap();
+                panic!(
+                    "Failed deserializing to File struct, string_body: {}",
+                    string_body
+                );
+            }
+        };
         uploaded.push(i as i64);
 
         assert_eq!(file.uploaded_chunks.clone().unwrap(), uploaded);
