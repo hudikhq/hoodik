@@ -48,3 +48,14 @@ pub(crate) fn create_byte_chunks() -> (Vec<Vec<u8>>, i64, String) {
 
     (byte_chunks, total_len, checksum)
 }
+
+#[allow(dead_code)]
+pub(crate) fn calculate_checksum(data: Vec<Vec<u8>>) -> String {
+    let mut body = vec![];
+
+    for chunk in data {
+        body.extend(chunk);
+    }
+
+    cryptfns::sha256::digest(body.as_slice())
+}
