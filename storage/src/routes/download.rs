@@ -40,14 +40,8 @@ pub(crate) async fn download(
         None => file.filename()?.with_extension(".enc"),
     };
 
-    let file_size = match chunk {
-        Some(_) => file.size.unwrap_or(1) / file.chunks.unwrap_or(0),
-        None => file.size.unwrap_or(0),
-    };
-
     Ok(HttpResponse::Ok()
         .insert_header(("Content-Type", "application/octet-stream"))
-        .insert_header(("Content-Length", file_size))
         .insert_header((
             "Content-Disposition",
             format!("attachment; filename=\"{}\"", filename),
@@ -77,14 +71,8 @@ pub(crate) async fn head(
         None => file.filename()?.with_extension(".enc"),
     };
 
-    let file_size = match chunk {
-        Some(_) => file.size.unwrap_or(1) / file.chunks.unwrap_or(0),
-        None => file.size.unwrap_or(0),
-    };
-
     Ok(HttpResponse::Ok()
         .insert_header(("Content-Type", "application/octet-stream"))
-        .insert_header(("Content-Length", file_size))
         .insert_header((
             "Content-Disposition",
             format!("attachment; filename=\"{}\"", filename),
