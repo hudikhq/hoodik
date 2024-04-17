@@ -1,7 +1,7 @@
 {
   "name": "@hoodik/web",
   "license": "CC BY-NC 4.0",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "scripts": {
     "dev": "vite",

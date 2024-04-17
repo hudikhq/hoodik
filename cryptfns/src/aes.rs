@@ -98,4 +98,20 @@ mod test {
 
         assert!(result.is_err())
     }
+    #[test]
+    fn test_aes_encrypt_and_decrypt_characters() {
+        let non_ascii = "あいうえお";
+
+        let plaintext = non_ascii.as_bytes().to_vec();
+        let key = b"very secret key.very secret key.".to_vec();
+
+        let encrypted = super::encrypt(key.clone(), plaintext.clone()).unwrap();
+
+        let decrypted = super::decrypt(key, encrypted.clone()).unwrap();
+
+        assert_eq!(
+            non_ascii,
+            &String::from_utf8(decrypted).unwrap()
+        );
+    }
 }
