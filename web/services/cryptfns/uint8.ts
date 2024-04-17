@@ -29,19 +29,16 @@ export function toBase64(bytes: Uint8Array) {
  * Convert utf8 string into Uint8Array
  */
 export function fromUtf8(str: string) {
-  const bytes = new Uint8Array(str.length)
-  for (let i = 0; i < str.length; i++) {
-    bytes[i] = str.charCodeAt(i)
-  }
-
-  return bytes
+  const encoder = new TextEncoder()
+  return encoder.encode(str)
 }
 
 /**
  * Convert Uint8Array into utf8 string
  */
 export function toUtf8(bytes: Uint8Array) {
-  return String.fromCharCode.apply(null, bytes as unknown as number[])
+    const decoder = new TextDecoder()
+    return decoder.decode(bytes)
 }
 
 /**
