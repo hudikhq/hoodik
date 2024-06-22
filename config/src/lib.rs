@@ -38,9 +38,16 @@ impl Config {
             self.get_app_version(),
             self.get_full_bind_address()
         );
+
         println!("-- Using data_dir: {}", self.app.data_dir);
-        println!("-- Using ssl cert: {}", self.ssl.cert_file);
-        println!("-- Using ssl key: {}", self.ssl.key_file);
+
+        if self.ssl.disabled {
+            println!("-- SSL is disabled");
+        } else {
+            println!("-- Using ssl cert: {}", self.ssl.cert_file);
+            println!("-- Using ssl key: {}", self.ssl.key_file);
+        }
+
         println!("-- RUST_LOG={:?}", std::env::var("RUST_LOG").ok());
         println!("------------------------------------------");
     }
