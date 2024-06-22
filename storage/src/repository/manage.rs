@@ -97,7 +97,7 @@ where
     pub(crate) async fn dir_tree(&self, id: Uuid) -> AppResult<Vec<AppFile>> {
         let sql = r#"
             WITH RECURSIVE file_tree(id, file_id) AS (
-                SELECT id, file_id FROM files WHERE id = ? AND mime = 'dir'
+                SELECT id, file_id FROM files WHERE id = $1 AND mime = 'dir'
                 UNION ALL
                 SELECT f.id, f.file_id FROM files f
                 JOIN file_tree a ON a.file_id = f.id
@@ -153,7 +153,7 @@ where
     pub(crate) async fn file_tree(&self, id: Uuid) -> AppResult<Vec<AppFile>> {
         let sql = r#"
             WITH RECURSIVE file_tree(id, file_id) AS (
-            SELECT id, file_id FROM files WHERE id = ?
+            SELECT id, file_id FROM files WHERE id = $1
             UNION ALL
             SELECT child.id, child.file_id FROM files child
             JOIN file_tree parent ON parent.id = child.file_id
