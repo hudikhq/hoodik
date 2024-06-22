@@ -1042,7 +1042,7 @@ dependencies = [
 
 [[package]]
 name = "config"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "chrono",
  "clap",
@@ -2004,7 +2004,7 @@ dependencies = [
 
 [[package]]
 name = "hoodik"
-version = "1.1.2"
+version = "1.2.0"
 dependencies = [
  "actix-cors",
  "actix-web",
