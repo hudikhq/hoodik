@@ -8,7 +8,6 @@ impl<T> GetterType for T where T: FromStr + Clone + Send + Sync + 'static {}
 
 pub(crate) trait OptionLike {
     fn is_some(&self) -> bool;
-    fn is_none(&self) -> bool;
 }
 
 pub(crate) struct Var<T: GetterType>(Option<T>);
@@ -20,10 +19,6 @@ where
     fn is_some(&self) -> bool {
         self.0.is_some()
     }
-
-    fn is_none(&self) -> bool {
-        self.0.is_none()
-    }
 }
 
 pub(crate) struct MaybeVar<T: GetterType>(Option<T>);
@@ -34,10 +29,6 @@ where
 {
     fn is_some(&self) -> bool {
         self.0.is_some()
-    }
-
-    fn is_none(&self) -> bool {
-        self.0.is_none()
     }
 }
 
@@ -52,10 +43,6 @@ where
 {
     fn is_some(&self) -> bool {
         self.inner.is_some()
-    }
-
-    fn is_none(&self) -> bool {
-        self.inner.is_none()
     }
 }
 
