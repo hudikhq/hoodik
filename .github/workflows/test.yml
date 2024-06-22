@@ -22,15 +22,6 @@ jobs:
           packages: curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev
           version: 1.0
 
-      - name: ⚡ Cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo
-
       - name: Run Clippy
         run: cargo clippy -- -D warnings
 
