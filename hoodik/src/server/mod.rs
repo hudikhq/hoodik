@@ -72,16 +72,23 @@ pub fn app(
 /// Start the server
 pub async fn engage(context: Context) -> AppResult<()> {
     let bind_address = context.config.get_full_bind_address();
+    let disabled = context.config.ssl.disabled;
     let app_url = context.config.get_app_url();
     let config = context.config.ssl.build_rustls_config(vec![app_url])?;
-
-    HttpServer::new(move || {
+    
+    let server = HttpServer::new(move || {
         app(context.clone()).wrap(Logger::new(
             "%a \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %T",
         ))
-    })
-    .bind_rustls(&bind_address, config)?
-    .run()
-    .await
-    .map_err(Error::from)
+    });
+
+    if disabled {
+        server.bind(&bind_address)?.run().await.map_err(Error::from)
+    } else {
+        server
+        .bind_rustls(&bind_address, config)?
+        .run()
+        .await
+        .map_err(Error::from)
+    }
 }

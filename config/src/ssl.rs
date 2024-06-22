@@ -11,6 +11,15 @@ use crate::{app::AppConfig, vars::Vars};
 
 #[derive(Debug, Clone)]
 pub struct SslConfig {
+    /// SSL_DISABLED: Disable SSL, if this is set to true, the server will not use SSL
+    /// even if the cert and key files are provided.
+    /// This is useful for development and testing.
+    /// 
+    /// *optional*
+    /// 
+    /// default: false
+    pub disabled: bool,
+
     /// SSL_CERT_FILE: Location of the ssl cert file, this will be loaded and setup on to the server
     /// if you don't provide this, the server will generate a self signed certificate
     /// and place them in the /tmp directory. This is not recommended for production.
@@ -32,6 +41,8 @@ pub struct SslConfig {
 
 impl SslConfig {
     pub(crate) fn new(app: &AppConfig, vars: &mut Vars) -> Self {
+        let disabled = vars.var_default("SSL_DISABLED", false);
+
         let cert_file =
             vars.var_default("SSL_CERT_FILE", format!("{}/hoodik.crt.pem", app.data_dir));
         let key_file = vars.var_default("SSL_KEY_FILE", format!("{}/hoodik.key.pem", app.data_dir));
@@ -39,6 +50,7 @@ impl SslConfig {
         vars.panic_if_errors("SslConfig");
 
         Self {
+            disabled: disabled.get(),
             cert_file: cert_file.get(),
             key_file: key_file.get(),
         }
