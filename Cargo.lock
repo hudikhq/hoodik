@@ -2004,7 +2004,7 @@ dependencies = [
 
 [[package]]
 name = "hoodik"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "actix-cors",
  "actix-web",
@@ -4241,7 +4241,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "storage"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "actix-web",
  "auth",
