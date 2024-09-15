@@ -36,6 +36,14 @@ pub struct CreateFile {
     pub file_id: Option<String>,
     /// Date of the file creation from the disk, if not provided we set it to now
     pub file_modified_at: Option<String>,
+    /// MD5 hash of the unencrypted file
+    pub md5: Option<String>,
+    /// SHA1 hash of the unencrypted file
+    pub sha1: Option<String>,
+    /// SHA256 hash of the unencrypted file
+    pub sha256: Option<String>,
+    /// BLAKE2B hash of the unencrypted file
+    pub blake2b: Option<String>,
 }
 
 impl Validation for CreateFile {
@@ -45,6 +53,10 @@ impl Validation for CreateFile {
             rule_required!(name_hash),
             rule_required!(encrypted_name),
             rule_required!(mime),
+            rule_required!(md5),
+            rule_required!(sha1),
+            rule_required!(sha256),
+            rule_required!(blake2b),
             Rule::new("size", |obj: &CreateFile, error| {
                 let dir_mime = Some("dir".to_string());
 
@@ -153,9 +165,13 @@ impl CreateFile {
                                 .unwrap()
                         })
                         .unwrap_or(now)
-                        .timestamp(),
+                        .and_utc().timestamp(),
                 ),
-                created_at: ActiveValue::Set(now.timestamp()),
+                md5: ActiveValue::Set(data.md5),
+                sha1: ActiveValue::Set(data.sha1),
+                sha256: ActiveValue::Set(data.sha256),
+                blake2b: ActiveValue::Set(data.blake2b),
+                created_at: ActiveValue::Set(now.and_utc().timestamp()),
                 finished_upload_at: ActiveValue::Set(None),
             },
             data.encrypted_key.unwrap(),

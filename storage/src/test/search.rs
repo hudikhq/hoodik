@@ -28,7 +28,7 @@ async fn create_file_with_tokens() {
     let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
 
     let name = "hello_world.txt";
-    let initial_tokens = cryptfns::tokenizer::into_tokens(&name).unwrap();
+    let initial_tokens = cryptfns::tokenizer::into_hashed_tokens(&name).unwrap();
 
     let dir = create_file(&context, &user, &name, None, Some("dir"))
         .await
@@ -64,7 +64,7 @@ async fn create_files_and_try_searching() {
 
     let search = Search {
         dir_id: None,
-        search_tokens_hashed: Some(vec!["hello:1".to_string()]),
+        search: Some("hello".to_string()),
         skip: None,
         limit: None,
     };
@@ -79,6 +79,32 @@ async fn create_files_and_try_searching() {
 
     assert_eq!(first.id, dir2.id);
     assert_eq!(second.id, dir.id);
+}
+
+#[actix_web::test]
+async fn create_files_and_try_searching_by_hash() {
+    let context = Context::mock_sqlite().await;
+    let repository = Repository::new(&context.db);
+    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
+
+    let file = create_file(&context, &user, "hello", None, Some("image/png"))
+        .await
+        .unwrap();
+
+    let search = Search {
+        dir_id: None,
+        search: Some("asd".to_string()), // the hashes aren't actually calculated in the tests, all the files have "asd" as hash
+        skip: None,
+        limit: None,
+    };
+
+    let mut results = repository.tokens(user.id).search(search).await.unwrap();
+
+    let first = results.pop().unwrap();
+
+    // println!("First {:#?}", first);
+
+    assert_eq!(first.id, file.id);
 }
 
 #[actix_web::test]

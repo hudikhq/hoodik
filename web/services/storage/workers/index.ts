@@ -1,4 +1,4 @@
-export * from './chunk'
+export * from './uploadChunk'
 export * from './downloadChunks'
 // export * from './download'
 

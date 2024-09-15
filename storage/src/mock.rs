@@ -24,7 +24,7 @@ pub async fn create_file<'ctx>(
     }
 
     let search_tokens_hashed =
-        cryptfns::tokenizer::into_string(cryptfns::tokenizer::into_tokens(name).unwrap())
+        cryptfns::tokenizer::into_string(cryptfns::tokenizer::into_hashed_tokens(name).unwrap())
             .split(';')
             .map(|i| i.to_string())
             .collect::<Vec<_>>();
@@ -40,6 +40,10 @@ pub async fn create_file<'ctx>(
         chunks,
         file_id: file_id.map(|f| f.to_string()),
         file_modified_at: None,
+        md5: Some("asd".to_string()),
+        sha1: Some("asd".to_string()),
+        sha256: Some("asd".to_string()),
+        blake2b: Some("asd".to_string()),
     };
 
     let (am, _, tokens, _, _) = file.into_active_model()?;

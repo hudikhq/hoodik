@@ -12,6 +12,7 @@ import {
   KEEP_FINISHED_UPLOADS_FOR_MINUTES
 } from '../../constants'
 import * as logger from '!/logger'
+import { createSHA256, createMD5, createBLAKE2b, createSHA1 } from 'hash-wasm'
 
 import type {
   CreateFile,
@@ -204,6 +205,8 @@ export const store = defineStore('upload', () => {
         throw e
       }
 
+
+
       const created = await create(keypair, file, parent_id)
 
       return waiting.value.push({ ...created, temporaryId: uuidv4() })
@@ -234,6 +237,10 @@ export const store = defineStore('upload', () => {
     const search_tokens_hashed = cryptfns.stringToHashedTokens(file.name.toLowerCase())
     const thumbnail = await createThumbnail(file)
 
+    const hashes = await digest(file)
+
+    console.log(hashes)
+
     const createFile: CreateFile = {
       name: file.name,
       size: file.size,
@@ -242,7 +249,11 @@ export const store = defineStore('upload', () => {
       file_id: parent_id,
       file_modified_at: utcStringFromLocal(modified),
       search_tokens_hashed,
-      thumbnail
+      thumbnail,
+      sha256: hashes.sha256,
+      md5: hashes.md5,
+      sha1: hashes.sha1,
+      blake2b: hashes.blake2b
     }
 
     const created = await meta.create(keypair, createFile)
@@ -343,5 +354,50 @@ async function sliceChunk(file: File, chunk: number): Promise<Uint8Array> {
     }
 
     reader.readAsArrayBuffer(slice)
+  })
+}
+
+/**
+ * Get file hashes (SHA256, MD5, SHA1, BLAKE2b)
+ */
+async function digest(file: File): Promise<{
+  sha256: string
+  md5: string
+  sha1: string
+  blake2b: string
+}> {
+  const sha256 = await createSHA256()
+  sha256.init()
+
+  const md5 = await createMD5()
+  md5.init()
+
+  const sha1 = await createSHA1()
+  sha1.init()
+
+  const blake2b = await createBLAKE2b()
+
+  const reader = new FileReader()
+
+  reader.readAsArrayBuffer(file)
+
+  return new Promise((resolve, reject) => {
+    reader.onload = async () => {
+      sha256.update(new Uint8Array(reader.result as ArrayBuffer))
+      md5.update(new Uint8Array(reader.result as ArrayBuffer))
+      sha1.update(new Uint8Array(reader.result as ArrayBuffer))
+      blake2b.update(new Uint8Array(reader.result as ArrayBuffer))
+
+      resolve({
+        sha256: sha256.digest('hex'),
+        md5: md5.digest('hex'),
+        sha1: sha1.digest('hex'),
+        blake2b: blake2b.digest('hex')
+      })
+    }
+
+    reader.onerror = (err) => {
+      reject(err)
+    }
   })
 }

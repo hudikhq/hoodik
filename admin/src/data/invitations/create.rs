@@ -61,7 +61,7 @@ impl Create {
             data.message,
             data.role,
             data.quota,
-            expires_at.timestamp(),
+            expires_at.and_utc().timestamp(),
         ))
     }
 }

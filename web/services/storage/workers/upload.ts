@@ -1,9 +1,10 @@
 import { utcStringFromLocal } from '../..'
-import { uploadChunk } from './chunk'
+import { uploadChunk } from './uploadChunk'
 import type { UploadAppFile } from 'types'
 import type { ErrorResponse } from '../../api'
 import type Api from '../../api'
 import { CHUNK_SIZE_BYTES, CONCURRENT_CHUNKS_UPLOAD } from '../../constants'
+
 
 /**
  * Run chunked file upload from start to end in the worker
@@ -51,6 +52,8 @@ export async function uploadFile(
     const batch = workers.splice(0, CONCURRENT_CHUNKS_UPLOAD)
     await Promise.all(batch.map((worker) => worker(self.SWApi || providedApi)))
   }
+
+  // REAL: b77a948d6cc14f19a909d5a95d8b09b532572ad2dc9810978387a5fdad4cc52f
 }
 
 /**

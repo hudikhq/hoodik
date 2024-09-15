@@ -41,7 +41,7 @@ export interface Parameters extends Query {
 }
 
 export interface SearchQuery {
-  search_tokens_hashed: string[]
+  search: string
   dir_id?: string
   limit?: number
   skip?: number

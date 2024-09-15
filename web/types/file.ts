@@ -152,6 +152,26 @@ export interface EncryptedAppFile extends AppFileEncryptedPart {
   is_new: boolean
 
   /**
+   * MD5 hash of the file (if it is uploaded, and a file)
+   */
+  md5?: string
+
+  /**
+   * SHA1 hash of the file (if it is uploaded, and a file)
+   */
+  sha1?: string
+
+  /**
+   * SHA256 hash of the file (if it is uploaded, and a file)
+   */
+  sha256?: string
+
+  /**
+   * SHA512 hash of the file (if it is uploaded, and a file)
+   */
+  blake2b?: string
+
+  /**
    * List of chunks that were uploaded
    * by their chunk number from 0 to chunks - 1
    */

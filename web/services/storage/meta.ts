@@ -87,6 +87,10 @@ export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise
     chunks: unencrypted.chunks,
     file_id: unencrypted.file_id,
     file_modified_at: unencrypted.file_modified_at,
+    md5: unencrypted.md5,
+    sha1: unencrypted.sha1,
+    sha256: unencrypted.sha256,
+    blake2b: unencrypted.blake2b,
     ...encryptedParts
   }
 
@@ -229,14 +233,9 @@ export async function stats(): Promise<StorageStatsResponse> {
  * Get file or directory metadata
  */
 export async function search(input: string, dir_id?: string): Promise<EncryptedAppFile[]> {
-  const search_tokens_hashed = cryptfns.stringToHashedTokens(input.toLowerCase())
-
-  if (!search_tokens_hashed.length) {
-    return []
-  }
 
   const body = {
-    search_tokens_hashed,
+    search: input,
     dir_id,
     limit: 10,
     skip: 0
