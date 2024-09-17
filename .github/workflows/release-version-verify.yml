@@ -1,10 +1,9 @@
 name: Verify release/hotfix version matches app version
 
 on:
-  push:
+  pull_request:
     branches:
-      - release/*
-      - hotfix/*
+      - master
 
 env:
   HANDLE: hoodik
@@ -17,22 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-      - name: Extract branch version
-        shell: bash
-        run: echo "version=$(echo "${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" | cut -d'/' -f2)" >> $GITHUB_OUTPUT
-        id: extract_branch
-
       - name: Read the application version
         run: echo "version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "${{ env.HANDLE }}") | .version')" >> $GITHUB_OUTPUT
         id: extract_version
-
-      - name: Verify the application version and branch version match
-        run: |
-          if [[ "v${{ steps.extract_version.outputs.version }}" != "${{ steps.extract_branch.outputs.version }}" ]]; then
-            echo "Version mismatch: v${{ steps.extract_version.outputs.version }} != ${{ steps.extract_branch.outputs.version }}"
-            echo "It seems like the version in the ${{ env.HANDLE }}/Cargo.toml is not the same as the release branch version."
-            exit 1
-          fi
 
       - uses: mukunku/tag-exists-action@v1.2.0
         id: checkTag
@@ -44,6 +30,6 @@ jobs:
           if [[ "${{ steps.checkTag.outputs.exists }}" == "true" ]]; then
             echo "Tag already exists: v${{ steps.extract_version.outputs.version }}"
             echo "This probably means that the version in the ${{ env.HANDLE }}/Cargo.toml is previously released version."
-            echo "Delete this release branch and create a new one with upserted version."
+            echo "In order to merge your PR it needs to upsert the application version."
             exit 1
           fi
