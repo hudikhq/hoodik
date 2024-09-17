@@ -86,6 +86,10 @@ async fn test_creating_file_and_uploading_chunks() {
         file_id: None,
         // Date of the file creation from the disk, if not provided we set it to now
         file_modified_at: None,
+        md5: Some("asd".to_string()),
+        sha1: Some("asd".to_string()),
+        sha256: Some("asd".to_string()),
+        blake2b: Some("asd".to_string()),
     };
 
     let req = test::TestRequest::post()

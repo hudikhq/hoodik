@@ -3,10 +3,7 @@ use error::{AppResult, Error};
 
 /// Convert i64 timestamp back into DateTime<Utc>.
 pub fn from_timestamp(timestamp: i64) -> DateTime<Utc> {
-    DateTime::from_utc(
-        NaiveDateTime::from_timestamp_opt(timestamp, 0).unwrap(),
-        Utc,
-    )
+    DateTime::from_timestamp(timestamp, 0).unwrap()
 }
 
 /// Parse string date '%Y-%m-%d' into NaiveDate.

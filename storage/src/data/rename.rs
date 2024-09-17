@@ -36,7 +36,7 @@ impl Rename {
                 id: ActiveValue::Set(id),
                 name_hash: ActiveValue::Set(name_hash.clone()),
                 encrypted_name: ActiveValue::Set(data.encrypted_name.unwrap()),
-                file_modified_at: ActiveValue::Set(now.timestamp()),
+                file_modified_at: ActiveValue::Set(now.and_utc().timestamp()),
                 ..Default::default()
             },
             data.search_tokens_hashed.unwrap_or_default(),

@@ -63,7 +63,7 @@ where
             refresh: ActiveValue::Set(Some(Uuid::new_v4())),
             created_at: ActiveValue::Set(session.created_at),
             updated_at: ActiveValue::Set(Utc::now().timestamp()),
-            expires_at: ActiveValue::Set(expires_at.timestamp()),
+            expires_at: ActiveValue::Set(expires_at.and_utc().timestamp()),
         };
 
         active_model.update(self.connection()).await?;

@@ -6,6 +6,7 @@ import { mdiFileOutline, mdiFolderOutline, mdiClose } from '@mdi/js'
 import { computed } from 'vue'
 import type { KeyPair, AppFile } from 'types'
 import { formatPrettyDate, formatSize } from '!/index'
+import { AppField } from '@/components/form'
 
 const props = defineProps<{
   modelValue: AppFile | undefined
@@ -91,6 +92,50 @@ const cancel = () => {
     <div v-if="!isDir" class="flex flex-row p-2 border-b-[1px] border-brownish-700">
       <div class="flex flex-col w-1/2">Uploaded</div>
       <div class="flex flex-col w-1/2">{{ fileFinishedUploadAt || percentage }}</div>
+    </div>
+    <div v-if="!isDir && file.md5" class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+      <AppField
+        label="MD5"
+        name="md5"
+        class-add="text-xs"
+        wrapper-class="w-full"
+        :allow-copy="true"
+        v-model="file.md5"
+        disabled
+      />
+    </div>
+    <div v-if="!isDir && file.sha1" class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+      <AppField
+        label="SHA1"
+        name="sha1"
+        class-add="text-xs"
+        wrapper-class="w-full"
+        :allow-copy="true"
+        v-model="file.sha1"
+        disabled
+      />
+    </div>
+    <div v-if="!isDir && file.sha256" class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+      <AppField
+        label="SHA256"
+        name="sha256"
+        class-add="text-xs"
+        wrapper-class="w-full"
+        :allow-copy="true"
+        v-model="file.sha256"
+        disabled
+      />
+    </div>
+    <div v-if="!isDir && file.blake2b" class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+      <AppField
+        label="BLAKE2b"
+        name="blake2b"
+        class-add="text-xs"
+        wrapper-class="w-full"
+        :allow-copy="true"
+        v-model="file.blake2b"
+        disabled
+      />
     </div>
   </CardBoxModal>
 </template>

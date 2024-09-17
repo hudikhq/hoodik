@@ -91,7 +91,7 @@ export default defineConfig({
         global: 'globalThis'
       }
     },
-    include: ['vue', 'vue-router', 'pinia', 'vue3-datepicker']
+    include: ['vue', 'vue-router', 'pinia']
   },
   resolve: {
     alias: {

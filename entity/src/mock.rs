@@ -56,7 +56,7 @@ pub async fn create_session<T: super::ConnectionTrait>(
     } else {
         Utc::now().naive_utc() + Duration::minutes(5)
     }
-    .timestamp();
+    .and_utc().timestamp();
 
     let session = super::sessions::ActiveModel {
         id: ActiveValue::Set(id),
@@ -72,8 +72,8 @@ pub async fn create_session<T: super::ConnectionTrait>(
                 .unwrap_or_else(|| "127.0.0.1".to_string()),
         ),
         refresh: ActiveValue::Set(Some(Uuid::new_v4())),
-        created_at: ActiveValue::Set((Utc::now().naive_utc() - Duration::minutes(5)).timestamp()),
-        updated_at: ActiveValue::Set((Utc::now().naive_utc() - Duration::minutes(5)).timestamp()),
+        created_at: ActiveValue::Set((Utc::now().naive_utc() - Duration::minutes(5)).and_utc().timestamp()),
+        updated_at: ActiveValue::Set((Utc::now().naive_utc() - Duration::minutes(5)).and_utc().timestamp()),
         expires_at: ActiveValue::Set(expires_at),
     };
 
@@ -117,6 +117,10 @@ pub async fn create_file<T: super::ConnectionTrait>(
         chunks: ActiveValue::Set(chunks),
         chunks_stored: ActiveValue::Set(chunks),
         file_modified_at: ActiveValue::Set(Utc::now().timestamp()),
+        md5: ActiveValue::NotSet,
+        sha1: ActiveValue::NotSet,
+        sha256: ActiveValue::NotSet,
+        blake2b: ActiveValue::NotSet,
         created_at: ActiveValue::Set(Utc::now().timestamp()),
         finished_upload_at: ActiveValue::Set(Some(Utc::now().timestamp())),
     };

@@ -1,5 +1,5 @@
 import { downloadAndDecryptStream } from './services/storage/workers'
-import { uploadFile } from './services/storage/workers/file'
+import { uploadFile } from './services/storage/workers/upload'
 import Api, { ErrorResponse, type ApiTransfer } from './services/api'
 import * as cryptfns from './services/cryptfns'
 import * as logger from '!/logger'

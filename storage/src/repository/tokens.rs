@@ -5,8 +5,7 @@ use std::cmp::Ordering;
 
 use cryptfns::tokenizer::Token;
 use entity::{
-    file_tokens, files, tokens, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait,
-    QueryFilter, QueryOrder, QuerySelect, Uuid,
+    file_tokens, files, tokens, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect, Uuid
 };
 use error::AppResult;
 
@@ -163,13 +162,7 @@ where
 
     /// Search files based on given tokens and sort by the token weight
     pub(crate) async fn search(&self, search: Search) -> AppResult<Vec<AppFile>> {
-        let (file_id, hashed_tokens, limit, skip) = search.into_tuple();
-
-        if hashed_tokens.is_empty() {
-            return Ok(vec![]);
-        }
-
-        let tokens = cryptfns::tokenizer::from_vec(hashed_tokens)?;
+        let (file_id, search, tokens, limit, skip) = search.into_tuple();
 
         let user_id = self.user_id;
         let mut query = self
@@ -183,12 +176,17 @@ where
 
         let mut query = query
             .filter(
-                tokens::Column::Hash.is_in(
+                files::Column::Id.eq(&search)
+                .or(files::Column::Md5.eq(&search))
+                .or(files::Column::Sha1.eq(&search))
+                .or(files::Column::Sha256.eq(&search))
+                .or(files::Column::Blake2b.eq(&search))
+                .or(tokens::Column::Hash.is_in(
                     tokens
                         .iter()
                         .map(|t| t.token.clone())
                         .collect::<Vec<String>>(),
-                ),
+                ))
             )
             .group_by(files::Column::Id)
             .order_by_desc(file_tokens::Column::Weight.sum());

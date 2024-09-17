@@ -53,6 +53,26 @@ export interface CreateFile extends AppFileUnencryptedPart {
    * hash each token and load it in this array.
    */
   search_tokens_hashed?: string[]
+
+  /**
+   * Unencrypted file MD5 hash
+   */
+  md5?: string
+
+  /**
+   * Unencrypted file SHA1 hash
+   */
+  sha1?: string
+
+  /**
+   * Unencrypted file SHA256 hash
+   */
+  sha256?: string
+
+  /**
+   * Unencrypted file Blake2b hash
+   */
+  blake2b?: string
 }
 
 export interface EncryptedCreateFile {
@@ -98,4 +118,24 @@ export interface EncryptedCreateFile {
    * When was the file created on disk
    */
   file_modified_at?: string
+
+  /**
+   * Unencrypted file MD5 hash
+   */
+  md5?: string
+
+  /**
+   * Unencrypted file SHA1 hash
+   */
+  sha1?: string
+
+  /**
+   * Unencrypted file SHA256 hash
+   */
+  sha256?: string
+
+  /**
+   * Unencrypted file Blake2b hash
+   */
+  blake2b?: string
 }
