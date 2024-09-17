@@ -199,9 +199,6 @@ where
             query = query.offset(skip);
         }
 
-        // let sql = query.build(DatabaseBackend::Sqlite);
-        // log::debug!("search sql: {}", sql);
-
         let results = query
             .into_model::<AppFile>()
             .all(self.repository.connection())
