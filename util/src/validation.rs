@@ -1,5 +1,23 @@
 use google_authenticator::GoogleAuthenticator;
 
+/// Macro to create a required rule for a field with additional
+/// condition to in order to be required
+#[macro_export]
+macro_rules! rule_required_if {
+    ($field:ident, $check:expr) => {
+        Rule::new(stringify!($field), |obj: &Self, error| {
+            let condition: bool = $check(obj.$field.as_ref(), obj);
+
+            if condition && obj.$field.is_none() {
+                error.add("required")
+            }
+        })
+    };
+    () => {
+        
+    };
+}
+
 /// Validate password to be certain strength according to zxcvbn
 pub fn validate_password(password: &str) -> bool {
     let entropy = match zxcvbn::zxcvbn(password, &[]) {

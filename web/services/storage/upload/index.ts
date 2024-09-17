@@ -239,8 +239,6 @@ export const store = defineStore('upload', () => {
 
     const hashes = await digest(file)
 
-    console.log(hashes)
-
     const createFile: CreateFile = {
       name: file.name,
       size: file.size,
