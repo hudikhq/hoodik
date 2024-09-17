@@ -1,4 +1,4 @@
-name: Publish Docker image
+name: Publish the new release
 
 on:
   push:
@@ -10,7 +10,31 @@ env:
   NAME: Hoodik
 
 jobs:
+  version-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Read the application version
+        run: echo "version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "${{ env.HANDLE }}") | .version')" >> $GITHUB_OUTPUT
+        id: extract_version
+
+      - uses: mukunku/tag-exists-action@v1.2.0
+        id: checkTag
+        with:
+          tag: "v${{ steps.extract_version.outputs.version }}"
+
+      - name: Verif the tag doesn't already exist
+        run: |
+          if [[ "${{ steps.checkTag.outputs.exists }}" == "true" ]]; then
+            echo "Tag already exists: v${{ steps.extract_version.outputs.version }}"
+            echo "This probably means that the version in the ${{ env.HANDLE }}/Cargo.toml is previously released version."
+            exit 1
+          fi
+
   push_to_registry:
+    needs: version-check
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
     steps:
