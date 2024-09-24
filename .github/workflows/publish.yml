@@ -36,7 +36,7 @@ jobs:
       - name: Install cross-compilation tools and libraries for ARM
         run: |
           sudo dpkg --add-architecture armhf
-          sudo apt-get update
+          sudo apt-get update || true
           sudo apt-get install -y gcc-arm-linux-gnueabihf
           sudo apt-get install -y libssl-dev:armhf
           rustup target add armv7-unknown-linux-gnueabihf
