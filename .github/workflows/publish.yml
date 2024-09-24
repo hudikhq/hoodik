@@ -35,6 +35,8 @@ jobs:
           
       - name: Install cross-compilation tools and libraries for ARM
         run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-linux-gnueabihf
           sudo dpkg --add-architecture armhf
           sudo sed 's/deb http/deb \[arch=amd64,i386\] http/' -i /etc/apt/sources.list
           sudo tee /etc/apt/sources.list <<EOF
@@ -43,7 +45,7 @@ jobs:
           deb [arch=armhf] http://ports.ubuntu.com/ $(lsb_release -cs)-security main universe restricted multiverse
           EOF
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabihf libssl-dev:armhf
+          sudo apt-get install -y libssl-dev:armhf
           rustup target add armv7-unknown-linux-gnueabihf
 
       - name: Install wasm pack
