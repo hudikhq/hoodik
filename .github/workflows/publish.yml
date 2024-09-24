@@ -35,8 +35,15 @@ jobs:
           
       - name: Install cross-compilation tools and libraries for ARM
         run: |
+          dpkg --add-architecture armhf
+          sed 's/deb http/deb \[arch=amd64,i386\] http/' -i /etc/apt/sources.list
+          echo >/etc/apt/sources.list <<EOF
+          deb [arch=armhf] http://ports.ubuntu.com/ $(lsb_release -cs) main universe restricted multiverse
+          deb [arch=armhf] http://ports.ubuntu.com/ $(lsb_release -cs)-updates main universe restricted multiverse
+          deb [arch=armhf] http://ports.ubuntu.com/ $(lsb_release -cs)-security main universe restricted multiverse
+          EOF
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabihf libssl-dev-armhf-cross
+          sudo apt-get install -y gcc-arm-linux-gnueabihf libssl-dev:armhf
           rustup target add armv7-unknown-linux-gnueabihf
 
       - name: Install wasm pack
@@ -84,20 +91,9 @@ jobs:
       #   env:
       #     CARGO_TARGET_DIR: target/x86_64
 
-      - name: Set environment variables for custom OpenSSL
-        run: |
-          echo "OPENSSL_DIR=/usr/arm-linux-gnueabihf" >> $GITHUB_ENV
-          echo "OPENSSL_INCLUDE_DIR=/usr/arm-linux-gnueabihf/include" >> $GITHUB_ENV
-          echo "OPENSSL_LIB_DIR=/usr/arm-linux-gnueabihf/lib" >> $GITHUB_ENV
-          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
-          echo "PKG_CONFIG_PATH=/usr/arm-linux-gnueabihf/lib/pkgconfig" >> $GITHUB_ENV
-          echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_OPENSSL_DIR=/usr/arm-linux-gnueabihf" >> $GITHUB_ENV
-          echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_OPENSSL_INCLUDE_DIR=/usr/arm-linux-gnueabihf/include" >> $GITHUB_ENV
-          echo "PKG_CONFIG_SYSROOT_DIR=/usr/arm-linux-gnueabihf" >> $GITHUB_ENV
-
 
       - name: Build Rust binary for ARM
-        run: cargo build --bin hoodik --release --target armv7-unknown-linux-gnueabihf
+        run: PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig PKG_CONFIG_ALLOW_CROSS=1 cargo build --bin hoodik --release --target=arm-unknown-linux-gnueabihf
         env:
           CARGO_TARGET_DIR: target/arm
           CC_armv7_unknown_linux_gnueabihf: arm-linux-gnueabihf-gcc
