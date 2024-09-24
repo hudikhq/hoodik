@@ -19,10 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev
-          version: 1.0
 
       # - name: Extract Tag
       #   id: tag
@@ -43,8 +39,8 @@ jobs:
           sudo apt-get install -y gcc-arm-linux-gnueabihf
           rustup target add armv7-unknown-linux-gnueabihf
 
-      # - name: Install wasm pack
-      #   run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Install wasm pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       # - name: Log in to Docker Hub
       #   uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
