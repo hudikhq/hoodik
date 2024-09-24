@@ -38,7 +38,7 @@ jobs:
           sudo dpkg --add-architecture armhf
           sudo apt-get update || true
           sudo apt-get install -y gcc-arm-linux-gnueabihf
-          sudo apt-get install -y libssl-dev:armhf
+          sudo apt-get install -y libssl-dev
           rustup target add armv7-unknown-linux-gnueabihf
 
       - name: Install wasm pack
