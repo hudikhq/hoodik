@@ -86,7 +86,11 @@ impl TryFrom<&HttpRequest> for Claims {
         Extractor::default()
             .jwt(context)
             .req(req)
-            .map_err(|_| Error::Unauthorized("auth::data::claims|no_claims".to_string()))
+            .map_err(|e| {
+                log::debug!("auth::data::claims|no_jwt: {:?}", e);
+
+                Error::Unauthorized("auth::data::claims|no_claims".to_string())
+            })
     }
 }
 

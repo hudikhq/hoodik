@@ -1,4 +1,6 @@
 import type { WorkerErrorType } from '../types'
+import * as lscache from 'lscache'
+
 
 export type Query = {
   [key: string]: string | number | string[] | undefined | null | boolean | Query
@@ -6,7 +8,13 @@ export type Query = {
 
 export type Headers = { [key: string]: string }
 
-export type ApiTransfer = { jwt?: string | null; csrf?: string | null; apiUrl?: string }
+export type ApiTransfer = {
+  jwtToken?: string | null
+  refreshToken?: string | null
+  csrf?: string | null
+  apiUrl?: string
+  attemptRefreshOnFail?: boolean
+}
 
 /**
  * Interface to represent all the request data we will be doing
@@ -213,10 +221,15 @@ export function toQueryValue(
  */
 export default class Api {
   private apiUrl: string
+  private jwtToken: string | null
+  private refreshToken: string | null
   private attemptRefreshOnFail = false
 
-  constructor({ apiUrl }: ApiTransfer = {}) {
+  constructor({ apiUrl, jwtToken, refreshToken, attemptRefreshOnFail }: ApiTransfer = {}) {
+    this.jwtToken = jwtToken || lscache.get('jwt')
+    this.refreshToken = refreshToken || lscache.get('refresh')
     this.apiUrl = apiUrl || getApiUrl()
+    this.attemptRefreshOnFail = attemptRefreshOnFail || false
   }
 
   /**
@@ -234,7 +247,7 @@ export default class Api {
    * to pass into the service worker.
    */
   toJson(): ApiTransfer {
-    return { apiUrl: this.apiUrl }
+    return { apiUrl: this.apiUrl, jwtToken: this.jwtToken, refreshToken: this.refreshToken }
   }
 
   /**
@@ -390,6 +403,16 @@ export default class Api {
     const responseHeaders: Headers = {}
     res.headers.forEach((value: string, key: string) => (responseHeaders[key] = value))
 
+    if (responseHeaders['x-auth-jwt']) {
+      lscache.set('jwt', responseHeaders['x-auth-jwt'])
+      this.jwtToken = responseHeaders['x-auth-jwt']
+    }
+
+    if (responseHeaders['x-auth-refresh']) {
+      lscache.set('refresh', responseHeaders['x-auth-refresh'])
+      this.refreshToken = responseHeaders['x-auth-refresh']
+    }
+
     const response = {
       request,
       status: res.status,
@@ -465,7 +488,17 @@ export default class Api {
    * Prepare headers before sending the request
    */
   getHeaders(headers?: Headers): Headers {
-    return headers || {}
+    const _headers = headers || {}
+
+    if (this.jwtToken) {
+      _headers['Authorization'] = `Bearer ${this.jwtToken}`
+    }
+
+    if (this.refreshToken) {
+      _headers['X-Auth-Refresh'] = this.refreshToken
+    }
+
+    return _headers
   }
 
   /**

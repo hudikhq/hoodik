@@ -79,6 +79,15 @@ pub struct AuthConfig {
     ///
     /// default: 120
     pub short_term_session_duration_seconds: i64,
+
+    /// USE_HEADERS_FOR_AUTH: This tells us if the headers should be used for authentication
+    /// instead of cookies. This method will be less secure, but will allow you to use the backend
+    /// with a frontend that is not on the same domain, or if you have multiple domains.
+    /// 
+    /// *optional*
+    /// 
+    /// default: false
+    pub use_headers_for_auth: bool,
 }
 
 impl AuthConfig {
@@ -93,6 +102,7 @@ impl AuthConfig {
             vars.var_default("LONG_TERM_SESSION_DURATION_DAYS", 30);
         let short_term_session_duration_seconds =
             vars.var_default("SHORT_TERM_SESSION_DURATION_SECONDS", 120);
+        let use_headers_for_auth = vars.var_default("USE_HEADERS_FOR_AUTH", false);
 
         let cookie_domain = get_cookie_domain(vars, &app.app_url);
 
@@ -108,6 +118,7 @@ impl AuthConfig {
             cookie_same_site,
             long_term_session_duration_days: long_term_session_duration_days.get(),
             short_term_session_duration_seconds: short_term_session_duration_seconds.get(),
+            use_headers_for_auth: use_headers_for_auth.get(),
         }
     }
 }

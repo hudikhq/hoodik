@@ -6,15 +6,21 @@ use entity::Uuid;
 use error::AppResult;
 use std::marker::PhantomData;
 
+pub(crate) enum Source<'ext> {
+    Http(&'ext str),
+    Header(&'ext str),
+}
+
 pub(crate) struct Extractor<'ext, T> {
     extractor: T,
     _p: &'ext PhantomData<()>,
 }
 
 pub(crate) struct Useless;
-pub(crate) struct Refresh<'ext>(&'ext str);
+pub(crate) struct Refresh<'ext>(Source<'ext>);
+
 pub(crate) struct Jwt<'ext> {
-    cookie_name: &'ext str,
+    source: Source<'ext>,
     jwt_secret: &'ext str,
 }
 
@@ -35,9 +41,15 @@ impl Default for Extractor<'_, Useless> {
 
 impl<'ext> Extractor<'ext, Useless> {
     pub(crate) fn jwt(self, ctx: &'ext Context) -> Extractor<'ext, Jwt<'ext>> {
+        let source = if ctx.config.auth.use_headers_for_auth {
+            Source::Header("Authorization")
+        } else {
+            Source::Http(&ctx.config.auth.session_cookie)
+        };
+
         Extractor {
             extractor: Jwt {
-                cookie_name: &ctx.config.auth.session_cookie,
+                source,
                 jwt_secret: &ctx.config.auth.jwt_secret,
             },
             _p: &PhantomData,
@@ -45,16 +57,28 @@ impl<'ext> Extractor<'ext, Useless> {
     }
 
     pub(crate) fn refresh(self, ctx: &'ext Context) -> Extractor<'ext, Refresh<'ext>> {
+        let source = if ctx.config.auth.use_headers_for_auth {
+            Source::Header("x-auth-refresh")
+        } else {
+            Source::Http(&ctx.config.auth.session_cookie)
+        };
+
         Extractor {
-            extractor: Refresh(&ctx.config.auth.refresh_cookie),
+            extractor: Refresh(source),
             _p: &PhantomData,
         }
     }
 }
 
 impl<'ext> Extractor<'ext, Jwt<'ext>> {
-    fn cookie_name(&self) -> &'ext str {
-        self.extractor.cookie_name
+    fn name(&self) -> &'ext str {
+        match self.extractor.source {
+            Source::Http(name) | Source::Header(name) => name,
+        }
+    }
+
+    fn use_headers(&self) -> bool {
+        matches!(self.extractor.source, Source::Header(_))
     }
 
     fn jwt_secret(&self) -> &'ext str {
@@ -65,26 +89,77 @@ impl<'ext> Extractor<'ext, Jwt<'ext>> {
     ///
     /// It does not verify if the session is expired!
     pub(crate) fn req(&self, req: &HttpRequest) -> AppResult<Claims> {
+        let claims = if self.use_headers() {
+            self.req_header(req)?
+        } else {
+            self.req_cookie(req)?
+        };
+
+        crate::jwt::extract(&claims, self.jwt_secret())
+    }
+
+    fn req_cookie(&self, req: &HttpRequest) -> AppResult<String> {
         let cookie = req
-            .cookie(self.cookie_name())
+            .cookie(self.name())
             .ok_or_else(|| error::Error::Unauthorized("missing_session_token".to_string()))?;
 
-        crate::jwt::extract(cookie.value(), self.jwt_secret())
+        Ok(cookie.value().to_string())
+    }
+
+    fn req_header(&self, req: &HttpRequest) -> AppResult<String> {
+        let header = req
+            .headers()
+            .get(self.name())
+            .ok_or_else(|| error::Error::Unauthorized("missing_session_token".to_string()))?
+            .to_str()
+            .map_err(|_| error::Error::Unauthorized("invalid_session_token".to_string()))?;
+
+        let header = header
+            .strip_prefix("Bearer ")
+            .ok_or_else(|| error::Error::Unauthorized("invalid_session_token".to_string()))?;
+
+        Ok(header.to_string())
     }
 }
 
 impl<'ext> Extractor<'ext, Refresh<'ext>> {
-    fn cookie_name(&self) -> &'ext str {
-        self.extractor.0
+    fn name(&self) -> &'ext str {
+        match self.extractor.0 {
+            Source::Http(name) | Source::Header(name) => name,
+        }
+    }
+
+    fn use_headers(&self) -> bool {
+        matches!(self.extractor.0, Source::Header(_))
     }
 
     /// Extract the refresh token from the request.
     pub(crate) fn req(&self, req: &HttpRequest) -> AppResult<Uuid> {
+        if self.use_headers() {
+            self.req_header(req)
+        } else {
+            self.req_cookie(req)
+        }
+    }
+
+    fn req_cookie(&self, req: &HttpRequest) -> AppResult<Uuid> {
         let cookie = req
-            .cookie(self.cookie_name())
+            .cookie(self.name())
             .ok_or_else(|| error::Error::Unauthorized("missing_refresh_token".to_string()))?;
 
         Uuid::parse_str(cookie.value())
+            .map_err(|_| error::Error::Unauthorized("invalid_refresh_token".to_string()))
+    }
+
+    fn req_header(&self, req: &HttpRequest) -> AppResult<Uuid> {
+        let header = req
+            .headers()
+            .get(self.name())
+            .ok_or_else(|| error::Error::Unauthorized("missing_refresh_token".to_string()))?
+            .to_str()
+            .map_err(|_| error::Error::Unauthorized("invalid_refresh_token".to_string()))?;
+
+        Uuid::parse_str(header)
             .map_err(|_| error::Error::Unauthorized("invalid_refresh_token".to_string()))
     }
 }

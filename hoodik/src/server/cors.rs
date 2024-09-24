@@ -8,8 +8,9 @@ pub fn setup() -> Cors {
         "cache-control",
         "content-length",
         "x-csrf-token",
-        "authorization",
+        "x-auth-jwt",
         "access-control-allow-origin",
+        "x-auth-refresh",
     ];
 
     Cors::default()
@@ -23,6 +24,7 @@ pub fn setup() -> Cors {
             http::header::ACCEPT,
             http::header::ORIGIN,
             http::header::AUTHORIZATION,
+            http::header::HeaderName::from_str("X-Auth-Refresh").unwrap(),
             http::header::HeaderName::from_str("X-Csrf-Token").unwrap(),
         ])
         .max_age(3600)
