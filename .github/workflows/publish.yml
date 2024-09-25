@@ -103,9 +103,9 @@ jobs:
         env:
           CARGO_TARGET_DIR: target/arm
           CC_armv7_unknown_linux_gnueabihf: arm-linux-gnueabihf-gcc
-          
+
       - name: Upload ARM binary as an artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: hoodik-arm-binary
           path: target/arm/release/hoodik
