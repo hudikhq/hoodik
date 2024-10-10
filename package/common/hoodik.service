@@ -1,0 +1,16 @@
+[Unit]
+Description=Hoodik Drive
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=30
+User=hoodik
+ExecStart=/usr/bin/hoodik
+Environment="ENV_FILE=/etc/hoodik.conf"
+StandardOutput=append:/var/log/hoodik.log
+StandardError=append:/var/log/hoodik.log
+
+[Install]
+WantedBy=multi-user.target

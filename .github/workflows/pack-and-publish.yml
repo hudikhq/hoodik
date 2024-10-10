@@ -1,0 +1,733 @@
+name: Pack and Publish
+
+env:
+  name: Hoodik
+  handle: hoodik
+  docker_handle: test
+  strict: false
+  changelog_path: hoodik/changelog
+  # We are trying to make jobs parallel, which means if we don't have to
+  # we don't put them in the `needs` section, instead we use the artifact
+  # downloader which holds until the artifact is ready, it tries to download
+  # the given max tries amount and it makes a delay between attempts the retry delay ms.
+  download_max_tries: 60 # This will run for 30 minutes
+  download_retry_delay_ms: 30000
+
+defaults:
+  run:
+    # see: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+on:
+  push:
+    tags:
+      - v*
+  pull_request:
+    branches:
+      - master
+
+  # Allow triggering manually.
+  workflow_dispatch:
+
+jobs:
+  ## -------------------------------------------------------------------------------------------------------------------
+  ## Job: 'meta'
+  ## -------------------------------------------------------------------------------------------------------------------
+  ## Prepare the application version and upload_url (of the release) for the rest of the jobs. 
+  meta:
+    outputs:
+      version: ${{ steps.version.outputs.application_version }}
+      upload_url: ${{ steps.get_release.outputs.upload_url }}
+      has_release: ${{ steps.get_release.outputs.upload_url != '' && steps.get_release.outputs.upload_url != 'null' }}
+      rc: ${{ steps.version.outputs.rc }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v4
+
+      - name: Get the previous tag
+        id: prev_tag
+        run: |
+          # Attempt to get the most recent tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          # If no tags are found, get the first commit
+          if [ -z "$PREV_TAG" ]; then
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+
+          echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
+
+      - name: Extract Tag
+        id: tag
+        uses: aaronbarnaby/get-tag@v1.0.0
+        continue-on-error: true
+        with:
+          without_prefix_v: true
+      
+      - name: Get the release associated with this tag
+        if: ${{ steps.tag.outputs.tag }}
+        id: get_release
+        run: |
+          RELEASE_RESPONSE=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }})
+
+          RELEASE_ID=$(echo "$RELEASE_RESPONSE" | jq -r '.id')
+          UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | jq -r '.upload_url' | sed 's/{?name,label}//')
+
+          if [ -z "$RELEASE_ID" ]; then
+            echo "No release found for the tag: ${{ github.ref_name }}"
+            exit 0
+          fi
+
+          echo "Found release with ID: $RELEASE_ID and upload URL: $UPLOAD_URL"
+          echo "upload_url=$UPLOAD_URL" >> $GITHUB_OUTPUT
+
+      - name: Read the application version from Cargo.toml
+        run: echo "version=$(grep -m 1 '^version' "${{ env.handle }}/Cargo.toml" | sed -E 's/version = "(.*)"/\1/')" >> $GITHUB_OUTPUT
+        id: extract_version
+      
+      - name: Set the application version
+        id: version
+        run: |
+          APP_VERSION=${{ steps.tag.outputs.tag }}
+          RC=false
+          if [ -z "$APP_VERSION" ]; then
+            SHORT_SHA=${GITHUB_SHA::7}
+            APP_VERSION="${{ steps.extract_version.outputs.version }}-rc$SHORT_SHA"
+            RC=true
+          fi
+
+          echo "application_version=$APP_VERSION" >> $GITHUB_OUTPUT
+          echo "rc=$RC" >> $GITHUB_OUTPUT
+
+          echo "Application version to be used: $APP_VERSION"
+          echo "Is a release candidate: $RC"
+
+      - name: Extract commit author name and email
+        id: author-info
+        run: |
+          AUTHOR_NAME=$(git log -1 --pretty=format:'%an')
+          AUTHOR_EMAIL=$(git log -1 --pretty=format:'%ae')
+          echo "AUTHOR_NAME=$AUTHOR_NAME" >> $GITHUB_ENV
+          echo "AUTHOR_EMAIL=$AUTHOR_EMAIL" >> $GITHUB_ENV
+
+      - name: Generate changelog from Git commits
+        id: changelog
+        run: |
+          # Create a changelog entry based on the commits between the previous tag and the current tag/commit
+          PREV_TAG=${{ steps.prev_tag.outputs.prev_tag }}
+          CURRENT_TAG=${{ steps.tag.outputs.tag }}
+
+          if [ -z "$CURRENT_TAG" ]; then
+            CURRENT_TAG="$GITHUB_SHA"
+          else
+            CURRENT_TAG="v${CURRENT_TAG}"
+          fi
+          
+          # Format the date for the changelog
+          DATE=$(date -R)
+
+          # Get the commit logs between the tags/commits
+          COMMITS=$(git log --oneline $PREV_TAG..$CURRENT_TAG)
+
+          echo "${{ env.handle }} (${{ steps.version.outputs.application_version }}) unstable; urgency=medium" > changelog
+          echo "" >> changelog
+          echo "  * Changes in this release:" >> changelog
+          printf "%s\n" "${COMMITS}" | sed 's/^/  * /' >> changelog
+          echo "" >> changelog
+          echo " -- ${AUTHOR_NAME} <${AUTHOR_EMAIL}>  ${DATE}" >> changelog
+
+      - name: Upload changelog
+        uses: umutozd/upload-artifact@fixing-unrecognized-if-no-files-found-input-error
+        with:
+          name: changelog
+          path: .
+
+      - name: Print changelog for verification
+        run: cat changelog
+
+
+  ## -------------------------------------------------------------------------------------------------------------------
+  ## Job: 'prebuild'
+  ## -------------------------------------------------------------------------------------------------------------------
+  ## Prepare the application frontend and build it so that it can be used in the next job
+  ## 'build'. While the application is building the content of the `web/dist` folder is packaged
+  ## into the binary so that the backend can also serve the frontend application.
+  prebuild:
+    needs: meta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate .env
+        run: |
+          echo "APP_VERSION=${{ needs.meta.outputs.version }}" >> $PWD/.env
+          echo "NAME=${{ env.name }}" >> $PWD/.env
+
+      - name: Set up Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install wasm pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Install yarn
+        run: npm install -g yarn
+
+      - name: Install yarn dependencies
+        run: yarn install
+
+      - name: Wasm pack cryptfns
+        run: yarn workspace @${{ env.handle }}/cryptfns wasm-pack
+
+      - name: Build web
+        run: yarn workspace @${{ env.handle }}/web build
+
+      - name: Upload dist as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: ./web/dist
+
+  ## -------------------------------------------------------------------------------------------------------------------
+  ## Job: 'build'
+  ## -------------------------------------------------------------------------------------------------------------------
+  ## Use cargo cross to build the binaries for each of the required targets.
+  ## Some targets will be used for packaging into .deb package, and some will be used for a docker image.
+  build:
+    needs: meta
+    strategy:
+      matrix: 
+        target:
+          # Targets for .deb packages
+          - "x86_64-unknown-linux-gnu"
+          - "arm-unknown-linux-gnueabihf"
+          - "armv7-unknown-linux-gnueabihf"
+          - "aarch64-unknown-linux-gnu"
+          # Additional targets for docker images
+          - "x86_64-unknown-linux-musl"
+          - "arm-unknown-linux-musleabihf"
+          - "armv7-unknown-linux-musleabihf"
+          - "aarch64-unknown-linux-musl"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+          
+      # Install Rust the hard way rather than using a GH Action because the action doesn't work inside a Docker container.
+      # Cargo cross "requires a rustup installation of Rust", an O/S package provided Rust won't
+      - name: Install Rust
+        id: rust
+        run: |
+          case ${OS_NAME} in
+            debian|ubuntu)
+              apt-get update
+              apt-get install -y curl
+              ;;
+          esac
+
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          source "$HOME/.cargo/env"
+          echo "bin_dir=$HOME/.cargo/bin" >> $GITHUB_OUTPUT    
+      
+      - name: Fetch cargo cross if available
+        id: cache-cargo-cross
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ steps.rust.outputs.bin_dir }}/cross
+            ${{ steps.rust.outputs.bin_dir }}/cross-util
+          key: ${{ matrix.target }}-cargo-cross
+
+      - name: Install cargo cross if needed
+        id: install-cargo-cross
+        if: ${{ steps.cache-cargo-cross.outputs.cache-hit != 'true' }}
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
+          echo "installed=true" >> $GITHUB_OUTPUT
+
+      - name: Force cache save
+        if: ${{ steps.install-cargo-cross.outputs.installed == 'true' }}
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            ${{ steps.rust.outputs.bin_dir }}/cross
+            ${{ steps.rust.outputs.bin_dir }}/cross-util
+          key: ${{ matrix.target }}-cargo-cross
+
+      - name: Ensure ~/.cargo/bin/ is in the path
+        run: |
+          echo $(realpath ~/.cargo/bin) >> $GITHUB_PATH
+
+      - name: Download web dist artifacts
+        uses: ximon18/download-artifact@v3
+        with:
+          name: web-dist
+          path: ./web/dist
+          maxTries: ${{ env.download_max_tries }}
+          retryDelayMs: ${{ env.download_retry_delay_ms }}
+
+      - name: Cross compile
+        run: cross build --bin ${{ env.handle }} --release --target ${{ matrix.target }} -v
+
+      - name: Tar the set of created binaries to upload
+        run: |
+          rm -f bins.tar
+          find target/${{ matrix.target }}/release/ -maxdepth 1 -type f -executable | xargs tar vpcf bins.tar
+
+      - name: Upload built binaries
+        uses: umutozd/upload-artifact@fixing-unrecognized-if-no-files-found-input-error
+        with:
+          name: ${{ env.handle }}-tmp-cross-binaries-${{ matrix.target }}
+          path: bins.tar
+
+  ## -------------------------------------------------------------------------------------------------------------------
+  ## Job: 'package'
+  ## -------------------------------------------------------------------------------------------------------------------
+  ## Package the binary for each architecture into a .deb package for each platform.
+  ## If the workflow has been triggered as a part of a release we will upload the package into the release assets.
+  package:
+    needs: meta
+    strategy:
+      matrix: 
+        target:
+          - "x86_64-unknown-linux-gnu"
+        image:   
+        - "ubuntu:focal" # ubuntu/20.04
+        - "ubuntu:jammy" # ubuntu/22.04
+        - "debian:bullseye" # debian/11
+        - "debian:bookworm" # debian/12
+        include:
+          # Package for the Raspberry Pi 4b as an ARMv7 cross compiled variant of the Debian Bullseye upon which
+          # Raspbian 11 is based.
+          - target: "armv7-unknown-linux-gnueabihf"
+            image: "debian:bullseye"
+            os: ''
+
+          # Package for the Raspberry Pi 1b as an ARMv6 cross compiled variant of the Debian Buster upon which
+          # Raspbian 10 is based.
+          - target: "arm-unknown-linux-gnueabihf"
+            image: "debian:buster"
+            os: ''
+
+          # Package for the ROCK64 as an AARCH64 cross compiled variant of Debian Buster upon which Armbian 21 is
+          # based.
+          - target: "aarch64-unknown-linux-gnu"
+            image: "debian:buster"
+            os: ''
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    steps:
+      - name: Set OS_NAME and OS_REL
+        env:
+          INPUTS_IMAGE: ${{ matrix.image }}
+          INPUTS_OS: ${{ matrix.os }}
+        run: |
+          # Get the operating system and release name (e.g. ubuntu and xenial) from the image name (e.g. ubuntu:xenial) by
+          # extracting only the parts before and after but not including the colon:
+          IMAGE="${INPUTS_IMAGE}"
+          if [[ "${INPUTS_OS}" != "" ]]; then
+            IMAGE="${INPUTS_OS}"
+          fi
+
+          if [[ "${IMAGE}" == "" ]]; then
+            echo "::error::Matrix variable 'os' must be non-empty if set in package_build_rules."
+            exit 1
+          fi
+
+          OS_NAME=${IMAGE%:*}
+          OS_REL=${IMAGE#*:}
+
+          if [[ "${OS_NAME}" == '' || "${OS_REL}" == '' ]]; then
+            echo "::error::Matrix variable 'image' and/or 'os' must be of the form '<os name>:<os release>'"
+            exit 1
+          fi
+
+          echo "OS_NAME=$OS_NAME" >> $GITHUB_ENV
+          echo "OS_REL=$OS_REL" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v4
+
+      - name: Download changelog
+        uses: ximon18/download-artifact@v3
+        with:
+          name: changelog
+          path: .
+
+      - name: Move changelog
+        run: |
+          mv changelog ${{ env.changelog_path }}
+
+      - name: Install compilation and other dependencies
+        env:
+          INSTALL: curl build-essential lintian jq
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update || sudo apt-get update
+          apt-get install -y $INSTALL || sudo apt-get install -y $INSTALL
+          
+      # Install Rust the hard way rather than using a GH Action because the action doesn't work inside a Docker container.
+      # Cargo cross "requires a rustup installation of Rust", an O/S package provided Rust won't
+      - name: Install Rust
+        id: rust
+        run: |
+          if ! hash cargo; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y
+            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+            source "$HOME/.cargo/env"
+            echo "bin_dir=$HOME/.cargo/bin" >> $GITHUB_OUTPUT
+          else
+            CARGO_BIN_DIR=$(dirname $(which cargo))
+            echo "bin_dir=${CARGO_BIN_DIR}" >> $GITHUB_OUTPUT
+          fi
+
+      # Speed up Rust builds by caching unchanged built dependencies.
+      # See: https://github.com/actions/cache/blob/master/examples.md#rust---cargo
+      - name: Fetch .cargo from cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ matrix.image }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      # Speed up tooling installation by only re-downloading and re-building dependent crates if we change the version of
+      # the tool that we are using.
+      - name: Fetch cargo-deb from cache
+        id: cache-cargo-deb
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.rust.outputs.bin_dir }}/cargo-deb
+          key: ${{ matrix.image }}-cargo-deb-${{ endsWith(matrix.image, 'xenial')}}
+
+      # Only install cargo-deb or cargo-generate-rpm if not already fetched from the cache.
+      - name: Install cargo-deb if needed
+        id: install-cargo-deb
+        if: ${{ steps.cache-cargo-deb.outputs.cache-hit != 'true' }}
+        run: |
+          cargo install cargo-deb
+          echo "installed=true" >> $GITHUB_OUTPUT
+
+      - name: Force cache save
+        if: ${{ steps.install-cargo-deb.outputs.installed == 'true' }}
+        uses: actions/cache/save@v3
+        with:
+          path: ${{ steps.rust.outputs.bin_dir }}/cargo-deb
+          key: ${{ matrix.image }}-cargo-deb-${{ endsWith(matrix.image, 'xenial')}}
+
+      - name: Download binary
+        uses: ximon18/download-artifact@v3
+        with:
+          name: ${{ env.handle }}-tmp-cross-binaries-${{ matrix.target }}
+          path: .
+          maxTries: ${{ env.download_max_tries }}
+          retryDelayMs: ${{ env.download_retry_delay_ms }}
+  
+      - name: Untar the set of downloaded binaries
+        run: tar vpxf bins.tar
+
+      # Instruct cargo-deb or cargo-generate-rpm to build the package based on Cargo.toml settings and command line
+      # arguments.
+      - name: Create the package
+        id: create
+        env:
+          TARGET_DIR: "target/${{ matrix.target }}"
+          CROSS_TARGET: ${{ matrix.target }}
+        run: |
+          DEB_VER="${PKG_APP_VER}-1${OS_REL}"
+
+          # This shouldn't be necessary...
+          rm -f ${TARGET_DIR}/debian/*.deb
+
+          APP_VER="${{ needs.meta.outputs.version }}"
+          PKG_APP_VER=$(echo $APP_VER | tr '-' '~')
+          DEB_VER="${PKG_APP_VER}-1${OS_REL}"
+
+          VARIANT="${OS_NAME}-${OS_REL}"
+          
+          if [[ "${CROSS_TARGET}" != "x86_64-unknown-linux-gnu" ]]; then
+            VARIANT="${OS_NAME}-${OS_REL}-${CROSS_TARGET}"
+          fi
+
+          cargo deb \
+            -p ${{ env.handle }} \
+            --deb-version ${DEB_VER} \
+            --locked \
+            --no-build \
+            --no-strip \
+            --target ${CROSS_TARGET} \
+            --variant ${VARIANT}
+
+      - name: Post-process the package
+        env:
+          TARGET_DIR: "target/${{ matrix.target }}"
+          CROSS_TARGET: ${{ matrix.target }}
+        run: |
+          case ${OS_NAME} in
+            debian|ubuntu)
+              # https://github.com/NLnetLabs/routinator/issues/783
+              # Patch the generated DEB to have ./ paths compatible with `unattended-upgrade`:
+              ls -la ${TARGET_DIR}/debian/
+
+              pushd ${TARGET_DIR}/debian
+              DEB_FILE_NAME=$(ls -1 *.deb | head -n 1)
+              DATA_ARCHIVE=$(ar t ${DEB_FILE_NAME} | grep -E '^data\.tar')
+              ar x ${DEB_FILE_NAME} ${DATA_ARCHIVE}
+              tar tf ${DATA_ARCHIVE}
+              EXTRA_TAR_ARGS=
+              if [[ "${DATA_ARCHIVE}" == *.xz ]]; then
+                # Install XZ support that will be needed by TAR
+                apt-get -y install -y xz-utils
+                EXTRA_TAR_ARGS=J
+              fi
+              mkdir tar-hack
+              tar -C tar-hack -xf ${DATA_ARCHIVE}
+              pushd tar-hack
+              tar c${EXTRA_TAR_ARGS}f ../${DATA_ARCHIVE} ./*
+              popd
+              tar tf ${DATA_ARCHIVE}
+              ar r ${DEB_FILE_NAME} ${DATA_ARCHIVE}
+              popd
+
+              ls -la ${TARGET_DIR}/debian/
+
+              pushd ${TARGET_DIR}/debian
+              dpkg -e ${DEB_FILE_NAME} control_files
+              dpkg -x ${DEB_FILE_NAME} data_files
+
+              for D in control_files data_files; do
+                pushd $D
+
+                echo Listing package $D and sizes
+                find . -type f -exec du -sh {} \;
+
+                echo
+                echo Printing non-binary files contained within $D
+
+                # Use grep to exclude find only non-binary files that we can print
+                find . -type f -exec grep -Il '.' {} \; -exec cat {} \; -exec echo \; -exec echo \;
+
+                popd
+                rm -R $D
+              done
+              popd
+              ;;
+            esac
+
+      # See what O/S specific linting tools think of our package.
+      - name: Verify the package
+        env:
+          CROSS_TARGET: ${{ matrix.target }}
+        run: |
+          case ${OS_NAME} in
+            debian|ubuntu)
+              dpkg --info target/${{ matrix.target }}/debian/*.deb
+
+              EXTRA_LINTIAN_ARGS="--suppress-tags manpage-not-compressed-with-max-compression"
+
+              case ${OS_REL} in
+                xenial|bionic|focal|stretch|buster)
+                  ;;
+
+                *)
+                  EXTRA_LINTIAN_ARGS="${EXTRA_LINTIAN_ARGS} --suppress-tags poor-compression-in-manual-page"
+                  ;;
+              esac
+
+              if [[ "${CROSS_TARGET}" != "x86_64" ]]; then
+                EXTRA_LINTIAN_ARGS="${EXTRA_LINTIAN_ARGS} --suppress-tags unstripped-binary-or-object,statically-linked-binary"
+              fi
+
+              if [[ "${{ env.strict }}" == "true" ]]; then
+                case ${OS_REL} in
+                  focal)
+                    ;;
+
+                  xenial|bionic|stretch|buster)
+                    EXTRA_LINTIAN_ARGS="${EXTRA_LINTIAN_ARGS} --fail-on-warnings"
+                    ;;
+
+                  *)
+                    EXTRA_LINTIAN_ARGS="${EXTRA_LINTIAN_ARGS} --fail-on error,warning"
+                    ;;
+                esac
+              else
+                case ${OS_REL} in
+                  xenial|bionic|focal|stretch|buster)
+                    ;;
+
+                  *)
+                    EXTRA_LINTIAN_ARGS="${EXTRA_LINTIAN_ARGS} --fail-on error"
+                    ;;
+                esac
+              fi
+
+              lintian --version
+              lintian --allow-root -v ${EXTRA_LINTIAN_ARGS} target/${{ matrix.target }}/debian/*.deb
+              ;;
+          esac
+
+      - name: List files and capture the filename
+        if: ${{ needs.meta.outputs.has_release == 'true' }}
+        id: file
+        run: |
+          FILE_PATH=$(ls target/${{ matrix.target }}/debian/*.deb)
+          echo "file_path=$FILE_PATH" >> $GITHUB_OUTPUT
+          FILENAME=$(basename $FILE_PATH)
+          echo "filename=$FILENAME" >> $GITHUB_OUTPUT
+
+      # Upload the asset to release that triggered this action
+      - name: Upload .deb file as release asset
+        if: ${{ needs.meta.outputs.has_release == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ needs.meta.outputs.upload_url }}?name=${{ steps.file.outputs.filename }}
+          asset_path: ${{ steps.file.outputs.file_path }}
+          asset_name: ${{ steps.file.outputs.filename }}
+          asset_content_type: application/vnd.debian.binary-package
+
+      # Upload the produced package. The artifact will be available via the GH Actions job summary and build log pages,
+      # but only to users logged in to GH with sufficient rights in this project. The uploaded artifact is also downloaded
+      # by the next job (see below) to sanity check that it can be installed and results in a working Krill installation.
+      - name: Upload package
+        if: ${{ needs.meta.outputs.has_release != 'true' }}
+        uses: umutozd/upload-artifact@fixing-unrecognized-if-no-files-found-input-error
+        with:
+          name: ${{ env.handle }}_${{ env.OS_NAME }}_${{ env.OS_REL }}_${{ matrix.target }}
+          path: target/${{ matrix.target }}/debian/*.deb
+
+  ## -------------------------------------------------------------------------------------------------------------------
+  ## Job: 'docker'
+  ## -------------------------------------------------------------------------------------------------------------------
+  ## Package the application into docker images and publish to docker hub and github repository
+  docker:
+    needs: meta
+    strategy:
+      matrix:
+        shortname:
+          - "amd64"
+          - "armv6"
+          - "armv7"
+          - "arm64"
+        include:
+          - shortname: "amd64"
+            platform: "linux/amd64"
+            target: "x86_64-unknown-linux-musl"
+          - shortname: "armv6"
+            platform: "linux/arm/v6"
+            target: "arm-unknown-linux-musleabihf"
+          - shortname: "armv7"
+            platform: "linux/arm/v7"
+            target: "armv7-unknown-linux-musleabihf"
+          - shortname: "arm64"
+            platform: "linux/arm64"
+            target: "aarch64-unknown-linux-musl"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Print platform details
+        # Disable default use of bash -x for easier to read output in the log
+        shell: bash
+        run: |
+          echo "Platform: ${{ matrix.platform }}"
+          echo "Shortname: ${{ matrix.shortname }}"
+          echo "Target: ${{ matrix.target }}"
+
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: ${{ matrix.platform }}
+
+      - uses: docker/setup-buildx-action@v3
+        with:
+          version: v0.9.1 # See: https://github.com/docker/build-push-action/issues/755
+
+      - name: Download binary
+        uses: ximon18/download-artifact@v3
+        with:
+          name: ${{ env.handle }}-tmp-cross-binaries-${{ matrix.target }}
+          path: ./${{ matrix.shortname }}
+          maxTries: ${{ env.download_max_tries }}
+          retryDelayMs: ${{ env.download_retry_delay_ms }}
+
+      - name: Untar the set of downloaded binaries
+        run: |
+          tar vpxf ${{ matrix.shortname }}/bins.tar --transform='s/.*\///' -C ./${{ matrix.shortname }}/
+          find ./${{ matrix.shortname }}/ -type d -empty -delete
+          rm ./${{ matrix.shortname }}/bins.tar
+          ls -laR ./${{ matrix.shortname }}
+      
+      - name: Prepare the version prefix
+        id: prepare
+        run: |
+          TAGS=""
+          SUFFIX=""
+          if [[ "${{ matrix.shortname }}" != "amd64" ]]; then
+            SUFFIX="${{ matrix.shortname }}-"
+          fi
+
+          VERSION="${{ needs.meta.outputs.version }}${SUFFIX}"
+
+          TAGS="${{ secrets.DOCKER_USERNAME }}/${{ env.docker_handle }}:$VERSION"
+          TAGS="$TAGS ghcr.io/${{ github.repository_owner }}/${{ env.docker_handle }}:$VERSION"
+
+          LATEST=""
+          if [[ "${{ needs.meta.outputs.rc }}" != "true" ]]; then
+            LATEST="latest${SUFFIX}"
+          fi
+
+          if [[ "$LATEST" != "" ]]; then
+            TAGS="${{ secrets.DOCKER_USERNAME }}/${{ env.docker_handle }}:$LATEST"
+            TAGS="$TAGS ghcr.io/${{ github.repository_owner }}/${{ env.docker_handle }}:$LATEST"
+          fi
+
+          echo "image_name=${{ secrets.DOCKER_USERNAME }}/${{ env.docker_handle }}:$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "latest=$LATEST" >> $GITHUB_OUTPUT
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+
+      # Build a single architecture specific Docker image with an explicit architecture extension in the Docker
+      # tag value. We have to push it to Docker Hub otherwise we can't make the multi-arch manifest below. If the
+      # image fails testing (or doesn't work but wasn't caught because it is non-x86-64 which we can't at the moment
+      # test here) it will have been pushed to Docker Hub but is NOT the image we expect people to use, that is the
+      # combined multi-arch image that lacks the architecture specific tag value extension and that will ONLY be
+      # pushed if all architecture specific images build and (where supported) passt he sanity check below.
+      - name: Build Docker image ${{ steps.prepare.outputs.image_name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ matrix.platform }}
+          tags: ${{ steps.prepare.outputs.image_name }}
+          build-args: |
+            BIN_DIR=${{ matrix.shortname }}
+          load: true
+
+      - name: Save Docker image locally
+        run: |
+          docker save -o /tmp/docker-${{ matrix.shortname }}-img.tar ${{ steps.prepare.outputs.image_name }}
+
+      # Do a basic sanity check of the created image using the test tag to select the image to run, but only if the
+      # image is for the x86-64 architecture as we don't yet have a way to run non-x86-64 architecture images.
+      - name: Sanity check (linux/amd64 images only)
+        if: ${{ matrix.platform == 'linux/amd64' }}
+        run: |
+          docker run --rm ${{ steps.prepare.outputs.image_name }} /usr/local/bin/hoodik -v
+
+      # - name: Update repo description
+      #   uses: peter-evans/dockerhub-description@v3
+      #   with:
+      #     username: ${{ secrets.DOCKER_USERNAME }}
+      #     password: ${{ secrets.DOCKER_PASSWORD }}
+      #     repository: ${{ secrets.DOCKER_USERNAME }}/${{ env.docker_handle }}
+      #     short-description: ${{ github.event.repository.description }}
+      #     readme-filepath: ./README.md
+      #     enable-url-completion: true
+
