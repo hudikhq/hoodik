@@ -1,0 +1,9 @@
+#!/bin/sh -e
+
+if [ "$1" = "upgrade" ] ; then
+	if [ -d /run/systemd/system ]; then
+		deb-systemd-invoke stop hoodik.service >/dev/null || true
+	fi
+fi
+
+#DEBHELPER#

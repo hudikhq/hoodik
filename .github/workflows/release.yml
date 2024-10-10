@@ -1,0 +1,92 @@
+name: Create Release
+
+env:
+  HANDLE: hoodik
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag for the new release (SemVer vX.X.X[- or + or ~][something])'
+        required: true
+      release_name:
+        description: 'Name of the release'
+        required: false
+
+  pull_request:
+    branches:
+      - master
+    paths:
+      - hoodik/Cargo.toml
+
+  push:
+    branches:
+      - master
+    paths:
+      - hoodik/Cargo.toml
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v4
+
+      - name: Read the application version
+        run: echo "version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "${{ env.HANDLE }}") | .version')" >> $GITHUB_OUTPUT
+        id: extract_version
+
+      - name: Prepare release meta
+        id: meta
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "Triggered manually. Using input tag."
+            TAG=${{ github.event.inputs.tag }}
+          else
+            echo "Extracting tag from Cargo.toml."
+            TAG=v${{ steps.extract_version.outputs.version }}
+          fi
+
+          RELEASE_NAME="${{ github.event.inputs.release_name }}"
+          if [[ "${RELEASE_NAME}" == "" ]]; then
+            RELEASE_NAME="Release $TAG"
+          fi
+
+          echo "TAG=$TAG"
+          echo "NAME=$RELEASE_NAME"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "name=$RELEASE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Validate Tag Format
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          # Regex for vX.X.X with optional [- or + or ~] followed by something
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-+~][A-Za-z0-9.-]+)?$ ]]; then
+            echo "Tag format is valid: $TAG"
+          else
+            echo "Error: Tag '$TAG' format is invalid. Expected format: vX.X.X[- or + or ~][something]."
+            exit 1
+          fi
+
+      - name: "Create release"
+        uses: "actions/github-script@v6.3.3"
+        with:
+          # We are using the personal token here because the 
+          # one provided by the Github actions wouldn't trigger
+          # other actions that are listening for new created tags.
+          github-token: "${{ secrets.PERSONAL_GITHUB_TOKEN }}"
+          script: |
+            try {
+              const response = await github.rest.repos.createRelease({
+                draft: false,
+                generate_release_notes: true,
+                name: "${{ steps.meta.outputs.name }}",
+                owner: context.repo.owner,
+                prerelease: false,
+                repo: context.repo.repo,
+                tag_name: "${{ steps.meta.outputs.tag }}"
+              });
+            } catch (error) {
+              core.setFailed(error.message);
+            }

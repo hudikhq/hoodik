@@ -1,0 +1,42 @@
+#!/bin/sh
+set -e
+
+HOODIK_CONF="/etc/hoodik.conf"
+HOODIK_CONF_PERMS=640
+HOODIK_HOME="/var/lib/hoodik/"
+HOODIK_DATA="${HOODIK_HOME}data/"
+HOODIK_USER="hoodik"
+
+create_user() {
+    if id ${HOODIK_USER} > /dev/null 2>&1; then return; fi
+    adduser --system --home "${HOODIK_HOME}" --group ${HOODIK_USER}
+}
+
+generate_jwt_secret() {
+    date | md5sum | awk '{print $1}'
+}
+
+create_config() {
+    if [ ! -f "${HOODIK_CONF}" ]; then
+        cp /usr/share/hoodik/hoodik.conf ${HOODIK_CONF}
+
+        JWT_SECRET="$(generate_jwt_secret)"
+
+        # Set the DATA_DIR into a persistent location
+        sed -i "s|DATA_DIR=.*|DATA_DIR=${HOODIK_DATA}|" ${HOODIK_CONF} && echo "DATA_DIR=${HOODIK_DATA}"
+
+        # Set the JWT_SECRET into a random value
+        sed -i "s|# JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET}|" ${HOODIK_CONF} && echo "JWT_SECRET=***"
+
+        # Ensure that the config file has the correct ownership
+        chown ${HOODIK_USER}:${HOODIK_USER} ${HOODIK_CONF}
+        
+        # Ensure that the config file has the correct permissions
+        chmod ${HOODIK_CONF_PERMS} ${HOODIK_CONF}
+    fi
+}
+
+create_user
+create_config
+
+#DEBHELPER#
