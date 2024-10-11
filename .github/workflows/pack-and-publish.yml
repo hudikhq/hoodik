@@ -734,7 +734,7 @@ jobs:
       - name: Sanity check (linux/amd64 images only)
         if: ${{ matrix.platform == 'linux/amd64' }}
         run: |
-          docker run --rm ${{ steps.prepare.outputs.image_name }} /usr/local/bin/hoodik -v
+          docker run --rm ${{ steps.prepare.outputs.image_name }} /usr/local/bin/hoodik --version
 
       - name: Log into Docker Hub
         uses: docker/login-action@v3
@@ -746,7 +746,7 @@ jobs:
       - name: Upload built image to GitHub Actions
         uses: umutozd/upload-artifact@fixing-unrecognized-if-no-files-found-input-error
         with:
-          name: ${{ inputs.artifact_prefix }}tmp-docker-image-${{ matrix.shortname }}
+          name: tmp-docker-image-${{ matrix.shortname }}
           path: /tmp/docker-${{ matrix.shortname }}-img.tar
 
       - name: Publish image to Docker Hub
@@ -759,7 +759,6 @@ jobs:
           tags: ${{ steps.prepare.outputs.tags }}
           build-args: |
             BIN_DIR=${{ matrix.shortname }}
-            BASE_IMAGE="${{ matrix.base_image }}"
           push: true
 
   ## -------------------------------------------------------------------------------------------------------------------
