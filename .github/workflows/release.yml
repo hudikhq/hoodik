@@ -13,12 +13,6 @@ on:
         description: 'Name of the release'
         required: false
 
-  pull_request:
-    branches:
-      - master
-    paths:
-      - hoodik/Cargo.toml
-
   push:
     branches:
       - master

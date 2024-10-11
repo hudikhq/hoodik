@@ -3,7 +3,7 @@ name: Pack and Publish
 env:
   name: Hoodik
   handle: hoodik
-  docker_handle: test
+  docker_repo: test-hoodik
   strict: false
   changelog_path: hoodik/changelog
   # We are trying to make jobs parallel, which means if we don't have to
@@ -22,6 +22,8 @@ on:
   push:
     tags:
       - v*
+    branches:
+      - master
   pull_request:
     branches:
       - master
@@ -46,7 +48,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Get the previous tag
-        id: prev_tag
+        id: prev-tag
         run: |
           # Attempt to get the most recent tag
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
@@ -56,7 +58,7 @@ jobs:
             PREV_TAG=$(git rev-list --max-parents=0 HEAD)
           fi
 
-          echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
+          echo "PREV_TAG=$PREV_TAG" >> $GITHUB_ENV
 
       - name: Extract Tag
         id: tag
@@ -118,7 +120,7 @@ jobs:
         id: changelog
         run: |
           # Create a changelog entry based on the commits between the previous tag and the current tag/commit
-          PREV_TAG=${{ steps.prev_tag.outputs.prev_tag }}
+          PREV_TAG=${{ env.PREV_TAG }}
           CURRENT_TAG=${{ steps.tag.outputs.tag }}
 
           if [ -z "$CURRENT_TAG" ]; then
@@ -164,14 +166,18 @@ jobs:
 
       - name: Generate .env
         run: |
-          echo "APP_VERSION=${{ needs.meta.outputs.version }}" >> $PWD/.env
+          echo "APP_VERSION=${{ needs.meta.outputs.app_version }}" >> $PWD/.env
           echo "NAME=${{ env.name }}" >> $PWD/.env
-
-      - name: Set up Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+          
+      # Install Rust the hard way rather than using a GH Action because the action doesn't work inside a Docker container.
+      # Cargo cross "requires a rustup installation of Rust", an O/S package provided Rust won't
+      - name: Install Rust
+        id: rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          source "$HOME/.cargo/env"
+          echo "bin_dir=$HOME/.cargo/bin" >> $GITHUB_OUTPUT  
 
       - name: Install wasm pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
@@ -188,11 +194,17 @@ jobs:
       - name: Build web
         run: yarn workspace @${{ env.handle }}/web build
 
-      - name: Upload dist as artifact
-        uses: actions/upload-artifact@v4
+      - name: Tar the compiled web app
+        run: |
+          rm -f web-dist.tar
+          ls -la web/dist
+          find web/dist/ -mindepth 1 | xargs tar vpcf web-dist.tar
+
+      - name: Upload tar
+        uses: umutozd/upload-artifact@fixing-unrecognized-if-no-files-found-input-error
         with:
           name: web-dist
-          path: ./web/dist
+          path: web-dist.tar
 
   ## -------------------------------------------------------------------------------------------------------------------
   ## Job: 'build'
@@ -200,7 +212,6 @@ jobs:
   ## Use cargo cross to build the binaries for each of the required targets.
   ## Some targets will be used for packaging into .deb package, and some will be used for a docker image.
   build:
-    needs: meta
     strategy:
       matrix: 
         target:
@@ -264,13 +275,19 @@ jobs:
         run: |
           echo $(realpath ~/.cargo/bin) >> $GITHUB_PATH
 
-      - name: Download web dist artifacts
+      - name: Download app
         uses: ximon18/download-artifact@v3
         with:
           name: web-dist
-          path: ./web/dist
+          path: ./web
           maxTries: ${{ env.download_max_tries }}
           retryDelayMs: ${{ env.download_retry_delay_ms }}
+
+      - name: Untar the set of downloaded binaries
+        run: |
+          mkdir ./web/dist
+          tar vpxf ./web/web-dist.tar --transform='s/.*\///' -C ./web/dist/
+          ls -laR ./web/dist
 
       - name: Cross compile
         run: cross build --bin ${{ env.handle }} --release --target ${{ matrix.target }} -v
@@ -307,19 +324,16 @@ jobs:
           # Raspbian 11 is based.
           - target: "armv7-unknown-linux-gnueabihf"
             image: "debian:bullseye"
-            os: ''
 
           # Package for the Raspberry Pi 1b as an ARMv6 cross compiled variant of the Debian Buster upon which
           # Raspbian 10 is based.
           - target: "arm-unknown-linux-gnueabihf"
             image: "debian:buster"
-            os: ''
 
           # Package for the ROCK64 as an AARCH64 cross compiled variant of Debian Buster upon which Armbian 21 is
           # based.
           - target: "aarch64-unknown-linux-gnu"
             image: "debian:buster"
-            os: ''
     runs-on: ubuntu-latest
     container: ${{ matrix.image }}
     steps:
@@ -642,6 +656,9 @@ jobs:
           echo "Target: ${{ matrix.target }}"
 
       - uses: docker/setup-qemu-action@v3
+        # Don't use QEmu for compiling, it's way too slow on GitHub Actions.
+        # Only use it for making images that will contain prebuilt binaries.
+        if: ${{ steps.verify.outputs.mode == 'copy' }}
         with:
           platforms: ${{ matrix.platform }}
 
@@ -668,30 +685,27 @@ jobs:
         id: prepare
         run: |
           TAGS=""
-          SUFFIX=""
-          if [[ "${{ matrix.shortname }}" != "amd64" ]]; then
-            SUFFIX="${{ matrix.shortname }}-"
+
+          VERSION="v${{ needs.meta.outputs.version }}-${{ matrix.shortname }}"
+
+          FLOATING=""
+          if [[ "${{ needs.meta.outputs.rc }}" == "true" ]]; then
+            FLOATING="unstable-${{ matrix.shortname }}"
+          else
+            FLOATING="latest-${{ matrix.shortname }}"
           fi
 
-          VERSION="${{ needs.meta.outputs.version }}${SUFFIX}"
+          TAGS="${{ secrets.DOCKER_USERNAME }}/${{ env.docker_repo }}:$VERSION"
+          # TAGS="$TAGS,ghcr.io/${{ github.repository_owner }}/${{ env.docker_repo }}:$VERSION"
 
-          TAGS="${{ secrets.DOCKER_USERNAME }}/${{ env.docker_handle }}:$VERSION"
-          TAGS="$TAGS ghcr.io/${{ github.repository_owner }}/${{ env.docker_handle }}:$VERSION"
-
-          LATEST=""
-          if [[ "${{ needs.meta.outputs.rc }}" != "true" ]]; then
-            LATEST="latest${SUFFIX}"
+          if [[ $FLOATING != "" ]]; then
+            TAGS="$TAGS,${{ secrets.DOCKER_USERNAME }}/${{ env.docker_repo }}:$FLOATING"
+            # TAGS="$TAGS,ghcr.io/${{ github.repository_owner }}/${{ env.docker_repo }}:$FLOATING"
           fi
 
-          if [[ "$LATEST" != "" ]]; then
-            TAGS="${{ secrets.DOCKER_USERNAME }}/${{ env.docker_handle }}:$LATEST"
-            TAGS="$TAGS ghcr.io/${{ github.repository_owner }}/${{ env.docker_handle }}:$LATEST"
-          fi
-
-          echo "image_name=${{ secrets.DOCKER_USERNAME }}/${{ env.docker_handle }}:$VERSION" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "latest=$LATEST" >> $GITHUB_OUTPUT
           echo "tags=$TAGS" >> $GITHUB_OUTPUT
+          echo "image_name=${{ secrets.DOCKER_USERNAME }}/${{ env.docker_repo }}:$VERSION" >> $GITHUB_OUTPUT
 
       # Build a single architecture specific Docker image with an explicit architecture extension in the Docker
       # tag value. We have to push it to Docker Hub otherwise we can't make the multi-arch manifest below. If the
@@ -705,9 +719,10 @@ jobs:
           context: .
           file: ./Dockerfile
           platforms: ${{ matrix.platform }}
-          tags: ${{ steps.prepare.outputs.image_name }}
+          tags: ${{ steps.prepare.outputs.tags }}
           build-args: |
             BIN_DIR=${{ matrix.shortname }}
+            BASE_IMAGE="${{ matrix.base_image }}"
           load: true
 
       - name: Save Docker image locally
@@ -721,13 +736,109 @@ jobs:
         run: |
           docker run --rm ${{ steps.prepare.outputs.image_name }} /usr/local/bin/hoodik -v
 
-      # - name: Update repo description
-      #   uses: peter-evans/dockerhub-description@v3
-      #   with:
-      #     username: ${{ secrets.DOCKER_USERNAME }}
-      #     password: ${{ secrets.DOCKER_PASSWORD }}
-      #     repository: ${{ secrets.DOCKER_USERNAME }}/${{ env.docker_handle }}
-      #     short-description: ${{ github.event.repository.description }}
-      #     readme-filepath: ./README.md
-      #     enable-url-completion: true
+      - name: Log into Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
+      # Upload the Docker image as a GitHub Actions artifact, handy when not publishing or investigating a problem
+      - name: Upload built image to GitHub Actions
+        uses: umutozd/upload-artifact@fixing-unrecognized-if-no-files-found-input-error
+        with:
+          name: ${{ inputs.artifact_prefix }}tmp-docker-image-${{ matrix.shortname }}
+          path: /tmp/docker-${{ matrix.shortname }}-img.tar
+
+      - name: Publish image to Docker Hub
+        id: publish
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ matrix.platform }}
+          tags: ${{ steps.prepare.outputs.tags }}
+          build-args: |
+            BIN_DIR=${{ matrix.shortname }}
+            BASE_IMAGE="${{ matrix.base_image }}"
+          push: true
+
+  ## -------------------------------------------------------------------------------------------------------------------
+  ## Job: 'docker-manifest'
+  ## -------------------------------------------------------------------------------------------------------------------
+  ## Create a Docker multi-arch "manifest" referencing the individual already pushed architecture specific images on
+  ## Docker Hub and push the manifest to Docker Hub as our "main" application image Docker Hub that end users will use.
+  ## Logs in to Docker Hub using secrets configured in this GitHub repository.
+  docker-manifest:
+    needs: [docker, meta]
+    outputs:
+      published: ${{ steps.publish.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Log into Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Apply rules to Git metadata to generate potential Docker tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.docker_repo }}
+          flavor: |
+            latest=false
+          tags: |
+            type=semver,pattern={{version}},prefix=v
+            type=raw,value=unstable,enable=${{ needs.meta.outputs.rc == 'true' }}
+            type=raw,value=latest,enable=${{ needs.meta.outputs.rc == 'false' }}
+            type=raw,value=test,enable=false
+
+      - name: Create multi-arch manifest(s)
+        run: |
+          LOWER_DOCKER_ORG="${{ secrets.DOCKER_USERNAME }}"
+
+          ARCH_SHORT_NAMES="amd64 armv6 armv7 arm64"
+          REFERENCED_IMAGES=""
+
+          # Convert the line-break separated tag pairs into space separated tag pairs without a trailing line break.
+          # This can then easily be used with a shell for loop in the steps below.
+          REPO_AND_TAG_PAIRS=$(echo "${{ steps.meta.outputs.tags }}" | tr "\n" " " | tr -d "\n")
+
+          # Imagine that we are invoked with two tags: v1.0.1 and latest
+          # The first time round the loop we make a manifest for v1.0.1 referencing the v1.0.1 images.
+          # The second time round the loop we make a manifest for latest also referencing the v1.0.1 images.
+          for REPO_AND_TAG in $REPO_AND_TAG_PAIRS; do
+            if [[ "${REFERENCED_IMAGES}" == "" ]]; then
+              for ARCH_SHORT_NAME in ${ARCH_SHORT_NAMES}; do
+                REFERENCED_IMAGES="${REFERENCED_IMAGES} ${LOWER_DOCKER_ORG}/${REPO_AND_TAG}-${ARCH_SHORT_NAME} "
+              done
+            fi
+
+            echo "REFERENCED_IMAGES"
+            docker manifest create --amend ${LOWER_DOCKER_ORG}/${REPO_AND_TAG} ${REFERENCED_IMAGES}
+          done
+
+      - name: Publish multi-arch image manifest(s) to Docker Hub
+        id: publish
+        run: |
+          LOWER_DOCKER_ORG="${{ secrets.DOCKER_USERNAME }}"
+
+          # Convert the line-break separated tag pairs into space separated tag pairs without a trailing line break.
+          # This can then easily be used with a shell for loop in the steps below.
+          REPO_AND_TAG_PAIRS=$(echo "${{ steps.meta.outputs.tags }}" | tr "\n" " " | tr -d "\n")
+
+          for REPO_AND_TAG in $REPO_AND_TAG_PAIRS; do
+            docker manifest push ${LOWER_DOCKER_ORG}/${REPO_AND_TAG}
+          done
+
+      - name: Update repo description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          repository: ${{ secrets.DOCKER_USERNAME }}/${{ env.docker_repo }}
+          short-description: ${{ github.event.repository.description }}
+          readme-filepath: ./README.md
+          enable-url-completion: true
