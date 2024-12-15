@@ -9,3 +9,4 @@ node_modules
 .turbo
 dist
 hoodik/src/client.rs
+docker-dev/certificates/

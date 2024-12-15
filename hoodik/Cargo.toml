@@ -40,3 +40,6 @@ email = { path = "../email", features = ["mock"] }
 links = { path = "../links", features = ["mock"] }
 storage = { path = "../storage", features = ["mock"] }
 settings = { path = "../settings", features = [] }
+
+[features]
+dev-front = []

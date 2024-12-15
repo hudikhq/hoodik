@@ -16,8 +16,22 @@ fn handle_no_dist(client_out_file: &mut File) -> io::Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "dev-front")]
 fn main() -> io::Result<()> {
-    let client_dist_dir = PathBuf::from("../web/dist");
+    let index_file_name = "index.html";
+    let client_dist_dir_path = "../web/";
+    Ok(get_files(index_file_name, client_dist_dir_path)?)
+}
+
+#[cfg(not(feature = "dev-front"))]
+fn main() -> io::Result<()> {
+    let index_file_name = "index.html";
+    let client_dist_dir_path = "../web/dist/";
+    Ok(get_files(index_file_name, client_dist_dir_path)?)
+}
+
+fn get_files(index_file_name: &str, client_dist_dir_path: &str) -> io::Result<()> {
+    let client_dist_dir = PathBuf::from(client_dist_dir_path);
     let out_dir = PathBuf::from("src");
     let mut client_out_file = File::create(out_dir.join("client.rs"))?;
 
@@ -30,8 +44,8 @@ fn main() -> io::Result<()> {
 
     writeln!(
         client_out_file,
-        "pub(crate) const _DEFAULT: &[u8] = include_bytes!(concat!(\"{}\", \"/index.html\"));",
-        str_path
+        "pub(crate) const _DEFAULT: &[u8] = include_bytes!(concat!(\"{}\", \"/{}\"));",
+        str_path, index_file_name
     )?;
 
     writeln!(

@@ -7,12 +7,38 @@ import wasm from 'vite-plugin-wasm'
 import topLevelAwait from 'vite-plugin-top-level-await'
 import { serviceWorkerPlugin } from './plugins/service-worker'
 // import { VitePWA } from 'vite-plugin-pwa'
+import { Key } from './types/cryptfns';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   base: '/',
   envDir: '../',
   envPrefix: 'APP_',
+  server: process.env.NODE_ENV !== 'production' ? {
+    https: {
+        key: path.resolve(__dirname, '/data/hoodik.key.pem'),
+        cert: path.resolve(__dirname, '/data/hoodik.crt.pem')
+      },
+    proxy: {
+      '/api': {
+        target: 'https://127.0.0.1:5443',
+        changeOrigin: true,
+        secure: false,
+        ws: false,
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, _res) => {
+            console.log('proxy error', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            console.log('Sending Request to the Target:', req.method, req.url);
+          });
+          proxy.on('proxyRes', (proxyRes, req, _res) => {
+            console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+          });
+        },
+      }
+    }
+  } : {},
   plugins: [
     vue(),
     vueJsx(),
