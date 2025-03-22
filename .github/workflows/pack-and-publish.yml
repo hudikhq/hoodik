@@ -295,7 +295,8 @@ jobs:
         run: |
           mkdir ./web/dist
           tar vpxf ./web-dist.tar --transform='s/.*\///' -C ./web/dist/
-          ls -laR ./web/dist
+          ls -la ./web/dist
+          ls -la ./web/assets
 
       - name: Cross compile
         run: cross build --bin ${{ env.handle }} --release --target ${{ matrix.target }} -v
