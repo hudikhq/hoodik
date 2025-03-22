@@ -163,6 +163,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Download changelog
+        uses: ximon18/download-artifact@v3
+        with:
+          name: changelog
+          path: ./web
+          maxTries: ${{ env.download_max_tries }}
+          retryDelayMs: ${{ env.download_retry_delay_ms }}
+
       - name: Generate .env
         run: |
           echo "APP_VERSION=${{ needs.meta.outputs.app_version }}" >> $PWD/.env
@@ -211,6 +219,7 @@ jobs:
   ## Use cargo cross to build the binaries for each of the required targets.
   ## Some targets will be used for packaging into .deb package, and some will be used for a docker image.
   build:
+    if: true == false
     strategy:
       matrix:
         target:
@@ -624,6 +633,7 @@ jobs:
   ## -------------------------------------------------------------------------------------------------------------------
   ## Package the application into docker images and publish to docker hub and github repository
   docker:
+    if: true == false
     needs: meta
     strategy:
       matrix:
