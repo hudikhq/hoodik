@@ -287,14 +287,14 @@ jobs:
         uses: ./.github/actions/retry-download-artifact
         with:
           name: web-dist
-          path: ./web
+          path: .
           maxTries: ${{ env.download_max_tries }}
           retryDelayMs: ${{ env.download_retry_delay_ms }}
 
       - name: Untar the set of downloaded binaries
         run: |
           mkdir ./web/dist
-          tar vpxf ./web/web-dist.tar --transform='s/.*\///' -C ./web/dist/
+          tar vpxf ./web-dist.tar --transform='s/.*\///' -C ./web/dist/
           ls -laR ./web/dist
 
       - name: Cross compile
