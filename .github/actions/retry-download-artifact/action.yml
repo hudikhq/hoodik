@@ -25,7 +25,7 @@ runs:
       run: |
         for i in $(seq 1 ${{ inputs.maxTries }}); do
           echo "Attempt $i of ${{ inputs.maxTries }}: Downloading artifact '${{ inputs.name }}'..."
-          if ${{ github.action_path }}/actions/download-artifact@v4 --name "${{ inputs.name }}" --path "${{ inputs.path }}"; then
+          if actions/download-artifact@v4 --name "${{ inputs.name }}" --path "${{ inputs.path }}"; then
             echo "Artifact '${{ inputs.name }}' downloaded successfully."
             exit 0
           fi
