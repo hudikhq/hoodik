@@ -164,10 +164,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download changelog
-        uses: ximon18/download-artifact@v3
+        uses: ./.github/actions/download-artifact-with-retry
         with:
-          # name: changelog
-          # path: ./changelog
+          name: changelog
+          path: .
           maxTries: ${{ env.download_max_tries }}
           retryDelayMs: ${{ env.download_retry_delay_ms }}
 

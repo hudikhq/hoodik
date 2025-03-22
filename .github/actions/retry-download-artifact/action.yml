@@ -1,0 +1,38 @@
+name: "Download Artifact with Retry"
+description: "Downloads a GitHub Actions artifact with retry logic"
+inputs:
+  name:
+    description: "Name of the artifact to download"
+    required: true
+  path:
+    description: "Destination path for the downloaded artifact"
+    required: false
+    default: "."
+  maxTries:
+    description: "Maximum number of retry attempts"
+    required: false
+    default: "5"
+  retryDelayMs:
+    description: "Delay between retry attempts in milliseconds"
+    required: false
+    default: "5000"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download artifact with retry
+      shell: bash
+      run: |
+        for i in $(seq 1 ${{ inputs.maxTries }}); do
+          echo "Attempt $i of ${{ inputs.maxTries }}: Downloading artifact '${{ inputs.name }}'..."
+          if ${{ github.action_path }}/actions/download-artifact@v4 --name "${{ inputs.name }}" --path "${{ inputs.path }}"; then
+            echo "Artifact '${{ inputs.name }}' downloaded successfully."
+            exit 0
+          fi
+          if [ $i -eq ${{ inputs.maxTries }} ]; then
+            echo "Error: Failed to download artifact '${{ inputs.name }}' after ${{ inputs.maxTries }} attempts."
+            exit 1
+          fi
+          echo "Download failed, retrying in ${{ inputs.retryDelayMs }}ms..."
+          sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+        done
