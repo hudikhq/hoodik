@@ -1,38 +1,862 @@
-name: "Download Artifact with Retry"
-description: "Downloads a GitHub Actions artifact with retry logic"
+# https://help.github.com/en/articles/metadata-syntax-for-github-actions
+name: "download-artifact-retry"
+description: "GitHub Action to download an artifact with retry functionality."
+author: "cytopia"
+branding:
+  icon: "code"
+  color: "red"
+
 inputs:
   name:
-    description: "Name of the artifact to download"
+    description: "The artifact name to download."
     required: true
   path:
-    description: "Destination path for the downloaded artifact"
+    description: "The local path to download to (defaults to current working directory)."
     required: false
     default: "."
   maxTries:
-    description: "Maximum number of retry attempts"
+    description: "Maximum number of retry attempts (up to 60)."
     required: false
     default: "5"
   retryDelayMs:
-    description: "Delay between retry attempts in milliseconds"
+    description: "Delay between retry attempts in milliseconds."
     required: false
     default: "5000"
 
 runs:
   using: "composite"
   steps:
-    - name: Download artifact with retry
+    # Try 1
+    - name: download artifact (try-1)
+      id: download-1
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 1 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 2
+    - name: delay before try-2
+      if: ${{ steps.download-1.outcome == 'failure' && inputs.maxTries >= 2 }}
       shell: bash
-      run: |
-        for i in $(seq 1 ${{ inputs.maxTries }}); do
-          echo "Attempt $i of ${{ inputs.maxTries }}: Downloading artifact '${{ inputs.name }}'..."
-          if actions/download-artifact@v4 --name "${{ inputs.name }}" --path "${{ inputs.path }}"; then
-            echo "Artifact '${{ inputs.name }}' downloaded successfully."
-            exit 0
-          fi
-          if [ $i -eq ${{ inputs.maxTries }} ]; then
-            echo "Error: Failed to download artifact '${{ inputs.name }}' after ${{ inputs.maxTries }} attempts."
-            exit 1
-          fi
-          echo "Download failed, retrying in ${{ inputs.retryDelayMs }}ms..."
-          sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
-        done
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-2)
+      id: download-2
+      if: ${{ steps.download-1.outcome == 'failure' && inputs.maxTries >= 2 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 2 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 3
+    - name: delay before try-3
+      if: ${{ steps.download-2.outcome == 'failure' && inputs.maxTries >= 3 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-3)
+      id: download-3
+      if: ${{ steps.download-2.outcome == 'failure' && inputs.maxTries >= 3 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 3 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 4
+    - name: delay before try-4
+      if: ${{ steps.download-3.outcome == 'failure' && inputs.maxTries >= 4 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-4)
+      id: download-4
+      if: ${{ steps.download-3.outcome == 'failure' && inputs.maxTries >= 4 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 4 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 5
+    - name: delay before try-5
+      if: ${{ steps.download-4.outcome == 'failure' && inputs.maxTries >= 5 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-5)
+      id: download-5
+      if: ${{ steps.download-4.outcome == 'failure' && inputs.maxTries >= 5 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 5 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 6
+    - name: delay before try-6
+      if: ${{ steps.download-5.outcome == 'failure' && inputs.maxTries >= 6 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-6)
+      id: download-6
+      if: ${{ steps.download-5.outcome == 'failure' && inputs.maxTries >= 6 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 6 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 7
+    - name: delay before try-7
+      if: ${{ steps.download-6.outcome == 'failure' && inputs.maxTries >= 7 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-7)
+      id: download-7
+      if: ${{ steps.download-6.outcome == 'failure' && inputs.maxTries >= 7 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 7 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 8
+    - name: delay before try-8
+      if: ${{ steps.download-7.outcome == 'failure' && inputs.maxTries >= 8 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-8)
+      id: download-8
+      if: ${{ steps.download-7.outcome == 'failure' && inputs.maxTries >= 8 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 8 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 9
+    - name: delay before try-9
+      if: ${{ steps.download-8.outcome == 'failure' && inputs.maxTries >= 9 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-9)
+      id: download-9
+      if: ${{ steps.download-8.outcome == 'failure' && inputs.maxTries >= 9 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 9 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 10
+    - name: delay before try-10
+      if: ${{ steps.download-9.outcome == 'failure' && inputs.maxTries >= 10 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-10)
+      id: download-10
+      if: ${{ steps.download-9.outcome == 'failure' && inputs.maxTries >= 10 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 10 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 11
+    - name: delay before try-11
+      if: ${{ steps.download-10.outcome == 'failure' && inputs.maxTries >= 11 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-11)
+      id: download-11
+      if: ${{ steps.download-10.outcome == 'failure' && inputs.maxTries >= 11 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 11 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 12
+    - name: delay before try-12
+      if: ${{ steps.download-11.outcome == 'failure' && inputs.maxTries >= 12 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-12)
+      id: download-12
+      if: ${{ steps.download-11.outcome == 'failure' && inputs.maxTries >= 12 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 12 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 13
+    - name: delay before try-13
+      if: ${{ steps.download-12.outcome == 'failure' && inputs.maxTries >= 13 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-13)
+      id: download-13
+      if: ${{ steps.download-12.outcome == 'failure' && inputs.maxTries >= 13 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 13 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 14
+    - name: delay before try-14
+      if: ${{ steps.download-13.outcome == 'failure' && inputs.maxTries >= 14 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-14)
+      id: download-14
+      if: ${{ steps.download-13.outcome == 'failure' && inputs.maxTries >= 14 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 14 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 15
+    - name: delay before try-15
+      if: ${{ steps.download-14.outcome == 'failure' && inputs.maxTries >= 15 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-15)
+      id: download-15
+      if: ${{ steps.download-14.outcome == 'failure' && inputs.maxTries >= 15 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 15 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 16
+    - name: delay before try-16
+      if: ${{ steps.download-15.outcome == 'failure' && inputs.maxTries >= 16 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-16)
+      id: download-16
+      if: ${{ steps.download-15.outcome == 'failure' && inputs.maxTries >= 16 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 16 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 17
+    - name: delay before try-17
+      if: ${{ steps.download-16.outcome == 'failure' && inputs.maxTries >= 17 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-17)
+      id: download-17
+      if: ${{ steps.download-16.outcome == 'failure' && inputs.maxTries >= 17 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 17 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 18
+    - name: delay before try-18
+      if: ${{ steps.download-17.outcome == 'failure' && inputs.maxTries >= 18 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-18)
+      id: download-18
+      if: ${{ steps.download-17.outcome == 'failure' && inputs.maxTries >= 18 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 18 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 19
+    - name: delay before try-19
+      if: ${{ steps.download-18.outcome == 'failure' && inputs.maxTries >= 19 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-19)
+      id: download-19
+      if: ${{ steps.download-18.outcome == 'failure' && inputs.maxTries >= 19 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 19 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 20
+    - name: delay before try-20
+      if: ${{ steps.download-19.outcome == 'failure' && inputs.maxTries >= 20 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-20)
+      id: download-20
+      if: ${{ steps.download-19.outcome == 'failure' && inputs.maxTries >= 20 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 20 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 21
+    - name: delay before try-21
+      if: ${{ steps.download-20.outcome == 'failure' && inputs.maxTries >= 21 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-21)
+      id: download-21
+      if: ${{ steps.download-20.outcome == 'failure' && inputs.maxTries >= 21 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 21 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 22
+    - name: delay before try-22
+      if: ${{ steps.download-21.outcome == 'failure' && inputs.maxTries >= 22 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-22)
+      id: download-22
+      if: ${{ steps.download-21.outcome == 'failure' && inputs.maxTries >= 22 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 22 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 23
+    - name: delay before try-23
+      if: ${{ steps.download-22.outcome == 'failure' && inputs.maxTries >= 23 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-23)
+      id: download-23
+      if: ${{ steps.download-22.outcome == 'failure' && inputs.maxTries >= 23 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 23 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 24
+    - name: delay before try-24
+      if: ${{ steps.download-23.outcome == 'failure' && inputs.maxTries >= 24 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-24)
+      id: download-24
+      if: ${{ steps.download-23.outcome == 'failure' && inputs.maxTries >= 24 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 24 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 25
+    - name: delay before try-25
+      if: ${{ steps.download-24.outcome == 'failure' && inputs.maxTries >= 25 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-25)
+      id: download-25
+      if: ${{ steps.download-24.outcome == 'failure' && inputs.maxTries >= 25 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 25 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 26
+    - name: delay before try-26
+      if: ${{ steps.download-25.outcome == 'failure' && inputs.maxTries >= 26 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-26)
+      id: download-26
+      if: ${{ steps.download-25.outcome == 'failure' && inputs.maxTries >= 26 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 26 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 27
+    - name: delay before try-27
+      if: ${{ steps.download-26.outcome == 'failure' && inputs.maxTries >= 27 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-27)
+      id: download-27
+      if: ${{ steps.download-26.outcome == 'failure' && inputs.maxTries >= 27 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 27 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 28
+    - name: delay before try-28
+      if: ${{ steps.download-27.outcome == 'failure' && inputs.maxTries >= 28 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-28)
+      id: download-28
+      if: ${{ steps.download-27.outcome == 'failure' && inputs.maxTries >= 28 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 28 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 29
+    - name: delay before try-29
+      if: ${{ steps.download-28.outcome == 'failure' && inputs.maxTries >= 29 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-29)
+      id: download-29
+      if: ${{ steps.download-28.outcome == 'failure' && inputs.maxTries >= 29 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 29 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 30
+    - name: delay before try-30
+      if: ${{ steps.download-29.outcome == 'failure' && inputs.maxTries >= 30 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-30)
+      id: download-30
+      if: ${{ steps.download-29.outcome == 'failure' && inputs.maxTries >= 30 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 30 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 31
+    - name: delay before try-31
+      if: ${{ steps.download-30.outcome == 'failure' && inputs.maxTries >= 31 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-31)
+      id: download-31
+      if: ${{ steps.download-30.outcome == 'failure' && inputs.maxTries >= 31 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 31 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 32
+    - name: delay before try-32
+      if: ${{ steps.download-31.outcome == 'failure' && inputs.maxTries >= 32 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-32)
+      id: download-32
+      if: ${{ steps.download-31.outcome == 'failure' && inputs.maxTries >= 32 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 32 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 33
+    - name: delay before try-33
+      if: ${{ steps.download-32.outcome == 'failure' && inputs.maxTries >= 33 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-33)
+      id: download-33
+      if: ${{ steps.download-32.outcome == 'failure' && inputs.maxTries >= 33 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 33 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 34
+    - name: delay before try-34
+      if: ${{ steps.download-33.outcome == 'failure' && inputs.maxTries >= 34 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-34)
+      id: download-34
+      if: ${{ steps.download-33.outcome == 'failure' && inputs.maxTries >= 34 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 34 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 35
+    - name: delay before try-35
+      if: ${{ steps.download-34.outcome == 'failure' && inputs.maxTries >= 35 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-35)
+      id: download-35
+      if: ${{ steps.download-34.outcome == 'failure' && inputs.maxTries >= 35 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 35 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 36
+    - name: delay before try-36
+      if: ${{ steps.download-35.outcome == 'failure' && inputs.maxTries >= 36 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-36)
+      id: download-36
+      if: ${{ steps.download-35.outcome == 'failure' && inputs.maxTries >= 36 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 36 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 37
+    - name: delay before try-37
+      if: ${{ steps.download-36.outcome == 'failure' && inputs.maxTries >= 37 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-37)
+      id: download-37
+      if: ${{ steps.download-36.outcome == 'failure' && inputs.maxTries >= 37 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 37 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 38
+    - name: delay before try-38
+      if: ${{ steps.download-37.outcome == 'failure' && inputs.maxTries >= 38 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-38)
+      id: download-38
+      if: ${{ steps.download-37.outcome == 'failure' && inputs.maxTries >= 38 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 38 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 39
+    - name: delay before try-39
+      if: ${{ steps.download-38.outcome == 'failure' && inputs.maxTries >= 39 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-39)
+      id: download-39
+      if: ${{ steps.download-38.outcome == 'failure' && inputs.maxTries >= 39 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 39 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 40
+    - name: delay before try-40
+      if: ${{ steps.download-39.outcome == 'failure' && inputs.maxTries >= 40 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-40)
+      id: download-40
+      if: ${{ steps.download-39.outcome == 'failure' && inputs.maxTries >= 40 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 40 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 41
+    - name: delay before try-41
+      if: ${{ steps.download-40.outcome == 'failure' && inputs.maxTries >= 41 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-41)
+      id: download-41
+      if: ${{ steps.download-40.outcome == 'failure' && inputs.maxTries >= 41 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 41 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 42
+    - name: delay before try-42
+      if: ${{ steps.download-41.outcome == 'failure' && inputs.maxTries >= 42 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-42)
+      id: download-42
+      if: ${{ steps.download-41.outcome == 'failure' && inputs.maxTries >= 42 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 42 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 43
+    - name: delay before try-43
+      if: ${{ steps.download-42.outcome == 'failure' && inputs.maxTries >= 43 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-43)
+      id: download-43
+      if: ${{ steps.download-42.outcome == 'failure' && inputs.maxTries >= 43 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 43 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 44
+    - name: delay before try-44
+      if: ${{ steps.download-43.outcome == 'failure' && inputs.maxTries >= 44 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-44)
+      id: download-44
+      if: ${{ steps.download-43.outcome == 'failure' && inputs.maxTries >= 44 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 44 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 45
+    - name: delay before try-45
+      if: ${{ steps.download-44.outcome == 'failure' && inputs.maxTries >= 45 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-45)
+      id: download-45
+      if: ${{ steps.download-44.outcome == 'failure' && inputs.maxTries >= 45 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 45 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 46
+    - name: delay before try-46
+      if: ${{ steps.download-45.outcome == 'failure' && inputs.maxTries >= 46 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-46)
+      id: download-46
+      if: ${{ steps.download-45.outcome == 'failure' && inputs.maxTries >= 46 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 46 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 47
+    - name: delay before try-47
+      if: ${{ steps.download-46.outcome == 'failure' && inputs.maxTries >= 47 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-47)
+      id: download-47
+      if: ${{ steps.download-46.outcome == 'failure' && inputs.maxTries >= 47 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 47 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 48
+    - name: delay before try-48
+      if: ${{ steps.download-47.outcome == 'failure' && inputs.maxTries >= 48 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-48)
+      id: download-48
+      if: ${{ steps.download-47.outcome == 'failure' && inputs.maxTries >= 48 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 48 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 49
+    - name: delay before try-49
+      if: ${{ steps.download-48.outcome == 'failure' && inputs.maxTries >= 49 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-49)
+      id: download-49
+      if: ${{ steps.download-48.outcome == 'failure' && inputs.maxTries >= 49 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 49 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 50
+    - name: delay before try-50
+      if: ${{ steps.download-49.outcome == 'failure' && inputs.maxTries >= 50 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-50)
+      id: download-50
+      if: ${{ steps.download-49.outcome == 'failure' && inputs.maxTries >= 50 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 50 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 51
+    - name: delay before try-51
+      if: ${{ steps.download-50.outcome == 'failure' && inputs.maxTries >= 51 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-51)
+      id: download-51
+      if: ${{ steps.download-50.outcome == 'failure' && inputs.maxTries >= 51 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 51 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 52
+    - name: delay before try-52
+      if: ${{ steps.download-51.outcome == 'failure' && inputs.maxTries >= 52 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-52)
+      id: download-52
+      if: ${{ steps.download-51.outcome == 'failure' && inputs.maxTries >= 52 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 52 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 53
+    - name: delay before try-53
+      if: ${{ steps.download-52.outcome == 'failure' && inputs.maxTries >= 53 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-53)
+      id: download-53
+      if: ${{ steps.download-52.outcome == 'failure' && inputs.maxTries >= 53 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 53 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 54
+    - name: delay before try-54
+      if: ${{ steps.download-53.outcome == 'failure' && inputs.maxTries >= 54 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-54)
+      id: download-54
+      if: ${{ steps.download-53.outcome == 'failure' && inputs.maxTries >= 54 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 54 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 55
+    - name: delay before try-55
+      if: ${{ steps.download-54.outcome == 'failure' && inputs.maxTries >= 55 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-55)
+      id: download-55
+      if: ${{ steps.download-54.outcome == 'failure' && inputs.maxTries >= 55 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 55 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 56
+    - name: delay before try-56
+      if: ${{ steps.download-55.outcome == 'failure' && inputs.maxTries >= 56 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-56)
+      id: download-56
+      if: ${{ steps.download-55.outcome == 'failure' && inputs.maxTries >= 56 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 56 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 57
+    - name: delay before try-57
+      if: ${{ steps.download-56.outcome == 'failure' && inputs.maxTries >= 57 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-57)
+      id: download-57
+      if: ${{ steps.download-56.outcome == 'failure' && inputs.maxTries >= 57 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 57 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 58
+    - name: delay before try-58
+      if: ${{ steps.download-57.outcome == 'failure' && inputs.maxTries >= 58 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-58)
+      id: download-58
+      if: ${{ steps.download-57.outcome == 'failure' && inputs.maxTries >= 58 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 58 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 59
+    - name: delay before try-59
+      if: ${{ steps.download-58.outcome == 'failure' && inputs.maxTries >= 59 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-59)
+      id: download-59
+      if: ${{ steps.download-58.outcome == 'failure' && inputs.maxTries >= 59 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 59 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    # Try 60
+    - name: delay before try-60
+      if: ${{ steps.download-59.outcome == 'failure' && inputs.maxTries >= 60 }}
+      shell: bash
+      run: sleep $(( ${{ inputs.retryDelayMs }} / 1000 ))
+    - name: download artifact (try-60)
+      id: download-60
+      if: ${{ steps.download-59.outcome == 'failure' && inputs.maxTries >= 60 }}
+      uses: actions/download-artifact@v3
+      continue-on-error: ${{ 60 <= inputs.maxTries }}
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
