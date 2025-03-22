@@ -632,7 +632,17 @@ jobs:
   ## -------------------------------------------------------------------------------------------------------------------
   ## Job: 'docker'
   ## -------------------------------------------------------------------------------------------------------------------
-  ## Package the application into docker images and publish to docker hub and github repository
+  ## Package the application into docker images and publish to docker hub and github repository.
+  ## We will prepare 2, or 3 images for each platform:
+  ##
+  ## Images created on every unique run:
+  ## - version number
+  ## - unstable
+  ##
+  ## Images created only with a unique version number and a release:
+  ## - latest
+  ##
+  ## All platforms except `amd64` will have the platform shortname in the version.
   docker:
     needs: meta
     strategy:
@@ -698,21 +708,22 @@ jobs:
         run: |
           TAGS=""
 
-          VERSION="v${{ needs.meta.outputs.version }}-${{ matrix.shortname }}"
-
-          FLOATING=""
-          if [[ "${{ needs.meta.outputs.rc }}" == "true" ]]; then
-            FLOATING="unstable-${{ matrix.shortname }}"
-          else
-            FLOATING="latest-${{ matrix.shortname }}"
+          VERSION="v${{ needs.meta.outputs.version }}"
+          if [[ "${{ matrix.shortname }}" == "amd64" ]]; then
+            VERSION="$VERSION-${{ matrix.shortname }}"
           fi
 
           TAGS="${{ secrets.DOCKER_USERNAME }}/${{ env.docker_repo }}:$VERSION"
           # TAGS="$TAGS,ghcr.io/${{ github.repository_owner }}/${{ env.docker_repo }}:$VERSION"
 
-          if [[ $FLOATING != "" ]]; then
-            TAGS="$TAGS,${{ secrets.DOCKER_USERNAME }}/${{ env.docker_repo }}:$FLOATING"
-            # TAGS="$TAGS,ghcr.io/${{ github.repository_owner }}/${{ env.docker_repo }}:$FLOATING"
+          UNSTABLE="unstable-${{ matrix.shortname }}"
+          TAGS="$TAGS,${{ secrets.DOCKER_USERNAME }}/${{ env.docker_repo }}:$UNSTABLE"
+          # TAGS="$TAGS,ghcr.io/${{ github.repository_owner }}/${{ env.docker_repo }}:$UNSTABLE"
+
+          if [[ "${{ needs.meta.outputs.rc }}" == "false" ]]; then
+            LATEST="latest-${{ matrix.shortname }}"
+            TAGS="$TAGS,${{ secrets.DOCKER_USERNAME }}/${{ env.docker_repo }}:$LATEST"
+            # TAGS="$TAGS,ghcr.io/${{ github.repository_owner }}/${{ env.docker_repo }}:$LATEST"
           fi
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
