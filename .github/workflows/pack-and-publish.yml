@@ -321,7 +321,6 @@ jobs:
   ## Note: At this moment, we won't support images because of that requires plenty more testing then docker
   ## and is a lot less reliable to package and ensure it works properly on all the platforms.
   package:
-    if: true == false
     needs: meta
     strategy:
       matrix:
