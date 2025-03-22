@@ -35,7 +35,7 @@ jobs:
   ## -------------------------------------------------------------------------------------------------------------------
   ## Job: 'meta'
   ## -------------------------------------------------------------------------------------------------------------------
-  ## Prepare the application version and upload_url (of the release) for the rest of the jobs. 
+  ## Prepare the application version and upload_url (of the release) for the rest of the jobs.
   meta:
     outputs:
       version: ${{ steps.version.outputs.application_version }}
@@ -66,7 +66,7 @@ jobs:
         continue-on-error: true
         with:
           without_prefix_v: true
-      
+
       - name: Get the release associated with this tag
         if: ${{ steps.tag.outputs.tag }}
         id: get_release
@@ -90,7 +90,7 @@ jobs:
       - name: Read the application version from Cargo.toml
         run: echo "version=$(grep -m 1 '^version' "${{ env.handle }}/Cargo.toml" | sed -E 's/version = "(.*)"/\1/')" >> $GITHUB_OUTPUT
         id: extract_version
-      
+
       - name: Set the application version
         id: version
         run: |
@@ -128,7 +128,7 @@ jobs:
           else
             CURRENT_TAG="v${CURRENT_TAG}"
           fi
-          
+
           # Format the date for the changelog
           DATE=$(date -R)
 
@@ -151,7 +151,6 @@ jobs:
       - name: Print changelog for verification
         run: cat changelog
 
-
   ## -------------------------------------------------------------------------------------------------------------------
   ## Job: 'prebuild'
   ## -------------------------------------------------------------------------------------------------------------------
@@ -168,7 +167,7 @@ jobs:
         run: |
           echo "APP_VERSION=${{ needs.meta.outputs.app_version }}" >> $PWD/.env
           echo "NAME=${{ env.name }}" >> $PWD/.env
-          
+
       # Install Rust the hard way rather than using a GH Action because the action doesn't work inside a Docker container.
       # Cargo cross "requires a rustup installation of Rust", an O/S package provided Rust won't
       - name: Install Rust
@@ -177,7 +176,7 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           source "$HOME/.cargo/env"
-          echo "bin_dir=$HOME/.cargo/bin" >> $GITHUB_OUTPUT  
+          echo "bin_dir=$HOME/.cargo/bin" >> $GITHUB_OUTPUT
 
       - name: Install wasm pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
@@ -213,13 +212,13 @@ jobs:
   ## Some targets will be used for packaging into .deb package, and some will be used for a docker image.
   build:
     strategy:
-      matrix: 
+      matrix:
         target:
-          # Targets for .deb packages
-          - "x86_64-unknown-linux-gnu"
-          - "arm-unknown-linux-gnueabihf"
-          - "armv7-unknown-linux-gnueabihf"
-          - "aarch64-unknown-linux-gnu"
+          # Targets for .deb packages -- This is disabled, see description on job below
+          # - "x86_64-unknown-linux-gnu"
+          # - "arm-unknown-linux-gnueabihf"
+          # - "armv7-unknown-linux-gnueabihf"
+          # - "aarch64-unknown-linux-gnu"
           # Additional targets for docker images
           - "x86_64-unknown-linux-musl"
           - "arm-unknown-linux-musleabihf"
@@ -228,7 +227,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-          
+
       # Install Rust the hard way rather than using a GH Action because the action doesn't work inside a Docker container.
       # Cargo cross "requires a rustup installation of Rust", an O/S package provided Rust won't
       - name: Install Rust
@@ -244,8 +243,8 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           source "$HOME/.cargo/env"
-          echo "bin_dir=$HOME/.cargo/bin" >> $GITHUB_OUTPUT    
-      
+          echo "bin_dir=$HOME/.cargo/bin" >> $GITHUB_OUTPUT
+
       - name: Fetch cargo cross if available
         id: cache-cargo-cross
         uses: actions/cache@v3
@@ -308,314 +307,317 @@ jobs:
   ## -------------------------------------------------------------------------------------------------------------------
   ## Package the binary for each architecture into a .deb package for each platform.
   ## If the workflow has been triggered as a part of a release we will upload the package into the release assets.
-  package:
-    needs: meta
-    strategy:
-      matrix: 
-        target:
-          - "x86_64-unknown-linux-gnu"
-        image:   
-        - "ubuntu:focal" # ubuntu/20.04
-        - "ubuntu:jammy" # ubuntu/22.04
-        - "debian:bullseye" # debian/11
-        - "debian:bookworm" # debian/12
-        include:
-          # Package for the Raspberry Pi 4b as an ARMv7 cross compiled variant of the Debian Bullseye upon which
-          # Raspbian 11 is based.
-          - target: "armv7-unknown-linux-gnueabihf"
-            image: "debian:bullseye"
+  ##
+  ## Note: At this moment, we won't support images because of that requires plenty more testing then docker
+  ## and is a lot less reliable to package and ensure it works properly on all the platforms.
+  # package:
+  #   needs: meta
+  #   strategy:
+  #     matrix:
+  #       target:
+  #         - "x86_64-unknown-linux-gnu"
+  #       image:
+  #         - "ubuntu:focal" # ubuntu/20.04
+  #         - "ubuntu:jammy" # ubuntu/22.04
+  #         - "debian:bullseye" # debian/11
+  #         - "debian:bookworm" # debian/12
+  #       include:
+  #         # Package for the Raspberry Pi 4b as an ARMv7 cross compiled variant of the Debian Bullseye upon which
+  #         # Raspbian 11 is based.
+  #         - target: "armv7-unknown-linux-gnueabihf"
+  #           image: "debian:bullseye"
 
-          # Package for the Raspberry Pi 1b as an ARMv6 cross compiled variant of the Debian Buster upon which
-          # Raspbian 10 is based.
-          - target: "arm-unknown-linux-gnueabihf"
-            image: "debian:buster"
+  #         # Package for the Raspberry Pi 1b as an ARMv6 cross compiled variant of the Debian Buster upon which
+  #         # Raspbian 10 is based.
+  #         - target: "arm-unknown-linux-gnueabihf"
+  #           image: "debian:buster"
 
-          # Package for the ROCK64 as an AARCH64 cross compiled variant of Debian Buster upon which Armbian 21 is
-          # based.
-          - target: "aarch64-unknown-linux-gnu"
-            image: "debian:buster"
-    runs-on: ubuntu-latest
-    container: ${{ matrix.image }}
-    steps:
-      - name: Set OS_NAME and OS_REL
-        env:
-          INPUTS_IMAGE: ${{ matrix.image }}
-          INPUTS_OS: ${{ matrix.os }}
-        run: |
-          # Get the operating system and release name (e.g. ubuntu and xenial) from the image name (e.g. ubuntu:xenial) by
-          # extracting only the parts before and after but not including the colon:
-          IMAGE="${INPUTS_IMAGE}"
-          if [[ "${INPUTS_OS}" != "" ]]; then
-            IMAGE="${INPUTS_OS}"
-          fi
+  #         # Package for the ROCK64 as an AARCH64 cross compiled variant of Debian Buster upon which Armbian 21 is
+  #         # based.
+  #         - target: "aarch64-unknown-linux-gnu"
+  #           image: "debian:buster"
+  #   runs-on: ubuntu-latest
+  #   container: ${{ matrix.image }}
+  #   steps:
+  #     - name: Set OS_NAME and OS_REL
+  #       env:
+  #         INPUTS_IMAGE: ${{ matrix.image }}
+  #         INPUTS_OS: ${{ matrix.os }}
+  #       run: |
+  #         # Get the operating system and release name (e.g. ubuntu and xenial) from the image name (e.g. ubuntu:xenial) by
+  #         # extracting only the parts before and after but not including the colon:
+  #         IMAGE="${INPUTS_IMAGE}"
+  #         if [[ "${INPUTS_OS}" != "" ]]; then
+  #           IMAGE="${INPUTS_OS}"
+  #         fi
 
-          if [[ "${IMAGE}" == "" ]]; then
-            echo "::error::Matrix variable 'os' must be non-empty if set in package_build_rules."
-            exit 1
-          fi
+  #         if [[ "${IMAGE}" == "" ]]; then
+  #           echo "::error::Matrix variable 'os' must be non-empty if set in package_build_rules."
+  #           exit 1
+  #         fi
 
-          OS_NAME=${IMAGE%:*}
-          OS_REL=${IMAGE#*:}
+  #         OS_NAME=${IMAGE%:*}
+  #         OS_REL=${IMAGE#*:}
 
-          if [[ "${OS_NAME}" == '' || "${OS_REL}" == '' ]]; then
-            echo "::error::Matrix variable 'image' and/or 'os' must be of the form '<os name>:<os release>'"
-            exit 1
-          fi
+  #         if [[ "${OS_NAME}" == '' || "${OS_REL}" == '' ]]; then
+  #           echo "::error::Matrix variable 'image' and/or 'os' must be of the form '<os name>:<os release>'"
+  #           exit 1
+  #         fi
 
-          echo "OS_NAME=$OS_NAME" >> $GITHUB_ENV
-          echo "OS_REL=$OS_REL" >> $GITHUB_ENV
+  #         echo "OS_NAME=$OS_NAME" >> $GITHUB_ENV
+  #         echo "OS_REL=$OS_REL" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v4
+  #     - uses: actions/checkout@v4
 
-      - name: Download changelog
-        uses: ximon18/download-artifact@v3
-        with:
-          name: changelog
-          path: .
+  #     - name: Download changelog
+  #       uses: ximon18/download-artifact@v3
+  #       with:
+  #         name: changelog
+  #         path: .
 
-      - name: Move changelog
-        run: |
-          mv changelog ${{ env.changelog_path }}
+  #     - name: Move changelog
+  #       run: |
+  #         mv changelog ${{ env.changelog_path }}
 
-      - name: Install compilation and other dependencies
-        env:
-          INSTALL: curl build-essential lintian jq
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update || sudo apt-get update
-          apt-get install -y $INSTALL || sudo apt-get install -y $INSTALL
-          
-      # Install Rust the hard way rather than using a GH Action because the action doesn't work inside a Docker container.
-      # Cargo cross "requires a rustup installation of Rust", an O/S package provided Rust won't
-      - name: Install Rust
-        id: rust
-        run: |
-          if ! hash cargo; then
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y
-            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-            source "$HOME/.cargo/env"
-            echo "bin_dir=$HOME/.cargo/bin" >> $GITHUB_OUTPUT
-          else
-            CARGO_BIN_DIR=$(dirname $(which cargo))
-            echo "bin_dir=${CARGO_BIN_DIR}" >> $GITHUB_OUTPUT
-          fi
+  #     - name: Install compilation and other dependencies
+  #       env:
+  #         INSTALL: curl build-essential lintian jq
+  #       run: |
+  #         export DEBIAN_FRONTEND=noninteractive
+  #         apt-get update || sudo apt-get update
+  #         apt-get install -y $INSTALL || sudo apt-get install -y $INSTALL
 
-      # Speed up Rust builds by caching unchanged built dependencies.
-      # See: https://github.com/actions/cache/blob/master/examples.md#rust---cargo
-      - name: Fetch .cargo from cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ matrix.image }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+  #     # Install Rust the hard way rather than using a GH Action because the action doesn't work inside a Docker container.
+  #     # Cargo cross "requires a rustup installation of Rust", an O/S package provided Rust won't
+  #     - name: Install Rust
+  #       id: rust
+  #       run: |
+  #         if ! hash cargo; then
+  #           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y
+  #           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+  #           source "$HOME/.cargo/env"
+  #           echo "bin_dir=$HOME/.cargo/bin" >> $GITHUB_OUTPUT
+  #         else
+  #           CARGO_BIN_DIR=$(dirname $(which cargo))
+  #           echo "bin_dir=${CARGO_BIN_DIR}" >> $GITHUB_OUTPUT
+  #         fi
 
-      # Speed up tooling installation by only re-downloading and re-building dependent crates if we change the version of
-      # the tool that we are using.
-      - name: Fetch cargo-deb from cache
-        id: cache-cargo-deb
-        uses: actions/cache@v3
-        with:
-          path: ${{ steps.rust.outputs.bin_dir }}/cargo-deb
-          key: ${{ matrix.image }}-cargo-deb-${{ endsWith(matrix.image, 'xenial')}}
+  #     # Speed up Rust builds by caching unchanged built dependencies.
+  #     # See: https://github.com/actions/cache/blob/master/examples.md#rust---cargo
+  #     - name: Fetch .cargo from cache
+  #       uses: actions/cache@v3
+  #       with:
+  #         path: |
+  #           ~/.cargo/registry
+  #           ~/.cargo/git
+  #         key: ${{ matrix.image }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      # Only install cargo-deb or cargo-generate-rpm if not already fetched from the cache.
-      - name: Install cargo-deb if needed
-        id: install-cargo-deb
-        if: ${{ steps.cache-cargo-deb.outputs.cache-hit != 'true' }}
-        run: |
-          cargo install cargo-deb
-          echo "installed=true" >> $GITHUB_OUTPUT
+  #     # Speed up tooling installation by only re-downloading and re-building dependent crates if we change the version of
+  #     # the tool that we are using.
+  #     - name: Fetch cargo-deb from cache
+  #       id: cache-cargo-deb
+  #       uses: actions/cache@v3
+  #       with:
+  #         path: ${{ steps.rust.outputs.bin_dir }}/cargo-deb
+  #         key: ${{ matrix.image }}-cargo-deb-${{ endsWith(matrix.image, 'xenial')}}
 
-      - name: Force cache save
-        if: ${{ steps.install-cargo-deb.outputs.installed == 'true' }}
-        uses: actions/cache/save@v3
-        with:
-          path: ${{ steps.rust.outputs.bin_dir }}/cargo-deb
-          key: ${{ matrix.image }}-cargo-deb-${{ endsWith(matrix.image, 'xenial')}}
+  #     # Only install cargo-deb or cargo-generate-rpm if not already fetched from the cache.
+  #     - name: Install cargo-deb if needed
+  #       id: install-cargo-deb
+  #       if: ${{ steps.cache-cargo-deb.outputs.cache-hit != 'true' }}
+  #       run: |
+  #         cargo install cargo-deb
+  #         echo "installed=true" >> $GITHUB_OUTPUT
 
-      - name: Download binary
-        uses: ximon18/download-artifact@v3
-        with:
-          name: ${{ env.handle }}-tmp-cross-binaries-${{ matrix.target }}
-          path: .
-          maxTries: ${{ env.download_max_tries }}
-          retryDelayMs: ${{ env.download_retry_delay_ms }}
-  
-      - name: Untar the set of downloaded binaries
-        run: tar vpxf bins.tar
+  #     - name: Force cache save
+  #       if: ${{ steps.install-cargo-deb.outputs.installed == 'true' }}
+  #       uses: actions/cache/save@v3
+  #       with:
+  #         path: ${{ steps.rust.outputs.bin_dir }}/cargo-deb
+  #         key: ${{ matrix.image }}-cargo-deb-${{ endsWith(matrix.image, 'xenial')}}
 
-      # Instruct cargo-deb or cargo-generate-rpm to build the package based on Cargo.toml settings and command line
-      # arguments.
-      - name: Create the package
-        id: create
-        env:
-          TARGET_DIR: "target/${{ matrix.target }}"
-          CROSS_TARGET: ${{ matrix.target }}
-        run: |
-          DEB_VER="${PKG_APP_VER}-1${OS_REL}"
+  #     - name: Download binary
+  #       uses: ximon18/download-artifact@v3
+  #       with:
+  #         name: ${{ env.handle }}-tmp-cross-binaries-${{ matrix.target }}
+  #         path: .
+  #         maxTries: ${{ env.download_max_tries }}
+  #         retryDelayMs: ${{ env.download_retry_delay_ms }}
 
-          # This shouldn't be necessary...
-          rm -f ${TARGET_DIR}/debian/*.deb
+  #     - name: Untar the set of downloaded binaries
+  #       run: tar vpxf bins.tar
 
-          APP_VER="${{ needs.meta.outputs.version }}"
-          PKG_APP_VER=$(echo $APP_VER | tr '-' '~')
-          DEB_VER="${PKG_APP_VER}-1${OS_REL}"
+  #     # Instruct cargo-deb or cargo-generate-rpm to build the package based on Cargo.toml settings and command line
+  #     # arguments.
+  #     - name: Create the package
+  #       id: create
+  #       env:
+  #         TARGET_DIR: "target/${{ matrix.target }}"
+  #         CROSS_TARGET: ${{ matrix.target }}
+  #       run: |
+  #         DEB_VER="${PKG_APP_VER}-1${OS_REL}"
 
-          VARIANT="${OS_NAME}-${OS_REL}"
-          
-          if [[ "${CROSS_TARGET}" != "x86_64-unknown-linux-gnu" ]]; then
-            VARIANT="${OS_NAME}-${OS_REL}-${CROSS_TARGET}"
-          fi
+  #         # This shouldn't be necessary...
+  #         rm -f ${TARGET_DIR}/debian/*.deb
 
-          cargo deb \
-            -p ${{ env.handle }} \
-            --deb-version ${DEB_VER} \
-            --locked \
-            --no-build \
-            --no-strip \
-            --target ${CROSS_TARGET} \
-            --variant ${VARIANT}
+  #         APP_VER="${{ needs.meta.outputs.version }}"
+  #         PKG_APP_VER=$(echo $APP_VER | tr '-' '~')
+  #         DEB_VER="${PKG_APP_VER}-1${OS_REL}"
 
-      - name: Post-process the package
-        env:
-          TARGET_DIR: "target/${{ matrix.target }}"
-          CROSS_TARGET: ${{ matrix.target }}
-        run: |
-          case ${OS_NAME} in
-            debian|ubuntu)
-              # https://github.com/NLnetLabs/routinator/issues/783
-              # Patch the generated DEB to have ./ paths compatible with `unattended-upgrade`:
-              ls -la ${TARGET_DIR}/debian/
+  #         VARIANT="${OS_NAME}-${OS_REL}"
 
-              pushd ${TARGET_DIR}/debian
-              DEB_FILE_NAME=$(ls -1 *.deb | head -n 1)
-              DATA_ARCHIVE=$(ar t ${DEB_FILE_NAME} | grep -E '^data\.tar')
-              ar x ${DEB_FILE_NAME} ${DATA_ARCHIVE}
-              tar tf ${DATA_ARCHIVE}
-              EXTRA_TAR_ARGS=
-              if [[ "${DATA_ARCHIVE}" == *.xz ]]; then
-                # Install XZ support that will be needed by TAR
-                apt-get -y install -y xz-utils
-                EXTRA_TAR_ARGS=J
-              fi
-              mkdir tar-hack
-              tar -C tar-hack -xf ${DATA_ARCHIVE}
-              pushd tar-hack
-              tar c${EXTRA_TAR_ARGS}f ../${DATA_ARCHIVE} ./*
-              popd
-              tar tf ${DATA_ARCHIVE}
-              ar r ${DEB_FILE_NAME} ${DATA_ARCHIVE}
-              popd
+  #         if [[ "${CROSS_TARGET}" != "x86_64-unknown-linux-gnu" ]]; then
+  #           VARIANT="${OS_NAME}-${OS_REL}-${CROSS_TARGET}"
+  #         fi
 
-              ls -la ${TARGET_DIR}/debian/
+  #         cargo deb \
+  #           -p ${{ env.handle }} \
+  #           --deb-version ${DEB_VER} \
+  #           --locked \
+  #           --no-build \
+  #           --no-strip \
+  #           --target ${CROSS_TARGET} \
+  #           --variant ${VARIANT}
 
-              pushd ${TARGET_DIR}/debian
-              dpkg -e ${DEB_FILE_NAME} control_files
-              dpkg -x ${DEB_FILE_NAME} data_files
+  #     - name: Post-process the package
+  #       env:
+  #         TARGET_DIR: "target/${{ matrix.target }}"
+  #         CROSS_TARGET: ${{ matrix.target }}
+  #       run: |
+  #         case ${OS_NAME} in
+  #           debian|ubuntu)
+  #             # https://github.com/NLnetLabs/routinator/issues/783
+  #             # Patch the generated DEB to have ./ paths compatible with `unattended-upgrade`:
+  #             ls -la ${TARGET_DIR}/debian/
 
-              for D in control_files data_files; do
-                pushd $D
+  #             pushd ${TARGET_DIR}/debian
+  #             DEB_FILE_NAME=$(ls -1 *.deb | head -n 1)
+  #             DATA_ARCHIVE=$(ar t ${DEB_FILE_NAME} | grep -E '^data\.tar')
+  #             ar x ${DEB_FILE_NAME} ${DATA_ARCHIVE}
+  #             tar tf ${DATA_ARCHIVE}
+  #             EXTRA_TAR_ARGS=
+  #             if [[ "${DATA_ARCHIVE}" == *.xz ]]; then
+  #               # Install XZ support that will be needed by TAR
+  #               apt-get -y install -y xz-utils
+  #               EXTRA_TAR_ARGS=J
+  #             fi
+  #             mkdir tar-hack
+  #             tar -C tar-hack -xf ${DATA_ARCHIVE}
+  #             pushd tar-hack
+  #             tar c${EXTRA_TAR_ARGS}f ../${DATA_ARCHIVE} ./*
+  #             popd
+  #             tar tf ${DATA_ARCHIVE}
+  #             ar r ${DEB_FILE_NAME} ${DATA_ARCHIVE}
+  #             popd
 
-                echo Listing package $D and sizes
-                find . -type f -exec du -sh {} \;
+  #             ls -la ${TARGET_DIR}/debian/
 
-                echo
-                echo Printing non-binary files contained within $D
+  #             pushd ${TARGET_DIR}/debian
+  #             dpkg -e ${DEB_FILE_NAME} control_files
+  #             dpkg -x ${DEB_FILE_NAME} data_files
 
-                # Use grep to exclude find only non-binary files that we can print
-                find . -type f -exec grep -Il '.' {} \; -exec cat {} \; -exec echo \; -exec echo \;
+  #             for D in control_files data_files; do
+  #               pushd $D
 
-                popd
-                rm -R $D
-              done
-              popd
-              ;;
-            esac
+  #               echo Listing package $D and sizes
+  #               find . -type f -exec du -sh {} \;
 
-      # See what O/S specific linting tools think of our package.
-      - name: Verify the package
-        env:
-          CROSS_TARGET: ${{ matrix.target }}
-        run: |
-          case ${OS_NAME} in
-            debian|ubuntu)
-              dpkg --info target/${{ matrix.target }}/debian/*.deb
+  #               echo
+  #               echo Printing non-binary files contained within $D
 
-              EXTRA_LINTIAN_ARGS="--suppress-tags manpage-not-compressed-with-max-compression"
+  #               # Use grep to exclude find only non-binary files that we can print
+  #               find . -type f -exec grep -Il '.' {} \; -exec cat {} \; -exec echo \; -exec echo \;
 
-              case ${OS_REL} in
-                xenial|bionic|focal|stretch|buster)
-                  ;;
+  #               popd
+  #               rm -R $D
+  #             done
+  #             popd
+  #             ;;
+  #           esac
 
-                *)
-                  EXTRA_LINTIAN_ARGS="${EXTRA_LINTIAN_ARGS} --suppress-tags poor-compression-in-manual-page"
-                  ;;
-              esac
+  #     # See what O/S specific linting tools think of our package.
+  #     - name: Verify the package
+  #       env:
+  #         CROSS_TARGET: ${{ matrix.target }}
+  #       run: |
+  #         case ${OS_NAME} in
+  #           debian|ubuntu)
+  #             dpkg --info target/${{ matrix.target }}/debian/*.deb
 
-              if [[ "${CROSS_TARGET}" != "x86_64" ]]; then
-                EXTRA_LINTIAN_ARGS="${EXTRA_LINTIAN_ARGS} --suppress-tags unstripped-binary-or-object,statically-linked-binary"
-              fi
+  #             EXTRA_LINTIAN_ARGS="--suppress-tags manpage-not-compressed-with-max-compression"
 
-              if [[ "${{ env.strict }}" == "true" ]]; then
-                case ${OS_REL} in
-                  focal)
-                    ;;
+  #             case ${OS_REL} in
+  #               xenial|bionic|focal|stretch|buster)
+  #                 ;;
 
-                  xenial|bionic|stretch|buster)
-                    EXTRA_LINTIAN_ARGS="${EXTRA_LINTIAN_ARGS} --fail-on-warnings"
-                    ;;
+  #               *)
+  #                 EXTRA_LINTIAN_ARGS="${EXTRA_LINTIAN_ARGS} --suppress-tags poor-compression-in-manual-page"
+  #                 ;;
+  #             esac
 
-                  *)
-                    EXTRA_LINTIAN_ARGS="${EXTRA_LINTIAN_ARGS} --fail-on error,warning"
-                    ;;
-                esac
-              else
-                case ${OS_REL} in
-                  xenial|bionic|focal|stretch|buster)
-                    ;;
+  #             if [[ "${CROSS_TARGET}" != "x86_64" ]]; then
+  #               EXTRA_LINTIAN_ARGS="${EXTRA_LINTIAN_ARGS} --suppress-tags unstripped-binary-or-object,statically-linked-binary"
+  #             fi
 
-                  *)
-                    EXTRA_LINTIAN_ARGS="${EXTRA_LINTIAN_ARGS} --fail-on error"
-                    ;;
-                esac
-              fi
+  #             if [[ "${{ env.strict }}" == "true" ]]; then
+  #               case ${OS_REL} in
+  #                 focal)
+  #                   ;;
 
-              lintian --version
-              lintian --allow-root -v ${EXTRA_LINTIAN_ARGS} target/${{ matrix.target }}/debian/*.deb
-              ;;
-          esac
+  #                 xenial|bionic|stretch|buster)
+  #                   EXTRA_LINTIAN_ARGS="${EXTRA_LINTIAN_ARGS} --fail-on-warnings"
+  #                   ;;
 
-      - name: List files and capture the filename
-        if: ${{ needs.meta.outputs.has_release == 'true' }}
-        id: file
-        run: |
-          FILE_PATH=$(ls target/${{ matrix.target }}/debian/*.deb)
-          echo "file_path=$FILE_PATH" >> $GITHUB_OUTPUT
-          FILENAME=$(basename $FILE_PATH)
-          echo "filename=$FILENAME" >> $GITHUB_OUTPUT
+  #                 *)
+  #                   EXTRA_LINTIAN_ARGS="${EXTRA_LINTIAN_ARGS} --fail-on error,warning"
+  #                   ;;
+  #               esac
+  #             else
+  #               case ${OS_REL} in
+  #                 xenial|bionic|focal|stretch|buster)
+  #                   ;;
 
-      # Upload the asset to release that triggered this action
-      - name: Upload .deb file as release asset
-        if: ${{ needs.meta.outputs.has_release == 'true' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ needs.meta.outputs.upload_url }}?name=${{ steps.file.outputs.filename }}
-          asset_path: ${{ steps.file.outputs.file_path }}
-          asset_name: ${{ steps.file.outputs.filename }}
-          asset_content_type: application/vnd.debian.binary-package
+  #                 *)
+  #                   EXTRA_LINTIAN_ARGS="${EXTRA_LINTIAN_ARGS} --fail-on error"
+  #                   ;;
+  #               esac
+  #             fi
 
-      # Upload the produced package. The artifact will be available via the GH Actions job summary and build log pages,
-      # but only to users logged in to GH with sufficient rights in this project. The uploaded artifact is also downloaded
-      # by the next job (see below) to sanity check that it can be installed and results in a working Krill installation.
-      - name: Upload package
-        if: ${{ needs.meta.outputs.has_release != 'true' }}
-        uses: umutozd/upload-artifact@fixing-unrecognized-if-no-files-found-input-error
-        with:
-          name: ${{ env.handle }}_${{ env.OS_NAME }}_${{ env.OS_REL }}_${{ matrix.target }}
-          path: target/${{ matrix.target }}/debian/*.deb
+  #             lintian --version
+  #             lintian --allow-root -v ${EXTRA_LINTIAN_ARGS} target/${{ matrix.target }}/debian/*.deb
+  #             ;;
+  #         esac
+
+  #     - name: List files and capture the filename
+  #       if: ${{ needs.meta.outputs.has_release == 'true' }}
+  #       id: file
+  #       run: |
+  #         FILE_PATH=$(ls target/${{ matrix.target }}/debian/*.deb)
+  #         echo "file_path=$FILE_PATH" >> $GITHUB_OUTPUT
+  #         FILENAME=$(basename $FILE_PATH)
+  #         echo "filename=$FILENAME" >> $GITHUB_OUTPUT
+
+  #     # Upload the asset to release that triggered this action
+  #     - name: Upload .deb file as release asset
+  #       if: ${{ needs.meta.outputs.has_release == 'true' }}
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       uses: actions/upload-release-asset@v1
+  #       with:
+  #         upload_url: ${{ needs.meta.outputs.upload_url }}?name=${{ steps.file.outputs.filename }}
+  #         asset_path: ${{ steps.file.outputs.file_path }}
+  #         asset_name: ${{ steps.file.outputs.filename }}
+  #         asset_content_type: application/vnd.debian.binary-package
+
+  #     # Upload the produced package. The artifact will be available via the GH Actions job summary and build log pages,
+  #     # but only to users logged in to GH with sufficient rights in this project. The uploaded artifact is also downloaded
+  #     # by the next job (see below) to sanity check that it can be installed and results in a working Krill installation.
+  #     - name: Upload package
+  #       if: ${{ needs.meta.outputs.has_release != 'true' }}
+  #       uses: umutozd/upload-artifact@fixing-unrecognized-if-no-files-found-input-error
+  #       with:
+  #         name: ${{ env.handle }}_${{ env.OS_NAME }}_${{ env.OS_REL }}_${{ matrix.target }}
+  #         path: target/${{ matrix.target }}/debian/*.deb
 
   ## -------------------------------------------------------------------------------------------------------------------
   ## Job: 'docker'
@@ -680,7 +682,7 @@ jobs:
           find ./${{ matrix.shortname }}/ -type d -empty -delete
           rm ./${{ matrix.shortname }}/bins.tar
           ls -laR ./${{ matrix.shortname }}
-      
+
       - name: Prepare the version prefix
         id: prepare
         run: |
@@ -774,7 +776,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Log into Docker Hub
         uses: docker/login-action@v3
         with:
