@@ -143,7 +143,7 @@ jobs:
           echo " -- ${AUTHOR_NAME} <${AUTHOR_EMAIL}>  ${DATE}" >> changelog
 
       - name: Upload changelog
-        uses: umutozd/upload-artifact@fixing-unrecognized-if-no-files-found-input-error
+        uses: actions/upload-artifact@v4
         with:
           name: changelog
           path: .
@@ -200,7 +200,7 @@ jobs:
           find web/dist/ -mindepth 1 | xargs tar vpcf web-dist.tar
 
       - name: Upload tar
-        uses: umutozd/upload-artifact@fixing-unrecognized-if-no-files-found-input-error
+        uses: actions/upload-artifact@v4
         with:
           name: web-dist
           path: web-dist.tar
@@ -297,7 +297,7 @@ jobs:
           find target/${{ matrix.target }}/release/ -maxdepth 1 -type f -executable | xargs tar vpcf bins.tar
 
       - name: Upload built binaries
-        uses: umutozd/upload-artifact@fixing-unrecognized-if-no-files-found-input-error
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.handle }}-tmp-cross-binaries-${{ matrix.target }}
           path: bins.tar
@@ -614,7 +614,7 @@ jobs:
   #     # by the next job (see below) to sanity check that it can be installed and results in a working Krill installation.
   #     - name: Upload package
   #       if: ${{ needs.meta.outputs.has_release != 'true' }}
-  #       uses: umutozd/upload-artifact@fixing-unrecognized-if-no-files-found-input-error
+  #       uses: actions/upload-artifact@v4
   #       with:
   #         name: ${{ env.handle }}_${{ env.OS_NAME }}_${{ env.OS_REL }}_${{ matrix.target }}
   #         path: target/${{ matrix.target }}/debian/*.deb
@@ -746,7 +746,7 @@ jobs:
 
       # Upload the Docker image as a GitHub Actions artifact, handy when not publishing or investigating a problem
       - name: Upload built image to GitHub Actions
-        uses: umutozd/upload-artifact@fixing-unrecognized-if-no-files-found-input-error
+        uses: actions/upload-artifact@v4
         with:
           name: tmp-docker-image-${{ matrix.shortname }}
           path: /tmp/docker-${{ matrix.shortname }}-img.tar
