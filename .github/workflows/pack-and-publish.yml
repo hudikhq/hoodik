@@ -166,13 +166,14 @@ jobs:
       - name: Download changelog
         uses: ximon18/download-artifact@v3
         with:
-          name: changelog
-          path: ./changelog
+          # name: changelog
+          # path: ./changelog
           maxTries: ${{ env.download_max_tries }}
           retryDelayMs: ${{ env.download_retry_delay_ms }}
 
       - name: Generate .env
         run: |
+          ls -la
           echo "APP_VERSION=${{ needs.meta.outputs.app_version }}" >> $PWD/.env
           echo "NAME=${{ env.name }}" >> $PWD/.env
 
