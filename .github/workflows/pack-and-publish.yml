@@ -277,7 +277,7 @@ jobs:
       - name: Download app
         uses: ximon18/download-artifact@v3
         with:
-          name: web-dist
+          name: web-dist.tar
           path: ./web
           maxTries: ${{ env.download_max_tries }}
           retryDelayMs: ${{ env.download_retry_delay_ms }}
