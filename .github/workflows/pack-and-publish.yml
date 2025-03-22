@@ -220,7 +220,6 @@ jobs:
   ## Use cargo cross to build the binaries for each of the required targets.
   ## Some targets will be used for packaging into .deb package, and some will be used for a docker image.
   build:
-    if: true == false
     strategy:
       matrix:
         target:
