@@ -211,7 +211,7 @@ jobs:
       - name: Upload tar
         uses: actions/upload-artifact@v4
         with:
-          name: web-dist.tar
+          name: web-dist
           path: web-dist.tar
 
   ## -------------------------------------------------------------------------------------------------------------------
@@ -285,9 +285,9 @@ jobs:
           echo $(realpath ~/.cargo/bin) >> $GITHUB_PATH
 
       - name: Download app
-        uses: ximon18/download-artifact@v3
+        uses: ./.github/actions/retry-download-artifact
         with:
-          name: web-dist.tar
+          name: web-dist
           path: ./web
           maxTries: ${{ env.download_max_tries }}
           retryDelayMs: ${{ env.download_retry_delay_ms }}
