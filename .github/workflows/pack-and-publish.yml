@@ -294,8 +294,8 @@ jobs:
       - name: Untar the set of downloaded binaries
         run: |
           mkdir -p ./web/dist
-          tar vpxf ./web/web-dist.tar --transform='s/.*\///' -C ./web/dist/
-          find ./web/dist -exec ls -ld {} + | awk '{print $1, $3, $4, $9}'
+          tar vpxf ./web/web-dist.tar -C ./web/dist/
+          tree -a -F --noreport ./web/dist || find ./web/dist -exec ls -ld {} + | awk '{print $1, $3, $4, $9}'
 
       - name: Do a cargo check to force integration of frontend assets
         run: cargo check -p hoodik
