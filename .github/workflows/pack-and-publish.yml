@@ -24,9 +24,6 @@ on:
       - v*
     branches:
       - master
-  pull_request:
-    branches:
-      - master
 
   # Allow triggering manually.
   workflow_dispatch:
@@ -647,8 +644,6 @@ jobs:
   ##
   ## Images created only with a unique version number and a release:
   ## - latest
-  ##
-  ## All platforms except `amd64` will have the platform shortname in the version.
   docker:
     needs: meta
     strategy:
