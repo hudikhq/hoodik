@@ -714,10 +714,7 @@ jobs:
         run: |
           TAGS=""
 
-          VERSION="v${{ needs.meta.outputs.version }}"
-          if [[ "${{ matrix.shortname }}" == "amd64" ]]; then
-            VERSION="$VERSION-${{ matrix.shortname }}"
-          fi
+          VERSION="v${{ needs.meta.outputs.version }}-${{ matrix.shortname }}"
 
           TAGS="${{ secrets.DOCKER_USERNAME }}/${{ env.docker_repo }}:$VERSION"
           # TAGS="$TAGS,ghcr.io/${{ github.repository_owner }}/${{ env.docker_repo }}:$VERSION"
