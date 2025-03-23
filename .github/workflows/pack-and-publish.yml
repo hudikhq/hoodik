@@ -287,14 +287,14 @@ jobs:
         uses: ./.github/actions/retry-download-artifact
         with:
           name: web-dist
-          path: ./web
+          path: .
           maxTries: ${{ env.download_max_tries }}
           retryDelayMs: ${{ env.download_retry_delay_ms }}
 
       - name: Untar the set of downloaded binaries
         run: |
           mkdir -p ./web/dist
-          tar vpxf ./web/web-dist.tar -C ./web/dist/
+          tar vpxf ./web-dist.tar -C .
           tree -a -F --noreport ./web/dist || find ./web/dist -exec ls -ld {} + | awk '{print $1, $3, $4, $9}'
 
       - name: Do a cargo check to force integration of frontend assets
