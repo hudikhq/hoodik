@@ -26,7 +26,7 @@ where
     }
 }
 
-impl<'ctx, T> Repository<'ctx, T>
+impl<T> Repository<'_, T>
 where
     T: ConnectionTrait,
 {

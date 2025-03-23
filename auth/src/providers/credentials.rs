@@ -18,7 +18,7 @@ impl<'ctx> CredentialsProvider<'ctx> {
 }
 
 #[async_trait::async_trait]
-impl<'ctx> AuthProvider for CredentialsProvider<'ctx> {
+impl AuthProvider for CredentialsProvider<'_> {
     async fn authenticate(&self, user_agent: &str, ip: &str) -> AppResult<Authenticated> {
         let (email, password, token) = self.data.into_tuple()?;
 

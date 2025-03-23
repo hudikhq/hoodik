@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs)]
 use crate::aes;
 use crate::chacha;
 use crate::rsa;
