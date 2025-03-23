@@ -298,8 +298,11 @@ jobs:
           ls -la ./web/dist
           ls -la ./web/dist/assets
 
-      - name: Do a cargo check
-        run: cargo check
+      - name: Do a cargo check to force integration of frontend assets
+        run: cargo check -p hoodik
+
+      - name: Verify the hoodik/src/client.rs
+        run: cat hoodik/src/client.rs
 
       - name: Cross compile
         run: cross build --bin ${{ env.handle }} --release --target ${{ matrix.target }} -v
