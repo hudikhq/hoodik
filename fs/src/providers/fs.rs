@@ -76,7 +76,7 @@ impl<'provider> FsProvider<'provider> {
 }
 
 #[async_trait]
-impl<'ctx> FsProviderContract for FsProvider<'ctx> {
+impl FsProviderContract for FsProvider<'_> {
     async fn available_space(&self) -> AppResult<u64> {
         available_space(self.data_dir).map_err(Error::from)
     }

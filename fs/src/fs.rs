@@ -50,7 +50,7 @@ impl<'ctx> Fs<'ctx> {
 }
 
 #[async_trait]
-impl<'ctx> FsProviderContract for Fs<'ctx> {
+impl FsProviderContract for Fs<'_> {
     async fn read<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<u8>> {
         self.provider().read(filename).await
     }

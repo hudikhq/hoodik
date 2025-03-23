@@ -1,9 +1,16 @@
 name: Verify that the application version is not previously released
 
+# When the PR is merged and hoodik/Cargo.toml is changed
+# we are expecting the version of the application to also be 
+# bumped. If the version is bumped, we will check that the new 
+# version does not already exist in the tags because once it is 
+# merged automated release will be created and app will be deployed.
 on:
   pull_request:
     branches:
       - master
+    paths:
+      - hoodik/Cargo.toml
 
 env:
   HANDLE: hoodik

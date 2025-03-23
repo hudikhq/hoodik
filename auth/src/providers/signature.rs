@@ -27,7 +27,7 @@ impl<'ctx> SignatureProvider<'ctx> {
 }
 
 #[async_trait::async_trait]
-impl<'ctx> AuthProvider for SignatureProvider<'ctx> {
+impl AuthProvider for SignatureProvider<'_> {
     async fn authenticate(&self, user_agent: &str, ip: &str) -> AppResult<Authenticated> {
         let (fingerprint, signature) = self.data.into_tuple()?;
 

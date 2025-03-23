@@ -79,7 +79,7 @@ impl<'de> serde::Deserialize<'de> for InvitationsSort {
     {
         struct InvitationsSortVisitor;
 
-        impl<'de> serde::de::Visitor<'de> for InvitationsSortVisitor {
+        impl serde::de::Visitor<'_> for InvitationsSortVisitor {
             type Value = InvitationsSort;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
