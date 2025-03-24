@@ -3,7 +3,7 @@ name: Pack and Publish
 env:
   name: Hoodik
   handle: hoodik
-  docker_repo: test-hoodik
+  docker_repo: hoodik
   strict: false
   changelog_path: hoodik/changelog
   # We are trying to make jobs parallel, which means if we don't have to
@@ -639,11 +639,11 @@ jobs:
   ## We will prepare 2, or 3 images for each platform:
   ##
   ## Images created on every unique run:
-  ## - version number
-  ## - unstable
+  ## - version number -{arch}
+  ## - unstable-{arch}
   ##
-  ## Images created only with a unique version number and a release:
-  ## - latest
+  ## Images created only with a unique version number from a release:
+  ## - latest-{arch}
   docker:
     needs: meta
     strategy:
