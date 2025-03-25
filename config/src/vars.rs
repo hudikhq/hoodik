@@ -131,6 +131,11 @@ impl Vars {
         }
     }
 
+    /// Get the inner version from Vars.
+    pub(crate) fn get_version(&self) -> String {
+        self.version.clone()
+    }
+
     /// Make sure to have the variable and set the default if it is not set
     pub(crate) fn var_default<T: GetterType>(&mut self, name: &str, default: T) -> Getter<Var<T>> {
         let env = self.maybe_env_var(name);

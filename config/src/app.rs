@@ -83,7 +83,7 @@ impl AppConfig {
             .get();
         let port = vars.var_default("HTTP_PORT", 5443).get();
         let name = vars.var_default("APP_NAME", "Hoodik".to_string());
-        let version = vars.var_default("APP_VERSION", env!("CARGO_PKG_VERSION").to_string());
+        let version = vars.get_version();
         let app_url = vars
             .var_default::<Url>(
                 "APP_URL",
@@ -101,7 +101,7 @@ impl AppConfig {
             data_dir: data_dir.get(),
             database_url: database_url.maybe_get(),
             name: name.get(),
-            version: version.get(),
+            version,
             app_url,
             client_url,
         }
