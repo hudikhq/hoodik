@@ -124,10 +124,10 @@ impl Vars {
     pub(crate) fn panic_if_errors(&self, location: &str) {
         if !self.errors.is_empty() {
             for error in self.errors.iter() {
-                eprintln!("{}", error);
+                eprintln!("{error}");
             }
 
-            panic!("Shutting down because of errors in {}", location)
+            panic!("Shutting down because of errors in {location}")
         }
     }
 
@@ -165,7 +165,7 @@ impl Vars {
             return Getter::<Var<T>>::infallible(env.maybe_get());
         }
 
-        self.errors.push(format!("{} is not set", name));
+        self.errors.push(format!("{name} is not set"));
 
         Getter::<Var<T>>::infallible(None)
     }
@@ -221,20 +221,20 @@ impl Vars {
 
         if let Ok(v) = std::env::var(name) {
             if v.is_empty() {
-                self.errors.push(format!("ENV->{}: is empty", name));
+                self.errors.push(format!("ENV->{name}: is empty"));
             } else {
                 value = match v.parse::<T>() {
                     Ok(v) => Some(v),
                     Err(_e) => {
                         self.errors
-                            .push(format!("ENV->{}: Parsing into type failed", name,));
+                            .push(format!("ENV->{name}: Parsing into type failed"));
 
                         None
                     }
                 };
             }
         } else {
-            self.errors.push(format!("{} env is not set", name));
+            self.errors.push(format!("{name} env is not set"));
         }
 
         Getter::<Var<T>>::infallible(value)
@@ -277,7 +277,7 @@ impl Vars {
             Some(p) => {
                 match from_path(&p) {
                     Ok(_) => (),
-                    Err(e) => panic!("Couldn't load the dotenv config at '{}', error: {}", p, e),
+                    Err(e) => panic!("Couldn't load the dotenv config at '{p}', error: {e}"),
                 }
 
                 vars().collect()

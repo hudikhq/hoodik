@@ -87,7 +87,7 @@ impl AppConfig {
         let app_url = vars
             .var_default::<Url>(
                 "APP_URL",
-                Url::parse(&format!("https://{}:{}", address, port)).unwrap(),
+                Url::parse(&format!("https://{address}:{port}")).unwrap(),
             )
             .get();
 
@@ -130,14 +130,11 @@ impl AppConfig {
 
         match DirBuilder::new().recursive(true).create(&data_dir) {
             Ok(_) => (),
-            Err(e) => println!("Error creating directory: {:?}", e),
+            Err(e) => println!("Error creating directory: {e:?}"),
         };
 
         let metadata = fs::metadata(&data_dir).unwrap_or_else(|e| {
-            panic!(
-                "Got error when attempting to get metadata of a data dir '{}': {}",
-                data_dir, e
-            )
+            panic!("Got error when attempting to get metadata of a data dir '{data_dir}': {e}")
         });
 
         if metadata.permissions().readonly() {

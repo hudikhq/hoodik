@@ -62,11 +62,11 @@ pub(crate) async fn send(
     template.add_template_var("link", &link);
 
     if let Some(message) = message {
-        template.add_template_var("message", format!("<p>{}</p>", message).as_str());
+        template.add_template_var("message", format!("<p>{message}</p>").as_str());
     }
 
     if let Some(role) = invitation.role.as_deref() {
-        template.add_template_var("role", format!("<p>With role: {}</p>", role).as_str());
+        template.add_template_var("role", format!("<p>With role: {role}</p>").as_str());
     }
 
     template.add_template_var("app_name", &app_name);

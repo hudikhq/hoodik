@@ -36,7 +36,7 @@ where
             .one(self.connection())
             .await
             .map_err(Error::from)?
-            .ok_or_else(|| Error::NotFound(format!("user_not_found:{}", id)))
+            .ok_or_else(|| Error::NotFound(format!("user_not_found:{id}")))
     }
 
     /// Get a user by email
@@ -46,7 +46,7 @@ where
             .one(self.connection())
             .await
             .map_err(Error::from)?
-            .ok_or_else(|| Error::NotFound(format!("user_not_found:{}", email)))
+            .ok_or_else(|| Error::NotFound(format!("user_not_found:{email}")))
     }
 
     /// Load the invitation when registering the user
@@ -70,7 +70,7 @@ where
             .one(self.connection())
             .await
             .map_err(Error::from)?
-            .ok_or_else(|| Error::NotFound(format!("user_not_found:{}", fingerprint)))
+            .ok_or_else(|| Error::NotFound(format!("user_not_found:{fingerprint}")))
     }
 
     /// Get user and session by session id, session does not have to be valid

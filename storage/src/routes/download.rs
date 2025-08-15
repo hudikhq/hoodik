@@ -44,7 +44,7 @@ pub(crate) async fn download(
         .insert_header(("Content-Type", "application/octet-stream"))
         .insert_header((
             "Content-Disposition",
-            format!("attachment; filename=\"{}\"", filename),
+            format!("attachment; filename=\"{filename}\""),
         ))
         .streaming(streamer.stream()))
 }
@@ -75,7 +75,7 @@ pub(crate) async fn head(
         .insert_header(("Content-Type", "application/octet-stream"))
         .insert_header((
             "Content-Disposition",
-            format!("attachment; filename=\"{}\"", filename),
+            format!("attachment; filename=\"{filename}\""),
         ))
         .finish())
 }

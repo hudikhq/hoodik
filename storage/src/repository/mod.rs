@@ -70,7 +70,7 @@ where
             .one(self.connection)
             .await
             .map_err(Error::from)?
-            .ok_or_else(|| Error::NotFound(format!("file_not_found:{}", id)))
+            .ok_or_else(|| Error::NotFound(format!("file_not_found:{id}")))
     }
 
     /// Preset the selector for the given user, maybe check if the user is the owner

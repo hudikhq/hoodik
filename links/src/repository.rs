@@ -179,7 +179,7 @@ impl<'ctx> Repository<'ctx> {
             .one(&self.context.db)
             .await
             .map_err(Error::from)?
-            .ok_or_else(|| Error::NotFound(format!("file_not_found:{}", id)))?;
+            .ok_or_else(|| Error::NotFound(format!("file_not_found:{id}")))?;
 
         Ok((file, user_file.unwrap()))
     }

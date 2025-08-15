@@ -22,7 +22,7 @@ impl Validation for Create {
             Rule::new("quota", |obj: &Self, error| {
                 if let Some(v) = obj.quota {
                     if v < MAX_CHUNK_SIZE_BYTES as i64 {
-                        error.add(format!("min:{}", MAX_CHUNK_SIZE_BYTES).as_str())
+                        error.add(format!("min:{MAX_CHUNK_SIZE_BYTES}").as_str())
                     }
                 }
             }),

@@ -63,7 +63,7 @@ impl Error {
     }
 
     pub fn as_wrong_id(entity: &str) -> Error {
-        Error::BadRequest(format!("invalid_id_provided_while_extracting:{}", entity))
+        Error::BadRequest(format!("invalid_id_provided_while_extracting:{entity}"))
     }
 
     pub fn as_not_found(message: &str) -> Error {
@@ -83,7 +83,7 @@ impl Error {
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Error: {:?}", self)
+        write!(f, "Error: {self:?}")
     }
 }
 
@@ -95,7 +95,7 @@ impl PartialEq for Error {
 
 impl From<Box<dyn std::any::Any + Send>> for Error {
     fn from(source: Box<dyn std::any::Any + Send>) -> Error {
-        Error::InternalError(format!("{:?}", source))
+        Error::InternalError(format!("{source:?}"))
     }
 }
 

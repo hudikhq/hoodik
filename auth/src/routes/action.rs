@@ -27,9 +27,6 @@ pub(crate) async fn action(
 
             Ok(HttpResponse::Ok().json(user))
         }
-        _ => Err(error::Error::BadRequest(format!(
-            "unknown_action:{}",
-            action
-        ))),
+        _ => Err(error::Error::BadRequest(format!("unknown_action:{action}"))),
     }
 }

@@ -144,10 +144,8 @@ fn validate_chunk_size(_file: &AppFile, _chunk: i64, data_len: usize) -> AppResu
     let max_size = MAX_CHUNK_SIZE_BYTES as f64 + (MAX_CHUNK_SIZE_BYTES as f64 * 0.01);
 
     if data_len as f64 > max_size {
-        let error = format!(
-            "chunk_size_mismatch: expected max {}, but received {}",
-            max_size, data_len
-        );
+        let error =
+            format!("chunk_size_mismatch: expected max {max_size}, but received {data_len}");
 
         return Err(Error::as_validation("chunk", &error));
     }

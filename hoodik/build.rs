@@ -30,8 +30,7 @@ fn main() -> io::Result<()> {
 
     writeln!(
         client_out_file,
-        "pub(crate) const _DEFAULT: &[u8] = include_bytes!(concat!(\"{}\", \"/index.html\"));",
-        str_path
+        "pub(crate) const _DEFAULT: &[u8] = include_bytes!(concat!(\"{str_path}\", \"/index.html\"));"
     )?;
 
     writeln!(
@@ -56,8 +55,7 @@ fn main() -> io::Result<()> {
 
                 writeln!(
                     client_out_file,
-                    r#"("{}", include_bytes!(concat!("{}", "/{}"))),"#,
-                    relative_path, str_path, relative_path
+                    r#"("{relative_path}", include_bytes!(concat!("{str_path}", "/{relative_path}"))),"#,
                 )?;
             }
         }

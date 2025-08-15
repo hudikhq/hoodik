@@ -25,7 +25,6 @@ where
             .get_by_email_and_action(&user.email, ACTION_NAME)
             .await
         {
-            println!("user_action: {:?}", user_action);
             if user_action.created_at + (ACTION_COOLDOWN_IN_MINUTES * 60)
                 > chrono::Utc::now().timestamp()
             {
