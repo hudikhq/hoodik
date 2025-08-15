@@ -157,14 +157,14 @@ mod test {
         let rule = Rule::new("*@example.com".into());
         assert_eq!(rule.pattern(), "@example.com");
 
-        assert_eq!(rule.test_start, true);
-        assert_eq!(rule.valid("test@example.com"), true);
+        assert!(rule.test_start);
+        assert!(rule.valid("test@example.com"));
 
-        assert_eq!(rule.test_end, false);
-        assert_eq!(rule.valid("test@example.net"), false);
+        assert!(!rule.test_end);
+        assert!(!rule.valid("test@example.net"));
 
-        assert_eq!(rule.test_contains, false);
-        assert_eq!(rule.valid("else@example.org"), false);
+        assert!(!rule.test_contains);
+        assert!(!rule.valid("else@example.org"));
     }
 
     #[test]
@@ -172,41 +172,41 @@ mod test {
         let rule = Rule::new("test@example.*".into());
         assert_eq!(rule.pattern(), "test@example.");
 
-        assert_eq!(rule.test_start, false);
-        assert_eq!(rule.valid("test@example.com"), true);
+        assert!(!rule.test_start);
+        assert!(rule.valid("test@example.com"));
 
-        assert_eq!(rule.test_end, true);
-        assert_eq!(rule.valid("test@example.net"), true);
+        assert!(rule.test_end);
+        assert!(rule.valid("test@example.net"));
 
-        assert_eq!(rule.test_contains, false);
-        assert_eq!(rule.valid("else@example.org"), false);
+        assert!(!rule.test_contains);
+        assert!(!rule.valid("else@example.org"));
     }
 
     #[test]
     fn test_contains() {
         let rule = Rule::new("*@example.*".into());
 
-        assert_eq!(rule.test_start, false);
-        assert_eq!(rule.valid("test@example.com"), true);
+        assert!(!rule.test_start);
+        assert!(rule.valid("test@example.com"));
 
-        assert_eq!(rule.test_end, false);
-        assert_eq!(rule.valid("test@example.net"), true);
+        assert!(!rule.test_end);
+        assert!(rule.valid("test@example.net"));
 
-        assert_eq!(rule.test_contains, true);
-        assert_eq!(rule.valid("else@example.org"), true);
+        assert!(rule.test_contains);
+        assert!(rule.valid("else@example.org"));
     }
 
     #[test]
     fn test_exact_match() {
         let rule = Rule::new("else@example.org".into());
 
-        assert_eq!(rule.test_start, false);
-        assert_eq!(rule.valid("test@example.com"), false);
+        assert!(!rule.test_start);
+        assert!(!rule.valid("test@example.com"));
 
-        assert_eq!(rule.test_end, false);
-        assert_eq!(rule.valid("test@example.net"), false);
+        assert!(!rule.test_end);
+        assert!(!rule.valid("test@example.net"));
 
-        assert_eq!(rule.test_contains, false);
-        assert_eq!(rule.valid("else@example.org"), true);
+        assert!(!rule.test_contains);
+        assert!(rule.valid("else@example.org"));
     }
 }

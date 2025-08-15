@@ -316,9 +316,9 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
 
     #[test]
     fn test_rsa_fingerprint_multi_thread() {
-        let t1 = std::thread::spawn(|| run_fingerprint_test());
-        let t2 = std::thread::spawn(|| run_fingerprint_test());
-        let t3 = std::thread::spawn(|| run_fingerprint_test());
+        let t1 = std::thread::spawn(run_fingerprint_test);
+        let t2 = std::thread::spawn(run_fingerprint_test);
+        let t3 = std::thread::spawn(run_fingerprint_test);
         t1.join().unwrap();
         t2.join().unwrap();
         t3.join().unwrap();

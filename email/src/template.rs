@@ -187,7 +187,7 @@ mod test {
     fn template_can_be_created() {
         let template = Template::new("subject", "pre_header").unwrap();
 
-        assert_eq!(template.base_content, false);
+        assert!(!template.base_content);
     }
 
     #[test]
@@ -198,7 +198,7 @@ mod test {
             .register_content_template("Some Extra Content Template {{ arbitrary_var }}")
             .unwrap();
 
-        assert_eq!(template.base_content, true);
+        assert!(template.base_content);
     }
 
     #[test]
