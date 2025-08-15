@@ -29,31 +29,31 @@ pub type AppResult<T> = Result<T, Error>;
 #[derive(ThisError, Debug)]
 pub enum Error {
     NotFound(String),
-    DbErr(DbErr),
-    RuntimeErr(RuntimeErr),
-    ColumnFromStrErr(ColumnFromStrErr),
+    DbErr(Box<DbErr>),
+    RuntimeErr(Box<RuntimeErr>),
+    ColumnFromStrErr(Box<ColumnFromStrErr>),
     BadRequest(String),
     Validation(ValidationErrors),
     Unauthorized(String),
     Forbidden(String),
     InternalError(String),
-    CryptoError(CryptoError),
-    Base64DecodeError(DecodeError),
-    HexDecodeError(FromHexError),
-    FromUtf8Error(FromUtf8Error),
-    JWTError(JWTError),
-    ReqwestError(ReqwestError),
+    CryptoError(Box<CryptoError>),
+    Base64DecodeError(Box<DecodeError>),
+    HexDecodeError(Box<FromHexError>),
+    FromUtf8Error(Box<FromUtf8Error>),
+    JWTError(Box<JWTError>),
+    ReqwestError(Box<ReqwestError>),
     StorageError(String),
-    MultipartError(MultipartError),
-    SerdeJsonError(SerdeJsonError),
-    UuidError(UuidError),
-    RustlsError(RustlsError),
-    RcgenError(RcgenError),
-    SmtpError(SmtpError),
-    LettreError(LettreError),
-    AddressError(AddressError),
-    HandlebarsRenderError(RenderError),
-    HandlebarsTemplateError(TemplateError),
+    MultipartError(Box<MultipartError>),
+    SerdeJsonError(Box<SerdeJsonError>),
+    UuidError(Box<UuidError>),
+    RustlsError(Box<RustlsError>),
+    RcgenError(Box<RcgenError>),
+    SmtpError(Box<SmtpError>),
+    LettreError(Box<LettreError>),
+    AddressError(Box<AddressError>),
+    HandlebarsRenderError(Box<RenderError>),
+    HandlebarsTemplateError(Box<TemplateError>),
     TooManyRequests(String),
 }
 
@@ -113,14 +113,14 @@ impl From<String> for Error {
 
 impl From<DbErr> for Error {
     fn from(source: DbErr) -> Error {
-        Error::DbErr(source)
+        Error::DbErr(Box::new(source))
     }
 }
 
 impl From<TransactionError<Error>> for Error {
     fn from(source: TransactionError<Error>) -> Error {
         match source {
-            TransactionError::Connection(err) => Error::DbErr(err),
+            TransactionError::Connection(err) => Error::DbErr(Box::new(err)),
             TransactionError::Transaction(err) => err,
         }
     }
@@ -128,13 +128,13 @@ impl From<TransactionError<Error>> for Error {
 
 impl From<RuntimeErr> for Error {
     fn from(source: RuntimeErr) -> Error {
-        Error::RuntimeErr(source)
+        Error::RuntimeErr(Box::new(source))
     }
 }
 
 impl From<ColumnFromStrErr> for Error {
     fn from(source: ColumnFromStrErr) -> Error {
-        Error::ColumnFromStrErr(source)
+        Error::ColumnFromStrErr(Box::new(source))
     }
 }
 
@@ -146,37 +146,37 @@ impl From<ValidationErrors> for Error {
 
 impl From<CryptoError> for Error {
     fn from(source: CryptoError) -> Error {
-        Error::CryptoError(source)
+        Error::CryptoError(Box::new(source))
     }
 }
 
 impl From<DecodeError> for Error {
     fn from(source: DecodeError) -> Error {
-        Error::Base64DecodeError(source)
+        Error::Base64DecodeError(Box::new(source))
     }
 }
 
 impl From<FromHexError> for Error {
     fn from(source: FromHexError) -> Error {
-        Error::HexDecodeError(source)
+        Error::HexDecodeError(Box::new(source))
     }
 }
 
 impl From<FromUtf8Error> for Error {
     fn from(source: FromUtf8Error) -> Error {
-        Error::FromUtf8Error(source)
+        Error::FromUtf8Error(Box::new(source))
     }
 }
 
 impl From<JWTError> for Error {
     fn from(source: JWTError) -> Error {
-        Error::JWTError(source)
+        Error::JWTError(Box::new(source))
     }
 }
 
 impl From<ReqwestError> for Error {
     fn from(source: ReqwestError) -> Error {
-        Error::ReqwestError(source)
+        Error::ReqwestError(Box::new(source))
     }
 }
 
@@ -200,61 +200,61 @@ impl From<GlobError> for Error {
 
 impl From<MultipartError> for Error {
     fn from(source: MultipartError) -> Error {
-        Error::MultipartError(source)
+        Error::MultipartError(Box::new(source))
     }
 }
 
 impl From<SerdeJsonError> for Error {
     fn from(source: SerdeJsonError) -> Error {
-        Error::SerdeJsonError(source)
+        Error::SerdeJsonError(Box::new(source))
     }
 }
 
 impl From<UuidError> for Error {
     fn from(source: UuidError) -> Error {
-        Error::UuidError(source)
+        Error::UuidError(Box::new(source))
     }
 }
 
 impl From<RustlsError> for Error {
     fn from(source: RustlsError) -> Error {
-        Error::RustlsError(source)
+        Error::RustlsError(Box::new(source))
     }
 }
 
 impl From<RcgenError> for Error {
     fn from(source: RcgenError) -> Error {
-        Error::RcgenError(source)
+        Error::RcgenError(Box::new(source))
     }
 }
 
 impl From<LettreError> for Error {
     fn from(source: LettreError) -> Error {
-        Error::LettreError(source)
+        Error::LettreError(Box::new(source))
     }
 }
 
 impl From<SmtpError> for Error {
     fn from(source: SmtpError) -> Error {
-        Error::SmtpError(source)
+        Error::SmtpError(Box::new(source))
     }
 }
 
 impl From<AddressError> for Error {
     fn from(source: AddressError) -> Error {
-        Error::AddressError(source)
+        Error::AddressError(Box::new(source))
     }
 }
 
 impl From<RenderError> for Error {
     fn from(source: RenderError) -> Error {
-        Error::HandlebarsRenderError(source)
+        Error::HandlebarsRenderError(Box::new(source))
     }
 }
 
 impl From<TemplateError> for Error {
     fn from(source: TemplateError) -> Error {
-        Error::HandlebarsTemplateError(source)
+        Error::HandlebarsTemplateError(Box::new(source))
     }
 }
 

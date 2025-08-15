@@ -34,10 +34,7 @@ pub use sea_orm::{
 /// Helper to convert `Option<String>` to `Option<Uuid>`
 pub fn option_string_to_uuid(i: Option<String>) -> Option<Uuid> {
     match i {
-        Some(s) => match Uuid::parse_str(s.as_str()) {
-            Ok(u) => Some(u),
-            Err(_) => None,
-        },
+        Some(s) => Uuid::parse_str(s.as_str()).ok(),
         None => None,
     }
 }

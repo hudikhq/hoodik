@@ -53,24 +53,18 @@ pub(crate) async fn register(
     }
 
     let session = auth.generate(&user, &user_agent, &ip).await?;
-    let mut authenticated = Authenticated { user, session };
+    let authenticated = Authenticated { user, session };
 
     let mut response = HttpResponse::Created();
 
-    let (jwt, refresh) = auth.manage_cookies(&mut authenticated, module_path!())?;
+    let (jwt, refresh) = auth.manage_cookies(&authenticated, module_path!())?;
 
     if !context.config.auth.use_headers_for_auth {
         response.cookie(jwt);
         response.cookie(refresh);
     } else {
-        response.append_header((
-            "x-auth-jwt".to_string(), 
-            jwt.value()
-        ));
-        response.append_header((
-            "x-auth-refresh".to_string(), 
-            refresh.value()
-        ));
+        response.append_header(("x-auth-jwt".to_string(), jwt.value()));
+        response.append_header(("x-auth-refresh".to_string(), refresh.value()));
     }
 
     Ok(response.json(authenticated))

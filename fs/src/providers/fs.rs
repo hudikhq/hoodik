@@ -186,7 +186,7 @@ impl FsProviderContract for FsProvider<'_> {
 
             let chunk = path_str
                 .split('.')
-                .last()
+                .next_back()
                 .unwrap_or_default()
                 .parse::<i64>()
                 .map_err(|_| {

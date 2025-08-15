@@ -9,7 +9,7 @@ const CACHE_CONTROL: &str = "public, max-age=3600, immutable";
 
 /// Get content type from a filename
 fn content_type(filename: &str) -> &str {
-    match filename.split('.').last().unwrap_or("") {
+    match filename.split('.').next_back().unwrap_or("") {
         "html" => "text/html; charset=utf-8",
         "css" => "text/css",
         "js" => "text/javascript",

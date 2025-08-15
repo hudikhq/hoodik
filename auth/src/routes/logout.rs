@@ -16,12 +16,12 @@ pub(crate) async fn logout(
 ) -> AppResult<HttpResponse> {
     let auth = Auth::new(&context);
 
-    let mut authenticated = auth.destroy(&authenticated.session).await?;
+    let authenticated = auth.destroy(&authenticated.session).await?;
 
     let mut response = HttpResponse::NoContent();
 
-    let (jwt, refresh) = auth.manage_cookies(&mut authenticated, "logout")?;
-    
+    let (jwt, refresh) = auth.manage_cookies(&authenticated, "logout")?;
+
     if !context.config.auth.use_headers_for_auth {
         response.cookie(jwt);
         response.cookie(refresh);
