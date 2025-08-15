@@ -74,6 +74,7 @@ async fn test_registration_and_login() {
     let (jwt, refresh) = helpers::extract_cookies(&resp.headers());
 
     assert_eq!(resp.status(), StatusCode::OK);
+    // println!("{:?}", &resp.headers());
 
     let _response: Authenticated = serde_json::from_slice(&test::read_body(resp).await).unwrap();
 

@@ -6,6 +6,7 @@ use entity::Uuid;
 use error::AppResult;
 use std::marker::PhantomData;
 
+#[derive(Debug)]
 pub(crate) enum Source<'ext> {
     Http(&'ext str),
     Header(&'ext str),
@@ -60,7 +61,7 @@ impl<'ext> Extractor<'ext, Useless> {
         let source = if ctx.config.auth.use_headers_for_auth {
             Source::Header("x-auth-refresh")
         } else {
-            Source::Http(&ctx.config.auth.session_cookie)
+            Source::Http(&ctx.config.auth.refresh_cookie)
         };
 
         Extractor {

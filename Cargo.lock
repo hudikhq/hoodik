@@ -646,7 +646,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "auth"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "actix-web",
  "async-std",
@@ -1095,7 +1095,7 @@ dependencies = [
 
 [[package]]
 name = "config"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "chrono",
  "clap",
@@ -2058,7 +2058,7 @@ dependencies = [
 
 [[package]]
 name = "hoodik"
-version = "1.5.1"
+version = "1.6.0"
 dependencies = [
  "actix-cors",
  "actix-web",
