@@ -42,6 +42,7 @@ impl Sender {
                     &c.username,
                     &c.password,
                     c.port,
+                    &c.tls_mode,
                     &c.default_from,
                 )?),
             }),

@@ -16,8 +16,25 @@ You will need to provide SMTP credentials through the `.env` file, or the ENV gi
 # SMTP_USERNAME="username@gmail.com"
 # SMTP_PASSWORD="generated-app-password"
 # SMTP_PORT=465 # Optional, default: 465
-# SMTP_DEFAULT_FROM="Full Name <username@gmail.com>"
+# SMTP_TLS_MODE=implicit # Optional, values: starttls, implicit, none - auto-detected from port if not set
+# SMTP_DEFAULT_FROM_EMAIL="username@gmail.com"
+# SMTP_DEFAULT_FROM_NAME="Full Name" # Optional
+# SMTP_DEFAULT_FROM="Full Name <username@gmail.com>" # DEPRECATED: Use SMTP_DEFAULT_FROM_EMAIL and SMTP_DEFAULT_FROM_NAME instead
 ```
+
+## TLS Modes
+
+The `SMTP_TLS_MODE` setting determines how TLS encryption is used for the SMTP connection:
+
+- **`starttls`** - STARTTLS encryption (typically used with port 587)
+- **`implicit`** - Implicit TLS/SSL encryption (typically used with port 465) - Default for Gmail
+- **`none`** - No encryption (typically port 25, development only - not recommended for production)
+
+If `SMTP_TLS_MODE` is not specified, it will be auto-detected based on the port:
+- Port 587 → STARTTLS
+- Port 465 → Implicit TLS
+- Port 25 → None
+- Other ports → Implicit TLS (default)
 
 ## Generating application password on Google
 

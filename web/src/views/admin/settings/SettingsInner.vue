@@ -3,6 +3,7 @@ import { index, update as updateInner } from '!/admin/settings'
 import type { Data } from 'types/admin/settings'
 import { ref } from 'vue'
 import UserSettings from './UserSettings.vue'
+import EmailSettings from './EmailSettings.vue'
 import CardBoxComponentFooter from '@/components/ui/CardBoxComponentFooter.vue'
 import type { ErrorResponse } from '!/api'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -43,6 +44,8 @@ await init()
   </p>
 
   <UserSettings class="w-full sm:w-1/2" v-model="settings" :loading="loading" />
+
+  <EmailSettings class="w-full sm:w-1/2 mt-6" :loading="loading" />
 
   <CardBoxComponentFooter>
     <BaseButton color="info" :disabled="loading" @click="update" label="Save" />

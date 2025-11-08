@@ -32,6 +32,9 @@ async fn main() -> AppResult<()> {
     // Init logger
     env_logger::init();
 
+    // Emit deprecation warnings after logger is initialized
+    context.config.emit_deprecation_warnings();
+
     // Start the server
     hoodik::server::engage(context).await
 }

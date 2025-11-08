@@ -51,4 +51,17 @@ impl Config {
         println!("-- RUST_LOG={:?}", std::env::var("RUST_LOG").ok());
         println!("------------------------------------------");
     }
+
+    /// Emit any deprecation warnings after logging has been initialized.
+    /// Call this after env_logger::init() to ensure warnings are visible.
+    pub fn emit_deprecation_warnings(&self) {
+        if let email::EmailConfig::Smtp(smtp) = &self.mailer {
+            if smtp.used_deprecated_default_from {
+                log::warn!(
+                    "SMTP_DEFAULT_FROM is deprecated and will be removed in a future version. \
+                    Please use SMTP_DEFAULT_FROM_EMAIL and SMTP_DEFAULT_FROM_NAME instead."
+                );
+            }
+        }
+    }
 }

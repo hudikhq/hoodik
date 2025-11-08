@@ -18,5 +18,6 @@ pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
         .service(users::remove)
         .service(settings::index)
         .service(settings::update)
+        .service(settings::test_email)
         .service(users::remove_tfa);
 }

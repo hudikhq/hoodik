@@ -34,7 +34,7 @@ glob = "^0.3"
 rcgen = "^0.10"
 uuid = { version = "1.2.2", features = ["serde", "v4"] }
 rustls = "^0.20"
-lettre = "^0.10"
+lettre = "^0.11"
 handlebars = "^4"
 
 cryptfns = { path = "../cryptfns" }

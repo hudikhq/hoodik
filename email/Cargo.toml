@@ -16,7 +16,7 @@ mock = []
 [dependencies]
 error = { path = "../error" }
 config = { path = "../config" }
-lettre = "0.10"
+lettre = "0.11"
 log = "^0.4"
 handlebars = "^4"
 serde = "^1"

@@ -26,3 +26,20 @@ export async function index(): Promise<Data> {
 
   return response.body
 }
+
+/**
+ * Send a test email to verify SMTP configuration
+ */
+export async function testEmail(): Promise<{ message: string }> {
+  const response = await Api.post<{ message: string }, undefined>(
+    `/api/admin/settings/test-email`,
+    undefined,
+    undefined
+  )
+
+  if (!response.body) {
+    throw new Error('Failed to send test email')
+  }
+
+  return response.body
+}

@@ -58,7 +58,8 @@ docker run --name hoodik -it -d \
   -e SMTP_USERNAME='email@gmail.com' \
   -e SMTP_PASSWORD='google-account-app-password' \
   -e SMTP_PORT='465' \
-  -e SMTP_DEFAULT_FROM='Hoodik Drive <email@gmail.com>' \
+  -e SMTP_DEFAULT_FROM_EMAIL='email@gmail.com' \
+  -e SMTP_DEFAULT_FROM_NAME='Hoodik Drive' \
   --volume "$(pwd)/data:/data" \
   -p 4554:5443 \
   hudik/hoodik:latest

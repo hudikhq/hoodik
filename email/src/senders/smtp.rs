@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use crate::template::Template;
+use config::email::TlsMode;
 use error::{AppResult, Error};
 use lettre::message::Mailbox;
 use lettre::Transport as _;
@@ -20,13 +21,34 @@ impl SmtpSender {
         username: &str,
         password: &str,
         port: u16,
+        tls_mode: &TlsMode,
         default_from: &str,
     ) -> AppResult<Self> {
-        let smtp = SmtpTransport::relay(address)?.port(port);
+        let credentials = Credentials::new(username.to_string(), password.to_string());
 
-        let smtp = smtp
-            .credentials(Credentials::new(username.to_string(), password.to_string()))
-            .build();
+        let smtp = match tls_mode {
+            TlsMode::StartTls => {
+                // STARTTLS - typically port 587
+                SmtpTransport::starttls_relay(address)?
+                    .port(port)
+                    .credentials(credentials)
+                    .build()
+            }
+            TlsMode::ImplicitTls => {
+                // Implicit TLS (wrapper mode) - typically port 465
+                SmtpTransport::relay(address)?
+                    .port(port)
+                    .credentials(credentials)
+                    .build()
+            }
+            TlsMode::None => {
+                // No TLS - typically port 25 (development only)
+                SmtpTransport::builder_dangerous(address)
+                    .port(port)
+                    .credentials(credentials)
+                    .build()
+            }
+        };
 
         smtp.test_connection()?;
 
