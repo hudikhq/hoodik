@@ -28,6 +28,9 @@ pub struct Config {
     /// Email configuration holder, there are couple of options for this configuration,
     /// see more details in the [crate::email::EmailConfig] struct.
     pub mailer: crate::email::EmailConfig,
+
+    /// Warnings collected during configuration initialization
+    pub(crate) warnings: Vec<String>,
 }
 
 impl From<Vars> for Config {
@@ -44,11 +47,15 @@ impl From<Vars> for Config {
 
         vars.panic_if_errors("Config");
 
+        // Collect warnings before consuming vars
+        let warnings = vars.get_warnings().to_vec();
+
         Self {
             ssl,
             app,
             auth,
             mailer,
+            warnings,
         }
     }
 }

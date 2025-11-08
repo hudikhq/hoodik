@@ -92,6 +92,7 @@ pub(crate) struct Vars {
     about: String,
     matches: Option<ArgMatches>,
     errors: Vec<String>,
+    warnings: Vec<String>,
 }
 
 impl Vars {
@@ -117,6 +118,7 @@ impl Vars {
             about: about.to_string(),
             matches: None,
             errors: Vec::new(),
+            warnings: Vec::new(),
         }
     }
 
@@ -129,6 +131,16 @@ impl Vars {
 
             panic!("Shutting down because of errors in {location}")
         }
+    }
+
+    /// Add a warning to the warning list
+    pub(crate) fn add_warning(&mut self, warning: String) {
+        self.warnings.push(warning);
+    }
+
+    /// Get all warnings
+    pub(crate) fn get_warnings(&self) -> &[String] {
+        &self.warnings
     }
 
     /// Get the inner version from Vars.

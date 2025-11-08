@@ -50,6 +50,7 @@ pub(crate) async fn test_email(
     .to_string();
 
     let app_name = context.config.get_app_name();
+    let app_version = context.config.get_app_version();
     let sent_at = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string();
 
     let mut template = sender.template(
@@ -58,6 +59,7 @@ pub(crate) async fn test_email(
     )?;
 
     template.add_template_var("app_name", &app_name);
+    template.add_template_var("app_version", app_version);
     template.add_template_var("sent_at", &sent_at);
     template.register_content_template(content.as_str())?;
 

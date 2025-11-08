@@ -1,6 +1,6 @@
 #![allow(rustdoc::invalid_html_tags)]
 
-use crate::vars::Vars;
+use crate::vars::{OptionLike, Vars};
 
 /// TLS mode for SMTP connection
 #[derive(Debug, Clone, PartialEq)]
@@ -92,44 +92,61 @@ impl SmtpCredentials {
         
         let tls_mode_str = vars.var_default::<String>("SMTP_TLS_MODE", String::new());
 
+        // Validate TLS mode and add warning if invalid (will auto-detect from port)
+        let tls_mode_str_value = tls_mode_str.get();
+        let port_value = port.get();
+        
+        let tls_mode = if !tls_mode_str_value.is_empty() {
+            match TlsMode::from_str(&tls_mode_str_value) {
+                Some(mode) => mode,
+                None => {
+                    let fallback = TlsMode::from_port(port_value);
+                    vars.add_warning(format!(
+                        "Invalid SMTP_TLS_MODE '{}'. Valid values are: starttls, implicit, none. Auto-detected '{}' from port {}",
+                        tls_mode_str_value,
+                        match fallback {
+                            TlsMode::StartTls => "starttls",
+                            TlsMode::ImplicitTls => "implicit",
+                            TlsMode::None => "none",
+                        },
+                        port_value
+                    ));
+                    fallback
+                }
+            }
+        } else {
+            TlsMode::from_port(port_value)
+        };
+
+        // Check if using deprecated SMTP_DEFAULT_FROM (peek without consuming)
+        let used_deprecated_default_from = !default_from_email.is_some() && smtp_default_from.is_some();
+        
+        if used_deprecated_default_from {
+            vars.add_warning(
+                "SMTP_DEFAULT_FROM is deprecated and will be removed in a future version. \
+                Please use SMTP_DEFAULT_FROM_EMAIL and SMTP_DEFAULT_FROM_NAME instead.".to_string()
+            );
+        }
+
         Box::new(move || {
-            let port_value = port.get();
-            let tls_mode_str_value = tls_mode_str.get();
-            
-            // Determine TLS mode: explicit config overrides auto-detection
-            let tls_mode = if !tls_mode_str_value.is_empty() {
-                TlsMode::from_str(&tls_mode_str_value)
-                    .unwrap_or_else(|| {
-                        log::warn!(
-                            "Invalid SMTP_TLS_MODE '{}', auto-detecting from port {}",
-                            tls_mode_str_value,
-                            port_value
-                        );
-                        TlsMode::from_port(port_value)
-                    })
-            } else {
-                TlsMode::from_port(port_value)
-            };
 
             // Determine default_from based on new or old variables
-            let (default_from, used_deprecated_default_from) = match (default_from_email.maybe_get(), default_from_name.maybe_get()) {
+            let default_from = match (default_from_email.maybe_get(), default_from_name.maybe_get()) {
                 (Some(email), Some(name)) if !email.is_empty() && !name.is_empty() => {
                     // Both email and name provided: format as "Name <email@example.com>"
-                    (format!("{} <{}>", name, email), false)
+                    format!("{} <{}>", name, email)
                 }
                 (Some(email), _) if !email.is_empty() => {
                     // Only email provided
-                    (format!("Hoodik <{}>", email), false)
+                    format!("Hoodik <{}>", email)
                 }
                 _ => {
                     // Fall back to deprecated SMTP_DEFAULT_FROM
                     match smtp_default_from.maybe_get() {
-                        Some(old_value) if !old_value.is_empty() => {
-                            (old_value, true)
-                        }
+                        Some(old_value) if !old_value.is_empty() => old_value,
                         _ => {
                             // This will cause an error later when trying to parse the mailbox
-                            (String::new(), false)
+                            String::new()
                         }
                     }
                 }
@@ -142,7 +159,7 @@ impl SmtpCredentials {
                 port: port_value,
                 default_from,
                 tls_mode,
-                used_deprecated_default_from,
+                used_deprecated_default_from: false, // No longer needed, warning is handled in vars
             }
         })
     }

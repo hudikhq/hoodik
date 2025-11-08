@@ -52,16 +52,11 @@ impl Config {
         println!("------------------------------------------");
     }
 
-    /// Emit any deprecation warnings after logging has been initialized.
+    /// Emit any warnings collected during configuration initialization.
     /// Call this after env_logger::init() to ensure warnings are visible.
-    pub fn emit_deprecation_warnings(&self) {
-        if let email::EmailConfig::Smtp(smtp) = &self.mailer {
-            if smtp.used_deprecated_default_from {
-                log::warn!(
-                    "SMTP_DEFAULT_FROM is deprecated and will be removed in a future version. \
-                    Please use SMTP_DEFAULT_FROM_EMAIL and SMTP_DEFAULT_FROM_NAME instead."
-                );
-            }
+    pub fn emit_warnings(&self) {
+        for warning in &self.warnings {
+            log::warn!("{}", warning);
         }
     }
 }
