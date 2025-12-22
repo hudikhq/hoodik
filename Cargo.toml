@@ -86,3 +86,8 @@ google-authenticator = "0.3.0"
 bcrypt = "^0.14"
 qstring = "^0.7"
 openssl = { version = "0.10", features = ["vendored"] }
+
+[workspace.lints.rust.unexpected_cfgs]
+# Allow wasm-bindgen internal cfg flags used by macros
+level = "warn"
+check-cfg = ["cfg(wasm_bindgen_unstable_test_coverage)"]

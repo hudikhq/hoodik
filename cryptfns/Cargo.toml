@@ -44,3 +44,8 @@ num-traits = { version = "0.2.9", features = ["libm"], default-features = false 
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.13"
+
+[lints.rust.unexpected_cfgs]
+# Allow wasm-bindgen internal cfg flags used by the macro
+level = "warn"
+check-cfg = ["cfg(wasm_bindgen_unstable_test_coverage)"]
