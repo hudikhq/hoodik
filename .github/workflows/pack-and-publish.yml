@@ -217,6 +217,7 @@ jobs:
   ## Use cargo cross to build the binaries for each of the required targets.
   ## Some targets will be used for packaging into .deb package, and some will be used for a docker image.
   build:
+    needs: meta
     strategy:
       matrix:
         target:
@@ -230,6 +231,25 @@ jobs:
           - "arm-unknown-linux-musleabihf"
           - "armv7-unknown-linux-musleabihf"
           - "aarch64-unknown-linux-musl"
+        include:
+          # Architecture mappings for musl (statically linked) targets
+          - target: "x86_64-unknown-linux-musl"
+            arch: "x86_64"
+          - target: "arm-unknown-linux-musleabihf"
+            arch: "armv6"
+          - target: "armv7-unknown-linux-musleabihf"
+            arch: "armv7"
+          - target: "aarch64-unknown-linux-musl"
+            arch: "arm64"
+          # Architecture mappings for gnu (dynamically linked) targets - currently disabled
+          - target: "x86_64-unknown-linux-gnu"
+            arch: "x86_64"
+          - target: "arm-unknown-linux-gnueabihf"
+            arch: "armv6"
+          - target: "armv7-unknown-linux-gnueabihf"
+            arch: "armv7"
+          - target: "aarch64-unknown-linux-gnu"
+            arch: "arm64"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -313,6 +333,35 @@ jobs:
         with:
           name: ${{ env.handle }}-tmp-cross-binaries-${{ matrix.target }}
           path: bins.tar
+
+      - name: Extract binary and prepare filename
+        if: ${{ needs.meta.outputs.has_release == 'true' }}
+        id: binary
+        run: |
+          mkdir -p ./extracted
+          tar vpxf bins.tar -C ./extracted
+          BINARY_NAME=$(find ./extracted -maxdepth 1 -type f -executable | head -n 1)
+          BINARY_BASENAME=$(basename "$BINARY_NAME")
+          VERSION="${{ needs.meta.outputs.version }}"
+          ARCH="${{ matrix.arch }}"
+          FILENAME="${BINARY_BASENAME}-${VERSION}-${ARCH}.tar.gz"
+          
+          # Compress the binary
+          tar czf "${FILENAME}" -C ./extracted "${BINARY_BASENAME}"
+          
+          echo "filename=${FILENAME}" >> $GITHUB_OUTPUT
+          echo "file_path=${FILENAME}" >> $GITHUB_OUTPUT
+
+      - name: Upload binary to release
+        if: ${{ needs.meta.outputs.has_release == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ needs.meta.outputs.upload_url }}?name=${{ steps.binary.outputs.filename }}
+          asset_path: ${{ steps.binary.outputs.file_path }}
+          asset_name: ${{ steps.binary.outputs.filename }}
+          asset_content_type: application/gzip
 
   ## -------------------------------------------------------------------------------------------------------------------
   ## Job: 'package'
