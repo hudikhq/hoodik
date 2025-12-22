@@ -21,7 +21,7 @@ async fn test_creating_and_downloading_link() {
 
     let encrypted_secret = "some-random-encrypted-secret".to_string();
 
-    let mut app = test::init_service(server::app(context.clone())).await;
+    let app = test::init_service(server::app(context.clone())).await;
 
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
@@ -37,8 +37,8 @@ async fn test_creating_and_downloading_link() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
-    let (jwt, _) = helpers::extract_cookies(&resp.headers());
+    let resp = test::call_service(&app, req).await;
+    let (jwt, _) = helpers::extract_cookies(resp.headers());
     let jwt = jwt.unwrap();
 
     let (data, size, checksum) = create_byte_chunks();
@@ -68,7 +68,7 @@ async fn test_creating_and_downloading_link() {
         .set_json(&random_file)
         .to_request();
 
-    let body = test::call_and_read_body(&mut app, req).await;
+    let body = test::call_and_read_body(&app, req).await;
     // let string_body = String::from_utf8(body.to_vec()).unwrap();
     // println!("string_body: {}", string_body);
 
@@ -95,7 +95,7 @@ async fn test_creating_and_downloading_link() {
             .set_payload(chunk)
             .to_request();
 
-        let body = test::call_and_read_body(&mut app, req).await;
+        let body = test::call_and_read_body(&app, req).await;
         // let string_body = String::from_utf8(body.to_vec()).unwrap();
         // println!("string_body: {}", string_body);
 
@@ -138,7 +138,7 @@ async fn test_creating_and_downloading_link() {
         .set_json(create_link)
         .to_request();
 
-    let body = test::call_and_read_body(&mut app, req).await;
+    let body = test::call_and_read_body(&app, req).await;
     let link: AppLink = serde_json::from_slice(&body).unwrap();
 
     let download_linked_file = links::data::download::Download {
@@ -151,7 +151,7 @@ async fn test_creating_and_downloading_link() {
         // .cookie(jwt.clone()) - no need for jwt, this should be public
         .to_request();
 
-    let contents = test::call_and_read_body(&mut app, req).await.to_vec();
+    let contents = test::call_and_read_body(&app, req).await.to_vec();
     // let string_body = String::from_utf8(contents.to_vec()).unwrap();
     // println!("string_body: {}", string_body);
 
@@ -168,7 +168,7 @@ async fn test_creating_and_downloading_link() {
         .to_request();
 
     let file =
-        serde_json::from_slice::<AppFile>(&test::call_and_read_body(&mut app, req).await).unwrap();
+        serde_json::from_slice::<AppFile>(&test::call_and_read_body(&app, req).await).unwrap();
 
     // println!("file: {:#?}", file);
 

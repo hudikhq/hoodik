@@ -28,9 +28,9 @@ async fn create_file_with_tokens() {
     let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
 
     let name = "hello_world.txt";
-    let initial_tokens = cryptfns::tokenizer::into_hashed_tokens(&name).unwrap();
+    let initial_tokens = cryptfns::tokenizer::into_hashed_tokens(name).unwrap();
 
-    let dir = create_file(&context, &user, &name, None, Some("dir"))
+    let dir = create_file(&context, &user, name, None, Some("dir"))
         .await
         .unwrap();
 

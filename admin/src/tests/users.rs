@@ -100,7 +100,7 @@ async fn test_find_all_users_and_properly_add_session() {
     let repository = super::get_repo(&context).await;
     let users = super::get_users(&context).await;
 
-    let user = users.get(0).unwrap().clone();
+    let user = users.first().unwrap().clone();
     entity::mock::create_session(&context.db, &user, None, None, true).await;
     entity::mock::create_session(&context.db, &user, None, None, true).await;
     entity::mock::create_session(&context.db, &user, None, None, true).await;
@@ -131,7 +131,7 @@ async fn test_delete_user() {
     let context = Context::mock_sqlite().await;
     let repository = super::get_repo(&context).await;
     let users = super::get_users(&context).await;
-    let user = users.get(0).unwrap().clone();
+    let user = users.first().unwrap().clone();
 
     repository.users().delete(user.id).await.unwrap();
 }

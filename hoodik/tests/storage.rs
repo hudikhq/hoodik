@@ -21,7 +21,7 @@ async fn test_creating_file_and_uploading_chunks() {
 
     let encrypted_secret = "some-random-encrypted-secret".to_string();
 
-    let mut app = test::init_service(server::app(context.clone())).await;
+    let app = test::init_service(server::app(context.clone())).await;
 
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
@@ -37,8 +37,8 @@ async fn test_creating_file_and_uploading_chunks() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
-    let (jwt, _) = helpers::extract_cookies(&resp.headers());
+    let resp = test::call_service(&app, req).await;
+    let (jwt, _) = helpers::extract_cookies(resp.headers());
     let jwt = jwt.unwrap();
 
     let req = test::TestRequest::post()
@@ -55,8 +55,8 @@ async fn test_creating_file_and_uploading_chunks() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
-    let (second_jwt, _) = helpers::extract_cookies(&resp.headers());
+    let resp = test::call_service(&app, req).await;
+    let (second_jwt, _) = helpers::extract_cookies(resp.headers());
     let second_jwt = second_jwt.unwrap();
 
     let (mut data, mut size, _) = create_byte_chunks();
@@ -70,7 +70,7 @@ async fn test_creating_file_and_uploading_chunks() {
 
     data.push(another);
 
-    size = size + (CHUNK_SIZE_BYTES / 2) as i64;
+    size += (CHUNK_SIZE_BYTES / 2) as i64;
 
     let checksum = calculate_checksum(data.clone());
 
@@ -98,7 +98,7 @@ async fn test_creating_file_and_uploading_chunks() {
         .set_json(&random_file)
         .to_request();
 
-    let body = test::call_and_read_body(&mut app, req).await;
+    let body = test::call_and_read_body(&app, req).await;
     // let string_body = String::from_utf8(body.to_vec()).unwrap();
     // println!("string_body: {}", string_body);
 
@@ -123,7 +123,7 @@ async fn test_creating_file_and_uploading_chunks() {
             .set_payload(chunk)
             .to_request();
 
-        let body = test::call_and_read_body(&mut app, req).await;
+        let body = test::call_and_read_body(&app, req).await;
 
         file = match serde_json::from_slice(&body) {
             Ok(f) => f,
@@ -150,7 +150,7 @@ async fn test_creating_file_and_uploading_chunks() {
         .cookie(jwt.clone())
         .to_request();
 
-    let contents = test::call_and_read_body(&mut app, req).await.to_vec();
+    let contents = test::call_and_read_body(&app, req).await.to_vec();
 
     let content_len = contents.len();
     let file_checksum = cryptfns::sha256::digest(contents.as_slice());
@@ -176,7 +176,7 @@ async fn test_creating_file_and_uploading_chunks() {
         .set_json(&random_file)
         .to_request();
 
-    let response = test::call_service(&mut app, req).await;
+    let response = test::call_service(&app, req).await;
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 
     // Owner can see it
@@ -186,7 +186,7 @@ async fn test_creating_file_and_uploading_chunks() {
         .set_json(&random_file)
         .to_request();
 
-    let response = test::call_service(&mut app, req).await;
+    let response = test::call_service(&app, req).await;
     assert_eq!(response.status(), StatusCode::OK);
 
     context.config.app.cleanup();

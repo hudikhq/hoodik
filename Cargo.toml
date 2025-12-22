@@ -17,3 +17,77 @@ members = [
   "storage",
   "util",
 ]
+
+[workspace.dependencies]
+# Actix ecosystem
+actix-web = "^4.11"
+actix-cors = "^0.7"
+actix-multipart = "^0.7"
+
+# Async runtime
+tokio = "^1"
+async-trait = "0.1.57"
+futures = "^0.3"
+futures-util = "^0.3"
+async-std = { version = "^1", features = ["attributes", "tokio1"] }
+
+# Serialization
+serde = { version = "^1", features = ["derive"] }
+serde_json = "^1"
+
+# Logging
+log = "^0.4"
+env_logger = "^0.10"
+
+# Date/time
+chrono = { version = "0.4.23", features = ["serde"] }
+
+# Validation
+validr = "^0.3"
+
+# Database
+sea-orm = { version = "^0.12", features = ["sqlx-postgres", "sqlx-sqlite", "runtime-actix-rustls", "macros"] }
+sea-orm-migration = { version = "^0.12", features = ["sqlx-postgres", "sqlx-sqlite", "runtime-actix-rustls"] }
+
+# Crypto & security
+rustls = "^0.20"
+rustls-pemfile = "^1"
+rcgen = "^0.10"
+rsa = { version = "^0.8", features = ["sha2"] }
+base64 = "^0.21"
+hex = "^0.4"
+jsonwebtoken = "^8"
+
+# HTTP client
+reqwest = "^0.11"
+
+# Utilities
+uuid = { version = "1.2.2", features = ["serde", "v4"] }
+url = "^2"
+glob = "^0.3"
+num-traits = "0.2"
+
+# Email
+lettre = "0.11"
+handlebars = "^4"
+
+# Other
+thiserror = "^1"
+dotenv = "^0.15"
+clap = { version = "^4", features = ["string"] }
+path-absolutize = "^3"
+fs4 = "^0.6"
+pin-project = "^1"
+cached = "^0.43"
+strum = "0.24"
+strum_macros = "0.24"
+zxcvbn = "2.2.1"
+google-authenticator = "0.3.0"
+bcrypt = "^0.14"
+qstring = "^0.7"
+openssl = { version = "0.10", features = ["vendored"] }
+
+[workspace.lints.rust.unexpected_cfgs]
+# Allow wasm-bindgen internal cfg flags used by macros
+level = "warn"
+check-cfg = ["cfg(wasm_bindgen_unstable_test_coverage)"]

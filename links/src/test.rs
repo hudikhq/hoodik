@@ -12,11 +12,11 @@ async fn create_link(
     name: &str,
 ) -> AppLink {
     let (file, _user_file) =
-        entity::mock::create_file(&context.db, &user, name, "application/json", None).await;
+        entity::mock::create_file(&context.db, user, name, "application/json", None).await;
 
     let signature = cryptfns::rsa::private::sign(&file.id.to_string(), private_key_string).unwrap();
 
-    let repository = Repository::new(&context);
+    let repository = Repository::new(context);
 
     let create_link = CreateLink {
         file_id: Some(file.id.to_string()),
@@ -28,7 +28,7 @@ async fn create_link(
         expires_at: None,
     };
 
-    repository.create(create_link, &user).await.unwrap()
+    repository.create(create_link, user).await.unwrap()
 }
 
 #[actix_web::test]

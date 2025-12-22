@@ -2,6 +2,7 @@
 name = "fs"
 version = "1.0.0"
 edition = "2021"
+rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
 readme = "README.md"
 license-file = "../LICENSE.md"
@@ -13,12 +14,12 @@ description = "File system abstraction library"
 config = { path = "../config" }
 error = { path = "../error" }
 
-fs4 = "^0.6"
-log = "^0.4"
-actix-web = "^4"
-futures-util = "^0.3"
-glob = "^0.3"
-pin-project = "^1"
-tokio = "^1"
-async-trait = "^0.1"
-chrono = "^0.4"
+fs4 = { workspace = true }
+log = { workspace = true }
+actix-web = { workspace = true }
+futures-util = { workspace = true }
+glob = { workspace = true }
+pin-project = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }

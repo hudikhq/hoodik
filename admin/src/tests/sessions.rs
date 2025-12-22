@@ -5,7 +5,7 @@ use context::Context;
 async fn test_find_sessions() {
     let context = Context::mock_sqlite().await;
     let repository = crate::tests::get_repo(&context).await;
-    let user = super::get_users(&context).await.get(0).unwrap().clone();
+    let user = super::get_users(&context).await.first().unwrap().clone();
     let _sessions = super::create_sessions(&context, &user).await;
 
     let paginated = repository
@@ -30,7 +30,7 @@ async fn test_find_sessions() {
 async fn test_find_sessions_by_ip() {
     let context = Context::mock_sqlite().await;
     let repository = crate::tests::get_repo(&context).await;
-    let user = super::get_users(&context).await.get(0).unwrap().clone();
+    let user = super::get_users(&context).await.first().unwrap().clone();
     let _sessions = super::create_sessions(&context, &user).await;
 
     let paginated = repository
@@ -56,7 +56,7 @@ async fn test_find_sessions_by_email() {
     let context = Context::mock_sqlite().await;
     let repository = crate::tests::get_repo(&context).await;
     let users = super::get_users(&context).await;
-    let user = users.get(0).unwrap().clone();
+    let user = users.first().unwrap().clone();
     let user2 = users.get(1).unwrap().clone();
 
     let _sessions = super::create_sessions(&context, &user).await;
@@ -92,7 +92,7 @@ async fn test_find_sessions_by_email() {
 async fn test_find_sessions_by_user_agent() {
     let context = Context::mock_sqlite().await;
     let repository = crate::tests::get_repo(&context).await;
-    let user = super::get_users(&context).await.get(0).unwrap().clone();
+    let user = super::get_users(&context).await.first().unwrap().clone();
     let _sessions = super::create_sessions(&context, &user).await;
 
     let paginated = repository
@@ -117,12 +117,12 @@ async fn test_find_sessions_by_user_agent() {
 async fn test_session_killing() {
     let context = Context::mock_sqlite().await;
     let repository = crate::tests::get_repo(&context).await;
-    let user = super::get_users(&context).await.get(0).unwrap().clone();
+    let user = super::get_users(&context).await.first().unwrap().clone();
     let sessions = super::create_sessions(&context, &user).await;
 
-    let session = sessions.get(0).unwrap().clone();
+    let session = sessions.first().unwrap().clone();
 
-    let _ = repository.sessions().kill(session.id).await.unwrap();
+    repository.sessions().kill(session.id).await.unwrap();
 
     let paginated = repository
         .sessions()

@@ -7,13 +7,13 @@ mod invitations;
 mod sessions;
 mod users;
 
-pub(crate) async fn get_repo<'ctx>(context: &'ctx Context) -> Repository<'ctx, DatabaseConnection> {
-    let repository = Repository::new(&context, &context.db);
+pub(crate) async fn get_repo(context: &Context) -> Repository<'_, DatabaseConnection> {
+    let repository = Repository::new(context, &context.db);
 
     repository
 }
 
-pub(crate) async fn get_users<'ctx>(context: &'ctx Context) -> Vec<entity::users::Model> {
+pub(crate) async fn get_users(context: &Context) -> Vec<entity::users::Model> {
     let mut users = vec![];
 
     users.push(entity::mock::create_user(&context.db, "1@test.com", None).await);
@@ -29,8 +29,8 @@ pub(crate) async fn get_users<'ctx>(context: &'ctx Context) -> Vec<entity::users
     users
 }
 
-pub(crate) async fn create_sessions<'ctx>(
-    context: &'ctx Context,
+pub(crate) async fn create_sessions(
+    context: &Context,
     user: &entity::users::Model,
 ) -> Vec<entity::sessions::Model> {
     let mut sessions = vec![];
@@ -38,7 +38,7 @@ pub(crate) async fn create_sessions<'ctx>(
     sessions.push(
         entity::mock::create_session(
             &context.db,
-            &user,
+            user,
             Some("123.123.123.1"),
             Some("Mozilla Something?"),
             false,
@@ -48,7 +48,7 @@ pub(crate) async fn create_sessions<'ctx>(
     sessions.push(
         entity::mock::create_session(
             &context.db,
-            &user,
+            user,
             Some("123.123.123.2"),
             Some("Chrome Something?"),
             false,
@@ -58,7 +58,7 @@ pub(crate) async fn create_sessions<'ctx>(
     sessions.push(
         entity::mock::create_session(
             &context.db,
-            &user,
+            user,
             Some("123.123.123.3"),
             Some("Edge Something?"),
             false,
@@ -68,7 +68,7 @@ pub(crate) async fn create_sessions<'ctx>(
     sessions.push(
         entity::mock::create_session(
             &context.db,
-            &user,
+            user,
             Some("123.123.123.4"),
             Some("Brave Something?"),
             false,
@@ -78,7 +78,7 @@ pub(crate) async fn create_sessions<'ctx>(
     sessions.push(
         entity::mock::create_session(
             &context.db,
-            &user,
+            user,
             Some("123.123.123.5"),
             Some("Safari Something?"),
             false,

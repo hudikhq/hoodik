@@ -71,7 +71,7 @@ async fn test_expire_invitation() {
     let invitations = paginated.data;
 
     assert_eq!(invitations.len(), 1);
-    let invitation = invitations.get(0).unwrap();
+    let invitation = invitations.first().unwrap();
 
     repository
         .invitations()

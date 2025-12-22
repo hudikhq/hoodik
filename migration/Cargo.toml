@@ -2,6 +2,7 @@
 name = "migration"
 version = "1.1.0"
 edition = "2021"
+rust-version = "1.91"
 publish = false
 authors = ["Tibor Hudik <hello@hudik.eu>"]
 readme = "README.md"
@@ -17,10 +18,8 @@ name = "migration"
 path = "src/main.rs"
 
 [dependencies]
-async-std = { version = "^1", features = ["attributes", "tokio1"] }
+async-std = { workspace = true }
 
 config = { path = "../config" }
 
-[dependencies.sea-orm-migration]
-version = "^0.12"
-features = ["sqlx-postgres", "sqlx-sqlite", "runtime-actix-rustls"]
+sea-orm-migration = { workspace = true }
