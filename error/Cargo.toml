@@ -2,6 +2,7 @@
 name = "error"
 version = "1.0.1"
 edition = "2021"
+rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
 readme = "README.md"
 license-file = "../LICENSE.md"
@@ -14,27 +15,27 @@ name = "error"
 path = "src/lib.rs"
 
 [dependencies]
-thiserror = "^1"
-sea-orm = { version = "^0.12", features = [
+thiserror = { workspace = true }
+sea-orm = { workspace = true, features = [
   "sqlx-postgres",
   "sqlx-sqlite",
   "runtime-actix-rustls",
 ] }
-validr = "^0.3"
-actix-multipart = "^0.6"
-actix-web = "^4"
-rsa = "^0.8"
-base64 = "^0.21"
-hex = "^0.4"
-jsonwebtoken = "^8"
-reqwest = "^0.11"
-serde = "^1"
-serde_json = "^1"
-glob = "^0.3"
-rcgen = "^0.10"
-uuid = { version = "1.2.2", features = ["serde", "v4"] }
-rustls = "^0.20"
-lettre = "^0.11"
-handlebars = "^4"
+validr = { workspace = true }
+actix-multipart = { workspace = true }
+actix-web = { workspace = true }
+rsa = { workspace = true }
+base64 = { workspace = true }
+hex = { workspace = true }
+jsonwebtoken = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+glob = { workspace = true }
+rcgen = { workspace = true }
+uuid = { workspace = true }
+rustls = { workspace = true }
+lettre = { workspace = true }
+handlebars = { workspace = true }
 
 cryptfns = { path = "../cryptfns" }

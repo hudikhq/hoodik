@@ -26,7 +26,7 @@ async fn test_allow_register_false() {
 
     let encrypted_secret = "some-random-encrypted-secret".to_string();
 
-    let mut app = test::init_service(server::app(context.clone())).await;
+    let app = test::init_service(server::app(context.clone())).await;
 
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
@@ -42,7 +42,7 @@ async fn test_allow_register_false() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
+    let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
 }
@@ -72,7 +72,7 @@ async fn test_whitelist_pass_and_fail() {
 
     let encrypted_secret = "some-random-encrypted-secret".to_string();
 
-    let mut app = test::init_service(server::app(context.clone())).await;
+    let app = test::init_service(server::app(context.clone())).await;
 
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
@@ -88,7 +88,7 @@ async fn test_whitelist_pass_and_fail() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
+    let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
 
@@ -106,7 +106,7 @@ async fn test_whitelist_pass_and_fail() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
+    let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), StatusCode::CREATED);
 }
@@ -136,7 +136,7 @@ async fn test_registration_allowed_fails_blacklist_cannot_register() {
 
     let encrypted_secret = "some-random-encrypted-secret".to_string();
 
-    let mut app = test::init_service(server::app(context.clone())).await;
+    let app = test::init_service(server::app(context.clone())).await;
 
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
@@ -152,7 +152,7 @@ async fn test_registration_allowed_fails_blacklist_cannot_register() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
+    let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), StatusCode::CREATED);
 
@@ -170,7 +170,7 @@ async fn test_registration_allowed_fails_blacklist_cannot_register() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
+    let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
 }
@@ -205,7 +205,7 @@ async fn test_registration_not_allowed_fails_blacklist_cannot_register() {
 
     let encrypted_secret = "some-random-encrypted-secret".to_string();
 
-    let mut app = test::init_service(server::app(context.clone())).await;
+    let app = test::init_service(server::app(context.clone())).await;
 
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
@@ -221,7 +221,7 @@ async fn test_registration_not_allowed_fails_blacklist_cannot_register() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
+    let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), StatusCode::CREATED);
 
@@ -239,7 +239,7 @@ async fn test_registration_not_allowed_fails_blacklist_cannot_register() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
+    let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
 }

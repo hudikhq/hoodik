@@ -12,7 +12,7 @@ async fn create_recursive_mess_to_test_delete_many() {
     let dir = create_file(&context, &user, "root.dir", None, Some("dir"))
         .await
         .unwrap();
-    let dir_id = dir.id.clone();
+    let dir_id = dir.id;
     manual.push(dir);
 
     let file = create_file(
@@ -35,7 +35,7 @@ async fn create_recursive_mess_to_test_delete_many() {
     )
     .await
     .unwrap();
-    let _file2_id = file.id.clone();
+    let _file2_id = file.id;
     manual.push(file);
 
     let file = create_file(
@@ -63,7 +63,7 @@ async fn create_recursive_mess_to_test_delete_many() {
     let dir = create_file(&context, &user, "root.dir.dir2", Some(dir_id), Some("dir"))
         .await
         .unwrap();
-    let dir2_id = dir.id.clone();
+    let dir2_id = dir.id;
     manual.push(dir);
 
     let dir3 = create_file(
@@ -77,7 +77,7 @@ async fn create_recursive_mess_to_test_delete_many() {
     .unwrap();
     manual.push(dir3);
 
-    let ids = manual.iter().map(|f| f.id.clone()).collect::<Vec<_>>();
+    let ids = manual.iter().map(|f| f.id).collect::<Vec<_>>();
 
     let delete_files = repository
         .manage(user.id)

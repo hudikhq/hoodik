@@ -2,6 +2,7 @@
 name = "context"
 version = "1.0.0"
 edition = "2021"
+rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
 readme = "README.md"
 license-file = "../LICENSE.md"
@@ -23,15 +24,15 @@ mock = [
 ]
 
 [dependencies]
-actix-web = "^4"
-sea-orm = { version = "^0.12", features = [
+actix-web = { workspace = true }
+sea-orm = { workspace = true, features = [
   "sqlx-postgres",
   "sqlx-sqlite",
   "runtime-actix-rustls",
   "macros",
 ] }
-log = "^0.4"
-env_logger = "^0.10"
+log = { workspace = true }
+env_logger = { workspace = true }
 
 config = { path = "../config" }
 email = { path = "../email" }

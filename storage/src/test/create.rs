@@ -9,7 +9,7 @@ use crate::{
 fn app_file_vec_to_str_vec(files: &[AppFile]) -> Vec<String> {
     files
         .iter()
-        .map(|f| format!("{} -> {}", f.id, f.file_id.clone().unwrap_or_default()))
+        .map(|f| format!("{} -> {}", f.id, f.file_id.unwrap_or_default()))
         .collect()
 }
 
@@ -95,7 +95,7 @@ async fn get_dir_tree_with_right_ordering() {
     let dir = create_file(&context, &user, "dir", None, Some("dir"))
         .await
         .unwrap();
-    let dir_id = dir.id.clone();
+    let dir_id = dir.id;
     manual.push(dir);
 
     let response = repository.manage(user.id).dir_tree(dir_id).await.unwrap();
@@ -108,19 +108,19 @@ async fn get_dir_tree_with_right_ordering() {
     let dir2 = create_file(&context, &user, "dir", Some(dir_id), Some("dir"))
         .await
         .unwrap();
-    let dir2_id = dir2.id.clone();
+    let dir2_id = dir2.id;
     manual.push(dir2);
 
     let dir3 = create_file(&context, &user, "dir", Some(dir2_id), Some("dir"))
         .await
         .unwrap();
-    let dir3_id = dir3.id.clone();
+    let dir3_id = dir3.id;
     manual.push(dir3);
 
     let dir4 = create_file(&context, &user, "dir", Some(dir3_id), Some("dir"))
         .await
         .unwrap();
-    let dir4_id = dir4.id.clone();
+    let dir4_id = dir4.id;
 
     let _dir5 = create_file(&context, &user, "dir", Some(dir4_id), Some("dir"))
         .await
@@ -154,46 +154,46 @@ async fn get_file_tree_with_right_ordering() {
     let dir = create_file(&context, &user, "dir", None, Some("dir"))
         .await
         .unwrap();
-    let dir_id = dir.id.clone();
+    let dir_id = dir.id;
     manual.push(dir);
 
     let file = create_file(&context, &user, "json1", None, Some("application/json"))
         .await
         .unwrap();
-    let file1_id = file.id.clone();
+    let file1_id = file.id;
     manual.push(file);
 
     let file = create_file(&context, &user, "json2", None, Some("application/json"))
         .await
         .unwrap();
-    let _file2_id = file.id.clone();
+    let _file2_id = file.id;
     manual.push(file);
 
     let dir = create_file(&context, &user, "dir", Some(dir_id), Some("dir"))
         .await
         .unwrap();
-    let dir2_id = dir.id.clone();
+    let dir2_id = dir.id;
     manual.push(dir);
 
     let file = create_file(&context, &user, "json3", None, Some("application/json"))
         .await
         .unwrap();
-    let _file3_id = file.id.clone();
+    let _file3_id = file.id;
     manual.push(file);
 
     let file = create_file(&context, &user, "json4", None, Some("application/json"))
         .await
         .unwrap();
-    let _file4_id = file.id.clone();
+    let _file4_id = file.id;
     manual.push(file);
 
     let dir3 = create_file(&context, &user, "dir", Some(dir2_id), Some("dir"))
         .await
         .unwrap();
-    let dir3_id = dir3.id.clone();
+    let dir3_id = dir3.id;
     manual.push(dir3);
 
-    let ids = manual.iter().map(|f| f.id.clone()).collect::<Vec<_>>();
+    let ids = manual.iter().map(|f| f.id).collect::<Vec<_>>();
 
     let response = repository.manage(user.id).file_tree(dir_id).await.unwrap();
 
@@ -207,9 +207,9 @@ async fn get_file_tree_with_right_ordering() {
         .await
         .unwrap();
 
-    assert_eq!(response.iter().next().unwrap().id, file1_id);
+    assert_eq!(response.first().unwrap().id, file1_id);
 
     let response = repository.manage(user.id).file_tree(dir3_id).await.unwrap();
 
-    assert_eq!(response.iter().next().unwrap().id, dir3_id);
+    assert_eq!(response.first().unwrap().id, dir3_id);
 }

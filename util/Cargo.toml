@@ -2,6 +2,7 @@
 name = "util"
 version = "1.0.1"
 edition = "2021"
+rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
 readme = "README.md"
 license-file = "../LICENSE.md"
@@ -14,12 +15,12 @@ name = "util"
 path = "src/lib.rs"
 
 [dependencies]
-zxcvbn = "2.2.1"
-google-authenticator = "0.3.0" # new version requires building libs so we'll stay on this one
-bcrypt = "^0.14"
-chrono = "^0.4"
-qstring = "^0.7"
-actix-web = "^4"
-url = "^2"
+zxcvbn = { workspace = true }
+google-authenticator = { workspace = true } # new version requires building libs so we'll stay on this one
+bcrypt = { workspace = true }
+chrono = { workspace = true }
+qstring = { workspace = true }
+actix-web = { workspace = true }
+url = { workspace = true }
 
 error = { path = "../error" }

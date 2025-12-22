@@ -2,6 +2,7 @@
 name = "config"
 version = "1.2.0"
 edition = "2021"
+rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
 readme = "README.md"
 license-file = "../LICENSE.md"
@@ -17,14 +18,14 @@ path = "src/lib.rs"
 mock = []
 
 [dependencies]
-url = "^2"
-dotenv = "^0.15"
-uuid = "^1"
-rustls = "^0.20"
-rustls-pemfile = "^1"
-rcgen = "^0.10"
-log = "^0.4"
-chrono = { version = "0.4.23", features = ["serde"] }
+url = { workspace = true }
+dotenv = { workspace = true }
+uuid = { workspace = true }
+rustls = { workspace = true }
+rustls-pemfile = { workspace = true }
+rcgen = { workspace = true }
+log = { workspace = true }
+chrono = { workspace = true }
 error = { path = "../error" }
-clap = { version = "^4", features = ["string"] }
-path-absolutize = "^3"
+clap = { workspace = true }
+path-absolutize = { workspace = true }

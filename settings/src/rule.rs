@@ -143,7 +143,7 @@ mod test {
 
     #[test]
     fn test_serialize_and_deserialize() {
-        let rule = Rule::new("*@example.com".into());
+        let rule = Rule::new("*@example.com");
         assert_eq!(rule.pattern(), "@example.com");
 
         let serialized = serde_json::to_string(&rule).unwrap();
@@ -154,7 +154,7 @@ mod test {
 
     #[test]
     fn test_starts_with() {
-        let rule = Rule::new("*@example.com".into());
+        let rule = Rule::new("*@example.com");
         assert_eq!(rule.pattern(), "@example.com");
 
         assert!(rule.test_start);
@@ -169,7 +169,7 @@ mod test {
 
     #[test]
     fn test_ends_with() {
-        let rule = Rule::new("test@example.*".into());
+        let rule = Rule::new("test@example.*");
         assert_eq!(rule.pattern(), "test@example.");
 
         assert!(!rule.test_start);
@@ -184,7 +184,7 @@ mod test {
 
     #[test]
     fn test_contains() {
-        let rule = Rule::new("*@example.*".into());
+        let rule = Rule::new("*@example.*");
 
         assert!(!rule.test_start);
         assert!(rule.valid("test@example.com"));
@@ -198,7 +198,7 @@ mod test {
 
     #[test]
     fn test_exact_match() {
-        let rule = Rule::new("else@example.org".into());
+        let rule = Rule::new("else@example.org");
 
         assert!(!rule.test_start);
         assert!(!rule.valid("test@example.com"));

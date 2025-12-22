@@ -2,6 +2,7 @@
 name = "auth"
 version = "1.1.0"
 edition = "2021"
+rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
 readme = "README.md"
 license-file = "../LICENSE.md"
@@ -17,15 +18,15 @@ path = "src/lib.rs"
 mock = []
 
 [dependencies]
-async-trait = "0.1.57"
-validr = "^0.3"
-chrono = { version = "0.4.23", features = ["serde"] }
-log = "^0.4"
-actix-web = "^4"
-futures-util = "^0.3"
-jsonwebtoken = "^8"
-serde = "^1"
-serde_json = "^1"
+async-trait = { workspace = true }
+validr = { workspace = true }
+chrono = { workspace = true }
+log = { workspace = true }
+actix-web = { workspace = true }
+futures-util = { workspace = true }
+jsonwebtoken = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 context = { path = "../context" }
 error = { path = "../error" }
@@ -34,7 +35,7 @@ util = { path = "../util" }
 cryptfns = { path = "../cryptfns" }
 
 [dev-dependencies]
-async-std = { version = "^1", features = ["attributes", "tokio1"] }
+async-std = { workspace = true }
 
 context = { path = "../context", features = ["mock"] }
 entity = { path = "../entity", features = ["mock"] }

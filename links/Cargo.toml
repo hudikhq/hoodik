@@ -2,6 +2,7 @@
 name = "links"
 version = "1.0.0"
 edition = "2021"
+rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
 readme = "README.md"
 license-file = "../LICENSE.md"
@@ -13,13 +14,13 @@ description = "Application links service that enables users to share public link
 mock = ["context/mock", "entity/mock"]
 
 [dependencies]
-log = "^0.4"
-actix-web = "^4"
-validr = "^0.3"
-serde = "^1"
-serde_json = "^1"
-chrono = "^0.4"
-cached = "^0.43"
+log = { workspace = true }
+actix-web = { workspace = true }
+validr = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+cached = { workspace = true }
 
 auth = { path = "../auth" }
 context = { path = "../context" }

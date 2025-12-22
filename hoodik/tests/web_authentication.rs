@@ -26,7 +26,7 @@ async fn test_registration_and_login() {
 
     let encrypted_secret = "some-random-encrypted-secret".to_string();
 
-    let mut app = test::init_service(server::app(context.clone())).await;
+    let app = test::init_service(server::app(context.clone())).await;
 
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
@@ -42,7 +42,7 @@ async fn test_registration_and_login() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
+    let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), StatusCode::CREATED);
 
@@ -55,7 +55,7 @@ async fn test_registration_and_login() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
+    let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), StatusCode::OK);
 
@@ -70,8 +70,8 @@ async fn test_registration_and_login() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
-    let (jwt, refresh) = helpers::extract_cookies(&resp.headers());
+    let resp = test::call_service(&app, req).await;
+    let (jwt, refresh) = helpers::extract_cookies(resp.headers());
 
     assert_eq!(resp.status(), StatusCode::OK);
     // println!("{:?}", &resp.headers());
@@ -84,10 +84,10 @@ async fn test_registration_and_login() {
         .cookie(refresh.unwrap())
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
+    let resp = test::call_service(&app, req).await;
     let status = resp.status();
 
-    let (jwt, _refresh) = helpers::extract_cookies(&resp.headers());
+    let (jwt, _refresh) = helpers::extract_cookies(resp.headers());
 
     // let body = test::read_body(resp).await;
     // let body_str = String::from_utf8_lossy(&body).to_string();
@@ -100,7 +100,7 @@ async fn test_registration_and_login() {
         .cookie(jwt.clone().unwrap())
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
+    let resp = test::call_service(&app, req).await;
     let status = resp.status();
 
     assert_eq!(status, StatusCode::OK);
@@ -110,9 +110,9 @@ async fn test_registration_and_login() {
         .cookie(jwt.clone().unwrap())
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
+    let resp = test::call_service(&app, req).await;
     let status = resp.status();
-    let (jwt, refresh) = helpers::extract_cookies(&resp.headers());
+    let (jwt, refresh) = helpers::extract_cookies(resp.headers());
 
     // let body = test::read_body(resp).await;
     // let body_str = String::from_utf8_lossy(&body).to_string();
@@ -146,7 +146,7 @@ async fn test_register_and_verify_user_email() {
 
     let encrypted_secret = "some-random-encrypted-secret".to_string();
 
-    let mut app = test::init_service(server::app(context.clone())).await;
+    let app = test::init_service(server::app(context.clone())).await;
 
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
@@ -162,7 +162,7 @@ async fn test_register_and_verify_user_email() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
+    let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), StatusCode::CREATED);
 
@@ -180,7 +180,7 @@ async fn test_register_and_verify_user_email() {
         .uri(format!("/api/auth/action/activate-email/{id}").as_str())
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
+    let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), StatusCode::OK);
     let body = test::read_body(resp).await;
@@ -202,7 +202,7 @@ async fn test_claims_can_expire() {
 
     let encrypted_secret = "some-random-encrypted-secret".to_string();
 
-    let mut app = test::init_service(server::app(context.clone())).await;
+    let app = test::init_service(server::app(context.clone())).await;
 
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
@@ -218,8 +218,8 @@ async fn test_claims_can_expire() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
-    let (jwt, _) = helpers::extract_cookies(&resp.headers());
+    let resp = test::call_service(&app, req).await;
+    let (jwt, _) = helpers::extract_cookies(resp.headers());
 
     assert_eq!(resp.status(), StatusCode::CREATED);
 
@@ -230,7 +230,7 @@ async fn test_claims_can_expire() {
         .cookie(jwt.clone().unwrap())
         .to_request();
 
-    let resp = test::try_call_service(&mut app, req).await.unwrap();
+    let resp = test::try_call_service(&app, req).await.unwrap();
 
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
 }
@@ -247,7 +247,7 @@ async fn test_expired_session_can_be_refreshed() {
 
     let encrypted_secret = "some-random-encrypted-secret".to_string();
 
-    let mut app = test::init_service(server::app(context.clone())).await;
+    let app = test::init_service(server::app(context.clone())).await;
 
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
@@ -263,8 +263,8 @@ async fn test_expired_session_can_be_refreshed() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
-    let (jwt, refresh) = helpers::extract_cookies(&resp.headers());
+    let resp = test::call_service(&app, req).await;
+    let (jwt, refresh) = helpers::extract_cookies(resp.headers());
 
     assert_eq!(resp.status(), StatusCode::CREATED);
 
@@ -275,7 +275,7 @@ async fn test_expired_session_can_be_refreshed() {
         .cookie(jwt.clone().unwrap())
         .to_request();
 
-    let resp = test::try_call_service(&mut app, req).await.unwrap();
+    let resp = test::try_call_service(&app, req).await.unwrap();
 
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
 
@@ -285,9 +285,9 @@ async fn test_expired_session_can_be_refreshed() {
         .cookie(refresh.clone().unwrap())
         .to_request();
 
-    let resp = test::try_call_service(&mut app, req).await.unwrap();
+    let resp = test::try_call_service(&app, req).await.unwrap();
     let status = resp.status();
-    let (jwt, _) = helpers::extract_cookies(&resp.headers());
+    let (jwt, _) = helpers::extract_cookies(resp.headers());
     // let body = test::read_body(resp).await;
     // let body_str = String::from_utf8_lossy(&body).to_string();
     // println!("{:#?}", body_str);
@@ -299,7 +299,7 @@ async fn test_expired_session_can_be_refreshed() {
         .cookie(jwt.clone().unwrap())
         .to_request();
 
-    let resp = test::try_call_service(&mut app, req).await.unwrap();
+    let resp = test::try_call_service(&app, req).await.unwrap();
 
     assert_eq!(resp.status(), StatusCode::OK);
 }
@@ -315,7 +315,7 @@ async fn cannot_refresh_logged_out_session() {
 
     let encrypted_secret = "some-random-encrypted-secret".to_string();
 
-    let mut app = test::init_service(server::app(context.clone())).await;
+    let app = test::init_service(server::app(context.clone())).await;
 
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
@@ -331,8 +331,8 @@ async fn cannot_refresh_logged_out_session() {
         })
         .to_request();
 
-    let resp = test::call_service(&mut app, req).await;
-    let (jwt, refresh) = helpers::extract_cookies(&resp.headers());
+    let resp = test::call_service(&app, req).await;
+    let (jwt, refresh) = helpers::extract_cookies(resp.headers());
 
     assert_eq!(resp.status(), StatusCode::CREATED);
 
@@ -341,7 +341,7 @@ async fn cannot_refresh_logged_out_session() {
         .cookie(jwt.clone().unwrap())
         .to_request();
 
-    let resp = test::try_call_service(&mut app, req).await.unwrap();
+    let resp = test::try_call_service(&app, req).await.unwrap();
 
     assert_eq!(resp.status(), StatusCode::OK);
 
@@ -350,7 +350,7 @@ async fn cannot_refresh_logged_out_session() {
         .cookie(jwt.clone().unwrap())
         .to_request();
 
-    let resp = test::try_call_service(&mut app, req).await.unwrap();
+    let resp = test::try_call_service(&app, req).await.unwrap();
     let status = resp.status();
     // let body = test::read_body(resp).await;
     // let body_str = String::from_utf8_lossy(&body).to_string();
@@ -364,7 +364,7 @@ async fn cannot_refresh_logged_out_session() {
         .cookie(refresh.clone().unwrap())
         .to_request();
 
-    let resp = test::try_call_service(&mut app, req).await.unwrap();
+    let resp = test::try_call_service(&app, req).await.unwrap();
     let status = resp.status();
     // let body = test::read_body(resp).await;
     // let body_str = String::from_utf8_lossy(&body).to_string();

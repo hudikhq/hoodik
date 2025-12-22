@@ -7,8 +7,8 @@ use crate::{
     repository::Repository,
 };
 
-pub async fn create_file<'ctx>(
-    context: &'ctx Context,
+pub async fn create_file(
+    context: &Context,
     user: &users::Model,
     name: &str,
     file_id: Option<Uuid>,

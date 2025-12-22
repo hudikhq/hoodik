@@ -2,6 +2,7 @@
 name = "entity"
 version = "1.1.0"
 edition = "2021"
+rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
 readme = "README.md"
 license-file = "../LICENSE.md"
@@ -17,17 +18,17 @@ path = "src/lib.rs"
 mock = ["sea-orm/mock", "cryptfns"]
 
 [dependencies]
-num-traits = "^0.2"
-sea-orm = { version = "^0.12", features = [
+num-traits = { workspace = true }
+sea-orm = { workspace = true, features = [
   "sqlx-postgres",
   "sqlx-sqlite",
   "runtime-actix-rustls",
   "macros",
   "bigdecimal",
 ] }
-chrono = { version = "0.4.23", features = ["serde"] }
-serde = "^1"
-serde_json = "^1"
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 fs = { path = "../fs" }
 error = { path = "../error" }
 util = { path = "../util" }

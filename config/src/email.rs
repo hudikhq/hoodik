@@ -119,7 +119,7 @@ impl SmtpCredentials {
         };
 
         // Check if using deprecated SMTP_DEFAULT_FROM (peek without consuming)
-        let used_deprecated_default_from = !default_from_email.is_some() && smtp_default_from.is_some();
+        let used_deprecated_default_from = default_from_email.is_none() && smtp_default_from.is_some();
         
         if used_deprecated_default_from {
             vars.add_warning(
@@ -134,11 +134,11 @@ impl SmtpCredentials {
             let default_from = match (default_from_email.maybe_get(), default_from_name.maybe_get()) {
                 (Some(email), Some(name)) if !email.is_empty() && !name.is_empty() => {
                     // Both email and name provided: format as "Name <email@example.com>"
-                    format!("{} <{}>", name, email)
+                    format!("{name} <{email}>")
                 }
                 (Some(email), _) if !email.is_empty() => {
                     // Only email provided
-                    format!("Hoodik <{}>", email)
+                    format!("Hoodik <{email}>")
                 }
                 _ => {
                     // Fall back to deprecated SMTP_DEFAULT_FROM
