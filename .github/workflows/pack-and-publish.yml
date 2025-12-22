@@ -241,15 +241,6 @@ jobs:
             arch: "armv7"
           - target: "aarch64-unknown-linux-musl"
             arch: "arm64"
-          # Architecture mappings for gnu (dynamically linked) targets - currently disabled
-          - target: "x86_64-unknown-linux-gnu"
-            arch: "x86_64"
-          - target: "arm-unknown-linux-gnueabihf"
-            arch: "armv6"
-          - target: "armv7-unknown-linux-gnueabihf"
-            arch: "armv7"
-          - target: "aarch64-unknown-linux-gnu"
-            arch: "arm64"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -339,7 +330,8 @@ jobs:
         id: binary
         run: |
           mkdir -p ./extracted
-          tar vpxf bins.tar -C ./extracted
+          # Extract with path stripping to avoid nested directory structure
+          tar vpxf bins.tar --transform='s/.*\///' -C ./extracted
           BINARY_NAME=$(find ./extracted -maxdepth 1 -type f -executable | head -n 1)
           BINARY_BASENAME=$(basename "$BINARY_NAME")
           VERSION="${{ needs.meta.outputs.version }}"
