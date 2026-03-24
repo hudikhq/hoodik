@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+
       - uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev
@@ -41,6 +44,9 @@ jobs:
       - name: Install yarn and dependencies
         run: npm install -g yarn && yarn install
 
+      - name: Install Playwright browsers
+        run: cd web && npx playwright install --with-deps chromium
+
       - name: Build WASM crates
         run: just wasm
 
@@ -52,3 +58,13 @@ jobs:
 
       - name: E2E tests
         run: just e2e
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 14

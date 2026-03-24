@@ -58,7 +58,7 @@ export abstract class Preview {
   public size: number | undefined
   public thumbnail?: string
 
-  constructor(data: ConstructPreview<Preview>) {
+  constructor(data: Omit<ConstructPreview<Preview>, 'chunks'>) {
     this.id = data.id
     this.name = data.name
     this.mime = data.mime

@@ -2,6 +2,7 @@
 /// <reference path="node_modules/transfer/transfer.d.ts" />
 /// <reference types="vite-plugin-pwa/client" />
 
+
 import type Api from './stores/api'
 
 declare global {

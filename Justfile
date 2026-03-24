@@ -83,13 +83,23 @@ test-web:
 test-watch:
     yarn workspace @hoodik/web run test:watch
 
-# Run E2E tests: build backend, start it, run Cypress, then clean up
+# Run E2E tests: build backend, start it, run Playwright, then clean up
 e2e:
     #!/usr/bin/env bash
     set -eo pipefail
 
     export DATA_DIR=$PWD/data-e2e
     export ENV_FILE=".env.e2e"
+
+    # Force plain HTTP for the e2e server regardless of what .env.e2e says,
+    # and override the base URL so Playwright connects on http://.
+    # MAILER_TYPE=none auto-verifies new accounts (no email confirmation needed).
+    export SSL_DISABLED=true
+    export APP_URL=http://localhost:5443
+    export APP_CLIENT_URL=http://localhost:5443
+    export MAILER_TYPE=none
+
+    mkdir -p "$DATA_DIR"
 
     cargo build --bin hoodik --release
 
@@ -99,14 +109,14 @@ e2e:
     cleanup() { kill -9 $SERVER_PID 2>/dev/null; rm -rf $PWD/data-e2e; }
     trap cleanup EXIT
 
-    node_modules/.bin/wait-on -t 600000 https://127.0.0.1:5443/api/liveness
+    node_modules/.bin/wait-on -t 600000 http://127.0.0.1:5443/api/liveness
 
     export ENV_FILE="../.env.e2e"
     yarn workspace @hoodik/web test:e2e
 
-# Open Cypress E2E test runner interactively
-cypress:
-    yarn workspace @hoodik/web run cypress open
+# Open Playwright test UI interactively (useful for debugging)
+e2e-ui:
+    yarn workspace @hoodik/web test:e2e:ui
 
 # ── Code Quality ──────────────────────────────────────────────────────────────
 
@@ -172,6 +182,9 @@ setup:
 
     echo "Building WASM crates..."
     just wasm
+
+    echo "Installing Playwright browsers..."
+    cd web && npx playwright install chromium
 
     echo "Done! Run 'just dev' to start developing."
 

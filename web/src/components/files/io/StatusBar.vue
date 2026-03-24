@@ -164,6 +164,8 @@ window.addEventListener('keydown', (e) => {
       'w-full xl:w-2/5': showTable
     }"
   >
+    <!-- Sentinel for e2e tests: present while any upload/download is actively running -->
+    <span v-if="activeItems > 0" data-testid="upload-active" class="sr-only" aria-hidden="true" />
     <div
       class="cursor-pointer overflow-auto dark:text-white"
       @click="showTable = !showTable"

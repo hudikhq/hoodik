@@ -196,7 +196,7 @@ where
 
         let user_id = self.owner_id;
 
-        let mut results = self
+        let results = self
             .repository
             .selector(user_id, true)
             .filter(files::Column::Id.is_in(ids))

@@ -10,3 +10,10 @@ node_modules
 dist
 hoodik/src/client.rs
 /.dev
+
+# Playwright
+web/playwright-report/
+web/test-results/
+
+# TypeScript build cache
+*.tsbuildinfo
