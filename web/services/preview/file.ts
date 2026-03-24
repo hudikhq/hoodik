@@ -1,5 +1,6 @@
 import { Preview } from '.'
 import { store as FileStore } from '!/storage'
+import { downloadChunk } from '!/storage/download/sync'
 import type { AppFile, KeyPair } from 'types'
 const store = FileStore()
 
@@ -84,6 +85,14 @@ export class FilePreview extends Preview implements Preview {
     }
 
     return this.items[nextIndex].id
+  }
+
+  public get chunks(): number | undefined {
+    return this.file.chunks
+  }
+
+  public async loadChunk(index: number): Promise<Uint8Array> {
+    return downloadChunk(this.file, index)
   }
 
   /**
