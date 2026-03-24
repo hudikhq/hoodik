@@ -1,0 +1,4 @@
+# WASM builds: enable SIMD128 for vectorised hashing and encryption.
+# Only applies to the wasm32-unknown-unknown target (web); native builds are unaffected.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128"]

@@ -72,6 +72,7 @@ export const store = defineStore('download', () => {
   ) {
     if (error) {
       file.error = error
+      logger.error(`File "${file.name}" download failed:`, error)
       setFailed(file)
       return
     }
@@ -102,12 +103,14 @@ export const store = defineStore('download', () => {
     }
 
     const item = running.value.splice(index, 1)[0]
-    file.downloadedBytes = (item.downloadedBytes || 0) + chunkBytes
+    // `chunkBytes` coming from the worker is `bytes_downloaded` (cumulative decrypted bytes),
+    // not a delta. Treat it as an absolute value to avoid double-counting and premature "done".
+    file.downloadedBytes = chunkBytes
 
     // If the file has been finished, we will remove it from the downloading list
     // and move it to the done list
     if (file.downloadedBytes >= (file.size || 0)) {
-      logger.debug(`File ${file.name} has finished downloading, pushing to the done list...`)
+      logger.info(`File "${file.name}" finished downloading`)
 
       file.finished_downloading_at = utcStringFromLocal(new Date())
       done.value.push(file)

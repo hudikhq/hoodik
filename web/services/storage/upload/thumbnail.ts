@@ -1,56 +1,47 @@
 import { PREVIEW_MIME_TYPES, IMAGE_THUMBNAIL_SIZE_PX } from '../../constants'
 
 /**
- * Take the selected file and create a thumbnail from it
+ * Take the selected file and create a thumbnail from it.
+ * Uses URL.createObjectURL to avoid loading the entire file into memory.
  */
 export function createThumbnail(file: File): Promise<string | undefined> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     if (PREVIEW_MIME_TYPES.includes(file.type) === false) {
       return resolve(undefined)
     }
 
-    const reader = new FileReader()
+    const objectUrl = URL.createObjectURL(file)
+    const image = new Image()
 
-    reader.onerror = reject
+    image.onload = function () {
+      const aspectRatio = image.width / image.height
 
-    reader.onloadend = function () {
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')
+      let thumbnailWidth = IMAGE_THUMBNAIL_SIZE_PX
+      let thumbnailHeight = IMAGE_THUMBNAIL_SIZE_PX / aspectRatio
 
-      const image = new Image()
-
-      // set the onload event of the Image object
-      image.onload = function () {
-        // calculate the aspect ratio of the image
-        const aspectRatio = image.width / image.height
-
-        // initialize the thumbnail dimensions
-        let thumbnailWidth = IMAGE_THUMBNAIL_SIZE_PX
-        let thumbnailHeight = IMAGE_THUMBNAIL_SIZE_PX / aspectRatio
-
-        // if the image is taller than wide, use the height to scale the thumbnail
-        if (aspectRatio < 1) {
-          thumbnailWidth = IMAGE_THUMBNAIL_SIZE_PX * aspectRatio
-          thumbnailHeight = IMAGE_THUMBNAIL_SIZE_PX
-        }
-
-        canvas.width = thumbnailWidth
-        canvas.height = thumbnailHeight
-
-        // draw the loaded image onto the canvas
-        ctx?.drawImage(image, 0, 0, image.width, image.height, 0, 0, canvas.width, canvas.height)
-
-        // get the base64 encoded data of the canvas image
-        const thumbnailData = canvas.toDataURL('image/jpeg')
-
-        resolve(thumbnailData)
+      if (aspectRatio < 1) {
+        thumbnailWidth = IMAGE_THUMBNAIL_SIZE_PX * aspectRatio
+        thumbnailHeight = IMAGE_THUMBNAIL_SIZE_PX
       }
 
-      // set the source of the Image object to the data URL of the uploaded file
-      image.src = reader.result as string
+      const canvas = document.createElement('canvas')
+      canvas.width = thumbnailWidth
+      canvas.height = thumbnailHeight
+
+      const ctx = canvas.getContext('2d')
+      ctx?.drawImage(image, 0, 0, image.width, image.height, 0, 0, canvas.width, canvas.height)
+
+      const thumbnailData = canvas.toDataURL('image/jpeg')
+
+      URL.revokeObjectURL(objectUrl)
+      resolve(thumbnailData)
     }
 
-    // read the selected file as a data URL
-    reader.readAsDataURL(file)
+    image.onerror = function () {
+      URL.revokeObjectURL(objectUrl)
+      resolve(undefined)
+    }
+
+    image.src = objectUrl
   })
 }

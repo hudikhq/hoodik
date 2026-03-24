@@ -251,6 +251,24 @@ export async function search(input: string, dir_id?: string): Promise<EncryptedA
 }
 
 /**
+ * Persist file content hashes (sha256) to the server.
+ * Returns the updated AppFile record.
+ */
+export async function updateHashes(fileId: string, sha256: string): Promise<AppFile> {
+  const response = await Api.put<{ sha256: string }, AppFile>(
+    `/api/storage/${fileId}/hashes`,
+    undefined,
+    { sha256 }
+  )
+
+  if (!response?.body?.id) {
+    throw new Error('Failed to update file hashes')
+  }
+
+  return response.body
+}
+
+/**
  * Get file or directory metadata
  */
 export async function remove(fileId: string): Promise<void> {

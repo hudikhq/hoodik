@@ -4,6 +4,7 @@ pub mod chacha;
 pub mod crc;
 pub mod error;
 pub mod rsa;
+#[cfg(feature = "tokenizer")]
 pub mod tokenizer;
 
 pub use hex;

@@ -174,8 +174,6 @@ jobs:
           echo "APP_VERSION=${{ needs.meta.outputs.app_version }}" >> $PWD/.env
           echo "NAME=${{ env.name }}" >> $PWD/.env
 
-      # Install Rust the hard way rather than using a GH Action because the action doesn't work inside a Docker container.
-      # Cargo cross "requires a rustup installation of Rust", an O/S package provided Rust won't
       - name: Install Rust
         id: rust
         run: |
@@ -184,20 +182,19 @@ jobs:
           source "$HOME/.cargo/env"
           echo "bin_dir=$HOME/.cargo/bin" >> $GITHUB_OUTPUT
 
-      - name: Install wasm pack
+      - uses: extractions/setup-just@v2
+
+      - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-      - name: Install yarn
-        run: npm install -g yarn
+      - name: Install yarn and dependencies
+        run: npm install -g yarn && yarn install
 
-      - name: Install yarn dependencies
-        run: yarn install
-
-      - name: Wasm pack cryptfns
-        run: yarn workspace @${{ env.handle }}/cryptfns wasm-pack
+      - name: Build WASM crates
+        run: just wasm
 
       - name: Build web
-        run: yarn workspace @${{ env.handle }}/web build
+        run: just build-web
 
       - name: Tar the compiled web app
         run: |

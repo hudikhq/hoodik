@@ -129,6 +129,7 @@ pub fn chacha_decrypt(key: Vec<u8>, ciphertext: Vec<u8>) -> Option<Vec<u8>> {
     chacha::decrypt(key, ciphertext).ok()
 }
 
+#[cfg(feature = "tokenizer")]
 #[wasm_bindgen]
 pub fn text_into_tokens(input: &str) -> Option<String> {
     crate::tokenizer::into_tokens(input)
@@ -136,6 +137,7 @@ pub fn text_into_tokens(input: &str) -> Option<String> {
         .map(crate::tokenizer::into_string)
 }
 
+#[cfg(feature = "tokenizer")]
 #[wasm_bindgen]
 pub fn text_into_hashed_tokens(input: &str) -> Option<String> {
     crate::tokenizer::into_hashed_tokens(input)

@@ -12,7 +12,6 @@ import {
   KEEP_FINISHED_UPLOADS_FOR_MINUTES
 } from '../../constants'
 import * as logger from '!/logger'
-import { createSHA256, createMD5, createBLAKE2b, createSHA1 } from 'hash-wasm'
 
 import type {
   CreateFile,
@@ -72,13 +71,25 @@ export const store = defineStore('upload', () => {
    * Create function that will track the progress
    */
   async function progress(storage: FilesStore, file: UploadAppFile, isDone: boolean, error?: any) {
-    // If it already exists in the done list, we'll skip it
-    if (done.value.filter((f) => f.temporaryId === file.temporaryId).length !== 0) {
-      return
-    }
+    const alreadyDone = done.value.some((f) => f.temporaryId === file.temporaryId)
+    const alreadyFailed = failed.value.some((f) => f.temporaryId === file.temporaryId)
 
-    // If it already exists in the failed list, we'll skip it
-    if (failed.value.filter((f) => f.temporaryId === file.temporaryId).length !== 0) {
+    // Hashes can arrive after the last chunk finishes (e.g. when using a separate hash worker).
+    // In that case, the UI may have already moved the file to `done`, and we still want to
+    // upsert the hash fields (md5/sha1/sha256/blake2b) without dropping `finished_upload_at`.
+    if (alreadyDone || alreadyFailed) {
+      const current = storage.getItem(file.id)
+      if (current) {
+        const merged = { ...current, ...file }
+
+        // Preserve completion timestamps; later updates may not include them.
+        if (alreadyDone) {
+          merged.finished_upload_at = current.finished_upload_at
+        }
+
+        storage.updateItem(merged)
+      }
+
       return
     }
 
@@ -112,7 +123,7 @@ export const store = defineStore('upload', () => {
     // If the file has been finished, we will remove it from the uploading list
     // and move it to the done list
     if (isDone || file.finished_upload_at) {
-      logger.debug(`File ${file.name} has finished uploading, pushing to the done list...`)
+      logger.info(`File "${file.name}" finished uploading`)
 
       file.finished_upload_at = Math.floor(new Date().valueOf() / 1000)
       done.value.push(file)
@@ -191,11 +202,16 @@ export const store = defineStore('upload', () => {
    * Add new file to the upload queue
    */
   async function push(keypair: KeyPair, file: File, parent_id?: string) {
+    logger.info(`[upload:push] "${file.name}" (${(file.size / 1024 / 1024).toFixed(2)} MB)`)
+
     try {
       const existing = await meta.getByName(keypair, file.name, parent_id)
 
       const chunksStored = existing.chunks_stored || 0
       if (existing.chunks > chunksStored) {
+        logger.info(
+          `[upload:push] "${file.name}" resuming — ${chunksStored}/${existing.chunks} chunks done`
+        )
         waiting.value.push({ ...existing, file, temporaryId: uuidv4() })
       } else {
         throw new Error('File already exists')
@@ -205,10 +221,9 @@ export const store = defineStore('upload', () => {
         throw e
       }
 
-
-
       const created = await create(keypair, file, parent_id)
 
+      logger.info(`[upload:push] "${file.name}" created as ${created.id}, queued for upload`)
       return waiting.value.push({ ...created, temporaryId: uuidv4() })
     }
   }
@@ -232,12 +247,18 @@ export const store = defineStore('upload', () => {
    * Create new file metadata and add it to the upload queue
    */
   async function create(keypair: KeyPair, file: File, parent_id?: string): Promise<UploadAppFile> {
+    const t0 = performance.now()
     const modified = file.lastModified ? new Date(file.lastModified) : new Date()
 
+    logger.debug(`[upload:create] "${file.name}" — generating search tokens`)
     const search_tokens_hashed = cryptfns.stringToHashedTokens(file.name.toLowerCase())
+
+    logger.debug(`[upload:create] "${file.name}" — generating thumbnail`)
     const thumbnail = await createThumbnail(file)
 
-    const hashes = await digest(file)
+    logger.debug(
+      `[upload:create] "${file.name}" — preparation done in ${(performance.now() - t0).toFixed(0)}ms`
+    )
 
     const createFile: CreateFile = {
       name: file.name,
@@ -247,11 +268,7 @@ export const store = defineStore('upload', () => {
       file_id: parent_id,
       file_modified_at: utcStringFromLocal(modified),
       search_tokens_hashed,
-      thumbnail,
-      sha256: hashes.sha256,
-      md5: hashes.md5,
-      sha1: hashes.sha1,
-      blake2b: hashes.blake2b
+      thumbnail
     }
 
     const created = await meta.create(keypair, createFile)
@@ -277,6 +294,8 @@ export const store = defineStore('upload', () => {
  * Upload single file from the upload queue
  */
 export async function upload(file: UploadAppFile, progress?: UploadProgressFunction) {
+  logger.warn(`[upload:sync] "${file.name}" — using MAIN THREAD sync fallback (worker unavailable)`)
+
   if (!file.started_upload_at) {
     file.started_upload_at = utcStringFromLocal()
   }
@@ -352,50 +371,5 @@ async function sliceChunk(file: File, chunk: number): Promise<Uint8Array> {
     }
 
     reader.readAsArrayBuffer(slice)
-  })
-}
-
-/**
- * Get file hashes (SHA256, MD5, SHA1, BLAKE2b)
- */
-async function digest(file: File): Promise<{
-  sha256: string
-  md5: string
-  sha1: string
-  blake2b: string
-}> {
-  const sha256 = await createSHA256()
-  sha256.init()
-
-  const md5 = await createMD5()
-  md5.init()
-
-  const sha1 = await createSHA1()
-  sha1.init()
-
-  const blake2b = await createBLAKE2b()
-
-  const reader = new FileReader()
-
-  reader.readAsArrayBuffer(file)
-
-  return new Promise((resolve, reject) => {
-    reader.onload = async () => {
-      sha256.update(new Uint8Array(reader.result as ArrayBuffer))
-      md5.update(new Uint8Array(reader.result as ArrayBuffer))
-      sha1.update(new Uint8Array(reader.result as ArrayBuffer))
-      blake2b.update(new Uint8Array(reader.result as ArrayBuffer))
-
-      resolve({
-        sha256: sha256.digest('hex'),
-        md5: md5.digest('hex'),
-        sha1: sha1.digest('hex'),
-        blake2b: blake2b.digest('hex')
-      })
-    }
-
-    reader.onerror = (err) => {
-      reject(err)
-    }
   })
 }

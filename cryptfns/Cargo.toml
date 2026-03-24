@@ -16,7 +16,9 @@ path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
 [features]
+default = ["tokenizer"]
 mock = []
+tokenizer = ["dep:tokenizers"]
 
 [dependencies]
 rand = "^0.8"
@@ -29,9 +31,6 @@ serde_json = { workspace = true }
 wasm-bindgen = "0.2.63"
 getrandom = { version = "^0.2", features = ["js"] }
 ascon-aead = "^0.4"
-tokenizers = { version = "^0.13", default-features = false, features = [
-  "unstable_wasm",
-] }
 crc = "^3"
 chacha20poly1305 = "0.10.1"
 
@@ -41,6 +40,12 @@ chacha20poly1305 = "0.10.1"
 # code size when deploying.
 console_error_panic_hook = { version = "0.1.6", optional = true }
 num-traits = { version = "0.2.9", features = ["libm"], default-features = false }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+tokenizers = { version = "^0.13", default-features = false, features = ["unstable_wasm"], optional = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokenizers = { version = "^0.13", default-features = false, features = ["onig"], optional = true }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.13"

@@ -12,6 +12,7 @@ use error::{AppResult, Error};
 use super::Repository;
 use crate::data::{
     app_file::AppFile, query::Query as RequestQuery, rename::Rename, response::Response,
+    update_hashes::UpdateHashes,
 };
 use futures::future::try_join_all;
 
@@ -377,6 +378,24 @@ where
             .by_id(file_id, self.owner_id)
             .await
             .map(|f| f.is_new(true))
+    }
+
+    /// Update the content hashes of a file after upload completes
+    pub(crate) async fn update_hashes(
+        &self,
+        id: Uuid,
+        data: UpdateHashes,
+    ) -> AppResult<AppFile> {
+        let file = self.repository.by_id(id, self.owner_id).await?;
+
+        if !file.is_owner || file.user_id != self.owner_id || file.is_dir() {
+            return Err(Error::NotFound("file_not_found".to_string()));
+        }
+
+        let active_model = data.into_active_model(id)?;
+        active_model.update(self.repository.connection()).await?;
+
+        self.repository.by_id(file.id, file.user_id).await
     }
 
     /// Finish the upload of a file by setting the finished_upload_at field

@@ -17,6 +17,7 @@ pub mod name_hash;
 pub mod rename;
 pub mod search;
 pub mod stats;
+pub mod update_hashes;
 pub mod upload;
 
 /// Register the storage routes
@@ -34,5 +35,6 @@ pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
     cfg.service(rename::rename);
     cfg.service(search::search);
     cfg.service(stats::stats);
+    cfg.service(update_hashes::update_hashes);
     cfg.service(upload::upload);
 }

@@ -1,0 +1,11 @@
+{
+  "name": "@hoodik/transfer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "pkg/transfer.js",
+  "types": "pkg/transfer.d.ts",
+  "scripts": {
+    "wasm-pack": "wasm-pack build --out-name transfer --target bundler --release -- --features wasm && node scripts/patch-pkg.mjs"
+  }
+}

@@ -9,29 +9,29 @@ const log = (function () {
  * Regular logging function passed to the logger service
  */
 const info = (function () {
-  return Function.prototype.bind.call(console.log, console)
+  return Function.prototype.bind.call(console.info, console)
 })()
 
 /**
  * Regular logging function passed to the logger service
  */
 const warn = (function () {
-  return Function.prototype.bind.call(console.log, console)
+  return Function.prototype.bind.call(console.warn, console)
 })()
 
 /**
  * Regular logging function passed to the logger service
  */
 const error = (function () {
-  return Function.prototype.bind.call(console.log, console)
+  return Function.prototype.bind.call(console.error, console)
 })()
 
 /**
- * Regular logging function passed to the logger service
+ * Debug logging — only emitted in development builds
  */
 const debug = (function () {
   if (import.meta.env.DEV) {
-    return Function.prototype.bind.call(console.log, console)
+    return Function.prototype.bind.call(console.debug, console)
   } else {
     return function () {}
   }

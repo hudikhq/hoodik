@@ -53,7 +53,14 @@ const isModalCreateDirActive = ref(false)
 const isModalMoveMultipleActive = ref(false)
 const isModalDeleteMultipleActive = ref(false)
 
-const detailsFile = ref<AppFile>()
+const detailsFileId = ref<string | undefined>()
+// Use a computed so the modal sees the latest copy from storage (e.g. sha256 arriving after upload).
+const detailsFile = computed<AppFile | undefined>({
+  get: () => (detailsFileId.value ? (Storage.getItem(detailsFileId.value) ?? undefined) : undefined),
+  set: (value: AppFile | undefined) => {
+    detailsFileId.value = value?.id
+  }
+})
 const singleRemoveFile = ref<AppFile>()
 const actionFile = ref<AppFile>()
 const renameFile = ref<AppFile>()
@@ -73,7 +80,7 @@ const actions = (file: AppFile) => {
  */
 const details = (file: AppFile) => {
   actionFile.value = undefined
-  detailsFile.value = file
+  detailsFileId.value = file.id
 }
 
 /**

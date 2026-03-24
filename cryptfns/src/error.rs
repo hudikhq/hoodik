@@ -7,6 +7,7 @@ use rsa::{
     pkcs8::Error as PKCS8Error, signature::Error as SignatureError,
 };
 use std::string::FromUtf8Error;
+#[cfg(feature = "tokenizer")]
 use tokenizers::Error as TokenizersError;
 
 pub type CryptoResult<T> = Result<T, Error>;
@@ -23,6 +24,7 @@ pub enum Error {
     DecodeError(DecodeError),
     AsconError(AsconError),
     RandomError(RandomError),
+    #[cfg(feature = "tokenizer")]
     TokenizersError(TokenizersError),
 }
 
@@ -92,6 +94,7 @@ impl From<RandomError> for Error {
     }
 }
 
+#[cfg(feature = "tokenizer")]
 impl From<TokenizersError> for Error {
     fn from(error: TokenizersError) -> Self {
         Error::TokenizersError(error)

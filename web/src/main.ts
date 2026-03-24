@@ -16,14 +16,27 @@ import { serviceWorkerFile } from 'virtual:vite-plugin-service-worker'
 
 try {
   if ('Worker' in window) {
+    logger.debug('[main] Creating UPLOAD worker from', serviceWorkerFile)
     window.UPLOAD = new Worker(serviceWorkerFile, { type: 'module', name: 'Hoodik Upload Worker' })
+
+    logger.debug('[main] Creating DOWNLOAD worker from', serviceWorkerFile)
     window.DOWNLOAD = new Worker(serviceWorkerFile, {
       type: 'module',
       name: 'Hoodik Download Worker'
     })
+
+    logger.debug('[main] Creating HASH worker')
+    window.HASH = new Worker(new URL('../hash-worker.ts', import.meta.url), {
+      type: 'module',
+      name: 'Hoodik Hash Worker'
+    })
+
+    logger.debug('[main] Workers created successfully')
+  } else {
+    logger.warn('[main] Worker API not available — uploads/downloads will run on main thread')
   }
 } catch (error) {
-  logger.error('Registration failed', error)
+  logger.error('[main] Worker creation failed:', error)
 }
 
 window.addEventListener('unhandledrejection', function (event) {

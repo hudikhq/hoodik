@@ -8,7 +8,7 @@ export default mergeConfig(
   defineConfig({
     test: {
       deps: {
-        inline: ['cryptfns']
+        inline: ['transfer']
       },
       environment: 'jsdom',
       exclude: [...configDefaults.exclude, 'e2e/*'],
