@@ -1,16 +1,29 @@
 import { PREVIEW_MIME_TYPES, IMAGE_THUMBNAIL_SIZE_PX } from '../../constants'
+import { heicToJpegBlob } from '../../heic'
+
+const HEIC_MIME_TYPES = ['image/heic', 'image/heif']
 
 /**
  * Take the selected file and create a thumbnail from it.
- * Uses URL.createObjectURL to avoid loading the entire file into memory.
+ * HEIC/HEIF files are converted to JPEG first via libheif-js.
  */
-export function createThumbnail(file: File): Promise<string | undefined> {
-  return new Promise((resolve) => {
-    if (PREVIEW_MIME_TYPES.includes(file.type) === false) {
-      return resolve(undefined)
-    }
+export async function createThumbnail(file: File): Promise<string | undefined> {
+  if (!PREVIEW_MIME_TYPES.includes(file.type)) {
+    return undefined
+  }
 
-    const objectUrl = URL.createObjectURL(file)
+  let blob: Blob = file
+
+  if (HEIC_MIME_TYPES.includes(file.type)) {
+    try {
+      blob = await heicToJpegBlob(file, 0.8)
+    } catch {
+      return undefined
+    }
+  }
+
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(blob)
     const image = new Image()
 
     image.onload = function () {

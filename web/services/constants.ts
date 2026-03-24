@@ -81,5 +81,5 @@ export const KEEP_FINISHED_DOWNLOADS_FOR_MINUTES = 15
 /**
  * Preview constants
  */
-export const PREVIEW_MIME_TYPES = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif', 'image/bmp']
+export const PREVIEW_MIME_TYPES = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/heic', 'image/heif']
 export const IMAGE_THUMBNAIL_SIZE_PX = 200

@@ -22,7 +22,9 @@ function isFilePreviewable(item: AppFile): boolean {
     item.size > 0 &&
     (item.thumbnail !== undefined ||
       item.mime === 'application/pdf' ||
-      item.mime === 'image/svg+xml')
+      item.mime === 'image/svg+xml' ||
+      item.mime === 'image/heic' ||
+      item.mime === 'image/heif')
   )
 }
 

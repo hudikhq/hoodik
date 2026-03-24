@@ -15,6 +15,7 @@ import { store as storageStore } from '!/storage'
 import { store as cryptoStore } from '!/crypto'
 import { store as linksStore } from '!/links'
 import { errorNotification } from '!/index'
+import * as meta from '!/storage/meta'
 import { computed, ref, watch } from 'vue'
 import { useTitle } from '@vueuse/core'
 import { useRoute } from 'vue-router'
@@ -49,6 +50,7 @@ const Crypto = cryptoStore()
 const Links = linksStore()
 
 const openBrowseWindow = ref(false)
+const openFolderWindow = ref(false)
 const isModalCreateDirActive = ref(false)
 const isModalMoveMultipleActive = ref(false)
 const isModalDeleteMultipleActive = ref(false)
@@ -182,6 +184,133 @@ const browse = () => {
 }
 
 /**
+ * Opens the folder picker
+ */
+const browseFolder = () => {
+  openFolderWindow.value = true
+}
+
+/**
+ * Core folder upload logic. Takes a flat list of { file, relativePath } items,
+ * creates the directory hierarchy as needed, then enqueues each file.
+ */
+async function uploadByPaths(
+  items: { file: File; relativePath: string }[],
+  baseDir: string | undefined
+) {
+  const dirCache = new Map<string, string>()
+
+  // Shallowest paths first so parent dirs exist before children
+  items.sort((a, b) => a.relativePath.split('/').length - b.relativePath.split('/').length)
+
+  for (const { file, relativePath } of items) {
+    const parts = relativePath.split('/')
+    let currentParent = baseDir
+
+    for (let i = 0; i < parts.length - 1; i++) {
+      const pathKey = parts.slice(0, i + 1).join('/')
+
+      if (!dirCache.has(pathKey)) {
+        try {
+          const existing = await meta.getByName(props.keypair, parts[i], currentParent)
+          if (existing.mime === 'dir') {
+            dirCache.set(pathKey, existing.id)
+          } else {
+            throw new Error(`"${parts[i]}" exists but is not a directory`)
+          }
+        } catch (e: any) {
+          if (e?.status === 404) {
+            const dir = await Storage.createDir(props.keypair, parts[i], currentParent)
+            Storage.upsertItem(dir)
+            dirCache.set(pathKey, dir.id)
+          } else {
+            errorNotification(e)
+            return
+          }
+        }
+      }
+
+      currentParent = dirCache.get(pathKey)
+    }
+
+    try {
+      await Upload.push(props.keypair, file, currentParent)
+    } catch (e) {
+      errorNotification(e)
+    }
+  }
+
+  if (!Upload.active) {
+    Upload.active = true
+  }
+}
+
+/**
+ * Handles folder upload from a webkitdirectory file picker.
+ * Each File in the FileList has webkitRelativePath set by the browser.
+ */
+const uploadFolder = async (files: FileList, dirId?: string) => {
+  if (!files?.length) return
+  const items = Array.from(files).map((f) => ({
+    file: f,
+    relativePath: f.webkitRelativePath || f.name
+  }))
+  await uploadByPaths(items, dirId ?? parentId.value)
+}
+
+/**
+ * Recursively reads all files from a FileSystemDirectoryEntry.
+ */
+async function readDirEntries(
+  dirEntry: FileSystemDirectoryEntry,
+  prefix: string
+): Promise<{ file: File; relativePath: string }[]> {
+  const results: { file: File; relativePath: string }[] = []
+  const reader = dirEntry.createReader()
+  const readBatch = () =>
+    new Promise<FileSystemEntry[]>((res, rej) => reader.readEntries(res, rej))
+
+  let batch: FileSystemEntry[]
+  do {
+    batch = await readBatch()
+    for (const child of batch) {
+      const childPath = `${prefix}/${child.name}`
+      if (child.isFile) {
+        const f = await new Promise<File>((res, rej) =>
+          (child as FileSystemFileEntry).file(res, rej)
+        )
+        results.push({ file: f, relativePath: childPath })
+      } else if (child.isDirectory) {
+        results.push(...(await readDirEntries(child as FileSystemDirectoryEntry, childPath)))
+      }
+    }
+  } while (batch.length > 0)
+
+  return results
+}
+
+/**
+ * Handles folder upload from drag-and-drop (FileSystemEntry[]).
+ * Entries must be extracted synchronously inside the drop handler.
+ */
+const uploadFolderEntries = async (entries: FileSystemEntry[], dirId?: string) => {
+  const items: { file: File; relativePath: string }[] = []
+
+  for (const entry of entries) {
+    if (entry.isFile) {
+      const f = await new Promise<File>((res, rej) =>
+        (entry as FileSystemFileEntry).file(res, rej)
+      )
+      items.push({ file: f, relativePath: entry.name })
+    } else if (entry.isDirectory) {
+      items.push(...(await readDirEntries(entry as FileSystemDirectoryEntry, entry.name)))
+    }
+  }
+
+  await uploadByPaths(items, dirId ?? parentId.value)
+}
+
+/**
  * Opens a modal to create a new directory
  */
 const directory = () => {
@@ -211,9 +340,11 @@ watch(
 <template>
   <UploadButton
     v-model="openBrowseWindow"
+    v-model:openFolder="openFolderWindow"
     :dir="Storage.dir"
     :kp="Crypto.keypair"
     @upload-many="(f: FileList) => uploadMany(f, parentId)"
+    @upload-folder="(f: FileList) => uploadFolder(f, parentId)"
   />
   <RenameModal v-if="renameFile" v-model="renameFile" :Storage="Storage" :Crypto="Crypto" />
   <CreateDirectoryModal
@@ -249,6 +380,8 @@ watch(
       'select-one': Storage.selectOne,
       'set-sort-simple': Storage.setSortSimple,
       'upload-many': uploadMany,
+      'browse-folder': browseFolder,
+      'upload-folder-entries': uploadFolderEntries,
       actions,
       browse,
       details,

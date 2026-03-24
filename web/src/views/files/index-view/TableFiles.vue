@@ -3,6 +3,7 @@ import {
   mdiTrashCanOutline,
   mdiFolderPlusOutline,
   mdiFilePlusOutline,
+  mdiFolderArrowUpOutline,
   mdiDownloadMultiple,
   mdiPencil,
   mdiEye,
@@ -52,6 +53,8 @@ const emits = defineEmits<{
   (event: 'select-one', select: boolean, file: AppFile): void
   (event: 'set-sort-simple', value: string): void
   (event: 'upload-many', files: FileList, dirId?: string): void
+  (event: 'browse-folder'): void
+  (event: 'upload-folder-entries', entries: FileSystemEntry[], dirId?: string): void
 }>()
 
 const checked = ref(false)
@@ -133,6 +136,20 @@ const drop = (e: DragEvent) => {
 
   e.preventDefault()
   e.stopPropagation()
+
+  // Extract FileSystemEntry objects synchronously — DataTransferItemList is only valid
+  // during the event and becomes empty after the handler returns.
+  if (e.dataTransfer?.items) {
+    const entries: FileSystemEntry[] = []
+    for (let i = 0; i < e.dataTransfer.items.length; i++) {
+      const entry = e.dataTransfer.items[i].webkitGetAsEntry()
+      if (entry) entries.push(entry)
+    }
+    if (entries.some((entry) => entry.isDirectory)) {
+      emits('upload-folder-entries', entries, dirId.value)
+      return
+    }
+  }
 
   if (e.dataTransfer?.files && e.dataTransfer.files.length) {
     emits('upload-many', e.dataTransfer.files, dirId.value)
@@ -251,6 +268,17 @@ const sizes = {
       :icon="mdiFilePlusOutline"
       color="light"
       @click="emits('browse')"
+      v-if="!checkedRows.length"
+    />
+
+    <BaseButton
+      name="browse-folder"
+      title="Upload folder"
+      :iconSize="20"
+      :xs="true"
+      :icon="mdiFolderArrowUpOutline"
+      color="light"
+      @click="emits('browse-folder')"
       v-if="!checkedRows.length"
     />
   </div>

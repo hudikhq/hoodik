@@ -1,6 +1,6 @@
 //! Repository module for manipulating with files in the database
 //! this module should only be used by the owner of the file
-use std::{cmp::Ordering, fmt::Display, str::FromStr};
+use std::{collections::HashMap, fmt::Display, str::FromStr};
 
 use chrono::Utc;
 use entity::{
@@ -134,13 +134,25 @@ where
             .await
             .map_err(Error::from)?;
 
-        results.sort_by(|a, b| {
-            if a.file_id.is_none() || a.file_id == Some(b.id) {
-                Ordering::Greater
-            } else {
-                Ordering::Less
-            }
-        });
+        // Sort by ascending depth so ancestors appear in root-first (breadcrumb) order.
+        let id_to_idx: HashMap<Uuid, usize> =
+            results.iter().enumerate().map(|(i, f)| (f.id, i)).collect();
+        let depths: Vec<usize> = (0..results.len())
+            .map(|i| {
+                let mut depth = 0usize;
+                let mut current = results[i].file_id;
+                while let Some(parent_id) = current {
+                    if let Some(&parent_idx) = id_to_idx.get(&parent_id) {
+                        depth += 1;
+                        current = results[parent_idx].file_id;
+                    } else {
+                        break;
+                    }
+                }
+                depth
+            })
+            .collect();
+        results.sort_by(|a, b| depths[id_to_idx[&a.id]].cmp(&depths[id_to_idx[&b.id]]));
 
         if results.is_empty() {
             return Err(Error::NotFound("directory_not_found".to_string()));
@@ -192,14 +204,6 @@ where
             .all(self.repository.connection())
             .await
             .map_err(Error::from)?;
-
-        results.sort_by(|a, b| {
-            if a.file_id.is_none() || a.file_id == Some(b.id) {
-                Ordering::Greater
-            } else {
-                Ordering::Less
-            }
-        });
 
         if results.is_empty() {
             return Err(Error::NotFound("directory_not_found".to_string()));

@@ -4,6 +4,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { Preview } from '!/preview'
 import SpinnerIcon from '../ui/SpinnerIcon.vue'
+import { heicToJpegBlob } from '!/heic'
 
 const props = defineProps<{
   modelValue: Preview
@@ -21,17 +22,25 @@ const scaleH = ref(0)
  * Load the preview as image,
  *  - first, fit the thumbnail to the container so we don't have blank screen while loading...
  *  - then load the full image and fit it to the container.
+ * HEIC/HEIF files are converted to JPEG via heic2any for cross-platform support.
  */
 const load = async () => {
   if (preview.value.thumbnail) {
     await fitUrl(preview.value.thumbnail)
   }
 
-  const blob = new Blob([await preview.value.load()], { type: preview.value.mime })
+  let blob = new Blob([await preview.value.load()], { type: preview.value.mime })
+
+  if (preview.value.mime === 'image/heic' || preview.value.mime === 'image/heif') {
+    try {
+      blob = await heicToJpegBlob(blob, 0.9)
+    } catch {
+      // fall through — let the browser try to render natively (works on Apple platforms)
+    }
+  }
+
   const url = URL.createObjectURL(blob)
-
   await fitUrl(url)
-
   imageUrl.value = url
 }
 
