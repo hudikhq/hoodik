@@ -48,6 +48,7 @@ const cancel = () => {
 
 <template>
   <Transition name="fade">
+    <!-- eslint-disable-next-line vue/require-toggle-inside-transition -->
     <div class="inline-block" :class="props.class">
       <BaseButton
         v-if="!clicked"

@@ -20,7 +20,7 @@ function cleanup() {
     blobUrl.value = undefined
   }
   if (mediaSource?.readyState === 'open') {
-    try { mediaSource.endOfStream() } catch {}
+    try { mediaSource.endOfStream() } catch { /* endOfStream throws if the stream is already closed */ }
   }
   mediaSource = null
 }

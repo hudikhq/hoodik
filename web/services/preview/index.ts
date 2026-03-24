@@ -123,7 +123,8 @@ export abstract class Preview {
    * Download and decrypt a single chunk by index.
    * Overridden by FilePreview; base implementation returns empty bytes.
    */
-  public async loadChunk(_index: number): Promise<Uint8Array> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async loadChunk(_: number): Promise<Uint8Array> {
     return new Uint8Array()
   }
 

@@ -129,9 +129,9 @@ impl HashState {
     fn new(opts: &UploadHashOptions) -> Self {
         Self {
             h_sha256: sha2::Sha256::new(),
-            h_md5: opts.md5.then(|| md5::Md5::new()),
-            h_sha1: opts.sha1.then(|| sha1::Sha1::new()),
-            h_blake2b: opts.blake2b.then(|| blake2::Blake2b512::new()),
+            h_md5: opts.md5.then(md5::Md5::new),
+            h_sha1: opts.sha1.then(sha1::Sha1::new),
+            h_blake2b: opts.blake2b.then(blake2::Blake2b512::new),
             inline_sha256: opts.inline_sha256,
         }
     }
@@ -195,6 +195,7 @@ impl HashState {
 ///
 /// This free function is the backward-compatible entry point used by tests.
 /// New code should prefer the [`Uploader`] builder API.
+#[allow(clippy::too_many_arguments)]
 pub async fn upload_file(
     http: &dyn HttpClient,
     source: &dyn DataSource,
@@ -276,6 +277,7 @@ pub async fn upload_file(
 /// Two limits prevent unbounded memory growth:
 /// - [`ENCRYPTED_CHUNKS_BUFFER_LIMIT`]: total encrypted chunks in memory (waiting + in-flight)
 /// - [`CONCURRENT_UPLOADS_IN_FLIGHT`]: HTTP requests in flight simultaneously
+#[allow(clippy::too_many_arguments)]
 async fn run_upload_pipeline<'a>(
     http: &'a dyn HttpClient,
     source: &'a dyn DataSource,
@@ -505,6 +507,7 @@ async fn run_upload_pipeline<'a>(
 
 /// Move as many chunks as possible from `encrypted_waiting` into `in_flight`,
 /// up to `in_flight_cap` concurrent requests.
+#[allow(clippy::too_many_arguments)]
 fn pump_uploads<'a>(
     in_flight: &mut FuturesUnordered<LocalBoxFuture<'a, Result<u64>>>,
     encrypted_waiting: &mut VecDeque<EncryptedChunk>,
@@ -550,6 +553,7 @@ struct EncryptedChunk {
 /// A checksum mismatch means the server received corrupted bytes; we retry with the same
 /// encrypted data.  After [`MAX_UPLOAD_RETRIES`] retries the error is propagated.
 /// A `chunk_already_exists` error is treated as success (idempotent upload).
+#[allow(clippy::too_many_arguments)]
 async fn upload_encrypted(
     http: &dyn HttpClient,
     auth: &Auth,
@@ -585,7 +589,7 @@ async fn upload_encrypted(
         Err(Error::Http(HttpError { validation, .. }))
             if validation
                 .as_ref()
-                .map_or(false, |v| v.contains_key("checksum"))
+                .is_some_and(|v| v.contains_key("checksum"))
                 && attempt < MAX_UPLOAD_RETRIES =>
         {
             Box::pin(upload_encrypted(
@@ -605,9 +609,7 @@ async fn upload_encrypted(
         Err(Error::Http(HttpError { validation, .. }))
             if validation
                 .as_ref()
-                .map_or(false, |v| {
-                    v.get("chunk").map_or(false, |v| v == "chunk_already_exists")
-                }) =>
+                .is_some_and(|v| v.get("chunk").is_some_and(|v| v == "chunk_already_exists")) =>
         {
             progress.on_chunk_uploaded(file_id, chunk, total_chunks, false);
             Ok(chunk)
@@ -624,7 +626,7 @@ pub(crate) fn compute_chunk_count(total_size: u64) -> u64 {
     if total_size == 0 {
         return 1;
     }
-    (total_size + CHUNK_SIZE_BYTES - 1) / CHUNK_SIZE_BYTES
+    total_size.div_ceil(CHUNK_SIZE_BYTES)
 }
 
 fn short_id(id: &str) -> &str {
