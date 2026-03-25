@@ -100,9 +100,9 @@ export const store = defineStore('download', () => {
 
       // File hasn't been found in the downloading list so we add it
       running.value.push(file)
+    } else {
+      running.value.splice(index, 1)
     }
-
-    running.value.splice(index, 1)
     // `chunkBytes` coming from the worker is `bytes_downloaded` (cumulative decrypted bytes),
     // not a delta. Treat it as an absolute value to avoid double-counting and premature "done".
     file.downloadedBytes = chunkBytes

@@ -261,8 +261,8 @@ pub async fn upload_file(
         if let Err(e) = http.update_hashes(auth, file_id, &hashes).await {
             progress.on_error(file_id, &format!("Failed to update hashes: {e}"));
         }
-        progress.on_complete(file_id);
     }
+    progress.on_complete(file_id);
 
     Ok(hashes)
 }

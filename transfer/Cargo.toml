@@ -60,7 +60,7 @@ web-sys = { version = "0.3", optional = true, features = [
 ] }
 
 # Native-only
-reqwest = { workspace = true, optional = true, features = ["rustls-tls"] }
+reqwest = { workspace = true, optional = true, features = ["rustls-tls", "json"] }
 tokio = { workspace = true, optional = true, features = ["fs", "io-util"] }
 
 [dev-dependencies]

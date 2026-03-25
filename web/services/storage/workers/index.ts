@@ -19,7 +19,7 @@ export async function pushUploadToWorker(file: UploadAppFile): Promise<void> {
   }
 
   const apiTransfer = new Api().toJson()
-  const transferableUploadedChunks = new Uint16Array(file.uploaded_chunks || [])
+  const transferableUploadedChunks = new Uint32Array(file.uploaded_chunks || [])
 
   window.UPLOAD.postMessage({
     type: 'upload-file',

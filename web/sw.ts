@@ -107,6 +107,7 @@ async function handleUploadFile(
     } as UploadChunkResponseMessage
   })
 
+  let uploader: TransferUploader | undefined
   try {
     const baseUrl = apiTransfer.apiUrl || ''
     const jwtToken = apiTransfer.jwtToken || undefined
@@ -141,7 +142,7 @@ async function handleUploadFile(
       })
     }
 
-    const uploader = new TransferUploader(
+    uploader = new TransferUploader(
       file.id,
       baseUrl,
       jwtToken,
@@ -158,9 +159,12 @@ async function handleUploadFile(
       (fileId: string) => self.canceled?.upload?.includes(fileId) ?? false
     )
     uploader.free()
+    uploader = undefined
 
     logger.info(`[sw:upload] "${file.name}" completed in ${(performance.now() - t0).toFixed(0)}ms`)
   } catch (err) {
+    try { uploader?.free() } catch { /* ignore errors during cleanup */ }
+    uploader = undefined
     logger.error(
       `[sw:upload] "${file.name}" failed after ${(performance.now() - t0).toFixed(0)}ms:`,
       err
@@ -174,6 +178,9 @@ async function handleUploadFile(
         error: handleError(err as Error)
       } as UploadChunkResponseMessage
     })
+  } finally {
+    const idx = self.canceled.upload.indexOf(file.id)
+    if (idx !== -1) self.canceled.upload.splice(idx, 1)
   }
 }
 
@@ -186,12 +193,13 @@ async function handleDownloadFile(
     `[sw:download] starting "${transferableFile.name}" (${transferableFile.id}), ${transferableFile.chunks} chunks`
   )
 
+  let downloader: TransferDownloader | undefined
   try {
     const baseUrl = apiTransfer.apiUrl || ''
     const jwtToken = apiTransfer.jwtToken || undefined
     const refreshToken = apiTransfer.refreshToken || undefined
 
-    const downloader = new TransferDownloader(
+    downloader = new TransferDownloader(
       transferableFile.id,
       transferableFile.size || 0,
       transferableFile.chunks || 0,
@@ -220,6 +228,7 @@ async function handleDownloadFile(
       (fileId: string) => self.canceled?.download?.includes(fileId) ?? false
     )
     downloader.free()
+    downloader = undefined
 
     logger.info(
       `[sw:download] "${transferableFile.name}" completed in ${(performance.now() - t0).toFixed(
@@ -237,6 +246,8 @@ async function handleDownloadFile(
       } as DownloadCompletedResponseMessage
     })
   } catch (err) {
+    try { downloader?.free() } catch { /* ignore errors during cleanup */ }
+    downloader = undefined
     logger.error(
       `[sw:download] "${transferableFile.name}" failed after ${(performance.now() - t0).toFixed(
         0
@@ -253,6 +264,9 @@ async function handleDownloadFile(
         error: handleError(error)
       } as DownloadProgressResponseMessage
     })
+  } finally {
+    const idx = self.canceled.download.indexOf(transferableFile.id)
+    if (idx !== -1) self.canceled.download.splice(idx, 1)
   }
 }
 
