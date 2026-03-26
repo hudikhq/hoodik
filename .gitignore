@@ -9,3 +9,11 @@ node_modules
 .turbo
 dist
 hoodik/src/client.rs
+/.dev
+
+# Playwright
+web/playwright-report/
+web/test-results/
+
+# TypeScript build cache
+*.tsbuildinfo

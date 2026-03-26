@@ -19,7 +19,7 @@ import {
   chacha_encrypt,
   chacha_decrypt,
   text_into_hashed_tokens
-} from '../../node_modules/cryptfns/cryptfns.js'
+} from '../../node_modules/transfer/transfer.js'
 
 /**
  * Currently we don't need this part.. it is working fine like this.

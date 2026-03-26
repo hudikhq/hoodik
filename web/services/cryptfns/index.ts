@@ -3,11 +3,10 @@ import * as aes from './aes'
 import * as chacha from './chacha'
 import * as uint8 from './uint8'
 import * as sha256 from './sha256'
-import * as worker from './worker'
 
 import * as wasm from './wasm'
 
-export { rsa, aes, sha256, uint8, wasm, worker, chacha }
+export { rsa, aes, sha256, uint8, wasm, chacha }
 
 /**
  * Convert input string into hashed tokens

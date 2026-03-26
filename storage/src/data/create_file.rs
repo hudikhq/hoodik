@@ -10,7 +10,6 @@ use ::error::AppResult;
 use chrono::Utc;
 use entity::{files::ActiveModel as ActiveModelFile, option_string_to_uuid, ActiveValue, Uuid};
 use serde::{Deserialize, Serialize};
-use util::rule_required_if;
 use validr::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -54,10 +53,6 @@ impl Validation for CreateFile {
             rule_required!(name_hash),
             rule_required!(encrypted_name),
             rule_required!(mime),
-            rule_required_if!(md5, |_v, obj: &CreateFile| obj.mime.as_ref() != Some(&"dir".to_string())),
-            rule_required_if!(sha1, |_v, obj: &CreateFile| obj.mime.as_ref() != Some(&"dir".to_string())),
-            rule_required_if!(sha256, |_v, obj: &CreateFile| obj.mime.as_ref() != Some(&"dir".to_string())),
-            rule_required_if!(blake2b, |_v, obj: &CreateFile| obj.mime.as_ref() != Some(&"dir".to_string())),
             Rule::new("size", |obj: &CreateFile, error| {
                 let dir_mime = Some("dir".to_string());
 

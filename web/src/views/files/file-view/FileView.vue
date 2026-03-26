@@ -29,6 +29,8 @@ const emits = defineEmits<{
   (event: 'select-one', select: boolean, file: AppFile): void
   (event: 'set-sort-simple', value: string): void
   (event: 'upload-many', files: FileList, dirId?: string): void
+  (event: 'browse-folder'): void
+  (event: 'upload-folder-entries', entries: FileSystemEntry[], dirId?: string): void
 }>()
 
 const title = useTitle()

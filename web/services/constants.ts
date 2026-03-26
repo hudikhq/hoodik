@@ -81,5 +81,15 @@ export const KEEP_FINISHED_DOWNLOADS_FOR_MINUTES = 15
 /**
  * Preview constants
  */
-export const PREVIEW_MIME_TYPES = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif', 'image/bmp']
+export const PREVIEW_MIME_TYPES = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/heic', 'image/heif']
 export const IMAGE_THUMBNAIL_SIZE_PX = 200
+
+export const VIDEO_MIME_TYPES = [
+  'video/mp4',
+  'video/webm',
+  'video/ogg',
+  'video/quicktime',
+  'video/x-msvideo',
+  'video/x-matroska',
+]
+export const VIDEO_THUMBNAIL_SIZE_PX = 200

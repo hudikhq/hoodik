@@ -30,7 +30,7 @@ const speed = computed(() => {
     const stored = props.file.uploaded_chunks?.length || 0
 
     if (!stored) {
-      return '0 B/s'
+      return 'Preparing...'
     }
 
     const percentage = stored / props.file.chunks

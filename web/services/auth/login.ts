@@ -85,6 +85,7 @@ export const store = defineStore('login', () => {
    * @throws
    */
   async function logout(crypto: CryptoStore, full?: boolean): Promise<Authenticated> {
+    logger.info('[auth] logout')
     const response = await Api.post<undefined, Authenticated>('/api/auth/logout')
 
     clear()
@@ -152,13 +153,14 @@ export const store = defineStore('login', () => {
     }
 
     try {
-      logger.debug('Attempting to refresh the session')
+      logger.debug('[auth] refreshing session')
       _refreshing.value = true
       await refresh(crypto)
+      logger.info('[auth] session refreshed successfully')
       _refreshing.value = false
     } catch (e) {
       _refreshing.value = false
-      logger.error(`Error when attempting to refresh session: ${e}`)
+      logger.error(`[auth] session refresh failed: ${e}`)
 
       clear()
 
@@ -241,6 +243,7 @@ export const store = defineStore('login', () => {
       await setupAuthenticated(authenticated, keypair.input as string, crypto)
     }
 
+    logger.info(`[auth] logged in as ${authenticated.user.email}`)
     return authenticated
   }
 
@@ -304,6 +307,7 @@ export const store = defineStore('login', () => {
       await setupAuthenticated(authenticated, keypair.input as string, crypto)
     }
 
+    logger.info(`[auth] logged in as ${authenticated.user.email} (private key)`)
     return response.body as Authenticated
   }
 

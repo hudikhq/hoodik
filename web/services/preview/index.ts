@@ -22,7 +22,10 @@ function isFilePreviewable(item: AppFile): boolean {
     item.size > 0 &&
     (item.thumbnail !== undefined ||
       item.mime === 'application/pdf' ||
-      item.mime === 'image/svg+xml')
+      item.mime === 'image/svg+xml' ||
+      item.mime === 'image/heic' ||
+      item.mime === 'image/heif' ||
+      item.mime.startsWith('video/'))
   )
 }
 
@@ -55,7 +58,7 @@ export abstract class Preview {
   public size: number | undefined
   public thumbnail?: string
 
-  constructor(data: ConstructPreview<Preview>) {
+  constructor(data: Omit<ConstructPreview<Preview>, 'chunks'>) {
     this.id = data.id
     this.name = data.name
     this.mime = data.mime
@@ -109,22 +112,29 @@ export abstract class Preview {
   }
 
   /**
+   * Number of encrypted chunks (used for progressive video loading).
+   * Overridden by FilePreview; returns undefined for previews without per-chunk access.
+   */
+  public get chunks(): number | undefined {
+    return undefined
+  }
+
+  /**
+   * Download and decrypt a single chunk by index.
+   * Overridden by FilePreview; base implementation returns empty bytes.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async loadChunk(_: number): Promise<Uint8Array> {
+    return new Uint8Array()
+  }
+
+  /**
    * Easily match the preview type
    */
   public previewType(): 'image' | 'pdf' | 'video' | null {
-    if (this.isImage()) {
-      return 'image'
-    }
-
-    if (this.isPdf()) {
-      return 'pdf'
-    }
-
-    // TODO: maybe someday
-    // if (this.isVideo()) {
-    //   return 'video'
-    // }
-
+    if (this.isImage()) return 'image'
+    if (this.isPdf()) return 'pdf'
+    if (this.isVideo()) return 'video'
     return null
   }
 
@@ -153,6 +163,6 @@ export abstract class Preview {
    * Lets us know if the preview is a video
    */
   public isVideo(): boolean {
-    return this.is() && this.thumbnail !== undefined && this.mime.startsWith('video/')
+    return this.is() && this.mime.startsWith('video/')
   }
 }

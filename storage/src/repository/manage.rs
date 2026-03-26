@@ -1,6 +1,6 @@
 //! Repository module for manipulating with files in the database
 //! this module should only be used by the owner of the file
-use std::{cmp::Ordering, fmt::Display, str::FromStr};
+use std::{collections::HashMap, fmt::Display, str::FromStr};
 
 use chrono::Utc;
 use entity::{
@@ -12,6 +12,7 @@ use error::{AppResult, Error};
 use super::Repository;
 use crate::data::{
     app_file::AppFile, query::Query as RequestQuery, rename::Rename, response::Response,
+    update_hashes::UpdateHashes,
 };
 use futures::future::try_join_all;
 
@@ -133,13 +134,25 @@ where
             .await
             .map_err(Error::from)?;
 
-        results.sort_by(|a, b| {
-            if a.file_id.is_none() || a.file_id == Some(b.id) {
-                Ordering::Greater
-            } else {
-                Ordering::Less
-            }
-        });
+        // Sort by ascending depth so ancestors appear in root-first (breadcrumb) order.
+        let id_to_idx: HashMap<Uuid, usize> =
+            results.iter().enumerate().map(|(i, f)| (f.id, i)).collect();
+        let depths: Vec<usize> = (0..results.len())
+            .map(|i| {
+                let mut depth = 0usize;
+                let mut current = results[i].file_id;
+                while let Some(parent_id) = current {
+                    if let Some(&parent_idx) = id_to_idx.get(&parent_id) {
+                        depth += 1;
+                        current = results[parent_idx].file_id;
+                    } else {
+                        break;
+                    }
+                }
+                depth
+            })
+            .collect();
+        results.sort_by(|a, b| depths[id_to_idx[&a.id]].cmp(&depths[id_to_idx[&b.id]]));
 
         if results.is_empty() {
             return Err(Error::NotFound("directory_not_found".to_string()));
@@ -183,7 +196,7 @@ where
 
         let user_id = self.owner_id;
 
-        let mut results = self
+        let results = self
             .repository
             .selector(user_id, true)
             .filter(files::Column::Id.is_in(ids))
@@ -191,14 +204,6 @@ where
             .all(self.repository.connection())
             .await
             .map_err(Error::from)?;
-
-        results.sort_by(|a, b| {
-            if a.file_id.is_none() || a.file_id == Some(b.id) {
-                Ordering::Greater
-            } else {
-                Ordering::Less
-            }
-        });
 
         if results.is_empty() {
             return Err(Error::NotFound("directory_not_found".to_string()));
@@ -377,6 +382,24 @@ where
             .by_id(file_id, self.owner_id)
             .await
             .map(|f| f.is_new(true))
+    }
+
+    /// Update the content hashes of a file after upload completes
+    pub(crate) async fn update_hashes(
+        &self,
+        id: Uuid,
+        data: UpdateHashes,
+    ) -> AppResult<AppFile> {
+        let file = self.repository.by_id(id, self.owner_id).await?;
+
+        if !file.is_owner || file.user_id != self.owner_id || file.is_dir() {
+            return Err(Error::NotFound("file_not_found".to_string()));
+        }
+
+        let active_model = data.into_active_model(id)?;
+        active_model.update(self.repository.connection()).await?;
+
+        self.repository.by_id(file.id, file.user_id).await
     }
 
     /// Finish the upload of a file by setting the finished_upload_at field

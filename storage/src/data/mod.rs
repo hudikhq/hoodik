@@ -8,3 +8,4 @@ pub mod rename;
 pub mod response;
 pub mod search;
 pub mod stats;
+pub mod update_hashes;

@@ -1,52 +1,36 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import type { Preview } from '!/preview'
-import PdfApp from 'vue3-pdf-app'
-import 'vue3-pdf-app/dist/icons/main.css'
 
 const props = defineProps<{
   modelValue: Preview
 }>()
-const preview = computed(() => props.modelValue)
 
-const data = ref()
+const blobUrl = ref<string>()
 
-const config = ref({
-  toolbar: {
-    toolbarViewerRight: false
-  },
-  secondaryToolbar: {
-    documentProperties: false
+async function load() {
+  if (blobUrl.value) {
+    URL.revokeObjectURL(blobUrl.value)
+    blobUrl.value = undefined
   }
-})
-
-const load = async () => {
-  data.value = (await preview.value.load()).buffer
+  const buffer = (await props.modelValue.load()).buffer
+  const blob = new Blob([buffer], { type: 'application/pdf' })
+  blobUrl.value = URL.createObjectURL(blob)
 }
 
-watch(
-  () => props.modelValue,
-  () => setTimeout(load, 100),
-  { immediate: true }
-)
+watch(() => props.modelValue, load, { immediate: true })
+
+onUnmounted(() => {
+  if (blobUrl.value) {
+    URL.revokeObjectURL(blobUrl.value)
+  }
+})
 </script>
 
 <template>
-  <PdfApp
-    style="width: 100%"
-    :pdf="data"
-    :file-name="preview.name"
-    :config="config"
-    theme="dark"
-  ></PdfApp>
+  <iframe
+    v-if="blobUrl"
+    :src="blobUrl"
+    style="width: 100%; flex: 1; min-height: 0; border: none"
+  />
 </template>
-<style scoped>
-.pdf-app.dark {
-  --pdf-app-background-color: #0a0908;
-  --pdf-toolbar-color: #232323;
-}
-.pdf-app.light {
-  --pdf-app-background-color: #0a0908;
-  --pdf-toolbar-color: #232323;
-}
-</style>

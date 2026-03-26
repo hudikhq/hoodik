@@ -13,49 +13,58 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+
       - uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev
           version: 1.0
 
-      - name: Print the versions
+      - uses: extractions/setup-just@v2
+
+      - name: Print versions
         run: |
-          rustc --version                                              
+          rustc --version
           cargo clippy --version
-          rustup show
+          just --version
 
-      - name: Run Clippy
-        run: cargo clippy -- -D warnings
+      - name: Clippy
+        run: just clippy
 
-      - name: Unit test Rust workspace
-        run: cargo test --workspace --lib -- --nocapture
+      - name: Rust unit tests
+        run: just test-rust-unit
 
-      - name: Integration test authentication
-        run: cargo test --test web_authentication -- --nocapture
+      - name: Rust integration tests
+        run: just test-rust-integration
 
-      - name: Integration test storage
-        run: cargo test --test storage -- --nocapture
-
-      - name: Integration test links
-        run: cargo test --test links -- --nocapture
-
-      - name: Integration test email
-        run: cargo test --test email -- --nocapture
-
-      - name: Install wasm pack tool
+      - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-      - name: Install yarn
+      - name: Install yarn and dependencies
         run: npm install -g yarn && yarn install
 
-      - name: Wasm pack cryptfns
-        run: yarn workspace @hoodik/cryptfns wasm-pack
+      - name: Install Playwright browsers
+        run: cd web && npx playwright install --with-deps chromium
 
-      - name: Unit test web
-        run: yarn workspace @hoodik/web test:unit
+      - name: Build WASM crates
+        run: just wasm
+
+      - name: Frontend unit tests
+        run: just test-web
 
       - name: Build web
-        run: yarn workspace @hoodik/web build
+        run: just build-web
 
-      - name: E2E test web
-        run: ./web-e2e
+      - name: E2E tests
+        run: just e2e
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 14

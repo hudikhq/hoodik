@@ -15,6 +15,7 @@ members = [
   "migration",
   "settings",
   "storage",
+  "transfer",
   "util",
 ]
 

@@ -52,7 +52,7 @@ export default defineComponent({
 
             return h(element, { class: [this.classAddon] })
           })
-        : null
+        : undefined
     )
   }
 })

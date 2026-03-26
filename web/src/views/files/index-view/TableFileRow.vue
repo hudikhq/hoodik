@@ -201,6 +201,7 @@ const drop = (e: DragEvent) => {
     @dragover="dragover"
     @drop="drop"
     name="file-row"
+    :data-testid="`file-row-${file.name}`"
     accesskey="test"
     class="w-full flex border-2 border-brownish-900"
     :class="{

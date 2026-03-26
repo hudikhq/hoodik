@@ -91,15 +91,15 @@ async function bounce(
   }
 
   if (e) {
-    logger.debug(`Moving to login after error: ${e}`)
+    logger.warn(`[auth] redirecting to login after error: ${e}`)
   } else {
-    logger.debug('Moving to login')
+    logger.warn('[auth] redirecting to login (no active session)')
   }
 
   if (route.name !== 'login') {
     router.push({ name: 'login', replace: true })
   } else {
-    logger.debug('Already on login page, doing nothing')
+    logger.debug('[auth] already on login page, doing nothing')
   }
 }
 
