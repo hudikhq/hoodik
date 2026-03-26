@@ -24,15 +24,21 @@ pub enum Error {
     DecodeError(DecodeError),
     AsconError(AsconError),
     RandomError(RandomError),
+    UnknownCipher(String),
     #[cfg(feature = "tokenizer")]
     TokenizersError(TokenizersError),
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "CryptoError: {self:?}")
+        match self {
+            Error::UnknownCipher(s) => write!(f, "CryptoError: UnknownCipher({s})"),
+            other => write!(f, "CryptoError: {other:?}"),
+        }
     }
 }
+
+impl std::error::Error for Error {}
 
 impl From<RSAError> for Error {
     fn from(error: RSAError) -> Self {

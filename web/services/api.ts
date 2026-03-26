@@ -305,9 +305,12 @@ export default class Api {
   async download<T>(
     path: string,
     query?: Query,
-    body?: T | undefined
+    body?: T | undefined,
+    signal?: AbortSignal
   ): Promise<globalThis.Response> {
     const { request, fetchOptions } = Api.buildRequest('get', path, query, body, undefined, this)
+
+    if (signal) fetchOptions.signal = signal
 
     return fetch(decodeURIComponent(request.url), fetchOptions)
   }
@@ -393,6 +396,7 @@ export default class Api {
     } catch (e) {
       /* empty */
     }
+
 
     // Here we'll try to refresh the session if the original request fails
     if (res.status === 401 && skipRefresh !== true) {

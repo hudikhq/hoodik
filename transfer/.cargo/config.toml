@@ -1,0 +1,6 @@
+# Enable SIMD128 + relaxed-simd for WASM builds.
+# `relaxed-simd` is the WASM feature that unlocks hardware AES opcodes in modern
+# browsers (Chrome 114+, Firefox 113+, Safari 17+).  Both features are stable
+# on Rust ≥1.82 for wasm32-unknown-unknown.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128,+relaxed-simd"]

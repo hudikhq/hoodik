@@ -37,6 +37,9 @@ pub struct AppLink {
     pub encrypted_file_key: Option<String>,
     pub created_at: i64,
     pub file_modified_at: i64,
+    /// Cipher used to encrypt the file chunks (e.g. "ascon128a", "aegis128l").
+    /// Comes from the joined `files` table, not from the `links` table itself.
+    pub file_cipher: String,
     /// Date when the link will expire, automated cron job
     /// will periodically empty out the expired links of all the
     /// file metadata and encrypted file key.
@@ -96,6 +99,7 @@ impl FromQueryResult for AppLink {
             encrypted_file_key: link.encrypted_file_key,
             created_at: link.created_at,
             file_modified_at: file.created_at,
+            file_cipher: file.cipher,
             expires_at: link.expires_at,
             owner_id: user.id,
             owner_email: user.email,

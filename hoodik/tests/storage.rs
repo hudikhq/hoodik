@@ -90,6 +90,7 @@ async fn test_creating_file_and_uploading_chunks() {
         sha1: Some("asd".to_string()),
         sha256: Some("asd".to_string()),
         blake2b: Some("asd".to_string()),
+        cipher: None,
     };
 
     let req = test::TestRequest::post()

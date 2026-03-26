@@ -3,6 +3,7 @@ use crate::error::{Error, Result};
 use crate::platform::{HttpClient, ProgressReporter};
 use crate::types::Auth;
 use futures::future::LocalBoxFuture;
+use std::str::FromStr;
 use futures::stream::{FuturesUnordered, StreamExt};
 use std::collections::BTreeMap;
 
@@ -24,6 +25,7 @@ pub struct Downloader {
     file_size: u64,
     chunk_count: u64,
     decryption_key: Vec<u8>,
+    cipher: String,
 }
 
 impl Downloader {
@@ -41,7 +43,15 @@ impl Downloader {
             file_size,
             chunk_count,
             decryption_key,
+            cipher: cryptfns::cipher::DEFAULT.to_string(),
         }
+    }
+
+    /// Set the cipher to use for chunk decryption (e.g. `"ascon128a"`, `"chacha20poly1305"`).
+    /// Defaults to [`cryptfns::cipher::DEFAULT`] when not called.
+    pub fn with_cipher(mut self, cipher: impl Into<String>) -> Self {
+        self.cipher = cipher.into();
+        self
     }
 
     /// Execute the download.
@@ -65,6 +75,7 @@ impl Downloader {
             self.file_size,
             self.chunk_count,
             &self.decryption_key,
+            &self.cipher,
         )
         .await
     }
@@ -84,6 +95,7 @@ impl Downloader {
 ///
 /// This free function is the backward-compatible entry point used by tests.
 /// New code should prefer the [`Downloader`] builder API.
+#[allow(clippy::too_many_arguments)]
 pub async fn download_file(
     http: &dyn HttpClient,
     progress: &dyn ProgressReporter,
@@ -92,8 +104,9 @@ pub async fn download_file(
     file_size: u64,
     chunk_count: u64,
     decryption_key: &[u8],
+    cipher: &str,
 ) -> Result<Vec<u8>> {
-    run_download_pipeline(http, progress, auth, file_id, file_size, chunk_count, decryption_key)
+    run_download_pipeline(http, progress, auth, file_id, file_size, chunk_count, decryption_key, cipher)
         .await
 }
 
@@ -102,6 +115,7 @@ pub async fn download_file(
 /// Maintains exactly [`DOWNLOAD_POOL_LIMIT`] concurrent downloads at all times.
 /// Completed (but out-of-order) chunks are buffered in a [`BTreeMap`] and emitted
 /// sequentially as their predecessors arrive.
+#[allow(clippy::too_many_arguments)]
 async fn run_download_pipeline<'a>(
     http: &'a dyn HttpClient,
     progress: &'a dyn ProgressReporter,
@@ -110,6 +124,7 @@ async fn run_download_pipeline<'a>(
     file_size: u64,
     chunk_count: u64,
     decryption_key: &'a [u8],
+    cipher: &'a str,
 ) -> Result<Vec<u8>> {
     let mut result = Vec::with_capacity(file_size as usize);
     let mut in_flight: FuturesUnordered<LocalBoxFuture<'a, (u64, Result<Vec<u8>>)>> =
@@ -131,6 +146,7 @@ async fn run_download_pipeline<'a>(
                 file_id,
                 chunk,
                 decryption_key,
+                cipher,
             )));
         }
 
@@ -170,11 +186,14 @@ async fn fetch_and_decrypt<'a>(
     file_id: &'a str,
     chunk: u64,
     decryption_key: &'a [u8],
+    cipher: &'a str,
 ) -> (u64, Result<Vec<u8>>) {
     let result = async {
         let encrypted = http.download_chunk(auth, file_id, chunk).await?;
-        let plaintext =
-            cryptfns::aes::decrypt(decryption_key.to_vec(), encrypted).map_err(Error::from)?;
+        let plaintext = cryptfns::cipher::Cipher::from_str(cipher)
+            .map_err(Error::from)?
+            .decrypt(decryption_key.to_vec(), encrypted)
+            .map_err(Error::from)?;
         Ok(plaintext)
     }
     .await;

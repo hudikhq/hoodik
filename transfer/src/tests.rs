@@ -283,7 +283,7 @@ async fn upload_small_file() {
     let http = MockHttpClient::new();
     let progress = MockProgressReporter::new();
 
-    let hashes = crate::upload::upload_file(&http, &source, &progress, &test_auth(), "f1", &test_key(), &[], UploadHashOptions::default(), None)
+    let hashes = crate::upload::upload_file(&http, &source, &progress, &test_auth(), "f1", &test_key(), &[], UploadHashOptions::default(), None, cryptfns::cipher::DEFAULT)
         .await
         .unwrap();
 
@@ -308,7 +308,7 @@ async fn upload_multi_chunk() {
     let http = MockHttpClient::new();
     let progress = MockProgressReporter::new();
 
-    crate::upload::upload_file(&http, &source, &progress, &test_auth(), "f2", &test_key(), &[], UploadHashOptions::default(), None)
+    crate::upload::upload_file(&http, &source, &progress, &test_auth(), "f2", &test_key(), &[], UploadHashOptions::default(), None, cryptfns::cipher::DEFAULT)
         .await
         .unwrap();
 
@@ -347,6 +347,7 @@ async fn upload_resume_skips_existing() {
         &[0, 2],
         UploadHashOptions::default(),
         None,
+        cryptfns::cipher::DEFAULT,
     )
     .await
     .unwrap();
@@ -375,7 +376,7 @@ async fn upload_checksum_retry_succeeds() {
         validation: Some(validation),
     }));
 
-    crate::upload::upload_file(&http, &source, &progress, &test_auth(), "f4", &test_key(), &[], UploadHashOptions::default(), None)
+    crate::upload::upload_file(&http, &source, &progress, &test_auth(), "f4", &test_key(), &[], UploadHashOptions::default(), None, cryptfns::cipher::DEFAULT)
         .await
         .unwrap();
 
@@ -406,7 +407,7 @@ async fn upload_checksum_exhausts_retries() {
     }
 
     let result =
-        crate::upload::upload_file(&http, &source, &progress, &test_auth(), "f5", &test_key(), &[], UploadHashOptions::default(), None)
+        crate::upload::upload_file(&http, &source, &progress, &test_auth(), "f5", &test_key(), &[], UploadHashOptions::default(), None, cryptfns::cipher::DEFAULT)
             .await;
 
     assert!(result.is_err());
@@ -433,7 +434,7 @@ async fn upload_chunk_already_exists_is_not_an_error() {
         validation: Some(validation),
     }));
 
-    crate::upload::upload_file(&http, &source, &progress, &test_auth(), "f6", &test_key(), &[], UploadHashOptions::default(), None)
+    crate::upload::upload_file(&http, &source, &progress, &test_auth(), "f6", &test_key(), &[], UploadHashOptions::default(), None, cryptfns::cipher::DEFAULT)
         .await
         .unwrap();
 
@@ -452,7 +453,7 @@ async fn upload_cancelled_before_any_work() {
     let progress = MockProgressReporter::cancelling_immediately();
 
     let result =
-        crate::upload::upload_file(&http, &source, &progress, &test_auth(), "f7", &test_key(), &[], UploadHashOptions::default(), None)
+        crate::upload::upload_file(&http, &source, &progress, &test_auth(), "f7", &test_key(), &[], UploadHashOptions::default(), None, cryptfns::cipher::DEFAULT)
             .await;
 
     assert!(matches!(result, Err(Error::Cancelled)));
@@ -467,7 +468,7 @@ async fn upload_empty_file() {
 
     // Zero-byte file still produces 1 chunk. Ascon128a adds a 16-byte auth tag,
     // so the encrypted output is non-empty and the upload succeeds.
-    crate::upload::upload_file(&http, &source, &progress, &test_auth(), "f8", &test_key(), &[], UploadHashOptions::default(), None)
+    crate::upload::upload_file(&http, &source, &progress, &test_auth(), "f8", &test_key(), &[], UploadHashOptions::default(), None, cryptfns::cipher::DEFAULT)
         .await
         .unwrap();
 
@@ -492,6 +493,7 @@ async fn upload_hashes_are_deterministic() {
         &[],
         UploadHashOptions::default(),
         None,
+        cryptfns::cipher::DEFAULT,
     )
     .await
     .unwrap();
@@ -510,6 +512,7 @@ async fn upload_hashes_are_deterministic() {
         &[],
         UploadHashOptions::default(),
         None,
+        cryptfns::cipher::DEFAULT,
     )
     .await
     .unwrap();
@@ -539,6 +542,7 @@ async fn upload_resume_produces_same_hashes_as_fresh() {
         &[],
         UploadHashOptions::default(),
         None,
+        cryptfns::cipher::DEFAULT,
     )
     .await
     .unwrap();
@@ -557,6 +561,7 @@ async fn upload_resume_produces_same_hashes_as_fresh() {
         &[0, 2],
         UploadHashOptions::default(),
         None,
+        cryptfns::cipher::DEFAULT,
     )
     .await
     .unwrap();
@@ -591,6 +596,7 @@ async fn upload_hash_disable_mask_omits_optional_hashes() {
                 | crate::config::HASH_DISABLE_BLAKE2B,
         ),
         None,
+        cryptfns::cipher::DEFAULT,
     )
     .await
     .unwrap();
@@ -620,6 +626,7 @@ async fn download_roundtrip() {
         &[],
         UploadHashOptions::default(),
         None,
+        cryptfns::cipher::DEFAULT,
     )
     .await
     .unwrap();
@@ -634,6 +641,7 @@ async fn download_roundtrip() {
         original.len() as u64,
         chunk_count,
         &test_key(),
+        cryptfns::cipher::DEFAULT,
     )
     .await
     .unwrap();
@@ -657,7 +665,7 @@ async fn download_multi_chunk_ordering() {
     let http = MockHttpClient::new();
     let up = MockProgressReporter::new();
 
-    crate::upload::upload_file(&http, &source, &up, &test_auth(), "ord", &test_key(), &[], UploadHashOptions::default(), None)
+    crate::upload::upload_file(&http, &source, &up, &test_auth(), "ord", &test_key(), &[], UploadHashOptions::default(), None, cryptfns::cipher::DEFAULT)
         .await
         .unwrap();
 
@@ -671,6 +679,7 @@ async fn download_multi_chunk_ordering() {
         data.len() as u64,
         chunk_count,
         &test_key(),
+        cryptfns::cipher::DEFAULT,
     )
     .await
     .unwrap();
@@ -694,6 +703,7 @@ async fn download_cancelled_before_any_work() {
         1000,
         1,
         &test_key(),
+        cryptfns::cipher::DEFAULT,
     )
     .await;
 
@@ -719,6 +729,7 @@ async fn download_http_error_propagates() {
         1000,
         1,
         &test_key(),
+        cryptfns::cipher::DEFAULT,
     )
     .await;
 

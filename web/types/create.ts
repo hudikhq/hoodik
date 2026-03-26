@@ -73,6 +73,12 @@ export interface CreateFile extends AppFileUnencryptedPart {
    * Unencrypted file Blake2b hash
    */
   blake2b?: string
+
+  /**
+   * Cipher to use for encrypting this file's chunks and metadata.
+   * Defaults to `"ascon128a"` when not provided.
+   */
+  cipher?: string
 }
 
 export interface EncryptedCreateFile {
@@ -138,4 +144,10 @@ export interface EncryptedCreateFile {
    * Unencrypted file Blake2b hash
    */
   blake2b?: string
+
+  /**
+   * Cipher used to encrypt this file's chunks and metadata.
+   * Sent to the server so it can be recorded in the file record.
+   */
+  cipher?: string
 }

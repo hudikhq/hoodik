@@ -39,8 +39,8 @@ hex = "0.4"
 futures = { version = "0.3", default-features = false, features = ["alloc", "async-await"] }
 
 # WASM-only
-wasm-bindgen = { version = "0.2.63", optional = true }
-wasm-bindgen-futures = { version = "0.4", optional = true }
+wasm-bindgen = { version = "0.2.114", optional = true }
+wasm-bindgen-futures = { version = "0.4.47", optional = true }
 serde-wasm-bindgen = { version = "0.6", optional = true }
 js-sys = { version = "0.3", optional = true }
 web-sys = { version = "0.3", optional = true, features = [

@@ -13,8 +13,11 @@ const progress = ref(0)
 const error = ref<string>()
 
 let mediaSource: MediaSource | null = null
+let abortController: AbortController | null = null
 
 function cleanup() {
+  abortController?.abort()
+  abortController = null
   if (blobUrl.value) {
     URL.revokeObjectURL(blobUrl.value)
     blobUrl.value = undefined
@@ -35,7 +38,7 @@ function cleanup() {
  */
 function getCodecMime(mime: string): string | null {
   if (!('MediaSource' in window)) {
-    logger.info('[video-preview] MediaSource API not available in this browser')
+    logger.debug('[video-preview] MediaSource API not available in this browser')
     return null
   }
   const mseType: Record<string, string> = {
@@ -45,11 +48,11 @@ function getCodecMime(mime: string): string | null {
   }
   const t = mseType[mime]
   if (!t) {
-    logger.info(`[video-preview] MIME type "${mime}" has no MSE mapping — will use full download`)
+    logger.debug(`[video-preview] MIME type "${mime}" has no MSE mapping — will use full download`)
     return null
   }
   const supported = MediaSource.isTypeSupported(t)
-  logger.info(`[video-preview] MediaSource.isTypeSupported("${t}") = ${supported}`)
+  logger.debug(`[video-preview] MediaSource.isTypeSupported("${t}") = ${supported}`)
   return supported ? t : null
 }
 
@@ -80,19 +83,24 @@ async function load() {
   progress.value = 0
   error.value = undefined
 
+  abortController = new AbortController()
+  const signal = abortController.signal
+
   const preview = props.modelValue
   const totalChunks = preview.chunks
 
-  logger.info(`[video-preview] opening "${preview.name}" — mime=${preview.mime} chunks=${totalChunks}`)
+  logger.debug(`[video-preview] opening "${preview.name}" — mime=${preview.mime} chunks=${totalChunks}`)
 
   if (!totalChunks) {
     // No per-chunk API (e.g. LinkPreview) — download full buffer at once
-    logger.info('[video-preview] no chunk API available — falling back to preview.load()')
+    logger.debug('[video-preview] no chunk API available — falling back to preview.load()')
     try {
       const data = await preview.load()
+      if (signal.aborted) return
       blobUrl.value = URL.createObjectURL(new Blob([data], { type: preview.mime }))
       progress.value = 100
     } catch (e) {
+      if (signal.aborted) return
       error.value = e instanceof Error ? e.message : 'Failed to load video'
       logger.error('[video-preview] preview.load() failed', e)
     }
@@ -101,8 +109,8 @@ async function load() {
 
   const codecMime = getCodecMime(preview.mime)
   if (!codecMime) {
-    logger.info('[video-preview] no MSE support for this format — using full download')
-    await downloadFull(preview, totalChunks)
+    logger.debug('[video-preview] no MSE support for this format — using full download')
+    await downloadFull(preview, totalChunks, undefined, signal)
     return
   }
 
@@ -111,15 +119,16 @@ async function load() {
   // If MSE fails mid-stream (e.g. non-fast-start moov at end, unsupported codec),
   // streamMSE's catch block falls back to downloadFull() with chunk0 already in hand.
   if (preview.mime === 'video/mp4' || preview.mime === 'video/quicktime') {
-    logger.info('[video-preview] MP4/QuickTime detected — fetching chunk 0 to check for fast-start')
-    const chunk0 = await preview.loadChunk(0)
+    logger.debug('[video-preview] MP4/QuickTime detected — fetching chunk 0 to check for fast-start')
+    const chunk0 = await preview.loadChunk(0, signal)
+    if (signal.aborted) return
     progress.value = Math.round((1 / totalChunks) * 100)
     const fastStart = hasMoovBeforeMdat(chunk0)
-    logger.info(`[video-preview] fast-start (moov before mdat) = ${fastStart} — attempting MSE stream regardless`)
-    await streamMSE(preview, totalChunks, codecMime, chunk0)
+    logger.debug(`[video-preview] fast-start (moov before mdat) = ${fastStart} — attempting MSE stream regardless`)
+    await streamMSE(preview, totalChunks, codecMime, signal, chunk0)
   } else {
-    logger.info(`[video-preview] streaming "${preview.mime}" via MSE with "${codecMime}"`)
-    await streamMSE(preview, totalChunks, codecMime)
+    logger.debug(`[video-preview] streaming "${preview.mime}" via MSE with "${codecMime}"`)
+    await streamMSE(preview, totalChunks, codecMime, signal)
   }
 }
 
@@ -137,8 +146,8 @@ function appendChunk(sb: SourceBuffer, chunk: Uint8Array): Promise<void> {
   })
 }
 
-async function streamMSE(preview: Preview, totalChunks: number, codecMime: string, chunk0?: Uint8Array) {
-  logger.info(`[video-preview] streamMSE: starting MSE stream — codecMime="${codecMime}" totalChunks=${totalChunks}`)
+async function streamMSE(preview: Preview, totalChunks: number, codecMime: string, signal: AbortSignal, chunk0?: Uint8Array) {
+  logger.debug(`[video-preview] streamMSE: starting MSE stream — codecMime="${codecMime}" totalChunks=${totalChunks}`)
   mediaSource = new MediaSource()
   blobUrl.value = URL.createObjectURL(mediaSource)
   const ms = mediaSource
@@ -146,10 +155,9 @@ async function streamMSE(preview: Preview, totalChunks: number, codecMime: strin
   try {
     const sb = await new Promise<SourceBuffer>((resolve, reject) => {
       ms.addEventListener('sourceopen', () => {
-        logger.info('[video-preview] streamMSE: sourceopen fired — adding SourceBuffer')
+        logger.debug('[video-preview] streamMSE: sourceopen fired — adding SourceBuffer')
         try {
           const buf = ms.addSourceBuffer(codecMime)
-          logger.info('[video-preview] streamMSE: addSourceBuffer succeeded')
           resolve(buf)
         } catch (e) {
           logger.error('[video-preview] streamMSE: addSourceBuffer failed', e)
@@ -160,25 +168,28 @@ async function streamMSE(preview: Preview, totalChunks: number, codecMime: strin
         logger.error('[video-preview] streamMSE: MediaSource error event', e)
         reject(e)
       }, { once: true })
+      signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
     })
 
     for (let i = 0; i < totalChunks; i++) {
-      const chunk = i === 0 && chunk0 ? chunk0 : await preview.loadChunk(i)
-      logger.info(`[video-preview] streamMSE: appending chunk ${i + 1}/${totalChunks} (${chunk.length} bytes)`)
+      if (signal.aborted) return
+      const chunk = i === 0 && chunk0 ? chunk0 : await preview.loadChunk(i, signal)
+      if (signal.aborted) return
+      logger.debug(`[video-preview] streamMSE: appending chunk ${i + 1}/${totalChunks} (${chunk.length} bytes)`)
       await appendChunk(sb, chunk)
       progress.value = Math.round(((i + 1) / totalChunks) * 100)
     }
 
     if (ms.readyState === 'open') {
-      logger.info('[video-preview] streamMSE: all chunks appended — calling endOfStream()')
       ms.endOfStream()
     }
   } catch (e) {
+    if (signal.aborted) return
     // Container incompatible with MSE — fall back to full download.
     // Pass chunk0 so it isn't re-fetched.
     logger.error('[video-preview] streamMSE: MSE streaming failed — falling back to full download', e)
     cleanup()
-    await downloadFull(preview, totalChunks, chunk0)
+    await downloadFull(preview, totalChunks, chunk0, signal)
   }
 }
 
@@ -186,18 +197,19 @@ async function streamMSE(preview: Preview, totalChunks: number, codecMime: strin
  * Fallback: download all chunks, concatenate, then create a blob URL.
  * chunk0 may already be in hand (passed from pre-fetch or failed MSE attempt).
  */
-async function downloadFull(preview: Preview, totalChunks: number, chunk0?: Uint8Array) {
-  logger.info(`[video-preview] downloadFull: starting full download — totalChunks=${totalChunks} chunk0=${chunk0 ? 'provided' : 'none'}`)
+async function downloadFull(preview: Preview, totalChunks: number, chunk0?: Uint8Array, signal?: AbortSignal) {
+  logger.debug(`[video-preview] downloadFull: starting full download — totalChunks=${totalChunks}`)
   try {
     const parts: Uint8Array[] = chunk0 ? [chunk0] : []
     let totalBytes = chunk0 ? chunk0.length : 0
 
     for (let i = chunk0 ? 1 : 0; i < totalChunks; i++) {
-      const chunk = await preview.loadChunk(i)
+      if (signal?.aborted) return
+      const chunk = await preview.loadChunk(i, signal)
+      if (signal?.aborted) return
       parts.push(chunk)
       totalBytes += chunk.length
       progress.value = Math.round(((i + 1) / totalChunks) * 100)
-      logger.info(`[video-preview] downloadFull: chunk ${i + 1}/${totalChunks} downloaded (${chunk.length} bytes, total so far ${totalBytes})`)
     }
     const combined = new Uint8Array(totalBytes)
     let offset = 0
@@ -205,9 +217,9 @@ async function downloadFull(preview: Preview, totalChunks: number, chunk0?: Uint
       combined.set(p, offset)
       offset += p.length
     }
-    logger.info(`[video-preview] downloadFull: all chunks done — creating blob URL (${totalBytes} bytes total)`)
     blobUrl.value = URL.createObjectURL(new Blob([combined], { type: preview.mime }))
   } catch (e) {
+    if (signal?.aborted) return
     error.value = e instanceof Error ? e.message : 'Failed to load video'
     logger.error('[video-preview] downloadFull: failed', e)
   }

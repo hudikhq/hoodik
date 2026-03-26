@@ -18,6 +18,9 @@ import {
   chacha_generate_key,
   chacha_encrypt,
   chacha_decrypt,
+  cipher_generate_key,
+  cipher_encrypt,
+  cipher_decrypt,
   text_into_hashed_tokens
 } from '../../node_modules/transfer/transfer.js'
 
@@ -54,5 +57,8 @@ export {
   chacha_generate_key,
   chacha_encrypt,
   chacha_decrypt,
+  cipher_generate_key,
+  cipher_encrypt,
+  cipher_decrypt,
   text_into_hashed_tokens
 }

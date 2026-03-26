@@ -44,6 +44,7 @@ pub async fn create_file(
         sha1: Some("asd".to_string()),
         sha256: Some("asd".to_string()),
         blake2b: Some("asd".to_string()),
+        cipher: None,
     };
 
     let (am, _, tokens, _, _) = file.into_active_model()?;

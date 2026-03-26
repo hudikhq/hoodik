@@ -221,4 +221,9 @@ export interface AppFileEncryptedPart {
    * Encrypted file thumbnail
    */
   encrypted_thumbnail?: string
+
+  /**
+   * Cipher used to encrypt the file chunks and metadata.
+   */
+  cipher: string
 }

@@ -27,16 +27,17 @@ const enableTfaModal = ref(false)
     />
     <Suspense>
       <SectionMain v-if="authenticated">
-        <div class="flex space-x-2">
+        <div class="flex flex-col sm:flex-row gap-4">
           <MyDetails
+            class="w-full sm:w-1/2"
             :user="authenticated.user"
             @disable-tfa="disableTfaModal = true"
             @enable-tfa="enableTfaModal = true"
           />
-          <StorageStats />
+          <StorageStats class="w-full sm:w-1/2" />
         </div>
 
-        <div class="flex mt-2">
+        <div class="mt-4">
           <ActivityInner class="w-full" />
         </div>
       </SectionMain>

@@ -92,25 +92,16 @@ export const store = defineStore('download', () => {
       storage.upsertItem(file)
     }
 
-    /// Get the index of downloading file if it exists
-    const index = running.value.findIndex((f) => f.id === file.id)
+    // Remove any existing entry so we can re-insert at the front without duplicates.
+    running.value = running.value.filter((f) => f.id !== file.id)
 
-    if (index === -1) {
-      logger.debug(`File ${file.name} not found in the downloading list, adding...`)
-
-      // File hasn't been found in the downloading list so we add it
-      running.value.push(file)
-    } else {
-      running.value.splice(index, 1)
-    }
     // `chunkBytes` coming from the worker is `bytes_downloaded` (cumulative decrypted bytes),
     // not a delta. Treat it as an absolute value to avoid double-counting and premature "done".
     file.downloadedBytes = chunkBytes
 
-    // If the file has been finished, we will remove it from the downloading list
-    // and move it to the done list
+    // If the file has been finished, move it to done.
     if (file.downloadedBytes >= (file.size || 0)) {
-      logger.info(`File "${file.name}" finished downloading`)
+      logger.debug(`File "${file.name}" finished downloading`)
 
       file.finished_downloading_at = utcStringFromLocal(new Date())
       done.value.push(file)
@@ -118,7 +109,7 @@ export const store = defineStore('download', () => {
       return
     }
 
-    // Update the file in the downloading list
+    // Keep the active download at the front of the list.
     running.value.unshift(file)
   }
 
