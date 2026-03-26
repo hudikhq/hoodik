@@ -8,7 +8,6 @@ import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { computed, ref, watch, onBeforeMount } from 'vue'
 import { mdiChevronDown, mdiChevronUp } from '@mdi/js'
 import type { DownloadAppFile, UploadAppFile, QueueItemActionType } from 'types'
-import BaseButton from '@/components/ui/BaseButton.vue'
 
 type InnerFileList = {
   file: UploadAppFile | DownloadAppFile
@@ -29,7 +28,7 @@ const showedTable = ref(false)
 const tab = ref<'running' | 'done' | 'waiting' | 'failed'>()
 
 const items = computed((): InnerFileList[] => {
-  const items = [
+  const list = [
     ...upload.running.map((item: UploadAppFile) => ({
       type: 'upload:running' as QueueItemActionType,
       file: item
@@ -64,48 +63,50 @@ const items = computed((): InnerFileList[] => {
     }))
   ]
 
-  items.sort((a, b) => {
-    if (a.type.endsWith('running')) {
-      return -1
-    }
-
-    if (b.type.endsWith('running')) {
-      return 1
-    }
-
+  list.sort((a, b) => {
+    if (a.type.endsWith('running')) return -1
+    if (b.type.endsWith('running')) return 1
     return 0
   })
 
-  return items
+  return list
 })
 
-const totalItems = computed(() => {
-  return items.value.length
-})
-
-const activeItems = computed(() => {
-  return items.value.filter((i) => i.type.endsWith('running')).length
-})
-
-const pendingItems = computed(() => {
-  return items.value.filter((i) => i.type.endsWith('waiting')).length
-})
-
-const failedItems = computed(() => {
-  return items.value.filter((i) => i.type.endsWith('failed')).length
-})
-
-const doneItems = computed(() => {
-  return items.value.filter((i) => i.type.endsWith('done')).length
-})
+const totalItems = computed(() => items.value.length)
+const activeItems = computed(() => items.value.filter((i) => i.type.endsWith('running')).length)
+const pendingItems = computed(() => items.value.filter((i) => i.type.endsWith('waiting')).length)
+const failedItems = computed(() => items.value.filter((i) => i.type.endsWith('failed')).length)
+const doneItems = computed(() => items.value.filter((i) => i.type.endsWith('done')).length)
 
 const displaying = computed((): InnerFileList[] => {
-  if (!tab.value) {
-    return items.value
-  }
-
+  if (!tab.value) return items.value
   return items.value.filter((item) => item.type.endsWith(tab.value as string))
 })
+
+const headerLabel = computed(() => {
+  const up = upload.running.length
+  const dl = download.running.length
+  const failed = upload.failed.length + download.failed.length
+  if (up || dl) {
+    const parts: string[] = []
+    if (up) parts.push(`↑ ${up}`)
+    if (dl) parts.push(`↓ ${dl}`)
+    return parts.join(' · ')
+  }
+  if (failed) return `${failed} failed`
+  if (doneItems.value) return `${doneItems.value} done`
+  return ''
+})
+
+const currentTab = computed(() => tab.value ?? 'all')
+
+const tabs = computed(() => [
+  { key: 'all', label: 'All', count: totalItems.value },
+  { key: 'running', label: 'Active', count: activeItems.value },
+  { key: 'waiting', label: 'Pending', count: pendingItems.value },
+  { key: 'done', label: 'Done', count: doneItems.value },
+  { key: 'failed', label: 'Failed', count: failedItems.value }
+])
 
 watch(
   () => totalItems.value,
@@ -138,8 +139,8 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
     return download.cancel(files, file)
   }
 
-  if (type === 'download:done') {
-    download.done = download.done.filter((item) => item.id !== file.id)
+  if (type === 'download:waiting') {
+    download.waiting = download.waiting.filter((item) => item.id !== file.id)
   }
 
   if (type === 'download:done') {
@@ -157,95 +158,66 @@ window.addEventListener('keydown', (e) => {
   }
 })
 </script>
+
 <template>
   <div
-    class="fixed bottom-0 shadow-lg right-0 z-[45]"
-    :class="{
-      'w-full xl:w-2/5': showTable
-    }"
+    class="fixed bottom-0 right-0 z-[45] shadow-lg"
+    :class="{ 'w-full xl:w-2/5': showTable }"
+    style="padding-bottom: env(safe-area-inset-bottom, 0px)"
   >
     <!-- Sentinel for e2e tests: present while any upload/download is actively running -->
     <span v-if="activeItems > 0" data-testid="upload-active" class="sr-only" aria-hidden="true" />
+
+    <!-- Header bar -->
     <div
-      class="cursor-pointer overflow-auto dark:text-white"
+      class="cursor-pointer flex items-center justify-between px-3 py-2 select-none dark:text-white"
       @click="showTable = !showTable"
       :class="{
         'bg-redish-50 dark:bg-redish-700': totalItems > 0,
         'bg-brownish-100 dark:bg-brownish-600': totalItems === 0
       }"
     >
-      <BaseIcon
-        :path="showTable ? mdiChevronDown : mdiChevronUp"
-        w="w-6"
-        h="h-6"
-        class="float-right"
-      />
-      <span class="text-xs ml-2 mr-2 mt-1 float-right" v-if="totalItems">
-        {{ totalItems }}
-      </span>
-    </div>
-    <div class="shadow rounded-sm outline-1">
-      <div class="flex gap-2 overflow-auto bg-brownish-50 dark:bg-brownish-800" v-show="showTable">
-        <BaseButton
-          color="light"
-          :label="`All (${totalItems})`"
-          :xs="true"
-          :outline="true"
-          :rounded-full="false"
-          @click="tab = undefined"
-          :disabled="!tab"
-          :active="!tab"
-        />
-        <BaseButton
-          color="light"
-          :label="`Active (${activeItems})`"
-          :xs="true"
-          :outline="true"
-          :rounded-full="false"
-          @click="tab = 'running'"
-          :disabled="tab === 'running'"
-          :active="tab === 'running'"
-        />
-        <BaseButton
-          color="light"
-          :label="`Pending (${pendingItems})`"
-          :xs="true"
-          :outline="true"
-          :rounded-full="false"
-          @click="tab = 'waiting'"
-          :disabled="tab === 'waiting'"
-          :active="tab === 'waiting'"
-        />
-        <BaseButton
-          color="light"
-          :label="`Done (${doneItems})`"
-          :xs="true"
-          :outline="true"
-          :rounded-full="false"
-          @click="tab = 'done'"
-          :disabled="tab === 'done'"
-          :active="tab === 'done'"
-        />
-        <BaseButton
-          color="light"
-          :label="`Failed (${failedItems})`"
-          :xs="true"
-          :outline="true"
-          :rounded-full="false"
-          @click="tab = 'failed'"
-          :active="tab === 'failed'"
-        />
+      <span class="text-xs font-medium">{{ headerLabel || 'Transfers' }}</span>
+      <div class="flex items-center gap-2">
+        <span class="text-xs tabular-nums" v-if="totalItems">{{ totalItems }}</span>
+        <BaseIcon :path="showTable ? mdiChevronDown : mdiChevronUp" w="w-4" h="h-4" />
       </div>
-      <div class="max-h-[325px] overflow-y-scroll bg-brownish-50 dark:bg-brownish-800">
-        <div v-show="showTable">
-          <template v-for="item in displaying" v-bind:key="`${item.file.id}-${item.type}`">
-            <SingleFile :file="item.file" :type="item.type" @remove="remove" />
-          </template>
+    </div>
 
-          <template v-if="!displaying.length">
-            <div class="text-center pb-3 pt-4">No activity in progress</div>
-          </template>
-        </div>
+    <!-- Tab bar + file list -->
+    <div class="shadow rounded-sm" v-show="showTable">
+      <!-- Scrollable pill tabs — overflow-x-auto so they scroll on narrow mobile screens -->
+      <div
+        class="flex overflow-x-auto gap-1 px-2 py-1.5 bg-brownish-50 dark:bg-brownish-800 border-b border-brownish-200 dark:border-brownish-700"
+        style="-webkit-overflow-scrolling: touch; scrollbar-width: none"
+      >
+        <button
+          v-for="t in tabs"
+          :key="t.key"
+          class="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap"
+          :class="
+            currentTab === t.key
+              ? 'bg-brownish-300 dark:bg-brownish-600 text-brownish-900 dark:text-white'
+              : 'text-brownish-500 dark:text-brownish-400 hover:bg-brownish-200 dark:hover:bg-brownish-700'
+          "
+          @click="tab = t.key === 'all' ? undefined : (t.key as typeof tab.value)"
+        >
+          {{ t.label }}
+          <span class="tabular-nums opacity-70">{{ t.count }}</span>
+        </button>
+      </div>
+
+      <!-- File list — viewport-capped height on mobile, fixed on larger screens -->
+      <div class="max-h-[50vh] md:max-h-[325px] overflow-y-auto bg-brownish-50 dark:bg-brownish-800">
+        <template v-for="item in displaying" :key="`${item.file.id}-${item.type}`">
+          <SingleFile :file="item.file" :type="item.type" @remove="remove" />
+        </template>
+
+        <template v-if="!displaying.length">
+          <div class="text-center pb-3 pt-4 text-sm text-brownish-500 dark:text-brownish-400">
+            No activity in progress
+          </div>
+        </template>
       </div>
     </div>
   </div>
