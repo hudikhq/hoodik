@@ -101,7 +101,7 @@ export const store = defineStore('download', () => {
 
     // If the file has been finished, move it to done.
     if (file.downloadedBytes >= (file.size || 0)) {
-      logger.info(`File "${file.name}" finished downloading`)
+      logger.debug(`File "${file.name}" finished downloading`)
 
       file.finished_downloading_at = utcStringFromLocal(new Date())
       done.value.push(file)

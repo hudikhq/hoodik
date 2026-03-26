@@ -1,109 +1,103 @@
 <script lang="ts" setup>
 import CardBox from '@/components/ui/CardBox.vue'
+import CardBoxComponentHeader from '@/components/ui/CardBoxComponentHeader.vue'
 import UniversalCheckbox from '@/components/ui/UniversalCheckbox.vue'
 import type { Data } from 'types/admin/settings'
 import ListInput from '@/components/ui/ListInput.vue'
 import { computed } from 'vue'
 import QuotaSlider from '@/components/ui/QuotaSlider.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import { mdiContentSave } from '@mdi/js'
 
 const props = defineProps<{
   modelValue?: Data
   loading: boolean
+  error?: string
+  class?: string
 }>()
 
-const emits = defineEmits(['update:modelValue'])
+const emits = defineEmits(['update:modelValue', 'save'])
 
 const data = computed({
-  get() {
-    return props.modelValue
-  },
-  set(value) {
-    emits('update:modelValue', value)
-  }
+  get() { return props.modelValue },
+  set(value) { emits('update:modelValue', value) }
 })
 </script>
 <template>
-  <CardBox v-if="data">
-    <h1 class="text-2xl text-white mb-4">User settings</h1>
+  <CardBox :class="props.class" v-if="data">
+    <CardBoxComponentHeader title="Registration Settings" />
 
-    <UniversalCheckbox
-      label="Enforce email activation"
-      name="enforce_email_activation"
-      v-model="data.users.enforce_email_activation"
-      :disabled="loading"
-    />
+    <div class="space-y-6 pt-2">
+      <!-- Registration toggles -->
+      <div class="space-y-4">
+        <div class="space-y-1">
+          <UniversalCheckbox
+            label="Require email verification"
+            name="enforce_email_activation"
+            v-model="data.users.enforce_email_activation"
+            :disabled="loading"
+          />
+          <p class="text-xs text-brownish-400 dark:text-brownish-500 pl-7 leading-relaxed">
+            New users must click a verification link before they can log in.
+          </p>
+        </div>
 
-    <span class="text-sm text-brownish-300">
-      If enabled, users will have to activate their account by clicking on a link sent to their
-      email address.
-    </span>
+        <div class="space-y-1">
+          <UniversalCheckbox
+            label="Allow public registration"
+            name="allow_register"
+            v-model="data.users.allow_register"
+            :disabled="loading"
+          />
+          <p class="text-xs text-brownish-400 dark:text-brownish-500 pl-7 leading-relaxed">
+            Anyone can create an account. When off, only invited users or whitelist matches can register.
+          </p>
+        </div>
+      </div>
 
-    <UniversalCheckbox
-      label="Allow registration to new users"
-      name="allow_register"
-      v-model="data.users.allow_register"
-      :disabled="loading"
-    />
+      <!-- Email filtering -->
+      <div class="space-y-4">
+        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-500">Email Filters</p>
 
-    <span class="text-sm text-brownish-300">
-      If the registration is turned off, users will be able to register only when they are invited,
-      or if their email matches any of the whitelist (and not blacklist) rules below
-    </span>
+        <div class="space-y-2">
+          <ListInput v-model="data.users.email_whitelist" label="Whitelist" :disabled="loading" />
+          <p class="text-xs text-brownish-400 leading-relaxed">
+            Only emails matching these patterns can register. Use <code class="font-mono bg-brownish-100 dark:bg-brownish-700 px-1 rounded">*@company.com</code> or <code class="font-mono bg-brownish-100 dark:bg-brownish-700 px-1 rounded">*@company.*</code> style globs. Leave empty to allow any email.
+          </p>
+        </div>
 
-    <div class="mt-4">
-      <ListInput v-model="data.users.email_whitelist" label="Whitelist" :disabled="loading" />
+        <div class="space-y-2">
+          <ListInput v-model="data.users.email_blacklist" label="Blacklist" :disabled="loading" />
+          <p class="text-xs text-brownish-400 leading-relaxed">
+            Emails matching these patterns are always blocked — overrides whitelist and invitations.
+          </p>
+        </div>
+      </div>
+
+      <!-- Default quota -->
+      <div class="space-y-2">
+        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-500">Default Storage Quota</p>
+        <p class="text-xs text-brownish-400 leading-relaxed">Applied to new users at registration. Existing users keep their current quota.</p>
+        <QuotaSlider
+          v-model="data.users.quota_bytes"
+          :disabled="loading"
+        />
+      </div>
+
+      <!-- Error + Save -->
+      <div class="pt-2 space-y-3">
+        <div v-if="error" class="rounded-lg bg-redish-500/10 border border-redish-500/30 px-4 py-3">
+          <p class="text-sm text-redish-400">{{ error }}</p>
+        </div>
+
+        <BaseButton
+          color="info"
+          :disabled="loading"
+          :icon="mdiContentSave"
+          :label="loading ? 'Saving…' : 'Save Settings'"
+          @click="emits('save')"
+        />
+      </div>
     </div>
-
-    <span class="text-sm text-brownish-300">
-      Add patterns that will be used to validate the email address of the user. You can use asterisk
-      (*) to create a pattern. <br />
-      Examples:
-
-      <ul>
-        <li>
-          <strong>*@example.com</strong> - only emails ending in *@example.com are allowed
-          (someone@example.com)
-        </li>
-        <li>
-          <strong>someone@example.*</strong> - only emails starting with the rule can register
-          (someone@example.org)
-        </li>
-        <li>
-          <strong>*@example.*</strong> - only emails containing the given rule can register
-          (someone@example.org, anyone@example.com, etc.)
-        </li>
-      </ul>
-    </span>
-
-    <div class="mt-4">
-      <ListInput v-model="data.users.email_blacklist" label="Blacklist" :disabled="loading" />
-    </div>
-    <span class="text-sm text-brownish-300">
-      Similarly to whitelist, just the opposite. User emails matching this patterns won't be allowed
-      to register, even with an invitation. <br />
-      Examples:
-
-      <ul>
-        <li>
-          <strong>*@example.com</strong> - only emails ending in *@example.com are allowed
-          (someone@example.com)
-        </li>
-        <li>
-          <strong>someone@example.*</strong> - only emails starting with the rule can register
-          (someone@example.org)
-        </li>
-        <li>
-          <strong>*@example.*</strong> - only emails containing the given rule can register
-          (someone@example.org, anyone@example.com, etc.)
-        </li>
-      </ul>
-    </span>
-
-    <h3 class="text-lg mt-4">Storage quota for users</h3>
-    <QuotaSlider
-      v-model="data.users.quota_bytes"
-      :disabled="loading"
-      title="Default quota for new users"
-    />
   </CardBox>
 </template>

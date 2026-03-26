@@ -91,8 +91,8 @@ export class FilePreview extends Preview implements Preview {
     return this.file.chunks
   }
 
-  public async loadChunk(index: number): Promise<Uint8Array> {
-    return downloadChunk(this.file, index)
+  public async loadChunk(index: number, signal?: AbortSignal): Promise<Uint8Array> {
+    return downloadChunk(this.file, index, signal)
   }
 
   /**

@@ -9,45 +9,43 @@ const props = defineProps<{
   user: User
 }>()
 
-const user = computed(() => {
-  return props.user
-})
-
-const createdAt = computed(() => {
-  return formatPrettyDate(user.value.created_at)
-})
+const createdAt = computed(() => formatPrettyDate(props.user.created_at))
 
 const emailVerifiedAt = computed(() => {
-  if (!user.value.email_verified_at) return 'not-verified'
-
-  return formatPrettyDate(user.value.email_verified_at)
+  if (!props.user.email_verified_at) return null
+  return formatPrettyDate(props.user.email_verified_at)
 })
 
 const lastActiveAt = computed(() => {
-  if (!user.value.last_session) return 'no data'
-
-  return formatPrettyDate(user.value.last_session.updated_at)
+  if (!props.user.last_session) return null
+  return formatPrettyDate(props.user.last_session.updated_at)
 })
 </script>
 <template>
   <tr>
-    <td>{{ user.email }}</td>
-    <td>{{ user.secret ? 'yes' : 'no' }}</td>
-    <td>
-      {{ user.role ? user.role : 'n/a' }}
+    <td data-label="Email">{{ user.email }}</td>
+    <td data-label="TFA">
+      <span v-if="user.secret" class="text-greeny-500 dark:text-greeny-400">enabled</span>
+      <span v-else class="text-brownish-400">off</span>
     </td>
-    <td>{{ emailVerifiedAt }}</td>
-    <td>{{ createdAt }}</td>
-    <td>{{ lastActiveAt }}</td>
+    <td data-label="Role">
+      <span v-if="user.role" class="text-xs font-medium uppercase tracking-wider text-orangy-400">{{ user.role }}</span>
+      <span v-else class="text-brownish-400">—</span>
+    </td>
+    <td data-label="Email Activated">
+      <span v-if="emailVerifiedAt" class="text-greeny-500 dark:text-greeny-400">{{ emailVerifiedAt }}</span>
+      <span v-else class="text-redish-500">unverified</span>
+    </td>
+    <td data-label="Created">{{ createdAt }}</td>
+    <td data-label="Last Active">
+      <span v-if="lastActiveAt">{{ lastActiveAt }}</span>
+      <span v-else class="text-brownish-400">never</span>
+    </td>
     <td class="text-right">
       <BaseButton
-        :to="{
-          name: 'manage-users-single',
-          params: {
-            id: user.id
-          }
-        }"
+        :to="{ name: 'manage-users-single', params: { id: user.id } }"
         :icon="mdiPencil"
+        :small="true"
       />
     </td>
   </tr>

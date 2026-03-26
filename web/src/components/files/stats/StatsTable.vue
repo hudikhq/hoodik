@@ -18,7 +18,7 @@ const sortedData = computed(() => {
     return props.data
   }
 
-  const data = props.data
+  const data = [...props.data]
 
   data.sort((a, b) => {
     if (sort.value.sort === 'mime') {
@@ -40,15 +40,13 @@ const sortedData = computed(() => {
 })
 </script>
 <template>
-  <div class="flex flex-col">
-    <div class="flex flex-row border-b-2 border-brownish-500 mb-2">
-      <div class="w-6/12">
-        <SortableName v-model="sort" name="mime" label="Mime" />
+  <div>
+    <div class="flex items-center gap-2 pb-1.5 mb-0.5 border-b border-brownish-100 dark:border-brownish-700/50">
+      <div class="flex-1">
+        <SortableName v-model="sort" name="mime" label="Type" />
       </div>
-      <div class="w-2/12">
-        <SortableName v-model="sort" name="count" label="Count" />
-      </div>
-      <div class="w-4/12">
+      <SortableName v-model="sort" name="count" label="Files" />
+      <div class="w-14 text-right">
         <SortableName class="float-right" v-model="sort" name="size" label="Size" />
       </div>
     </div>

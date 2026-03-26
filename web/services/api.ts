@@ -305,9 +305,12 @@ export default class Api {
   async download<T>(
     path: string,
     query?: Query,
-    body?: T | undefined
+    body?: T | undefined,
+    signal?: AbortSignal
   ): Promise<globalThis.Response> {
     const { request, fetchOptions } = Api.buildRequest('get', path, query, body, undefined, this)
+
+    if (signal) fetchOptions.signal = signal
 
     return fetch(decodeURIComponent(request.url), fetchOptions)
   }

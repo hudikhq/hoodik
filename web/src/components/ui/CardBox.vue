@@ -29,7 +29,10 @@ const componentClass = computed(() => {
   const base = [
     props.rounded,
     props.flex,
-    props.isModal ? 'dark:bg-brownish-950' : 'dark:bg-brownish-950/70'
+    'border',
+    'border-brownish-200/40 dark:border-brownish-700/40',
+    'shadow-sm dark:shadow-none',
+    props.isModal ? 'dark:bg-brownish-900' : 'dark:bg-brownish-800'
   ]
 
   if (props.isHoverable) {
@@ -48,7 +51,7 @@ const submit = (event: Event) => {
   <component
     :is="isForm ? 'form' : 'div'"
     :class="componentClass"
-    class="bg-brownish-100 flex"
+    class="bg-white flex overflow-hidden"
     @submit="submit"
   >
     <slot v-if="hasComponentLayout" />

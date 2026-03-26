@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatPrettyDate } from '!/index'
 import BaseButtonConfirm from '@/components/ui/BaseButtonConfirm.vue'
-import { mdiDelete } from '@mdi/js'
+import { mdiShieldOffOutline } from '@mdi/js'
 import type { Session } from 'types/admin/sessions'
 import { computed } from 'vue'
 
@@ -11,34 +11,30 @@ const props = defineProps<{
 
 const emits = defineEmits(['kill'])
 
-const createdAt = computed(() => {
-  return formatPrettyDate(props.session.created_at)
-})
-
-const updatedAt = computed(() => {
-  return formatPrettyDate(props.session.updated_at)
-})
-
-const expiresAt = computed(() => {
-  return formatPrettyDate(props.session.expires_at)
-})
+const createdAt = computed(() => formatPrettyDate(props.session.created_at))
+const updatedAt = computed(() => formatPrettyDate(props.session.updated_at))
+const expiresAt = computed(() => formatPrettyDate(props.session.expires_at))
 </script>
 <template>
-  <tr>
-    <td>{{ session.email }}</td>
-    <td>{{ session.ip }}</td>
-    <td>{{ session.user_agent }}</td>
-    <td>{{ createdAt }}</td>
-    <td>{{ updatedAt }}</td>
-    <td>{{ expiresAt }}</td>
-    <td>{{ session.active ? 'no' : 'yes' }}</td>
+  <tr :class="{ 'opacity-50': !session.active }">
+    <td data-label="Email">{{ session.email }}</td>
+    <td data-label="IP Address">{{ session.ip }}</td>
+    <td data-label="Device" class="max-w-[200px] truncate text-sm">{{ session.user_agent }}</td>
+    <td data-label="Signed in">{{ createdAt }}</td>
+    <td data-label="Last seen">{{ updatedAt }}</td>
+    <td data-label="Expires">{{ expiresAt }}</td>
+    <td data-label="Status">
+      <span v-if="session.active" class="inline-flex items-center text-xs font-medium bg-blueish-500/15 text-blueish-400 px-2 py-0.5 rounded-full">active</span>
+      <span v-else class="inline-flex items-center text-xs font-medium bg-brownish-100 dark:bg-brownish-700 text-brownish-400 px-2 py-0.5 rounded-full">revoked</span>
+    </td>
     <td>
       <BaseButtonConfirm
-        :icon="mdiDelete"
+        :icon="mdiShieldOffOutline"
         @confirm="emits('kill', session)"
-        label="Kill session"
-        confirm-label="Confirm"
+        label="Revoke"
+        confirm-label="Yes, revoke"
         color="danger"
+        :small="true"
         :disabled="!session.active"
       />
     </td>

@@ -71,20 +71,20 @@ export async function downloadAndDecryptStream(file: AppFile, progress?: Downloa
 /**
  * Download single file chunk and decrypt it
  */
-export async function downloadChunk(file: AppFile, chunk: number): Promise<Uint8Array> {
+export async function downloadChunk(file: AppFile, chunk: number, signal?: AbortSignal): Promise<Uint8Array> {
   if (!file.key) {
     throw new Error('Cannot download file without key')
   }
 
-  const data = await downloadEncryptedChunk(file, chunk)
+  const data = await downloadEncryptedChunk(file, chunk, signal)
   return cryptfns.cipher.decrypt(file.cipher, data, file.key)
 }
 
 /**
  * Download a single chunk of the file and return it without decrypting it
  */
-export async function downloadEncryptedChunk(file: AppFile, chunk: number): Promise<Uint8Array> {
-  const response = await getResponse(file, chunk)
+export async function downloadEncryptedChunk(file: AppFile, chunk: number, signal?: AbortSignal): Promise<Uint8Array> {
+  const response = await getResponse(file, chunk, signal)
 
   if (!response.body) {
     throw new Error(`Couldn't download file ${file.id}, chunk: ${chunk}`)
@@ -121,8 +121,8 @@ export async function downloadEncryptedChunk(file: AppFile, chunk: number): Prom
 /**
  * Get the file download response
  */
-async function getResponse(file: AppFile | number, chunk: number): Promise<Response> {
+async function getResponse(file: AppFile | number, chunk: number, signal?: AbortSignal): Promise<Response> {
   const id = typeof file === 'number' ? file : file.id
 
-  return await new Api().download(`/api/storage/${id}?chunk=${chunk}`)
+  return await new Api().download(`/api/storage/${id}?chunk=${chunk}`, undefined, undefined, signal)
 }

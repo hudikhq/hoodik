@@ -124,7 +124,7 @@ export abstract class Preview {
    * Overridden by FilePreview; base implementation returns empty bytes.
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public async loadChunk(_: number): Promise<Uint8Array> {
+  public async loadChunk(_: number, _signal?: AbortSignal): Promise<Uint8Array> {
     return new Uint8Array()
   }
 
