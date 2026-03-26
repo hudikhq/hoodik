@@ -44,6 +44,7 @@ pub struct Uploader {
     encryption_key: Vec<u8>,
     already_uploaded: HashSet<u64>,
     hash_options: UploadHashOptions,
+    cipher: String,
 }
 
 impl Uploader {
@@ -55,6 +56,7 @@ impl Uploader {
             encryption_key,
             already_uploaded: HashSet::new(),
             hash_options: UploadHashOptions::default(),
+            cipher: cryptfns::cipher::DEFAULT.to_string(),
         }
     }
 
@@ -73,6 +75,13 @@ impl Uploader {
     /// exported by the WASM API (e.g. `transferHashOffloadSha256 | transferHashDisableMd5`).
     pub fn with_hash_options(mut self, opts: UploadHashOptions) -> Self {
         self.hash_options = opts;
+        self
+    }
+
+    /// Set the cipher to use for chunk encryption (e.g. `"ascon128a"`, `"chacha20poly1305"`).
+    /// Defaults to [`cryptfns::cipher::DEFAULT`] when not called.
+    pub fn with_cipher(mut self, cipher: impl Into<String>) -> Self {
+        self.cipher = cipher.into();
         self
     }
 
@@ -104,6 +113,7 @@ impl Uploader {
             &self.already_uploaded.iter().copied().collect::<Vec<_>>(),
             self.hash_options,
             plaintext_hook,
+            &self.cipher,
         )
         .await
     }
@@ -206,6 +216,7 @@ pub async fn upload_file(
     already_uploaded: &[u64],
     hash_options: UploadHashOptions,
     plaintext_hook: Option<&dyn PlaintextChunkHook>,
+    cipher: &str,
 ) -> Result<FileHashes> {
     // When inline_sha256 = false and no hook is provided, all hash computation is skipped.
     // The caller is responsible for computing and submitting hashes via another mechanism.
@@ -239,6 +250,7 @@ pub async fn upload_file(
         total_chunks,
         &mut hash_state,
         plaintext_hook,
+        cipher,
     )
     .await?;
 
@@ -290,6 +302,7 @@ async fn run_upload_pipeline<'a>(
     total_chunks: u64,
     hash_state: &mut HashState,
     plaintext_hook: Option<&'a dyn PlaintextChunkHook>,
+    cipher: &str,
 ) -> Result<()> {
     let mut in_flight: FuturesUnordered<LocalBoxFuture<'a, Result<u64>>> = FuturesUnordered::new();
     let mut encrypted_waiting = VecDeque::<EncryptedChunk>::new();
@@ -389,7 +402,9 @@ async fn run_upload_pipeline<'a>(
         // Encrypt and queue the chunk (skip if already stored on the server).
         if !already_uploaded.contains(&chunk) {
             let t_enc = upload_trace::now_ms();
-            let encrypted = cryptfns::aes::encrypt(encryption_key.to_vec(), plaintext)
+            let encrypted = cryptfns::cipher::Cipher::from_str(cipher)
+                .map_err(Error::from)?
+                .encrypt(encryption_key.to_vec(), plaintext)
                 .map_err(Error::from)?;
             let enc_ms = upload_trace::now_ms() - t_enc;
             if encrypted.is_empty() {

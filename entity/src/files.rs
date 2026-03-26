@@ -22,6 +22,7 @@ pub struct Model {
     pub sha1: Option<String>,
     pub sha256: Option<String>,
     pub blake2b: Option<String>,
+    pub cipher: String,
     pub file_modified_at: i64,
     pub created_at: i64,
     pub finished_upload_at: Option<i64>,

@@ -20,7 +20,7 @@ Hoodik is a lightweight, self-hosted, end-to-end encrypted cloud storage server.
 
 ## Features
 
-- **End-to-end encryption** — files are encrypted in the browser before upload and decrypted after download using a hybrid RSA + AES scheme
+- **End-to-end encryption** — files are encrypted in the browser before upload and decrypted after download using a hybrid RSA + AEGIS-128L scheme
 - **Secure search** — file metadata is tokenized and hashed so the server can match search queries without storing plaintext names
 - **Public sharing links** — share files via a link; the file key is never exposed to the recipient
 - **Two-factor authentication** — optional TOTP-based 2FA per user
@@ -38,9 +38,9 @@ Hoodik is a lightweight, self-hosted, end-to-end encrypted cloud storage server.
 Each user gets an RSA-2048 key pair on registration. The private key is stored encrypted with your passphrase — the server cannot read it.
 
 When you upload a file:
-1. A random AES key is generated for the file.
-2. The file is encrypted chunk-by-chunk with that AES key.
-3. The AES key is encrypted with your RSA public key and stored in the database alongside the file.
+1. A random symmetric key is generated for the file (key size depends on the cipher).
+2. The file is encrypted chunk-by-chunk with that key using the file's cipher (default: AEGIS-128L).
+3. The cipher identifier and the encrypted key are stored in the database alongside the file, so old files can always be decrypted with the correct algorithm even after the default cipher changes.
 
 ### Search
 
@@ -50,7 +50,7 @@ Searchable metadata (file name, etc.) is tokenized, hashed, and stored as opaque
 
 When you share a file:
 1. A random link key is generated.
-2. The file metadata and file AES key are encrypted with the link key.
+2. The file metadata and file key are encrypted with the link key.
 3. The link key itself is encrypted with your RSA public key (so you can always recover it).
 4. The link key is appended to the share URL as a fragment: `https://…/links/{id}#link-key`.
 
@@ -61,8 +61,11 @@ The recipient's browser uses the fragment to decrypt the file key locally. The s
 | Primitive | Algorithm |
 |-----------|-----------|
 | Asymmetric | RSA-2048 PKCS#1 |
-| Symmetric | AES-128 AEAD Ascon-128a |
+| Symmetric (default) | AEGIS-128L — hardware-accelerated AEAD via WASM SIMD128/relaxed-simd |
+| Symmetric (supported) | Ascon-128a, ChaCha20-Poly1305 |
 | Key derivation | SHA-2, Blake2b |
+
+The cipher used to encrypt each file is stored in the database (`files.cipher`), so the correct algorithm is always used for decryption regardless of what the current default is.
 
 ---
 

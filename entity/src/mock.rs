@@ -121,6 +121,7 @@ pub async fn create_file<T: super::ConnectionTrait>(
         sha1: ActiveValue::NotSet,
         sha256: ActiveValue::NotSet,
         blake2b: ActiveValue::NotSet,
+        cipher: ActiveValue::Set("ascon128a".to_string()),
         created_at: ActiveValue::Set(Utc::now().timestamp()),
         finished_upload_at: ActiveValue::Set(Some(Utc::now().timestamp())),
     };

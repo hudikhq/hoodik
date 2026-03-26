@@ -112,6 +112,7 @@ async function handleUploadFile(
     const baseUrl = apiTransfer.apiUrl || ''
     const jwtToken = apiTransfer.jwtToken || undefined
     const refreshToken = apiTransfer.refreshToken || undefined
+    const cipher = file.cipher
 
     // Disable all hashes in WASM — SHA-256 is computed by the top-level HASH worker
     // spawned from main.ts and reported back through queue.ts independently.
@@ -151,6 +152,7 @@ async function handleUploadFile(
     )
     uploader.set_uploaded_chunks(new Uint32Array(transferableUploadedChunks || []))
     uploader.set_hash_mask(hashDisableMask)
+    uploader.set_cipher(cipher)
 
     await uploader.upload(
       file.file as File,
@@ -199,6 +201,8 @@ async function handleDownloadFile(
     const jwtToken = apiTransfer.jwtToken || undefined
     const refreshToken = apiTransfer.refreshToken || undefined
 
+    const cipher = transferableFile.cipher
+
     downloader = new TransferDownloader(
       transferableFile.id,
       transferableFile.size || 0,
@@ -208,6 +212,7 @@ async function handleDownloadFile(
       refreshToken,
       transferableFile.key as Uint8Array
     )
+    downloader.set_cipher(cipher)
     const bytes = await downloader.download(
       (progressJson: string) => {
         const progress = JSON.parse(progressJson)

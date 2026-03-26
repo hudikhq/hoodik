@@ -129,6 +129,24 @@ pub fn chacha_decrypt(key: Vec<u8>, ciphertext: Vec<u8>) -> Option<Vec<u8>> {
     chacha::decrypt(key, ciphertext).ok()
 }
 
+/// Generate a key for the given cipher identifier (e.g. `"ascon128a"`, `"chacha20poly1305"`).
+#[wasm_bindgen]
+pub fn cipher_generate_key(cipher: &str) -> Option<Vec<u8>> {
+    crate::cipher::Cipher::from_str(cipher).ok()?.generate_key().ok()
+}
+
+/// Encrypt `plaintext` with `key` using the named cipher.
+#[wasm_bindgen]
+pub fn cipher_encrypt(cipher: &str, key: Vec<u8>, plaintext: Vec<u8>) -> Option<Vec<u8>> {
+    crate::cipher::Cipher::from_str(cipher).ok()?.encrypt(key, plaintext).ok()
+}
+
+/// Decrypt `ciphertext` with `key` using the named cipher.
+#[wasm_bindgen]
+pub fn cipher_decrypt(cipher: &str, key: Vec<u8>, ciphertext: Vec<u8>) -> Option<Vec<u8>> {
+    crate::cipher::Cipher::from_str(cipher).ok()?.decrypt(key, ciphertext).ok()
+}
+
 #[cfg(feature = "tokenizer")]
 #[wasm_bindgen]
 pub fn text_into_tokens(input: &str) -> Option<String> {

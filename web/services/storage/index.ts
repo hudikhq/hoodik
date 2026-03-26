@@ -420,7 +420,8 @@ export const store = defineStore('files', () => {
       mime: 'dir',
       file_id: dir_id,
       file_modified_at: utcStringFromLocal(new Date()),
-      search_tokens_hashed
+      search_tokens_hashed,
+      cipher: cryptfns.cipher.DEFAULT_CIPHER
     }
 
     return meta.create(keypair, createFile)

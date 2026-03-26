@@ -28,11 +28,12 @@ base64 = { workspace = true }
 hex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-wasm-bindgen = "0.2.63"
+wasm-bindgen = "0.2.114"
 getrandom = { version = "^0.2", features = ["js"] }
 ascon-aead = "^0.4"
 crc = "^3"
 chacha20poly1305 = "0.10.1"
+aegis = { version = "0.9" }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires

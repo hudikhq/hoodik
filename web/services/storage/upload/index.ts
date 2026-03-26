@@ -218,10 +218,17 @@ export const store = defineStore('upload', () => {
       }
     } catch (e) {
       if (!(e instanceof ErrorResponse) || e.status !== 404) {
+        console.error('[upload:push] unexpected error before create:', e)
         throw e
       }
 
-      const created = await create(keypair, file, parent_id)
+      let created: UploadAppFile
+      try {
+        created = await create(keypair, file, parent_id)
+      } catch (createErr) {
+        console.error('[upload:push] create failed:', createErr)
+        throw createErr
+      }
 
       logger.info(`[upload:push] "${file.name}" created as ${created.id}, queued for upload`)
       return waiting.value.push({ ...created, temporaryId: uuidv4() })
@@ -268,7 +275,8 @@ export const store = defineStore('upload', () => {
       file_id: parent_id,
       file_modified_at: utcStringFromLocal(modified),
       search_tokens_hashed,
-      thumbnail
+      thumbnail,
+      cipher: cryptfns.cipher.DEFAULT_CIPHER
     }
 
     const created = await meta.create(keypair, createFile)

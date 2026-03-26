@@ -36,6 +36,8 @@ pub struct TransferUploader {
     uploaded_chunks: Vec<u32>,
     /// Bitmask of `HASH_DISABLE_*` and optionally `HASH_OFFLOAD_SHA256` flags.
     hash_mask: u32,
+    /// Cipher identifier (e.g. `"ascon128a"`, `"chacha20poly1305"`).
+    cipher: String,
 }
 
 #[wasm_bindgen]
@@ -65,7 +67,16 @@ impl TransferUploader {
             encryption_key,
             uploaded_chunks: Vec::new(),
             hash_mask: 0,
+            cipher: cryptfns::cipher::DEFAULT.to_string(),
         }
+    }
+
+    /// Set the cipher used to encrypt each chunk.
+    /// Accepts `"ascon128a"` (default) or `"chacha20poly1305"`.
+    /// Must be called before [`upload`].
+    #[wasm_bindgen(js_name = "set_cipher")]
+    pub fn set_cipher(&mut self, cipher: String) {
+        self.cipher = cipher;
     }
 
     /// Set the list of chunk indices already stored on the server.
@@ -115,6 +126,7 @@ impl TransferUploader {
         let auth = self.auth.clone();
         let file_id = self.file_id.clone();
         let encryption_key = self.encryption_key.clone();
+        let cipher = self.cipher.clone();
         let already: Vec<u64> = self.uploaded_chunks.iter().map(|&c| c as u64).collect();
 
         // When an external hash promise is supplied, skip all inline hashing — the caller
@@ -138,6 +150,7 @@ impl TransferUploader {
             &already,
             hash_options,
             None,
+            &cipher,
         )
         .await
         .map_err(|e| JsValue::from_str(&format!("{e}")))?;
@@ -181,6 +194,8 @@ pub struct TransferDownloader {
     chunk_count: u64,
     auth: Auth,
     decryption_key: Vec<u8>,
+    /// Cipher identifier (e.g. `"ascon128a"`, `"chacha20poly1305"`).
+    cipher: String,
 }
 
 #[wasm_bindgen]
@@ -214,7 +229,16 @@ impl TransferDownloader {
                 refresh_token,
             },
             decryption_key,
+            cipher: cryptfns::cipher::DEFAULT.to_string(),
         }
+    }
+
+    /// Set the cipher used to decrypt each chunk.
+    /// Accepts `"ascon128a"` (default) or `"chacha20poly1305"`.
+    /// Must be called before [`download`].
+    #[wasm_bindgen(js_name = "set_cipher")]
+    pub fn set_cipher(&mut self, cipher: String) {
+        self.cipher = cipher;
     }
 
     /// Download and decrypt the file, returning the complete plaintext as a `Uint8Array`.
@@ -236,6 +260,7 @@ impl TransferDownloader {
         let file_size = self.file_size;
         let chunk_count = self.chunk_count;
         let decryption_key = self.decryption_key.clone();
+        let cipher = self.cipher.clone();
 
         let http = WasmHttpClient::new();
         let reporter = JsProgressReporter::new(on_progress, is_cancelled);
@@ -248,6 +273,7 @@ impl TransferDownloader {
             file_size,
             chunk_count,
             &decryption_key,
+            &cipher,
         )
         .await
         .map_err(|e| JsValue::from_str(&format!("{e}")))

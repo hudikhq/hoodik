@@ -394,6 +394,7 @@ export default class Api {
       /* empty */
     }
 
+
     // Here we'll try to refresh the session if the original request fails
     if (res.status === 401 && skipRefresh !== true) {
       await this.refresh()

@@ -15,7 +15,7 @@ export async function downloadAndDecrypt(file: AppFile): Promise<Uint8Array> {
 
   for (let i = 0; i < file.chunks; i++) {
     const encrypted = await downloadEncryptedChunk(file, i)
-    const chunk = await cryptfns.aes.decrypt(encrypted, file.key)
+    const chunk = await cryptfns.cipher.decrypt(file.cipher, encrypted, file.key)
     const tg4 = new Uint8Array(data.length + chunk.length)
     tg4.set(data, 0)
     tg4.set(chunk, data.length)
@@ -77,7 +77,7 @@ export async function downloadChunk(file: AppFile, chunk: number): Promise<Uint8
   }
 
   const data = await downloadEncryptedChunk(file, chunk)
-  return cryptfns.aes.decrypt(data, file.key)
+  return cryptfns.cipher.decrypt(file.cipher, data, file.key)
 }
 
 /**

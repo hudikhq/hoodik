@@ -6,10 +6,7 @@ const NONCE_LENGTH: usize = 12;
 
 /// Generate random key with nonce for encryption/decryption
 pub fn generate_key() -> CryptoResult<Vec<u8>> {
-    let mut random_key = vec![
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ];
+    let mut random_key = vec![0u8; KEY_LENGTH + NONCE_LENGTH];
     getrandom::getrandom(&mut random_key)?;
 
     Ok(random_key)

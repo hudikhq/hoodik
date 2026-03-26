@@ -5,10 +5,20 @@ default:
 # ── Development ───────────────────────────────────────────────────────────────
 
 # Run frontend (Vite) and backend (cargo-watch) together
-dev:
+# Rebuilds WASM first so the browser always gets the latest crypto code.
+# Kills any stale hoodik binaries left over from previous sessions before starting.
+dev: wasm
     #!/usr/bin/env bash
     set -euo pipefail
     trap 'kill 0' EXIT
+
+    # Kill any stale hoodik processes (debug or release) from previous sessions.
+    stale=$(pgrep -f "target/(debug|release)/hoodik" 2>/dev/null || true)
+    if [ -n "$stale" ]; then
+        echo "⚠  Killing stale hoodik process(es): $stale"
+        kill $stale 2>/dev/null || true
+        sleep 0.5
+    fi
 
     echo "Starting Vite dev server..."
     yarn workspace @hoodik/web run dev &
