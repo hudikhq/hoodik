@@ -11,9 +11,14 @@ use fs::prelude::*;
 use crate::{data::download::Download, repository::Repository};
 
 /// Map futures download stream so it can decrypt the file while it is being downloaded.
-fn map_chunk(chunk: Result<web::Bytes, Error>, file_key: Vec<u8>) -> Result<Bytes, Error> {
+fn map_chunk(
+    chunk: Result<web::Bytes, Error>,
+    file_key: Vec<u8>,
+    cipher: cryptfns::cipher::Cipher,
+) -> Result<Bytes, Error> {
     match chunk {
-        Ok(chunk) => cryptfns::aes::decrypt(file_key, chunk.to_vec())
+        Ok(chunk) => cipher
+            .decrypt(file_key, chunk.to_vec())
             .map_err(|_| Error::Unauthorized("invalid_file_key".to_string()))
             .map(Bytes::from),
         Err(err) => Err(err),
@@ -50,13 +55,17 @@ pub(crate) async fn download(
 
     let filename = link.decrypt_name(&link_key)?;
     let file_key = link.file_key(&link_key)?;
+    let cipher: cryptfns::cipher::Cipher = link
+        .file_cipher
+        .parse()
+        .map_err(|_| Error::BadRequest("unsupported_cipher".to_string()))?;
 
     repository.increment_downloads(link.id).await?;
 
     let streamer = Fs::new(&context.config)
         .stream(&link, None)
         .await?
-        .map(move |chunk| map_chunk(chunk, file_key.clone()));
+        .map(move |chunk| map_chunk(chunk, file_key.clone(), cipher));
 
     Ok(HttpResponse::Ok()
         .insert_header(("Content-Type", link.file_mime))
