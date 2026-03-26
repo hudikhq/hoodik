@@ -17,10 +17,12 @@ pub enum Cipher {
     Aegis128L,
 }
 
-impl Cipher {
+impl std::str::FromStr for Cipher {
+    type Err = Error;
+
     /// Parse a cipher identifier string.  Empty string and `"ascon128a"` both map to the
     /// default [`Cipher::Ascon128a`] for backward-compatibility with existing data.
-    pub fn from_str(s: &str) -> CryptoResult<Self> {
+    fn from_str(s: &str) -> CryptoResult<Self> {
         match s {
             "ascon128a" | "" => Ok(Self::Ascon128a),
             "chacha20poly1305" => Ok(Self::ChaCha20Poly1305),
@@ -28,6 +30,9 @@ impl Cipher {
             other => Err(Error::UnknownCipher(other.to_string())),
         }
     }
+}
+
+impl Cipher {
 
     /// Return the canonical string identifier for this cipher.
     pub fn as_str(&self) -> &'static str {
@@ -69,6 +74,7 @@ impl Cipher {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn from_str_defaults() {

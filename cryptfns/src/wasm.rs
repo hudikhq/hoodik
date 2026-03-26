@@ -3,6 +3,7 @@ use crate::aes;
 use crate::chacha;
 use crate::rsa;
 use crate::rsa::PublicKeyParts;
+use std::str::FromStr;
 
 use wasm_bindgen::prelude::*;
 

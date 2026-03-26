@@ -9,6 +9,7 @@ use crate::types::{Auth, FileHashes};
 use crate::upload_trace;
 use digest::Digest;
 use futures::future::LocalBoxFuture;
+use std::str::FromStr;
 use futures::stream::{FuturesUnordered, StreamExt};
 use std::collections::{HashSet, VecDeque};
 

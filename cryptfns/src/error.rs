@@ -38,6 +38,8 @@ impl std::fmt::Display for Error {
     }
 }
 
+impl std::error::Error for Error {}
+
 impl From<RSAError> for Error {
     fn from(error: RSAError) -> Self {
         Error::RSAError(error)

@@ -200,7 +200,7 @@ window.addEventListener('keydown', (e) => {
               ? 'bg-brownish-300 dark:bg-brownish-600 text-brownish-900 dark:text-white'
               : 'text-brownish-500 dark:text-brownish-400 hover:bg-brownish-200 dark:hover:bg-brownish-700'
           "
-          @click="tab = t.key === 'all' ? undefined : (t.key as typeof tab.value)"
+          @click="tab = t.key === 'all' ? undefined : (t.key as NonNullable<typeof tab>)"
         >
           {{ t.label }}
           <span class="tabular-nums opacity-70">{{ t.count }}</span>

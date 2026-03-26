@@ -14,7 +14,7 @@ export type WorkerErrorType =
  * one by one
  */
 export type UploadFileMessage = {
-  transferableUploadedChunks: Uint16Array
+  transferableUploadedChunks: Uint32Array
   transferableFile: UploadAppFile
 }
 

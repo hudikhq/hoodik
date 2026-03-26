@@ -3,6 +3,7 @@ use crate::error::{Error, Result};
 use crate::platform::{HttpClient, ProgressReporter};
 use crate::types::Auth;
 use futures::future::LocalBoxFuture;
+use std::str::FromStr;
 use futures::stream::{FuturesUnordered, StreamExt};
 use std::collections::BTreeMap;
 
@@ -94,6 +95,7 @@ impl Downloader {
 ///
 /// This free function is the backward-compatible entry point used by tests.
 /// New code should prefer the [`Downloader`] builder API.
+#[allow(clippy::too_many_arguments)]
 pub async fn download_file(
     http: &dyn HttpClient,
     progress: &dyn ProgressReporter,
@@ -113,6 +115,7 @@ pub async fn download_file(
 /// Maintains exactly [`DOWNLOAD_POOL_LIMIT`] concurrent downloads at all times.
 /// Completed (but out-of-order) chunks are buffered in a [`BTreeMap`] and emitted
 /// sequentially as their predecessors arrive.
+#[allow(clippy::too_many_arguments)]
 async fn run_download_pipeline<'a>(
     http: &'a dyn HttpClient,
     progress: &'a dyn ProgressReporter,

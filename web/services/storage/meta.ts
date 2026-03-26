@@ -102,7 +102,6 @@ export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise
     sha1: unencrypted.sha1,
     sha256: unencrypted.sha256,
     blake2b: unencrypted.blake2b,
-    cipher: encryptedParts.cipher,
     ...encryptedParts
   }
 
