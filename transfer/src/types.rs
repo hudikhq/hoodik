@@ -1,11 +1,19 @@
 use serde::{Deserialize, Serialize};
 
 /// Authentication credentials passed from the host application.
+///
+/// Supports two auth modes:
+/// - **JWT**: Set `jwt_token` (+ optional `refresh_token`) for token-based auth (web, CLI).
+/// - **Cookie**: Set `cookie` with the raw `Cookie` header value for session-based auth (mobile).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Auth {
     pub base_url: String,
     pub jwt_token: Option<String>,
     pub refresh_token: Option<String>,
+    /// Raw `Cookie` header value (e.g. `"session=abc123"`).  When set, sent as the
+    /// `Cookie` HTTP header instead of (or in addition to) the `Authorization` header.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cookie: Option<String>,
 }
 
 /// Metadata about a chunk upload response from the server.

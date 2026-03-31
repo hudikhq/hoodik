@@ -20,7 +20,7 @@ pub use wasm::{TransferBlake2b512, TransferMd5, TransferSha1, TransferSha256};
 #[cfg(feature = "wasm")]
 pub use wasm::api::{TransferDownloader, TransferUploader};
 
-#[cfg(feature = "native")]
+#[cfg(any(feature = "native", feature = "mobile"))]
 pub mod native;
 
 #[cfg(test)]

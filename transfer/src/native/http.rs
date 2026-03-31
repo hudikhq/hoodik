@@ -32,6 +32,12 @@ impl NativeHttpClient {
             }
         }
 
+        if let Some(ref cookie) = auth.cookie {
+            if let Ok(val) = reqwest::header::HeaderValue::from_str(cookie) {
+                headers.insert(reqwest::header::COOKIE, val);
+            }
+        }
+
         headers
     }
 }

@@ -16,6 +16,7 @@ fn test_auth() -> Auth {
         base_url: "http://localhost:1234".into(),
         jwt_token: Some("test-jwt".into()),
         refresh_token: None,
+        cookie: None,
     }
 }
 
