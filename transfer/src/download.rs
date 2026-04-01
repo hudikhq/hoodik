@@ -199,3 +199,124 @@ async fn fetch_and_decrypt<'a>(
     .await;
     (chunk, result)
 }
+
+// ── Chunk-to-disk pipeline (no decryption) ───────────────────────────────────
+
+/// Download all chunks to individual files without decrypting.
+///
+/// Each chunk is written to `{output_dir}/{chunk_index:06}.enc` immediately
+/// after fetch.  Uses the same sliding-window concurrency as [`download_file`]
+/// but skips decryption entirely, keeping peak memory at ~4 MB per in-flight
+/// chunk.
+///
+/// `already_downloaded` lists chunk indices to skip (for resume support).
+#[cfg(any(feature = "native", feature = "mobile"))]
+pub async fn download_chunks_to_dir(
+    http: &dyn HttpClient,
+    progress: &dyn ProgressReporter,
+    auth: &Auth,
+    file_id: &str,
+    file_size: u64,
+    chunk_count: u64,
+    output_dir: &str,
+    already_downloaded: &[u64],
+) -> Result<()> {
+    use std::collections::HashSet;
+
+    let skip: HashSet<u64> = already_downloaded.iter().copied().collect();
+    let mut in_flight: FuturesUnordered<LocalBoxFuture<'_, (u64, Result<usize>)>> =
+        FuturesUnordered::new();
+    let mut next_to_dispatch: u64 = 0;
+    let mut bytes_downloaded: u64 = 0;
+
+    loop {
+        // Fill the sliding window, skipping already-downloaded chunks.
+        while in_flight.len() < DOWNLOAD_POOL_LIMIT && next_to_dispatch < chunk_count {
+            let chunk = next_to_dispatch;
+            next_to_dispatch += 1;
+            if skip.contains(&chunk) {
+                continue;
+            }
+            in_flight.push(Box::pin(fetch_and_save(
+                http, auth, file_id, chunk, output_dir,
+            )));
+        }
+
+        if in_flight.is_empty() {
+            break;
+        }
+
+        if progress.is_cancelled(file_id) {
+            return Err(Error::Cancelled);
+        }
+
+        let (_chunk_idx, chunk_result) = in_flight.next().await.expect("non-empty");
+        let chunk_len = chunk_result?;
+        bytes_downloaded += chunk_len as u64;
+        progress.on_chunk_downloaded(file_id, bytes_downloaded, file_size);
+    }
+
+    progress.on_complete(file_id);
+    Ok(())
+}
+
+/// Fetch a single encrypted chunk and write it to disk without decrypting.
+#[cfg(any(feature = "native", feature = "mobile"))]
+async fn fetch_and_save<'a>(
+    http: &'a dyn HttpClient,
+    auth: &'a Auth,
+    file_id: &'a str,
+    chunk: u64,
+    output_dir: &'a str,
+) -> (u64, Result<usize>) {
+    let result = async {
+        let encrypted = http.download_chunk(auth, file_id, chunk).await?;
+        let len = encrypted.len();
+        let path = format!("{}/{:06}.enc", output_dir, chunk);
+        tokio::fs::write(&path, &encrypted)
+            .await
+            .map_err(|e| Error::Io(e.to_string()))?;
+        Ok(len)
+    }
+    .await;
+    (chunk, result)
+}
+
+/// Decrypt previously downloaded encrypted chunks to a single output file.
+///
+/// Reads chunks sequentially from `{chunks_dir}/{index:06}.enc`, decrypts each
+/// with the given key+cipher, and appends to `output_path`.  Peak memory usage
+/// is one chunk (~4 MB).
+#[cfg(any(feature = "native", feature = "mobile"))]
+pub async fn decrypt_chunks_to_file(
+    chunks_dir: &str,
+    chunk_count: u64,
+    decryption_key: &[u8],
+    cipher: &str,
+    output_path: &str,
+) -> Result<()> {
+    use tokio::io::AsyncWriteExt;
+
+    let cipher_impl = cryptfns::cipher::Cipher::from_str(cipher).map_err(Error::from)?;
+    let mut file = tokio::fs::File::create(output_path)
+        .await
+        .map_err(|e| Error::Io(e.to_string()))?;
+
+    for i in 0..chunk_count {
+        let chunk_path = format!("{}/{:06}.enc", chunks_dir, i);
+        let encrypted = tokio::fs::read(&chunk_path)
+            .await
+            .map_err(|e| Error::Io(format!("chunk {i}: {e}")))?;
+
+        let plaintext = cipher_impl
+            .decrypt(decryption_key.to_vec(), encrypted)
+            .map_err(Error::from)?;
+
+        file.write_all(&plaintext)
+            .await
+            .map_err(|e| Error::Io(e.to_string()))?;
+    }
+
+    file.flush().await.map_err(|e| Error::Io(e.to_string()))?;
+    Ok(())
+}
