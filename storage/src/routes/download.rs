@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use actix_web::{route, web, HttpRequest, HttpResponse};
-use auth::data::claims::Claims;
+use auth::data::transfer_claims::StorageClaims;
 use context::Context;
 use entity::Uuid;
 use error::{AppResult, Error};
@@ -19,15 +19,16 @@ use crate::repository::cached::get_file;
 #[route("/api/storage/{file_id}", method = "GET")]
 pub(crate) async fn download(
     req: HttpRequest,
-    claims: Claims,
+    claims: StorageClaims,
     context: web::Data<Context>,
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let file_id: String = util::actix::path_var(&req, "file_id")?;
     let file_id = Uuid::from_str(&file_id)?;
+    claims.validate_transfer_path(file_id, "download")?;
     let chunk = util::actix::query_var::<i64>(&req, "chunk").ok();
 
-    let file = get_file(&context, claims.sub, file_id)
+    let file = get_file(&context, claims.sub(), file_id)
         .await
         .ok_or_else(|| Error::NotFound("file_not_found".to_string()))?;
 
@@ -55,14 +56,15 @@ pub(crate) async fn download(
 pub(crate) async fn head(
     req: HttpRequest,
     context: web::Data<Context>,
-    claims: web::Data<Claims>,
+    claims: StorageClaims,
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let file_id: String = util::actix::path_var(&req, "file_id")?;
     let file_id = Uuid::from_str(&file_id)?;
+    claims.validate_transfer_path(file_id, "download")?;
     let chunk = util::actix::query_var::<i32>(&req, "chunk").ok();
 
-    let file = get_file(&context, claims.sub, file_id)
+    let file = get_file(&context, claims.sub(), file_id)
         .await
         .ok_or_else(|| Error::NotFound("file_not_found".to_string()))?;
 

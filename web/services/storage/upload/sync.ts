@@ -8,43 +8,31 @@ import type { Query } from '../../api'
 import type { AppFile, UploadAppFile } from '../../../types'
 
 /**
- * Upload a single file chunk
+ * Upload a single file chunk (sync fallback)
  *
- * This is a fallback version of upload and in case the upload worker
- * is not available, this method will be used instead.
+ * This is a fallback for when the WASM upload worker is unavailable.
+ * Encryption is performed client-side before sending the chunk to the server.
  *
- * NOTICE: This is a less safe method of uploading since it assumes
- * that the missing worker means older browser is being used, so
- * it also assumes slower system is used and it offloads the encryption
- * process to the server. Which means it will send the encryption key
- * to server to encrypt the data before its being stored.
- *
- * The key is kept only in memory and is never saved anywhere on the server,
- * but still... If the connection is not secure it is possible the key could be
- * intercepted.
+ * @param api  Optional Api instance with a transfer token. If omitted, falls back to session auth.
  */
 export async function uploadChunk(
   file: UploadAppFile,
   data: Uint8Array,
   chunk: number,
-  attempt: number = 0
+  attempt: number = 0,
+  api?: Api
 ): Promise<UploadAppFile> {
   if (!file.key) {
     throw new Error(`File ${file.id} is missing key`)
   }
 
-  const encrypted = data
-  // const encrypted = await cryptfns.aes.encrypt(data, file.key)
-  // const checksum = await cryptfns.sha256.digest(encrypted)
+  const encrypted = await cryptfns.cipher.encrypt(file.cipher, data, file.key)
   const checksum = await cryptfns.wasm.crc16_digest(encrypted)
 
-  // Data can be encrypted also on the server, but this method is less secure
-  const key_hex = cryptfns.uint8.toHex(file.key)
   const query: Query = {
     chunk,
     checksum,
-    checksum_function: 'crc16',
-    key_hex
+    checksum_function: 'crc16'
   }
 
   const headers = {
@@ -57,7 +45,8 @@ export async function uploadChunk(
       `Uploading chunk (${encrypted.length} B) ${chunk} / ${file.chunks} of ${file.file.name} - upload attempt ${attempt} (checksum: ${checksum})`
     )
 
-    const response = await Api.post<Uint8Array, AppFile>(
+    const response = await (api || new Api().withRefresh()).make<Uint8Array, AppFile>(
+      'post',
       `/api/storage/${file.id}`,
       query,
       encrypted,
@@ -88,7 +77,7 @@ export async function uploadChunk(
       logger.warn(
         `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.file.name}, failed checksum, retrying...`
       )
-      return uploadChunk(file, data, chunk, attempt + 1)
+      return uploadChunk(file, data, chunk, attempt + 1, api)
     }
 
     // The chunk was already uploaded, so we can just return the file

@@ -7,6 +7,8 @@ pub mod credentials;
 pub mod resend_activation;
 pub mod signature;
 pub mod staff;
+pub mod transfer_claims;
+pub mod transfer_token;
 pub mod two_factor;
 
 pub(crate) mod extractor;

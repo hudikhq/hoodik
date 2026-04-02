@@ -3,6 +3,7 @@ mod helpers;
 
 use actix_web::{http::StatusCode, test};
 use auth::data::create_user::CreateUser;
+use auth::data::transfer_token::TransferTokenResponse;
 use fs::IntoFilename;
 use hoodik::server;
 use storage::data::app_file::AppFile;
@@ -189,6 +190,211 @@ async fn test_creating_file_and_uploading_chunks() {
 
     let response = test::call_service(&app, req).await;
     assert_eq!(response.status(), StatusCode::OK);
+
+    context.config.app.cleanup();
+}
+
+#[actix_web::test]
+async fn test_transfer_token_upload_and_download() {
+    let context =
+        context::Context::mock_with_data_dir(Some("../data-test-transfer".to_string())).await;
+
+    let private = cryptfns::rsa::private::generate().unwrap();
+    let public = cryptfns::rsa::public::from_private(&private).unwrap();
+    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
+    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
+
+    let app = test::init_service(server::app(context.clone())).await;
+
+    // Register a user.
+    let req = test::TestRequest::post()
+        .uri("/api/auth/register")
+        .set_json(&CreateUser {
+            email: Some("transfer@test.com".to_string()),
+            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
+            secret: None,
+            token: None,
+            pubkey: Some(public_string.clone()),
+            fingerprint: Some(fingerprint.clone()),
+            encrypted_private_key: Some("encrypted-secret".to_string()),
+            invitation_id: None,
+        })
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    let (jwt, _) = helpers::extract_cookies(resp.headers());
+    let jwt = jwt.unwrap();
+
+    // Create a file.
+    let (data, size, _) = create_byte_chunks();
+    let checksum = calculate_checksum(data.clone());
+
+    let create_file = storage::data::create_file::CreateFile {
+        encrypted_key: Some("encrypted-key".to_string()),
+        encrypted_name: Some("transfer-test.enc".to_string()),
+        encrypted_thumbnail: None,
+        search_tokens_hashed: None,
+        name_hash: Some(checksum.clone()),
+        mime: Some("application/octet-stream".to_string()),
+        size: Some(size),
+        chunks: Some(data.len() as i64),
+        file_id: None,
+        file_modified_at: None,
+        md5: None,
+        sha1: None,
+        sha256: None,
+        blake2b: None,
+        cipher: None,
+    };
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(jwt.clone())
+        .set_json(&create_file)
+        .to_request();
+
+    let body = test::call_and_read_body(&app, req).await;
+    let file: AppFile = serde_json::from_slice(&body).unwrap();
+
+    // ── Request an upload transfer token ──────────────────────────
+    let req = test::TestRequest::post()
+        .uri("/api/auth/transfer-token")
+        .cookie(jwt.clone())
+        .set_json(&serde_json::json!({
+            "file_id": file.id.to_string(),
+            "action": "upload"
+        }))
+        .to_request();
+
+    let body = test::call_and_read_body(&app, req).await;
+    let token_resp: TransferTokenResponse = serde_json::from_slice(&body).unwrap();
+    assert_eq!(token_resp.action, "upload");
+    assert_eq!(token_resp.file_id, file.id);
+    let upload_token = token_resp.token;
+
+    // ── Upload chunks using the transfer token (no cookie) ───────
+    for (i, chunk) in data.iter().enumerate() {
+        let checksum = cryptfns::sha256::digest(chunk.as_slice());
+        let uri = format!(
+            "/api/storage/{}?checksum={}&chunk={}",
+            &file.id, checksum, i
+        );
+
+        let req = test::TestRequest::post()
+            .uri(uri.as_str())
+            .insert_header(("Authorization", format!("Bearer {}", upload_token)))
+            .append_header(("Content-Type", "application/octet-stream"))
+            .set_payload(chunk.clone())
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(
+            resp.status(),
+            StatusCode::OK,
+            "Upload chunk {} failed",
+            i
+        );
+    }
+
+    // ── Verify upload token cannot be used for download ──────────
+    let req = test::TestRequest::get()
+        .uri(format!("/api/storage/{}?chunk=0", &file.id).as_str())
+        .insert_header(("Authorization", format!("Bearer {}", upload_token)))
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::UNAUTHORIZED,
+        "Upload token should not work for download"
+    );
+
+    // ── Verify upload token cannot be used for a different file ──
+    let wrong_file_id = entity::Uuid::new_v4();
+    let req = test::TestRequest::post()
+        .uri(format!("/api/storage/{}?chunk=0", wrong_file_id).as_str())
+        .insert_header(("Authorization", format!("Bearer {}", upload_token)))
+        .append_header(("Content-Type", "application/octet-stream"))
+        .set_payload(vec![0u8; 100])
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::UNAUTHORIZED,
+        "Upload token should not work for a different file"
+    );
+
+    // ── Request a download transfer token ────────────────────────
+    let req = test::TestRequest::post()
+        .uri("/api/auth/transfer-token")
+        .cookie(jwt.clone())
+        .set_json(&serde_json::json!({
+            "file_id": file.id.to_string(),
+            "action": "download"
+        }))
+        .to_request();
+
+    let body = test::call_and_read_body(&app, req).await;
+    let token_resp: TransferTokenResponse = serde_json::from_slice(&body).unwrap();
+    let download_token = token_resp.token;
+
+    // ── Download using the transfer token (no cookie) ────────────
+    let req = test::TestRequest::get()
+        .uri(format!("/api/storage/{}?chunk=0", &file.id).as_str())
+        .insert_header(("Authorization", format!("Bearer {}", download_token)))
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::OK,
+        "Download with transfer token failed"
+    );
+
+    // ── Update hashes using the upload transfer token ────────────
+    let req = test::TestRequest::put()
+        .uri(format!("/api/storage/{}/hashes", &file.id).as_str())
+        .insert_header(("Authorization", format!("Bearer {}", upload_token)))
+        .set_json(&serde_json::json!({ "sha256": checksum }))
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::OK,
+        "Update hashes with upload transfer token failed"
+    );
+
+    // ── Regular cookie auth still works for upload/download ──────
+    let req = test::TestRequest::get()
+        .uri(format!("/api/storage/{}?chunk=0", &file.id).as_str())
+        .cookie(jwt.clone())
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::OK,
+        "Cookie auth should still work for download"
+    );
+
+    // ── Invalid action should be rejected ────────────────────────
+    let req = test::TestRequest::post()
+        .uri("/api/auth/transfer-token")
+        .cookie(jwt.clone())
+        .set_json(&serde_json::json!({
+            "file_id": file.id.to_string(),
+            "action": "delete"
+        }))
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::UNPROCESSABLE_ENTITY,
+        "Invalid action should be rejected"
+    );
 
     context.config.app.cleanup();
 }

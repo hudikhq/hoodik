@@ -74,6 +74,13 @@ export type IntervalType = ReturnType<typeof setInterval>
 export type UploadProgressFunction = (file: UploadAppFile, done: boolean) => Promise<void>
 export type DownloadProgressFunction = (file: AppFile, chunkBytes: number) => Promise<void>
 
+export interface TransferTokenResponse {
+  token: string
+  expires_at: number
+  file_id: string
+  action: 'upload' | 'download'
+}
+
 export interface HelperType {
   decrypt(file: AppFile): Promise<AppFile>
   decrypt(file: AppFile): Promise<AppFile>

@@ -1,5 +1,5 @@
 use actix_web::{route, web, HttpRequest, HttpResponse};
-use auth::data::claims::Claims;
+use auth::data::transfer_claims::StorageClaims;
 use context::Context;
 use entity::Uuid;
 use error::AppResult;
@@ -14,16 +14,17 @@ use crate::{data::update_hashes::UpdateHashes, repository::Repository};
 #[route("/api/storage/{file_id}/hashes", method = "PUT")]
 pub(crate) async fn update_hashes(
     req: HttpRequest,
-    claims: Claims,
+    claims: StorageClaims,
     context: web::Data<Context>,
     data: web::Json<UpdateHashes>,
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
-    let repository = Repository::new(&context.db);
     let file_id: Uuid = util::actix::path_var(&req, "file_id")?;
+    claims.validate_transfer_path(file_id, "upload")?;
+    let repository = Repository::new(&context.db);
 
     let file = repository
-        .manage(claims.sub)
+        .manage(claims.sub())
         .update_hashes(file_id, data.into_inner())
         .await?;
 

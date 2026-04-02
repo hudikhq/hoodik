@@ -16,7 +16,8 @@ import type {
   Rename,
   EncryptedRename,
   DeleteManyFiles,
-  MoveManyFiles
+  MoveManyFiles,
+  TransferTokenResponse
 } from 'types'
 
 /**
@@ -263,10 +264,15 @@ export async function search(input: string, dir_id?: string): Promise<EncryptedA
 
 /**
  * Persist file content hashes (sha256) to the server.
+ * Uses an upload transfer token so the request succeeds even after the session expires.
  * Returns the updated AppFile record.
  */
 export async function updateHashes(fileId: string, sha256: string): Promise<AppFile> {
-  const response = await Api.put<{ sha256: string }, AppFile>(
+  const { token } = await requestTransferToken(fileId, 'upload')
+  const api = new Api({ ...new Api().toJson(), jwtToken: token, refreshToken: undefined })
+
+  const response = await api.make<{ sha256: string }, AppFile>(
+    'put',
     `/api/storage/${fileId}/hashes`,
     undefined,
     { sha256 }
@@ -298,4 +304,26 @@ export async function removeAll(body: DeleteManyFiles): Promise<void> {
  */
 export async function moveMany(body: MoveManyFiles): Promise<void> {
   await Api.post<MoveManyFiles, undefined>(`/api/storage/move-many`, undefined, body)
+}
+
+/**
+ * Request a long-lived transfer token scoped to a single file and action.
+ * The token is a JWT valid for `long_term_session_duration_days` (default 30 days)
+ * and can only be used for the specified action on the specified file.
+ */
+export async function requestTransferToken(
+  fileId: string,
+  action: 'upload' | 'download'
+): Promise<TransferTokenResponse> {
+  const response = await Api.post<{ file_id: string; action: string }, TransferTokenResponse>(
+    '/api/auth/transfer-token',
+    undefined,
+    { file_id: fileId, action }
+  )
+
+  if (!response?.body?.token) {
+    throw new Error('Failed to request transfer token')
+  }
+
+  return response.body
 }
