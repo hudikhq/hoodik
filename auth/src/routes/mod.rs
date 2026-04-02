@@ -15,6 +15,7 @@ pub mod refresh;
 pub mod register;
 pub mod resend_activation;
 pub mod signature;
+pub mod transfer_token;
 
 /// Register the authentication routes
 /// on to the application server
@@ -33,6 +34,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(two_factor::disable_two_factor);
     cfg.service(two_factor::enable_two_factor);
     cfg.service(two_factor::generate_two_factor);
+    cfg.service(transfer_token::create_transfer_token);
 
     // Refresh is defined this way because we cannot use constant as path in `web::resource` macro
     cfg.service(web::resource(crate::REFRESH_PATH).route(web::post().to(refresh::refresh)));

@@ -1,4 +1,5 @@
 import Api from '../../api'
+import * as meta from '../meta'
 import * as logger from '!/logger'
 
 import type { DownloadAppFile, DownloadFileMessage, UploadAppFile, UploadFileMessage } from 'types'
@@ -13,12 +14,14 @@ export async function pushUploadToWorker(file: UploadAppFile): Promise<void> {
 
   logger.debug(`[worker:upload] posting "${file.name}" (${file.id}) to UPLOAD worker`)
 
+  const { token } = await meta.requestTransferToken(file.id, 'upload')
+
   const transferableFile = {
     ...file,
     uploaded_chunks: undefined
   }
 
-  const apiTransfer = new Api().toJson()
+  const apiTransfer = { ...new Api().toJson(), jwtToken: token, refreshToken: undefined }
   const transferableUploadedChunks = new Uint32Array(file.uploaded_chunks || [])
 
   window.UPLOAD.postMessage({
@@ -49,13 +52,15 @@ export async function startFileDownload(file: DownloadAppFile): Promise<void> {
 
   logger.debug(`[worker:download] posting "${file.name}" (${file.id}) to DOWNLOAD worker`)
 
+  const { token } = await meta.requestTransferToken(file.id, 'download')
+
   const transferableFile = {
     ...file,
     uploaded_chunks: undefined,
     link: undefined
   }
 
-  const apiTransfer = new Api().toJson()
+  const apiTransfer = { ...new Api().toJson(), jwtToken: token, refreshToken: undefined }
 
   window.DOWNLOAD.postMessage({
     type: 'download-file',

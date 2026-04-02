@@ -1,5 +1,5 @@
 import * as meta from '../meta'
-import { ErrorResponse } from '../../api'
+import Api, { ErrorResponse } from '../../api'
 import { errorIntoWorkerError, localDateFromUtcString, utcStringFromLocal, uuidv4 } from '../..'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
@@ -312,6 +312,9 @@ export async function upload(file: UploadAppFile, progress?: UploadProgressFunct
     await progress(file, false)
   }
 
+  const { token } = await meta.requestTransferToken(file.id, 'upload')
+  const api = new Api({ ...new Api().toJson(), jwtToken: token, refreshToken: undefined })
+
   const workers = [...new Array(file.chunks)]
     .filter((_, c) => {
       return !file.uploaded_chunks?.includes(c)
@@ -330,7 +333,7 @@ export async function upload(file: UploadAppFile, progress?: UploadProgressFunct
 
         const data = await sliceChunk(file.file as File, chunk)
 
-        file = await sync.uploadChunk(file, data, chunk)
+        file = await sync.uploadChunk(file, data, chunk, 0, api)
 
         if (progress) {
           const storedChunks = file.uploaded_chunks?.length || 0

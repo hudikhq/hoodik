@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use actix_web::{route, web, HttpRequest, HttpResponse};
-use auth::data::claims::Claims;
+use auth::data::transfer_claims::StorageClaims;
 use context::Context;
 use entity::Uuid;
 use error::{AppResult, Error};
@@ -29,7 +29,7 @@ use crate::{
 #[route("/api/storage/{file_id}", method = "POST")]
 pub(crate) async fn upload(
     req: HttpRequest,
-    claims: Claims,
+    claims: StorageClaims,
     context: web::Data<Context>,
     meta: web::Query<Meta>,
     mut request_body: web::Bytes,
@@ -41,6 +41,7 @@ pub(crate) async fn upload(
     let context = context.into_inner();
     let file_id: String = util::actix::path_var(&req, "file_id")?;
     let file_id = Uuid::from_str(&file_id)?;
+    claims.validate_transfer_path(file_id, "upload")?;
     let (chunk, checksum, checksum_function, key_hex) = meta.into_inner().into_tuple()?;
 
     validate_checksum(checksum, checksum_function, &request_body)?;
@@ -51,7 +52,7 @@ pub(crate) async fn upload(
 
     let storage = Fs::new(&context.config);
 
-    let mut file = get_file(&context, claims.sub, file_id)
+    let mut file = get_file(&context, claims.sub(), file_id)
         .await
         .ok_or_else(|| Error::NotFound("file_not_found".to_string()))?;
 
@@ -80,7 +81,7 @@ pub(crate) async fn upload(
 
     if file.chunks == file.chunks_stored {
         let mut finished_file = Repository::new(&context.db)
-            .manage(claims.sub)
+            .manage(claims.sub())
             .finish(&file)
             .await?;
 
