@@ -27,12 +27,28 @@ pub(crate) async fn download(
     let file_id = Uuid::from_str(&file_id)?;
     claims.validate_transfer_path(file_id, "download")?;
     let chunk = util::actix::query_var::<i64>(&req, "chunk").ok();
+    let format = util::actix::query_var::<String>(&req, "format").ok();
 
     let file = get_file(&context, claims.sub(), file_id)
         .await
         .ok_or_else(|| Error::NotFound("file_not_found".to_string()))?;
 
     let storage = Fs::new(&context.config);
+
+    if format.as_deref() == Some("tar") {
+        let content_length = storage.tar_content_length(&file).await?;
+        let streamer = storage.stream_tar(&file).await?;
+        let filename = format!("{}.tar", file_id);
+
+        return Ok(HttpResponse::Ok()
+            .insert_header(("Content-Type", "application/x-tar"))
+            .insert_header(("Content-Length", content_length.to_string()))
+            .insert_header((
+                "Content-Disposition",
+                format!("attachment; filename=\"{filename}\""),
+            ))
+            .streaming(streamer.stream()));
+    }
 
     let streamer = storage.stream(&file, chunk).await?;
 
@@ -63,10 +79,22 @@ pub(crate) async fn head(
     let file_id = Uuid::from_str(&file_id)?;
     claims.validate_transfer_path(file_id, "download")?;
     let chunk = util::actix::query_var::<i32>(&req, "chunk").ok();
+    let format = util::actix::query_var::<String>(&req, "format").ok();
 
     let file = get_file(&context, claims.sub(), file_id)
         .await
         .ok_or_else(|| Error::NotFound("file_not_found".to_string()))?;
+
+    if format.as_deref() == Some("tar") {
+        let filename = format!("{}", file_id);
+        return Ok(HttpResponse::Ok()
+            .insert_header(("Content-Type", "application/x-tar"))
+            .insert_header((
+                "Content-Disposition",
+                format!("attachment; filename=\"{filename}.tar\""),
+            ))
+            .finish());
+    }
 
     let filename = match chunk {
         Some(chunk) => file.filename()?.with_chunk(chunk).with_extension(".enc"),

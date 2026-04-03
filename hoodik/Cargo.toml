@@ -1,6 +1,6 @@
 [package]
 name = "hoodik"
-version = "1.11.0"
+version = "1.12.0"
 edition = "2021"
 rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
@@ -42,6 +42,7 @@ email = { path = "../email", features = ["mock"] }
 links = { path = "../links", features = ["mock"] }
 storage = { path = "../storage", features = ["mock"] }
 settings = { path = "../settings", features = [] }
+transfer = { path = "../transfer" }
 
 # Configuration for metadata of the deb package
 [package.metadata.deb]

@@ -11,6 +11,7 @@ use crate::{
     contract::FsProviderContract,
     filename::{Filename, IntoFilename},
     streamer::Streamer,
+    tar,
 };
 
 pub(crate) struct FsProvider<'provider> {
@@ -72,6 +73,150 @@ impl<'provider> FsProvider<'provider> {
 
             Some((Ok(data), files))
         })
+    }
+
+    /// Stream all chunks as an uncompressed tar archive. Each chunk becomes a
+    /// named entry (`{chunk_index:06}.enc`) with a proper tar header, data,
+    /// and padding. The archive ends with two 512-byte zero blocks.
+    ///
+    /// Files are opened one at a time during streaming to avoid exhausting the
+    /// OS file descriptor limit for files with many chunks.
+    async fn inner_stream_tar<T: IntoFilename>(
+        &self,
+        filename: &T,
+    ) -> impl futures_util::Stream<Item = AppResult<actix_web::web::Bytes>> {
+        let chunks = match self.get_uploaded_chunks(filename).await {
+            Ok(c) => c,
+            Err(e) => {
+                log::error!("Failed to get uploaded chunks for tar stream: {:#?}", e);
+                vec![]
+            }
+        };
+
+        // Build (entry_name, on_disk_path) for each chunk.
+        let mut entries: Vec<(String, String)> = Vec::with_capacity(chunks.len());
+        for chunk_idx in &chunks {
+            match filename.filename() {
+                Ok(f) => {
+                    let chunk_filename = f.with_chunk(*chunk_idx);
+                    let path = self.full_path(&chunk_filename);
+                    let name = format!("{:06}.enc", chunk_idx);
+                    entries.push((name, path));
+                }
+                Err(e) => {
+                    log::error!("Failed to build filename for chunk {}: {:#?}", chunk_idx, e);
+                }
+            }
+        }
+
+        // Reverse so we can pop from the end in order.
+        entries.reverse();
+
+        /// Phases of the tar entry state machine.
+        enum Phase {
+            /// Pop next entry, open its file, and emit the tar header.
+            NextEntry,
+            /// Read the chunk file data and emit it.
+            Data(File, u64),
+            /// Emit zero-padding to reach a 512-byte boundary.
+            Padding(usize),
+            /// Emit the end-of-archive marker (1024 zero bytes).
+            EndOfArchive,
+            /// Stream is finished.
+            Done,
+        }
+
+        struct State {
+            entries: Vec<(String, String)>,
+            phase: Phase,
+        }
+
+        let state = State {
+            entries,
+            phase: Phase::NextEntry,
+        };
+
+        futures_util::stream::unfold(state, |mut state| async move {
+            loop {
+                match state.phase {
+                    Phase::NextEntry => {
+                        if let Some((name, path)) = state.entries.pop() {
+                            let file = match File::open(&path).await {
+                                Ok(f) => f,
+                                Err(e) => {
+                                    log::error!("Failed to open chunk {}: {:#?}", name, e);
+                                    return Some((Err(Error::from(e)), state));
+                                }
+                            };
+                            let size = match file.metadata().await {
+                                Ok(m) => m.len(),
+                                Err(e) => {
+                                    log::error!("Failed to stat chunk {}: {:#?}", name, e);
+                                    return Some((Err(Error::from(e)), state));
+                                }
+                            };
+                            let header = tar::tar_header(&name, size);
+                            state.phase = Phase::Data(file, size);
+                            return Some((Ok(Bytes::from(header.to_vec())), state));
+                        } else {
+                            state.phase = Phase::EndOfArchive;
+                        }
+                    }
+                    Phase::Data(mut file, size) => {
+                        let mut data = Vec::with_capacity(size as usize);
+                        match file.read_to_end(&mut data).await {
+                            Ok(_) => {
+                                let padding_len = tar::tar_padding_len(size);
+                                state.phase = if padding_len > 0 {
+                                    Phase::Padding(padding_len)
+                                } else {
+                                    Phase::NextEntry
+                                };
+                                return Some((Ok(Bytes::from(data)), state));
+                            }
+                            Err(e) => {
+                                state.phase = Phase::NextEntry;
+                                return Some((Err(Error::from(e)), state));
+                            }
+                        }
+                    }
+                    Phase::Padding(len) => {
+                        state.phase = Phase::NextEntry;
+                        return Some((Ok(Bytes::from(vec![0u8; len])), state));
+                    }
+                    Phase::EndOfArchive => {
+                        state.phase = Phase::Done;
+                        return Some((
+                            Ok(Bytes::from(vec![0u8; tar::TAR_END_OF_ARCHIVE_LEN])),
+                            state,
+                        ));
+                    }
+                    Phase::Done => {
+                        return None;
+                    }
+                }
+            }
+        })
+    }
+
+    /// Calculate the total tar archive size by statting chunk files in batches.
+    async fn inner_tar_content_length<T: IntoFilename>(&self, filename: &T) -> AppResult<u64> {
+        const BATCH_SIZE: usize = 50;
+
+        let chunks = self.get_uploaded_chunks(filename).await?;
+        let mut total: u64 = 0;
+
+        for batch in chunks.chunks(BATCH_SIZE) {
+            for chunk_idx in batch {
+                let file = self.get(filename, *chunk_idx).await?;
+                let size = file.metadata().await?.len();
+                total += 512 + size + tar::tar_padding_len(size) as u64;
+                // `file` dropped here — FD released.
+            }
+        }
+
+        total += tar::TAR_END_OF_ARCHIVE_LEN as u64;
+        Ok(total)
     }
 }
 
@@ -212,5 +357,16 @@ impl FsProviderContract for FsProvider<'_> {
         let stream = self.inner_stream(&filename, chunk).await;
 
         Ok(Streamer::new(stream))
+    }
+
+    async fn stream_tar<T: IntoFilename>(&self, filename: &T) -> AppResult<Streamer> {
+        let filename = filename.filename()?;
+        let stream = self.inner_stream_tar(&filename).await;
+
+        Ok(Streamer::new(stream))
+    }
+
+    async fn tar_content_length<T: IntoFilename>(&self, filename: &T) -> AppResult<u64> {
+        self.inner_tar_content_length(filename).await
     }
 }

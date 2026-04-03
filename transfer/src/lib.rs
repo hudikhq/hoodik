@@ -4,6 +4,7 @@ pub(crate) mod upload_trace;
 pub mod download;
 pub mod error;
 pub mod platform;
+pub mod tar;
 pub mod types;
 pub mod upload;
 

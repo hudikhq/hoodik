@@ -165,6 +165,58 @@ impl HttpClient for WasmHttpClient {
         })
     }
 
+    fn download_all_chunks(
+        &self,
+        auth: &Auth,
+        file_id: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + '_>> {
+        let auth = auth.clone();
+        let file_id = file_id.to_string();
+
+        Box::pin(async move {
+            let headers = Self::build_headers(&auth)?;
+
+            let url = format!(
+                "{}/api/storage/{}?format=tar",
+                auth.base_url, file_id
+            );
+
+            let opts = RequestInit::new();
+            opts.set_method("GET");
+            opts.set_headers(&headers);
+            opts.set_mode(RequestMode::Cors);
+            opts.set_credentials(RequestCredentials::Include);
+
+            let resp = Self::do_fetch(&opts, &url).await?;
+            let status = resp.status();
+
+            if status >= 400 {
+                let text_promise = resp.text().map_err(|e| Error::Io(format!("{e:?}")))?;
+                let text = JsFuture::from(text_promise)
+                    .await
+                    .map_err(|e| Error::Io(format!("{e:?}")))?
+                    .as_string()
+                    .unwrap_or_default();
+                return Err(Error::Http(HttpError {
+                    status,
+                    message: text,
+                    validation: None,
+                }));
+            }
+
+            let ab_promise = resp
+                .array_buffer()
+                .map_err(|e| Error::Io(format!("{e:?}")))?;
+
+            let array_buffer = JsFuture::from(ab_promise)
+                .await
+                .map_err(|e| Error::Io(format!("{e:?}")))?;
+
+            let uint8_array = js_sys::Uint8Array::new(&array_buffer);
+            Ok(uint8_array.to_vec())
+        })
+    }
+
     fn update_hashes(
         &self,
         auth: &Auth,

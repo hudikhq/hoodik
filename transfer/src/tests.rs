@@ -1,6 +1,7 @@
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::pin::Pin;
+use std::str::FromStr;
 
 use crate::checksum;
 use crate::config::{UploadHashOptions, CHUNK_SIZE_BYTES, MAX_UPLOAD_RETRIES};
@@ -149,6 +150,54 @@ impl HttpClient for MockHttpClient {
                 validation: None,
             }))
         })
+    }
+
+    fn download_all_chunks(
+        &self,
+        _auth: &Auth,
+        _file_id: &str,
+    ) -> Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + '_>> {
+        // Build a tar archive from stored chunks.
+        let stored = self.stored_chunks.borrow();
+        let mut indices: Vec<u64> = stored.keys().copied().collect();
+        indices.sort();
+
+        let mut archive = Vec::new();
+        for idx in indices {
+            if let Some(data) = stored.get(&idx) {
+                // Build a minimal tar header.
+                let name = format!("{:06}.enc", idx);
+                let name_bytes = name.as_bytes();
+
+                let mut header = [0u8; 512];
+                header[..name_bytes.len()].copy_from_slice(name_bytes);
+                header[100..107].copy_from_slice(b"0000644");
+                header[108..115].copy_from_slice(b"0000000");
+                header[116..123].copy_from_slice(b"0000000");
+                let size_octal = format!("{:011o}", data.len());
+                header[124..135].copy_from_slice(size_octal.as_bytes());
+                header[136..147].copy_from_slice(b"00000000000");
+                header[156] = b'0';
+                header[257..263].copy_from_slice(b"ustar\0");
+                header[263..265].copy_from_slice(b"00");
+                header[148..156].copy_from_slice(b"        ");
+                let checksum: u32 = header.iter().map(|&b| b as u32).sum();
+                let checksum_octal = format!("{:06o}\0 ", checksum);
+                header[148..156].copy_from_slice(&checksum_octal.as_bytes()[..8]);
+
+                archive.extend_from_slice(&header);
+                archive.extend_from_slice(data);
+
+                let remainder = data.len() % 512;
+                if remainder != 0 {
+                    archive.extend(std::iter::repeat(0u8).take(512 - remainder));
+                }
+            }
+        }
+        // End-of-archive: two zero blocks.
+        archive.extend(std::iter::repeat(0u8).take(1024));
+
+        Box::pin(async move { Ok(archive) })
     }
 
     fn update_hashes(
@@ -738,4 +787,92 @@ async fn download_http_error_propagates() {
         Err(Error::Http(e)) => assert_eq!(e.status, 500),
         other => panic!("Expected Http error, got: {other:?}"),
     }
+}
+
+// ── Tar download tests ──────────────────────────────────────────────────────
+
+#[tokio::test(flavor = "current_thread")]
+async fn download_all_chunks_tar_roundtrip() {
+    let original = b"Hello, tar download roundtrip test!".to_vec();
+    let source = MockDataSource::new(original.clone());
+    let http = MockHttpClient::new();
+    let up = MockProgressReporter::new();
+
+    crate::upload::upload_file(
+        &http,
+        &source,
+        &up,
+        &test_auth(),
+        "tar_rt",
+        &test_key(),
+        &[],
+        UploadHashOptions::default(),
+        None,
+        cryptfns::cipher::DEFAULT,
+    )
+    .await
+    .unwrap();
+
+    // Download as tar archive and extract entries.
+    let tar_data = http
+        .download_all_chunks(&test_auth(), "tar_rt")
+        .await
+        .unwrap();
+    let entries = crate::tar::extract_tar(&tar_data).unwrap();
+
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].name, "000000.enc");
+    // Encrypted data should be non-empty (original + auth tag).
+    assert!(!entries[0].data.is_empty());
+
+    // Decrypt the chunk and verify it matches the original.
+    let cipher = cryptfns::cipher::Cipher::from_str(cryptfns::cipher::DEFAULT).unwrap();
+    let decrypted = cipher.decrypt(test_key(), entries[0].data.clone()).unwrap();
+    assert_eq!(decrypted, original);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn download_all_chunks_tar_multi_chunk() {
+    let cs = CHUNK_SIZE_BYTES as usize;
+    let mut data = Vec::with_capacity(cs + 500);
+    data.extend(vec![0xAAu8; cs]);
+    data.extend(vec![0xBBu8; 500]);
+
+    let source = MockDataSource::new(data.clone());
+    let http = MockHttpClient::new();
+    let up = MockProgressReporter::new();
+
+    crate::upload::upload_file(
+        &http,
+        &source,
+        &up,
+        &test_auth(),
+        "tar_mc",
+        &test_key(),
+        &[],
+        UploadHashOptions::default(),
+        None,
+        cryptfns::cipher::DEFAULT,
+    )
+    .await
+    .unwrap();
+
+    let tar_data = http
+        .download_all_chunks(&test_auth(), "tar_mc")
+        .await
+        .unwrap();
+    let entries = crate::tar::extract_tar(&tar_data).unwrap();
+
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].name, "000000.enc");
+    assert_eq!(entries[1].name, "000001.enc");
+
+    // Decrypt each chunk and reassemble.
+    let cipher = cryptfns::cipher::Cipher::from_str(cryptfns::cipher::DEFAULT).unwrap();
+    let mut reassembled = Vec::new();
+    for entry in &entries {
+        let plaintext = cipher.decrypt(test_key(), entry.data.clone()).unwrap();
+        reassembled.extend_from_slice(&plaintext);
+    }
+    assert_eq!(reassembled, data);
 }
