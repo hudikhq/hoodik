@@ -21,6 +21,14 @@ pub trait HttpClient {
         chunk_index: u64,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + '_>>;
 
+    /// Download all chunks as a tar archive containing individual encrypted chunk files.
+    /// Each entry is named `{chunk_index:06}.enc`. Returns the raw tar bytes.
+    fn download_all_chunks(
+        &self,
+        auth: &Auth,
+        file_id: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + '_>>;
+
     /// Send computed file hashes to the server after upload completes.
     fn update_hashes(
         &self,

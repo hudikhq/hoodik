@@ -282,6 +282,42 @@ async fn fetch_and_save<'a>(
     (chunk, result)
 }
 
+/// Download all chunks in a single request as a tar archive, then extract
+/// each chunk to `{output_dir}/{entry_name}` (e.g. `000000.enc`, `000001.enc`).
+///
+/// This replaces N individual HTTP requests with one, reducing connection
+/// overhead while preserving chunk boundaries for later decryption.
+#[cfg(any(feature = "native", feature = "mobile"))]
+pub async fn download_chunks_to_dir_bulk(
+    http: &dyn HttpClient,
+    progress: &dyn ProgressReporter,
+    auth: &Auth,
+    file_id: &str,
+    file_size: u64,
+    output_dir: &str,
+) -> Result<()> {
+    if progress.is_cancelled(file_id) {
+        return Err(Error::Cancelled);
+    }
+
+    let tar_data = http.download_all_chunks(auth, file_id).await?;
+    let entries = crate::tar::extract_tar(&tar_data)?;
+
+    let mut bytes_written: u64 = 0;
+    for entry in &entries {
+        let path = format!("{}/{}", output_dir, entry.name);
+        tokio::fs::write(&path, &entry.data)
+            .await
+            .map_err(|e| Error::Io(format!("Failed to write {}: {e}", entry.name)))?;
+
+        bytes_written += entry.data.len() as u64;
+        progress.on_chunk_downloaded(file_id, bytes_written, file_size);
+    }
+
+    progress.on_complete(file_id);
+    Ok(())
+}
+
 /// Decrypt previously downloaded encrypted chunks to a single output file.
 ///
 /// Reads chunks sequentially from `{chunks_dir}/{index:06}.enc`, decrypts each

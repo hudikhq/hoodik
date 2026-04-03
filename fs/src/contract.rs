@@ -43,4 +43,14 @@ pub trait FsProviderContract {
         filename: &T,
         chunk: Option<i64>,
     ) -> AppResult<Streamer>;
+
+    /// Stream all chunks as an uncompressed tar archive. Each chunk becomes a
+    /// separate entry named `{chunk_index:06}.enc`, preserving chunk boundaries.
+    async fn stream_tar<T: IntoFilename>(&self, filename: &T) -> AppResult<Streamer>;
+
+    /// Calculate the total size of the tar archive without streaming it.
+    ///
+    /// Opens chunk files in small batches to stat their sizes, avoiding
+    /// file descriptor exhaustion for files with many chunks.
+    async fn tar_content_length<T: IntoFilename>(&self, filename: &T) -> AppResult<u64>;
 }

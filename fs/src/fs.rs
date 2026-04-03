@@ -98,4 +98,12 @@ impl FsProviderContract for Fs<'_> {
     ) -> AppResult<Streamer> {
         self.provider().stream(filename, chunk).await
     }
+
+    async fn stream_tar<T: IntoFilename>(&self, filename: &T) -> AppResult<Streamer> {
+        self.provider().stream_tar(filename).await
+    }
+
+    async fn tar_content_length<T: IntoFilename>(&self, filename: &T) -> AppResult<u64> {
+        self.provider().tar_content_length(filename).await
+    }
 }

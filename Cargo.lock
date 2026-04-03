@@ -2114,7 +2114,7 @@ dependencies = [
 
 [[package]]
 name = "hoodik"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "actix-cors",
  "actix-web",
@@ -2138,6 +2138,7 @@ dependencies = [
  "serde_json",
  "settings",
  "storage",
+ "transfer",
 ]
 
 [[package]]

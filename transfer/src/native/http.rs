@@ -138,6 +138,48 @@ impl HttpClient for NativeHttpClient {
         })
     }
 
+    fn download_all_chunks(
+        &self,
+        auth: &Auth,
+        file_id: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + '_>> {
+        let auth = auth.clone();
+        let file_id = file_id.to_string();
+
+        Box::pin(async move {
+            let url = format!("{}/api/storage/{}", auth.base_url, file_id);
+            let headers = Self::auth_headers(&auth);
+
+            let resp = self
+                .client
+                .get(&url)
+                .headers(headers)
+                .query(&[("format", "tar")])
+                .send()
+                .await
+                .map_err(|e| Error::Io(format!("Download tar request failed: {e}")))?;
+
+            let status = resp.status().as_u16();
+
+            if status >= 400 {
+                let text = resp
+                    .text()
+                    .await
+                    .map_err(|e| Error::Io(format!("Failed to read error response: {e}")))?;
+                return Err(Error::Http(HttpError {
+                    status,
+                    message: text,
+                    validation: None,
+                }));
+            }
+
+            resp.bytes()
+                .await
+                .map(|b| b.to_vec())
+                .map_err(|e| Error::Io(format!("Failed to read tar response bytes: {e}")))
+        })
+    }
+
     fn update_hashes(
         &self,
         auth: &Auth,

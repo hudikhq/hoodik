@@ -8,7 +8,7 @@ use fs::IntoFilename;
 use hoodik::server;
 use storage::data::app_file::AppFile;
 
-use crate::helpers::{calculate_checksum, create_byte_chunks, CHUNKS, CHUNK_SIZE_BYTES};
+use crate::helpers::{calculate_checksum, create_byte_chunks, CHUNK_SIZE_BYTES, CHUNKS};
 
 #[actix_web::test]
 async fn test_creating_file_and_uploading_chunks() {
@@ -395,6 +395,184 @@ async fn test_transfer_token_upload_and_download() {
         StatusCode::UNPROCESSABLE_ENTITY,
         "Invalid action should be rejected"
     );
+
+    context.config.app.cleanup();
+}
+
+#[actix_web::test]
+async fn test_download_tar_archive() {
+    let context =
+        context::Context::mock_with_data_dir(Some("../data-test-tar".to_string())).await;
+
+    let private = cryptfns::rsa::private::generate().unwrap();
+    let public = cryptfns::rsa::public::from_private(&private).unwrap();
+    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
+    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
+
+    let app = test::init_service(server::app(context.clone())).await;
+
+    // Register user.
+    let req = test::TestRequest::post()
+        .uri("/api/auth/register")
+        .set_json(&CreateUser {
+            email: Some("tar@test.com".to_string()),
+            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
+            secret: None,
+            token: None,
+            pubkey: Some(public_string.clone()),
+            fingerprint: Some(fingerprint.clone()),
+            encrypted_private_key: Some("encrypted-secret".to_string()),
+            invitation_id: None,
+        })
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    let (jwt, _) = helpers::extract_cookies(resp.headers());
+    let jwt = jwt.unwrap();
+
+    // Create a multi-chunk file (5 × 1 MiB + 0.5 MiB = 5.5 MiB, 6 chunks).
+    let (mut data, mut size, _) = create_byte_chunks();
+
+    let mut last_chunk = vec![];
+    for _ in 0..(CHUNK_SIZE_BYTES / 2) {
+        last_chunk.extend(b"b");
+    }
+    data.push(last_chunk);
+    size += (CHUNK_SIZE_BYTES / 2) as i64;
+
+    let checksum = calculate_checksum(data.clone());
+    let chunk_count = data.len();
+
+    let create_file = storage::data::create_file::CreateFile {
+        encrypted_key: Some("encrypted-key".to_string()),
+        encrypted_name: Some("tar-test.enc".to_string()),
+        encrypted_thumbnail: None,
+        search_tokens_hashed: None,
+        name_hash: Some(checksum.clone()),
+        mime: Some("application/octet-stream".to_string()),
+        size: Some(size),
+        chunks: Some(chunk_count as i64),
+        file_id: None,
+        file_modified_at: None,
+        md5: None,
+        sha1: None,
+        sha256: None,
+        blake2b: None,
+        cipher: None,
+    };
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(jwt.clone())
+        .set_json(&create_file)
+        .to_request();
+
+    let body = test::call_and_read_body(&app, req).await;
+    let file: AppFile = serde_json::from_slice(&body).unwrap();
+
+    // Upload all chunks.
+    for (i, chunk) in data.iter().enumerate() {
+        let cs = cryptfns::sha256::digest(chunk.as_slice());
+        let uri = format!("/api/storage/{}?checksum={}&chunk={}", &file.id, cs, i);
+
+        let req = test::TestRequest::post()
+            .uri(uri.as_str())
+            .cookie(jwt.clone())
+            .append_header(("Content-Type", "application/octet-stream"))
+            .set_payload(chunk.clone())
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK, "Upload chunk {} failed", i);
+    }
+
+    // Download as tar archive.
+    let req = test::TestRequest::get()
+        .uri(format!("/api/storage/{}?format=tar", &file.id).as_str())
+        .cookie(jwt.clone())
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    // Verify Content-Type and Content-Length headers.
+    let content_type = resp
+        .headers()
+        .get("Content-Type")
+        .unwrap()
+        .to_str()
+        .unwrap();
+    assert_eq!(content_type, "application/x-tar");
+
+    let content_length: u64 = resp
+        .headers()
+        .get("Content-Length")
+        .expect("Content-Length header should be present")
+        .to_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+
+    let tar_bytes = test::read_body(resp).await.to_vec();
+
+    // Verify Content-Length matches actual body size.
+    assert_eq!(
+        tar_bytes.len() as u64,
+        content_length,
+        "Content-Length header must match actual tar archive size"
+    );
+
+    // Extract tar entries using the transfer crate's tar parser.
+    let entries = transfer::tar::extract_tar(&tar_bytes).unwrap();
+
+    // Verify we got the right number of chunks.
+    assert_eq!(entries.len(), chunk_count);
+
+    // Verify each entry has the correct name and matches the uploaded data.
+    for (i, entry) in entries.iter().enumerate() {
+        assert_eq!(
+            entry.name,
+            format!("{:06}.enc", i),
+            "Entry {} has wrong name",
+            i
+        );
+        assert_eq!(
+            entry.data, data[i],
+            "Entry {} data does not match uploaded chunk",
+            i
+        );
+    }
+
+    // Verify the tar archive is well-formed: expected size calculation.
+    let expected_size: u64 = data
+        .iter()
+        .map(|chunk| {
+            let chunk_len = chunk.len() as u64;
+            512 + chunk_len + fs::tar::tar_padding_len(chunk_len) as u64
+        })
+        .sum::<u64>()
+        + fs::tar::TAR_END_OF_ARCHIVE_LEN as u64;
+    assert_eq!(tar_bytes.len() as u64, expected_size);
+
+    // Verify existing download modes still work.
+    // Single chunk download.
+    let req = test::TestRequest::get()
+        .uri(format!("/api/storage/{}?chunk=0", &file.id).as_str())
+        .cookie(jwt.clone())
+        .to_request();
+
+    let chunk_0 = test::call_and_read_body(&app, req).await.to_vec();
+    assert_eq!(chunk_0, data[0]);
+
+    // Full concatenated download.
+    let req = test::TestRequest::get()
+        .uri(format!("/api/storage/{}", &file.id).as_str())
+        .cookie(jwt.clone())
+        .to_request();
+
+    let full = test::call_and_read_body(&app, req).await.to_vec();
+    let expected_full: Vec<u8> = data.iter().flat_map(|c| c.iter().copied()).collect();
+    assert_eq!(full, expected_full);
 
     context.config.app.cleanup();
 }

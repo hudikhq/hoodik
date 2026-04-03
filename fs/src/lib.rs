@@ -3,6 +3,7 @@ mod filename;
 mod fs;
 mod providers;
 mod streamer;
+pub mod tar;
 
 pub use filename::IntoFilename;
 
