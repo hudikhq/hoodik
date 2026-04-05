@@ -12,6 +12,8 @@
 
 Hoodik is a lightweight, self-hosted, end-to-end encrypted cloud storage server. All encryption and decryption happens in your browser — the server never sees your plaintext data. Built with Rust (Actix-web) on the backend and Vue 3 on the frontend.
 
+🌐 **[hoodik.io](https://hoodik.io)** — Website &nbsp;|&nbsp; 📱 **[Android App](https://play.google.com/store/apps/details?id=com.hudikhq.hoodik)** &nbsp;|&nbsp; ⚡ **[VPS Setup Guide](https://hoodik.io/get-started)**
+
 <p align="center">
   <img src="./screenshot.png" alt="Hoodik screenshot" />
 </p>
@@ -36,6 +38,8 @@ Hoodik is a lightweight, self-hosted, end-to-end encrypted cloud storage server.
 ### File storage
 
 Each user gets an RSA-2048 key pair on registration. The private key is stored encrypted with your passphrase — the server cannot read it.
+
+> ⚠️ **Store your private key somewhere safe** (e.g. a password manager). If you forget your password, the private key is the only way to recover your account and decrypt your files.
 
 When you upload a file:
 1. A random symmetric key is generated for the file (key size depends on the cipher).
