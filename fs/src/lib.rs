@@ -17,4 +17,7 @@ pub mod prelude {
     pub use super::filename::{Filename, IntoFilename};
     pub use super::fs::Fs;
     pub use super::streamer::Streamer;
+
+    #[cfg(feature = "s3")]
+    pub use super::providers::s3::S3Provider;
 }

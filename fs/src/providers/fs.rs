@@ -199,6 +199,32 @@ impl<'provider> FsProvider<'provider> {
         })
     }
 
+    /// Get a file handle for a specific chunk from the local filesystem.
+    async fn get<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<File> {
+        let filename = filename.filename()?.with_chunk(chunk);
+
+        OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(self.full_path(&filename))
+            .await
+            .map_err(Error::from)
+    }
+
+    /// Get all chunk file handles for a file, in chunk order.
+    async fn all<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<File>> {
+        let filename = filename.filename()?;
+
+        let chunks = self.get_uploaded_chunks(&filename).await?;
+        let mut files: Vec<File> = vec![];
+
+        for chunk in chunks {
+            files.push(self.get(&filename, chunk).await?);
+        }
+
+        Ok(files)
+    }
+
     /// Calculate the total tar archive size by statting chunk files in batches.
     async fn inner_tar_content_length<T: IntoFilename>(&self, filename: &T) -> AppResult<u64> {
         const BATCH_SIZE: usize = 50;
@@ -258,30 +284,6 @@ impl FsProviderContract for FsProvider<'_> {
                 .as_str(),
         )
         .exists())
-    }
-
-    async fn get<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<File> {
-        let filename = filename.filename()?.with_chunk(chunk);
-
-        OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(self.full_path(&filename))
-            .await
-            .map_err(Error::from)
-    }
-
-    async fn all<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<File>> {
-        let filename = filename.filename()?;
-
-        let chunks = self.get_uploaded_chunks(&filename).await?;
-        let mut files: Vec<File> = vec![];
-
-        for chunk in chunks {
-            files.push(self.get(&filename, chunk).await?);
-        }
-
-        Ok(files)
     }
 
     async fn push<T: IntoFilename>(&self, filename: &T, chunk: i64, data: &[u8]) -> AppResult<()> {

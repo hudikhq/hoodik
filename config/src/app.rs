@@ -72,6 +72,15 @@ pub struct AppConfig {
     /// if this is left empty it will be automatically filled with the version
     /// from the Cargo.toml file.
     pub version: String,
+
+    /// STORAGE_PROVIDER — which storage backend to use for file chunks.
+    ///
+    /// *optional*
+    ///
+    /// default: local
+    ///
+    /// possible values: local, s3
+    pub storage_provider: String,
 }
 
 impl AppConfig {
@@ -92,6 +101,9 @@ impl AppConfig {
             .get();
 
         let client_url = vars.var_default("APP_CLIENT_URL", app_url.clone()).get();
+        let storage_provider = vars
+            .var_default("STORAGE_PROVIDER", "local".to_string())
+            .get();
 
         vars.panic_if_errors("AppConfig");
 
@@ -104,6 +116,7 @@ impl AppConfig {
             version,
             app_url,
             client_url,
+            storage_provider,
         }
         .set_env()
     }

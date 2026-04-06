@@ -99,6 +99,8 @@ pub(crate) struct Vars {
     matches: Option<ArgMatches>,
     errors: Vec<String>,
     warnings: Vec<String>,
+    /// Subcommand invoked from the CLI, if any.
+    pub(crate) subcommand: Option<String>,
 }
 
 impl Vars {
@@ -125,6 +127,7 @@ impl Vars {
             matches: None,
             errors: Vec::new(),
             warnings: Vec::new(),
+            subcommand: None,
         }
     }
 
@@ -351,9 +354,15 @@ impl Vars {
                 .long("log")
                 .help("Set the RUST_LOG variable")
                 .required(false),
+        )
+        .subcommand(
+            Command::new("migrate-storage")
+                .about("Migrate file data from local filesystem to S3 storage"),
         );
 
-        self.matches = Some(command.get_matches());
+        let matches = command.get_matches();
+        self.subcommand = matches.subcommand_name().map(|s| s.to_string());
+        self.matches = Some(matches);
     }
 
     #[cfg(test)]

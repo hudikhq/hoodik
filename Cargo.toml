@@ -62,6 +62,9 @@ jsonwebtoken = "^8"
 # HTTP client
 reqwest = "^0.11"
 
+# Object storage
+s3 = { package = "rust-s3", version = "^0.35", default-features = false, features = ["tokio-rustls-tls"] }
+
 # Utilities
 uuid = { version = "1.2.2", features = ["serde", "v4"] }
 url = "^2"

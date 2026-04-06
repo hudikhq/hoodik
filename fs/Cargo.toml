@@ -10,7 +10,12 @@ description = "File system abstraction library"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = []
+s3 = ["dep:s3"]
+
 [dependencies]
+s3 = { workspace = true, optional = true }
 config = { path = "../config" }
 error = { path = "../error" }
 

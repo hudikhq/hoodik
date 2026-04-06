@@ -891,6 +891,13 @@ jobs:
             docker manifest push ${LOWER_DOCKER_ORG}/${REPO_AND_TAG}
           done
 
+      - name: Prepare README for Docker Hub
+        run: |
+          RAW_BASE="https://raw.githubusercontent.com/${{ github.repository }}/master/"
+          sed -e "s|src=\"\./|src=\"${RAW_BASE}|g" \
+              -e "s|href=\"\./|href=\"${RAW_BASE}|g" \
+              README.md > README.docker.md
+
       - name: Update repo description
         uses: peter-evans/dockerhub-description@v4
         with:
@@ -898,5 +905,4 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           repository: ${{ secrets.DOCKER_USERNAME }}/${{ env.docker_repo }}
           short-description: ${{ github.event.repository.description }}
-          readme-filepath: ./README.md
-          enable-url-completion: true
+          readme-filepath: ./README.docker.md

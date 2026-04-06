@@ -21,6 +21,12 @@ async fn main() -> AppResult<()> {
 
     config.app.ensure_data_dir(None);
 
+    // Handle subcommands before starting the server
+    if config.subcommand.as_deref() == Some("migrate-storage") {
+        config.announce();
+        return hoodik::migrate::migrate_storage(&config).await;
+    }
+
     config.announce();
 
     // Create context from the config

@@ -169,11 +169,25 @@ build: wasm build-web build-api
 
 # Start the PostgreSQL container
 db-up:
-    docker-compose up -d
+    docker compose up -d postgres
 
 # Stop the PostgreSQL container
 db-down:
-    docker-compose down
+    docker compose stop postgres
+
+# ── MinIO (S3) ───────────────────────────────────────────────────────────────
+
+# Start MinIO and create the default bucket
+minio-up:
+    docker compose up -d minio minio-init
+
+# Stop MinIO
+minio-down:
+    docker compose stop minio
+
+# Migrate file chunks from local filesystem to S3 (requires S3 env vars)
+migrate-storage:
+    cargo run --release -- migrate-storage
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 

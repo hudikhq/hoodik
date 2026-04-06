@@ -14,3 +14,31 @@ services:
       - POSTGRESQL_WAL_LEVEL=logical
     ports:
       - "5432:5432"
+
+  minio:
+    image: minio/minio:latest
+    hostname: minio
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./data-minio:/data
+
+  # Creates the default bucket on first startup
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 2;
+      mc alias set local http://minio:9000 minioadmin minioadmin;
+      mc mb --ignore-existing local/hoodik;
+      echo 'Bucket ready.';
+      "
+

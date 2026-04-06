@@ -1,12 +1,87 @@
 use async_trait::async_trait;
-use tokio::fs::File;
 
 use config::Config;
 use error::AppResult;
 
 use crate::{
-    contract::FsProviderContract, filename::IntoFilename, providers::fs, streamer::Streamer,
+    contract::FsProviderContract,
+    filename::IntoFilename,
+    providers::fs,
+    streamer::Streamer,
 };
+
+#[cfg(feature = "s3")]
+use crate::providers::s3;
+
+/// Enum dispatch for storage providers. Avoids dynamic dispatch overhead
+/// and sidesteps object-safety issues with the generic trait methods.
+enum StorageProvider<'a> {
+    Local(fs::FsProvider<'a>),
+    #[cfg(feature = "s3")]
+    S3(Box<s3::S3Provider>),
+}
+
+/// Macro to reduce boilerplate for delegating trait methods through the enum.
+macro_rules! dispatch {
+    ($self:expr, $method:ident ( $($arg:expr),* )) => {
+        match $self {
+            StorageProvider::Local(p) => p.$method($($arg),*).await,
+            #[cfg(feature = "s3")]
+            StorageProvider::S3(p) => p.$method($($arg),*).await,
+        }
+    };
+}
+
+#[async_trait]
+impl FsProviderContract for StorageProvider<'_> {
+    async fn available_space(&self) -> AppResult<u64> {
+        dispatch!(self, available_space())
+    }
+
+    async fn read<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<u8>> {
+        dispatch!(self, read(filename))
+    }
+
+    async fn write<T: IntoFilename>(&self, filename: &T, data: &[u8]) -> AppResult<()> {
+        dispatch!(self, write(filename, data))
+    }
+
+    async fn exists<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<bool> {
+        dispatch!(self, exists(filename, chunk))
+    }
+
+    async fn push<T: IntoFilename>(&self, filename: &T, chunk: i64, data: &[u8]) -> AppResult<()> {
+        dispatch!(self, push(filename, chunk, data))
+    }
+
+    async fn pull<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<Vec<u8>> {
+        dispatch!(self, pull(filename, chunk))
+    }
+
+    async fn purge<T: IntoFilename>(&self, filename: &T) -> AppResult<()> {
+        dispatch!(self, purge(filename))
+    }
+
+    async fn get_uploaded_chunks<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<i64>> {
+        dispatch!(self, get_uploaded_chunks(filename))
+    }
+
+    async fn stream<T: IntoFilename>(
+        &self,
+        filename: &T,
+        chunk: Option<i64>,
+    ) -> AppResult<Streamer> {
+        dispatch!(self, stream(filename, chunk))
+    }
+
+    async fn stream_tar<T: IntoFilename>(&self, filename: &T) -> AppResult<Streamer> {
+        dispatch!(self, stream_tar(filename))
+    }
+
+    async fn tar_content_length<T: IntoFilename>(&self, filename: &T) -> AppResult<u64> {
+        dispatch!(self, tar_content_length(filename))
+    }
+}
 
 pub struct Fs<'ctx> {
     config: &'ctx Config,
@@ -37,15 +112,27 @@ impl<'ctx> Fs<'ctx> {
         fs::FsProvider::<'provider>::new(data_dir)
     }
 
-    /// Default storage provider for rw operations on either local, or any
-    /// other provider that the application configuration specifies.
-    fn provider<'provider>(&self) -> impl FsProviderContract + 'provider
-    where
-        'ctx: 'provider,
-    {
-        // TODO: Use the config to decide which provider we will be using
-        // for file storage. Once S3 is implemented...
-        self.local_in(&self.config.app.data_dir)
+    /// Default storage provider based on application configuration.
+    fn provider(&self) -> StorageProvider<'_> {
+        match self.config.app.storage_provider.as_str() {
+            #[cfg(feature = "s3")]
+            "s3" => {
+                let s3_config = self
+                    .config
+                    .s3
+                    .as_ref()
+                    .expect("S3 config is required when STORAGE_PROVIDER=s3");
+                StorageProvider::S3(Box::new(s3::S3Provider::new(s3_config)))
+            }
+            #[cfg(not(feature = "s3"))]
+            "s3" => {
+                panic!(
+                    "STORAGE_PROVIDER=s3 is set but the 's3' feature is not enabled. \
+                     Rebuild with: cargo build --features fs/s3"
+                );
+            }
+            _ => StorageProvider::Local(fs::FsProvider::new(&self.config.app.data_dir)),
+        }
     }
 }
 
@@ -65,14 +152,6 @@ impl FsProviderContract for Fs<'_> {
 
     async fn exists<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<bool> {
         self.provider().exists(filename, chunk).await
-    }
-
-    async fn get<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<File> {
-        self.provider().get(filename, chunk).await
-    }
-
-    async fn all<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<File>> {
-        self.provider().all(filename).await
     }
 
     async fn push<T: IntoFilename>(&self, filename: &T, chunk: i64, data: &[u8]) -> AppResult<()> {
