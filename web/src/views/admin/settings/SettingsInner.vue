@@ -35,14 +35,17 @@ const save = async () => {
 await init()
 </script>
 <template>
-  <div class="flex flex-col sm:flex-row gap-4">
-    <UserSettings
-      class="w-full sm:w-1/2"
-      v-model="settings"
-      :loading="loading"
-      :error="updateError"
-      @save="save"
-    />
-    <EmailSettings class="w-full sm:w-1/2" :loading="loading" />
+  <div class="mb-8">
+    <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-500 mb-3 px-1">Application Settings</h2>
+    <div class="flex flex-col lg:flex-row gap-6">
+      <UserSettings
+        class="w-full lg:w-7/12"
+        v-model="settings"
+        :loading="loading"
+        :error="updateError"
+        @save="save"
+      />
+      <EmailSettings class="w-full lg:w-5/12" :loading="loading" />
+    </div>
   </div>
 </template>

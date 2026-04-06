@@ -156,15 +156,15 @@ const drop = (e: DragEvent) => {
   }
 }
 
-const borderClass = 'sm:border-l-2 sm:border-brownish-50 sm:dark:border-brownish-900'
+const borderClass = 'sm:border-l sm:border-brownish-50 sm:dark:border-brownish-950'
 
 const sizes = {
-  checkbox: 'pl-2 pt-3 w-10',
-  name: 'w-10/12 p-2 pt-3 sm:w-7/12 xl:w-7/12 flex',
-  size: 'hidden p-2 pt-3 md:block md:w-2/12 xl:w-1/12',
-  type: 'hidden p-2 pt-3 xl:block xl:w-1/12',
-  modifiedAt: 'hidden p-2 pt-3 sm:block sm:w-4/12 lg:w-3/12 xl:w-2/12',
-  buttons: 'w-2/12 p-2 sm:w-1/12'
+  checkbox: 'pl-2 pt-3 w-10 shrink-0',
+  name: 'flex-1 p-2 pt-3 min-w-0 flex',
+  size: 'hidden p-2 pt-3 md:block w-24 shrink-0',
+  type: 'hidden p-2 pt-3 xl:block w-24 shrink-0',
+  modifiedAt: 'hidden p-2 pt-3 sm:block w-44 shrink-0',
+  buttons: 'w-10 p-2 shrink-0'
 }
 </script>
 
@@ -287,13 +287,14 @@ const sizes = {
     :class="{
       'border-2 border-redish-300 border-spacing-0 m-[-2px]': isDropZone
     }"
+    class="bg-white dark:bg-brownish-900 rounded-lg border border-brownish-200/40 dark:border-brownish-700/40"
     @dragenter="dragover"
     @dragleave="dragend"
     @dragend="dragend"
     @dragover="dragover"
     @drop="drop"
   >
-    <div class="w-full flex rounded-t-lg bg-brownish-100 dark:bg-brownish-950">
+    <div class="w-full flex rounded-t-lg bg-brownish-100 dark:bg-brownish-950 border-b border-brownish-200 dark:border-brownish-700/40">
       <div :class="sizes.checkbox">
         <TableCheckboxCell v-model="checked" v-if="!props.hideCheckbox" />
       </div>
@@ -339,7 +340,7 @@ const sizes = {
 
     <div
       v-if="props.loading"
-      class="w-full pt-20 rounded-b-lg bg-brownish-100 dark:bg-brownish-900 h-52 text-center"
+      class="w-full pt-20 rounded-b-lg bg-brownish-50 dark:bg-brownish-900 h-52 text-center"
     >
       <span class="w-1/2 h-1/2">
         <SpinnerIcon :size="200" />

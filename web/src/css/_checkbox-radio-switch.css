@@ -14,7 +14,7 @@
   .checkbox input[type='checkbox'] + .check,
   .radio input[type='radio'] + .check,
   .switch input[type='checkbox'] + .check {
-    @apply border-brownish-700 border transition-colors duration-200 dark:bg-brownish-800;
+    @apply border-brownish-300 border transition-colors duration-200 dark:border-brownish-500 dark:bg-brownish-700;
   }
 
   .checkbox input[type='checkbox']:focus + .check,

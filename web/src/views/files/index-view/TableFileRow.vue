@@ -94,7 +94,7 @@ const sharedClass = computed(() => {
   return 'dark:bg-brownish-900 hover:bg-dirty-white hover:dark:bg-brownish-700'
 })
 
-const border = 'sm:border-l-2 sm:border-brownish-50 sm:dark:border-brownish-950'
+const border = 'sm:border-l sm:border-brownish-50 sm:dark:border-brownish-950'
 const sizes = computed(() => {
   return {
     checkbox: `${props.sizes.checkbox}`,
@@ -203,11 +203,11 @@ const drop = (e: DragEvent) => {
     name="file-row"
     :data-testid="`file-row-${file.name}`"
     accesskey="test"
-    class="w-full flex border-2 border-brownish-900"
+    class="w-full flex file-row-separator"
     :class="{
       'bg-brownish-50 dark:bg-brownish-700': !!checked,
       [sharedClass]: true,
-      'border-auto border-redish-300 border-spacing-0 z-10': isDropZone
+      'outline-2 outline-redish-300 outline z-10': isDropZone
     }"
   >
     <div :class="sizes.checkbox">
@@ -268,10 +268,8 @@ const drop = (e: DragEvent) => {
   </div>
 
   <div
-    :class="{
-      [sharedClass]: true,
-      'border-b-2 border-greeny-800 dark:border-greeny-400 -mt-1': showProgress
-    }"
+    v-if="showProgress"
+    class="border-b-2 border-greeny-500 dark:border-greeny-400 -mt-[1px]"
     :style="{
       width: progressValue + '%'
     }"
@@ -282,5 +280,13 @@ const drop = (e: DragEvent) => {
   -webkit-user-select: none;
   -ms-user-select: none;
   user-select: none;
+}
+
+.file-row-separator {
+  box-shadow: inset 0 -1px 0 0 rgba(120, 120, 120, 0.15);
+}
+
+.dark .file-row-separator {
+  box-shadow: inset 0 -1px 0 0 rgba(120, 120, 120, 0.1);
 }
 </style>

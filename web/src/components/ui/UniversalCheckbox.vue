@@ -27,7 +27,7 @@ const model = computed<boolean | undefined>({
     <label class="checkbox">
       <input :id="name" type="checkbox" v-model="model" :disabled="disabled" />
       <span class="check" />
-      <span class="pl-2 w-24 sm:block">
+      <span class="pl-2 sm:block">
         {{ label }}
       </span>
     </label>

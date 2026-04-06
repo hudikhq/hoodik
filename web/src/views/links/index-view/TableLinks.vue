@@ -55,15 +55,15 @@ watch(
   }
 )
 
-const borderClass = 'sm:border-l-2 sm:border-brownish-50 sm:dark:border-brownish-900'
+const borderClass = 'sm:border-l sm:border-brownish-50 sm:dark:border-brownish-950'
 
 const sizes = {
-  checkbox: 'pl-2 pt-3 w-10',
-  name: 'w-10/12 p-2 pt-3 sm:w-7/12 md:w-5/12 lg:w-6/12 xl:w-7/12 flex',
-  size: 'hidden p-2 pt-3 md:block md:w-2/12 xl:w-1/12',
-  createdAt: 'hidden p-2 pt-3 sm:block sm:w-4/12 lg:w-3/12 xl:w-2/12',
-  expiresAt: 'hidden p-2 pt-3 xl:block xl:w-1/12',
-  buttons: 'w-2/12 p-2 sm:w-1/12'
+  checkbox: 'pl-2 pt-3 w-10 shrink-0',
+  name: 'flex-1 p-2 pt-3 min-w-0 flex',
+  size: 'hidden p-2 pt-3 md:block w-24 shrink-0',
+  createdAt: 'hidden p-2 pt-3 sm:block w-44 shrink-0',
+  expiresAt: 'hidden p-2 pt-3 xl:block w-28 shrink-0',
+  buttons: 'w-10 p-2 shrink-0'
 }
 </script>
 
@@ -80,49 +80,51 @@ const sizes = {
     />
   </div>
 
-  <div class="w-full flex rounded-t-lg bg-brownish-100 dark:bg-brownish-950">
-    <div :class="sizes.checkbox">
-      <TableCheckboxCell v-model="checked" v-if="!props.hideCheckbox" />
+  <div class="bg-white dark:bg-brownish-900 rounded-lg border border-brownish-200/40 dark:border-brownish-700/40">
+    <div class="w-full flex rounded-t-lg bg-brownish-100 dark:bg-brownish-950 border-b border-brownish-200 dark:border-brownish-700/40">
+      <div :class="sizes.checkbox">
+        <TableCheckboxCell v-model="checked" v-if="!props.hideCheckbox" />
+      </div>
+
+      <div :class="`${sizes.name}`">
+        <span>Name</span>
+      </div>
+
+      <div :class="`${sizes.size} ${borderClass}`">
+        <span>Size</span>
+      </div>
+
+      <div :class="`${sizes.createdAt} ${borderClass}`">
+        <span>Created</span>
+      </div>
+
+      <div :class="`${sizes.expiresAt} ${borderClass}`">
+        <span>Expires</span>
+      </div>
+
+      <div :class="`${sizes.buttons}`"></div>
     </div>
 
-    <div :class="`${sizes.name}`">
-      <span>Name</span>
+    <div
+      v-if="props.loading"
+      class="w-full pt-20 rounded-b-lg bg-brownish-50 dark:bg-brownish-900 h-52 text-center"
+    >
+      <span class="w-1/2 h-1/2">
+        <SpinnerIcon :size="200" />
+      </span>
     </div>
-
-    <div :class="`${sizes.size} ${borderClass}`">
-      <span>Size</span>
+    <div v-else class="flex flex-col rounded-b-lg">
+      <template v-for="link in items" :key="link.id">
+        <TableLinkRowWatcher
+          :link="link"
+          :sizes="sizes"
+          :checkedRows="checkedRows"
+          :highlighted="props.searchedFileId === link.id"
+          @link="(f: AppLink) => emits('link', f)"
+          @select-one="(v: boolean, f: AppLink) => emits('select-one', v, f)"
+          @deselect-all="emits('deselect-all')"
+        />
+      </template>
     </div>
-
-    <div :class="`${sizes.createdAt} ${borderClass}`">
-      <span>Created</span>
-    </div>
-
-    <div :class="`${sizes.expiresAt} ${borderClass}`">
-      <span>Expires</span>
-    </div>
-
-    <div :class="`${sizes.buttons}`"></div>
-  </div>
-
-  <div
-    v-if="props.loading"
-    class="w-full pt-20 rounded-b-lg bg-brownish-100 dark:bg-brownish-900 h-52 text-center"
-  >
-    <span class="w-1/2 h-1/2">
-      <SpinnerIcon :size="200" />
-    </span>
-  </div>
-  <div v-else class="flex flex-col rounded-b-lg">
-    <template v-for="link in items" :key="link.id">
-      <TableLinkRowWatcher
-        :link="link"
-        :sizes="sizes"
-        :checkedRows="checkedRows"
-        :highlighted="props.searchedFileId === link.id"
-        @link="(f: AppLink) => emits('link', f)"
-        @select-one="(v: boolean, f: AppLink) => emits('select-one', v, f)"
-        @deselect-all="emits('deselect-all')"
-      />
-    </template>
   </div>
 </template>

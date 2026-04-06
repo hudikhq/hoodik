@@ -27,17 +27,23 @@ const enableTfaModal = ref(false)
     />
     <Suspense>
       <SectionMain v-if="authenticated">
-        <div class="flex flex-col sm:flex-row gap-4">
-          <MyDetails
-            class="w-full sm:w-1/2"
-            :user="authenticated.user"
-            @disable-tfa="disableTfaModal = true"
-            @enable-tfa="enableTfaModal = true"
-          />
-          <StorageStats class="w-full sm:w-1/2" />
+        <!-- Profile & Storage -->
+        <div class="mb-8">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-500 mb-3 px-1">Profile</h2>
+          <div class="flex flex-col lg:flex-row gap-6">
+            <MyDetails
+              class="w-full lg:w-7/12"
+              :user="authenticated.user"
+              @disable-tfa="disableTfaModal = true"
+              @enable-tfa="enableTfaModal = true"
+            />
+            <StorageStats class="w-full lg:w-5/12" />
+          </div>
         </div>
 
-        <div class="mt-4">
+        <!-- Sessions -->
+        <div>
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-500 mb-3 px-1">Sessions</h2>
           <ActivityInner class="w-full" />
         </div>
       </SectionMain>

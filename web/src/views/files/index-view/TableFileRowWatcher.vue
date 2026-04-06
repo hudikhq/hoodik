@@ -52,9 +52,9 @@ onMounted(() => {
   <Suspense>
     <div
       :class="{
-        'border-greeny-100 dark:border-greeny-800 border-2': props.highlighted
+        '!border !border-greeny-300 dark:!border-greeny-700': props.highlighted
       }"
-      class="w-full flex pl-11 pt-3.5 pb-3.5 dark:bg-brownish-900 hover:bg-dirty-white hover:dark:bg-brownish-700"
+      class="w-full flex pl-11 pt-3.5 pb-3.5 dark:bg-brownish-900"
       v-if="!visible"
     >
       <div class="flex items-start">
