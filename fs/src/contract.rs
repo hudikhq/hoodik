@@ -2,7 +2,6 @@ use crate::{filename::IntoFilename, streamer::Streamer};
 use error::AppResult;
 
 use async_trait::async_trait;
-use tokio::fs::File;
 
 #[async_trait]
 pub trait FsProviderContract {
@@ -17,12 +16,6 @@ pub trait FsProviderContract {
 
     /// Check if the chunk already exists in the storage provider
     async fn exists<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<bool>;
-
-    /// Get a file representation from the storage provider
-    async fn get<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<File>;
-
-    /// Get a file representation from the storage provider
-    async fn all<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<File>>;
 
     /// Push specific data chunk into a part file
     async fn push<T: IntoFilename>(&self, filename: &T, chunk: i64, data: &[u8]) -> AppResult<()>;
@@ -49,8 +42,5 @@ pub trait FsProviderContract {
     async fn stream_tar<T: IntoFilename>(&self, filename: &T) -> AppResult<Streamer>;
 
     /// Calculate the total size of the tar archive without streaming it.
-    ///
-    /// Opens chunk files in small batches to stat their sizes, avoiding
-    /// file descriptor exhaustion for files with many chunks.
     async fn tar_content_length<T: IntoFilename>(&self, filename: &T) -> AppResult<u64>;
 }

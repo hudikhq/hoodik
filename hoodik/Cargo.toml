@@ -1,6 +1,6 @@
 [package]
 name = "hoodik"
-version = "1.12.0"
+version = "1.13.0"
 edition = "2021"
 rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
@@ -20,6 +20,8 @@ actix-cors = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+tokio = { workspace = true }
+glob = { workspace = true }
 
 admin = { path = "../admin" }
 auth = { path = "../auth" }
@@ -28,7 +30,7 @@ context = { path = "../context" }
 cryptfns = { path = "../cryptfns" }
 entity = { path = "../entity" }
 error = { path = "../error" }
-fs = { path = "../fs" }
+fs = { path = "../fs", features = ["s3"] }
 links = { path = "../links" }
 migration = { path = "../migration" }
 storage = { path = "../storage" }

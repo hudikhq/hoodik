@@ -1,4 +1,4 @@
-use crate::{app::AppConfig, email::EmailConfig, ssl::SslConfig, vars::Vars};
+use crate::{app::AppConfig, email::EmailConfig, s3::S3Config, ssl::SslConfig, vars::Vars};
 
 /// Config struct that holds all the loaded configuration
 /// from the env and arguments.
@@ -29,6 +29,12 @@ pub struct Config {
     /// see more details in the [crate::email::EmailConfig] struct.
     pub mailer: crate::email::EmailConfig,
 
+    /// S3 configuration, present when STORAGE_PROVIDER=s3.
+    pub s3: Option<S3Config>,
+
+    /// CLI subcommand invoked, if any (e.g. "migrate-storage").
+    pub subcommand: Option<String>,
+
     /// Warnings collected during configuration initialization
     pub(crate) warnings: Vec<String>,
 }
@@ -45,6 +51,14 @@ impl From<Vars> for Config {
         let mailer = EmailConfig::new(&mut vars);
         let auth = crate::auth::AuthConfig::new(&app, &mut vars);
 
+        let s3 = if app.storage_provider == "s3" {
+            Some(S3Config::new(&mut vars))
+        } else {
+            None
+        };
+
+        let subcommand = vars.subcommand.clone();
+
         vars.panic_if_errors("Config");
 
         // Collect warnings before consuming vars
@@ -55,6 +69,8 @@ impl From<Vars> for Config {
             app,
             auth,
             mailer,
+            s3,
+            subcommand,
             warnings,
         }
     }
