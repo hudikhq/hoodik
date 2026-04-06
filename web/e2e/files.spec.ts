@@ -29,7 +29,7 @@ test.describe('Directories', () => {
     await expect(page).toHaveURL(/[0-9a-f-]{36}/)
 
     // Navigate back via breadcrumb
-    await page.getByRole('link', { name: 'My Files' }).click()
+    await page.getByLabel('Breadcrumb').getByRole('link', { name: 'My Files' }).click()
     await expect(page.getByTestId('file-row-My_Test_Dir')).toBeVisible()
   })
 })
