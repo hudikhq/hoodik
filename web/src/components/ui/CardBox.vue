@@ -32,7 +32,7 @@ const componentClass = computed(() => {
     'border',
     'border-brownish-200/40 dark:border-brownish-700/40',
     'shadow-sm dark:shadow-none',
-    props.isModal ? 'dark:bg-brownish-900' : 'dark:bg-brownish-800'
+    'dark:bg-brownish-900'
   ]
 
   if (props.isHoverable) {

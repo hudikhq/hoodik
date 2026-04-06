@@ -104,7 +104,7 @@ const disableTfa = async () => {
 const remove = async () => {
   if (!user.value) return
   await users.remove(user.value.id)
-  router.push({ name: 'admin-users' })
+  router.push({ name: 'manage-users' })
 }
 
 const get = async () => {
@@ -143,7 +143,7 @@ watch(
           :icon="mdiChevronLeft"
           label="All Users"
           :small="true"
-          :to="{ name: 'admin-users' }"
+          :to="{ name: 'manage-users' }"
           class="mb-3"
         />
 

@@ -6,13 +6,15 @@ export interface AsideMenuItemType {
   icon: string
   label: string
   roles?: string[]
+  expandable?: boolean
 }
 
 export default [
   {
     to: { name: 'files' },
     icon: mdiMonitor,
-    label: 'My Files'
+    label: 'My Files',
+    expandable: true
   },
   {
     to: { name: 'links' },

@@ -23,7 +23,7 @@ where
         Self { repository }
     }
 
-    /// Query builder that creates a join query for the user and session
+    /// Query builder that joins users with their most recent valid session.
     fn join_query(&self) -> Select<users::Entity> {
         let mut query = users::Entity::find().select_only();
 
@@ -35,19 +35,24 @@ where
             users::Relation::Sessions
                 .def()
                 .on_condition(move |_left, right| {
-                    Expr::col((right, sessions::Column::ExpiresAt))
+                    Expr::col((right.clone(), sessions::Column::ExpiresAt))
                         .gt(Utc::now().timestamp())
-                        .and(sessions::Column::Refresh.is_not_null())
+                        .and(
+                            Expr::col((right, sessions::Column::Refresh)).is_not_null(),
+                        )
                         .into_condition()
                 }),
         );
 
         query = query.order_by_desc(sessions::Column::UpdatedAt);
-        query = query
-            .group_by(users::Column::Id)
-            .group_by(sessions::Column::Id);
 
         query
+    }
+
+    /// Deduplicate by user ID, keeping the first (latest session due to ORDER BY).
+    fn dedup_users(users: Vec<User>) -> Vec<User> {
+        let mut seen = std::collections::HashSet::new();
+        users.into_iter().filter(|u| seen.insert(u.id)).collect()
     }
 
     /// Search through users
@@ -73,7 +78,11 @@ where
             }
         }
 
-        let total = query.clone().count(self.repository.connection()).await?;
+        let total = query
+            .clone()
+            .group_by(users::Column::Id)
+            .count(self.repository.connection())
+            .await?;
 
         query = query.limit(users.limit.unwrap_or(15));
         query = query.offset(users.offset.unwrap_or(0));
@@ -83,7 +92,7 @@ where
             .all(self.repository.connection())
             .await?;
 
-        Ok(Paginated::new(users, total))
+        Ok(Paginated::new(Self::dedup_users(users), total))
     }
 
     /// Find a single user by their id

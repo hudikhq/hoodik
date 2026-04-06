@@ -67,7 +67,7 @@ const sharedClass = computed(() => {
   return 'dark:bg-brownish-900 hover:bg-dirty-white hover:dark:bg-brownish-700'
 })
 
-const border = 'sm:border-l-2 sm:border-brownish-50 sm:dark:border-brownish-950'
+const border = 'sm:border-l sm:border-brownish-50 sm:dark:border-brownish-950'
 const sizes = computed(() => {
   return {
     checkbox: `${props.sizes.checkbox}`,
@@ -115,7 +115,7 @@ const singleClick = () => {
 
 <template>
   <div
-    class="w-full flex"
+    class="w-full flex link-row-separator"
     :class="{
       'bg-greeny-100 dark:bg-greeny-900 hover:bg-greeny-200 hover:dark:bg-greeny-800':
         props.highlighted,
@@ -181,5 +181,13 @@ const singleClick = () => {
   -webkit-user-select: none;
   -ms-user-select: none;
   user-select: none;
+}
+
+.link-row-separator {
+  box-shadow: inset 0 -1px 0 0 rgba(120, 120, 120, 0.15);
+}
+
+.dark .link-row-separator {
+  box-shadow: inset 0 -1px 0 0 rgba(120, 120, 120, 0.1);
 }
 </style>

@@ -4,20 +4,48 @@ import { computed } from 'vue'
 import { store as style } from '!/style'
 import { store as login } from '!/auth/login'
 import { store as crypto } from '!/crypto'
+import { store as storageStore } from '!/storage'
 import AsideMenuList from '@/components/ui/AsideMenuList.vue'
 import AsideMenuItem from '@/components/ui/AsideMenuItem.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
+import DirectoryTree from '@/components/files/browser/DirectoryTree.vue'
 import type { AsideMenuItemType } from '@/menuAside'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import StatsLi from '../files/StatsLi.vue'
 
-defineProps<{
+const props = defineProps<{
   menu: AsideMenuItemType[]
 }>()
 
 const loginStore = login()
 const cryptoStore = crypto()
+const Storage = storageStore()
 const router = useRouter()
+const route = useRoute()
+
+const expandableIndex = computed(() => props.menu.findIndex((item) => item.expandable))
+
+const beforeTree = computed(() => {
+  const idx = expandableIndex.value
+  return idx >= 0 ? props.menu.slice(0, idx) : props.menu
+})
+
+const afterTree = computed(() => {
+  const idx = expandableIndex.value
+  return idx >= 0 ? props.menu.slice(idx + 1) : []
+})
+
+const showTree = computed(() => expandableIndex.value >= 0 && !!cryptoStore.keypair)
+
+const activeFolderId = computed(() => route.params.file_id as string | undefined)
+
+const expandedIds = computed(() => {
+  const ids = new Set<string>()
+  for (const parent of Storage.parents) {
+    if (parent.id) ids.add(parent.id)
+  }
+  return ids
+})
 
 const emit = defineEmits(['menu-click', 'aside-lg-close-click'])
 
@@ -80,7 +108,16 @@ const logoutAction = async () => {
         "
         class="flex-1 overflow-y-auto overflow-x-hidden"
       >
-        <AsideMenuList :menu="menu" @menu-click="menuClick" />
+        <AsideMenuList :menu="beforeTree" @menu-click="menuClick" />
+        <DirectoryTree
+          v-if="showTree"
+          mode="navigate"
+          :keypair="cryptoStore.keypair!"
+          :active-folder-id="activeFolderId"
+          :expanded-ids="expandedIds"
+          :depth="0"
+        />
+        <AsideMenuList :menu="afterTree" @menu-click="menuClick" />
       </div>
 
       <ul>
