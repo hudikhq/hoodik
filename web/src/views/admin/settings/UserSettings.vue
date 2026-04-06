@@ -25,7 +25,6 @@ const data = computed({
 </script>
 <template>
   <CardBox :class="props.class" v-if="data">
-    <!-- Registration header -->
     <div class="-mx-4 -mt-4 px-6 py-5 border-b border-brownish-100 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex items-center gap-2">
         <BaseIcon :path="mdiAccountPlus" :size="14" class="text-brownish-400 dark:text-brownish-500" />
@@ -59,7 +58,6 @@ const data = computed({
       </div>
     </div>
 
-    <!-- Email filtering section -->
     <div class="-mx-4 px-6 py-5 border-b border-brownish-100 dark:border-brownish-700/50">
       <div class="flex items-center gap-2 mb-4">
         <BaseIcon :path="mdiEmailSearch" :size="14" class="text-brownish-400 dark:text-brownish-500" />
@@ -83,7 +81,6 @@ const data = computed({
       </div>
     </div>
 
-    <!-- Default quota section -->
     <div class="-mx-4 px-6 py-5 border-b border-brownish-100 dark:border-brownish-700/50">
       <div class="flex items-center gap-2 mb-3">
         <BaseIcon :path="mdiDatabase" :size="14" class="text-brownish-400 dark:text-brownish-500" />
@@ -96,7 +93,6 @@ const data = computed({
       />
     </div>
 
-    <!-- Error + Save -->
     <div class="-mx-4 -mb-4 px-6 py-4 rounded-b-2xl">
       <div v-if="error" class="rounded-lg bg-redish-500/10 border border-redish-500/30 px-4 py-3 mb-3">
         <p class="text-sm text-redish-400">{{ error }}</p>

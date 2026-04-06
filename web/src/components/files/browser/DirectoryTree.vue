@@ -41,13 +41,10 @@ const emits = defineEmits<{
 const styleStore = style()
 const route = props.mode === 'navigate' ? useRoute() : null
 
-// In navigate mode, use the store directly; in select mode, use the prop
 const storageStoreInstance = props.mode === 'navigate' ? storageStore() : null
 
 const getStorage = (): FilesStore => {
-  if (props.Storage) return props.Storage
-  if (storageStoreInstance) return storageStoreInstance
-  throw new Error('DirectoryTree requires either Storage prop or navigate mode')
+  return props.Storage || storageStoreInstance!
 }
 
 const select = (file?: AppFile) => {
@@ -98,7 +95,6 @@ watch(
   { immediate: true }
 )
 
-// Auto-open/close root based on files route
 watch(
   isOnFilesRoute,
   (onFiles) => {
@@ -112,7 +108,6 @@ watch(
   { immediate: true }
 )
 
-// Auto-expand when this folder is in the expandedIds set (navigate mode)
 watch(
   () => props.expandedIds,
   (ids) => {
@@ -125,7 +120,6 @@ watch(
 )
 </script>
 <template>
-  <!-- Select mode (move modal) - original layout -->
   <ul v-if="mode === 'select'">
     <li
       class="w-full border-t-[1px] border-brownish-800 p-1"
@@ -163,7 +157,6 @@ watch(
     </li>
   </ul>
 
-  <!-- Navigate mode (sidebar) — root node styled as menu item -->
   <ul v-else-if="isRoot">
     <li>
       <div
@@ -205,7 +198,6 @@ watch(
     </li>
   </ul>
 
-  <!-- Navigate mode (sidebar) — child folder nodes -->
   <ul v-else class="text-sm">
     <li>
       <div

@@ -47,7 +47,6 @@ const usageTextColor = computed(() => {
 </script>
 <template>
   <CardBox :class="props.class">
-    <!-- Storage header with visual usage indicator -->
     <div class="-mx-4 -mt-4 px-6 py-6 border-b border-brownish-100 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex items-center gap-2 mb-4">
         <BaseIcon :path="mdiDatabase" :size="14" class="text-brownish-400 dark:text-brownish-500" />
@@ -74,7 +73,6 @@ const usageTextColor = computed(() => {
       </div>
     </div>
 
-    <!-- File type breakdown -->
     <div v-if="data" class="-mx-4 -mb-4">
       <div class="px-6 pt-4 pb-1">
         <div class="flex items-center gap-2 mb-2">

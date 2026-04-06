@@ -37,7 +37,6 @@ const sendTestEmail = async () => {
 </script>
 <template>
   <CardBox :class="props.class">
-    <!-- Email header -->
     <div class="-mx-4 -mt-4 px-6 py-5 border-b border-brownish-100 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex items-center gap-2 mb-3">
         <BaseIcon :path="mdiEmail" :size="14" class="text-brownish-400 dark:text-brownish-500" />
@@ -48,7 +47,6 @@ const sendTestEmail = async () => {
       </p>
     </div>
 
-    <!-- Test email action -->
     <div class="-mx-4 -mb-4 px-6 py-5 rounded-b-2xl">
       <div v-if="testSuccess" class="rounded-lg bg-greeny-500/10 border border-greeny-500/30 px-4 py-3 mb-3">
         <p class="text-sm text-greeny-500 dark:text-greeny-400">{{ testSuccess }}</p>

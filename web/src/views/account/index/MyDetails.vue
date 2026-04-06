@@ -42,7 +42,6 @@ async function copyToClipboard(value: string, field: string) {
 </script>
 <template>
   <CardBox :class="props.class" v-if="user">
-    <!-- Identity header with gradient accent -->
     <div class="-mx-4 -mt-4 px-6 py-6 bg-gradient-to-r from-redish-500/5 via-transparent to-transparent dark:from-redish-500/10 border-b border-brownish-100 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex items-center gap-4">
         <div class="w-14 h-14 rounded-full bg-gradient-to-br from-redish-500 to-redish-600 text-white flex items-center justify-center text-xl font-bold shrink-0 select-none shadow-lg shadow-redish-500/20">
@@ -63,7 +62,6 @@ async function copyToClipboard(value: string, field: string) {
       </div>
     </div>
 
-    <!-- Security section -->
     <div class="-mx-4 px-6 py-5 border-b border-brownish-100 dark:border-brownish-700/50">
       <div class="flex items-center gap-2 mb-4">
         <BaseIcon :path="mdiLock" :size="14" class="text-brownish-400 dark:text-brownish-500" />
@@ -71,7 +69,6 @@ async function copyToClipboard(value: string, field: string) {
       </div>
 
       <div class="space-y-4">
-        <!-- Password -->
         <div class="flex items-center justify-between gap-4 p-3 rounded-xl bg-brownish-50/50 dark:bg-brownish-700/20 border border-brownish-100/50 dark:border-brownish-700/30">
           <div class="min-w-0">
             <p class="text-sm font-medium">Password</p>
@@ -86,7 +83,6 @@ async function copyToClipboard(value: string, field: string) {
           />
         </div>
 
-        <!-- TFA -->
         <div class="flex items-center justify-between gap-4 p-3 rounded-xl bg-brownish-50/50 dark:bg-brownish-700/20 border border-brownish-100/50 dark:border-brownish-700/30">
           <div class="min-w-0">
             <div class="flex items-center gap-2">
@@ -125,7 +121,6 @@ async function copyToClipboard(value: string, field: string) {
       </div>
     </div>
 
-    <!-- Collapsible account details -->
     <div class="-mx-4 -mb-4">
       <button
         @click="showDetails = !showDetails"

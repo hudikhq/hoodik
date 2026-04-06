@@ -71,7 +71,6 @@ watch(query, find, { deep: true, immediate: true })
 </script>
 <template>
   <CardBox>
-    <!-- Header with icon and controls -->
     <div class="-mx-4 -mt-4 px-6 py-4 border-b border-brownish-100 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2">

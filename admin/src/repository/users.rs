@@ -23,7 +23,7 @@ where
         Self { repository }
     }
 
-    /// Query builder that creates a join query for the user and their most recent session.
+    /// Query builder that joins users with their most recent valid session.
     fn join_query(&self) -> Select<users::Entity> {
         let mut query = users::Entity::find().select_only();
 
@@ -49,8 +49,7 @@ where
         query
     }
 
-    /// Deduplicate users by ID, keeping the first occurrence (which has the latest session
-    /// due to ORDER BY sessions.updated_at DESC).
+    /// Deduplicate by user ID, keeping the first (latest session due to ORDER BY).
     fn dedup_users(users: Vec<User>) -> Vec<User> {
         let mut seen = std::collections::HashSet::new();
         users.into_iter().filter(|u| seen.insert(u.id)).collect()
@@ -79,7 +78,6 @@ where
             }
         }
 
-        // Count distinct users (not rows inflated by session join)
         let total = query
             .clone()
             .group_by(users::Column::Id)
