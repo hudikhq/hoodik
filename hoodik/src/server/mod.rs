@@ -78,7 +78,7 @@ pub async fn engage(context: Context) -> AppResult<()> {
     
     let server = HttpServer::new(move || {
         app(context.clone()).wrap(Logger::new(
-            "%a \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %T",
+            "%a %{X-Forwarded-For}i \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %T",
         ))
     });
 
