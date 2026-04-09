@@ -25,6 +25,15 @@ const router = createRouter({
       },
       component: () => import('../views/files/FileView.vue')
     },
+    {
+      path: '/notes/:id?',
+      name: 'notes',
+      meta: {
+        files: true,
+        title: 'Notes'
+      },
+      component: () => import('../views/notes/NotesView.vue')
+    },
 
     /**
      * Link routes

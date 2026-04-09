@@ -3,6 +3,7 @@ import {
   mdiTrashCanOutline,
   mdiFolderPlusOutline,
   mdiFilePlusOutline,
+  mdiFileDocumentPlusOutline,
   mdiFolderArrowUpOutline,
   mdiDownloadMultiple,
   mdiPencil,
@@ -18,7 +19,7 @@ import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { computed, ref, watch } from 'vue'
 import type { AppFile } from 'types'
-import { isPreviewable } from '!/preview'
+import { isPreviewable, isMarkdownFile } from '!/preview'
 
 const props = defineProps<{
   selected: AppFile[]
@@ -42,6 +43,7 @@ const emits = defineEmits<{
   (event: 'deselect-all'): void
   (event: 'details', file: AppFile): void
   (event: 'directory'): void
+  (event: 'file'): void
   (event: 'download-many'): void
   (event: 'download', file: AppFile): void
   (event: 'link', file: AppFile): void
@@ -222,7 +224,7 @@ const sizes = {
       :icon="mdiEye"
       color="light"
       v-if="singleSelected && isPreviewable(singleSelected)"
-      :to="{ name: 'file-preview', params: { id: singleSelected.id } }"
+      :to="isMarkdownFile(singleSelected) ? { name: 'notes', params: { id: singleSelected.id } } : { name: 'file-preview', params: { id: singleSelected.id } }"
     />
 
     <BaseButton
@@ -257,6 +259,17 @@ const sizes = {
       :icon="mdiFolderPlusOutline"
       color="light"
       @click="emits('directory')"
+      v-if="!checkedRows.length"
+    />
+
+    <BaseButton
+      name="create-file"
+      title="New file"
+      :iconSize="20"
+      :xs="true"
+      :icon="mdiFileDocumentPlusOutline"
+      color="light"
+      @click="emits('file')"
       v-if="!checkedRows.length"
     />
 

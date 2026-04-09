@@ -6,15 +6,17 @@ import {
   mdiClose,
   mdiInformationSlabCircleOutline,
   mdiArrowLeft,
-  mdiArrowRight
+  mdiArrowRight,
+  mdiFilePdfBox
 } from '@mdi/js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import PreviewImage from './PreviewImage.vue'
 import PreviewVideo from './PreviewVideo.vue'
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { Preview } from '!/preview'
 import PreviewPdf from './PreviewPdf.vue'
+import PreviewMarkdown from './PreviewMarkdown.vue'
 
 const props = defineProps<{
   modelValue: Preview
@@ -34,6 +36,7 @@ const emits = defineEmits<{
 
 const preview = computed(() => props.modelValue)
 const previewType = computed(() => preview.value?.previewType())
+const markdownRef = ref<InstanceType<typeof PreviewMarkdown>>()
 
 const index = computed(() => {
   return preview.value.getIndex()
@@ -87,9 +90,17 @@ const details = () => {
  * Keydown event handler
  */
 const previewKeydown = (e: KeyboardEvent) => {
+  // Don't intercept keys when user is typing in an editable element
+  const target = e.target as HTMLElement
+  const isEditing = target.isContentEditable
+    || target.tagName === 'INPUT'
+    || target.tagName === 'TEXTAREA'
+
   if (e.key === 'Escape' && !props.hideClose) {
     cancel()
   }
+
+  if (isEditing) return
 
   if (e.key === 'ArrowLeft') {
     const previousId = preview.value.getPreviousId()
@@ -119,7 +130,7 @@ onUnmounted(() => {
       v-if="preview"
       class="fixed top-0 left-0 flex flex-col items-center justify-center w-full h-full dark:bg-brownish-950 pt-12"
       :class="{
-        'pb-20': previewType !== 'pdf'
+        'pb-20': previewType !== 'pdf' && previewType !== 'markdown'
       }"
     >
       <slot />
@@ -146,6 +157,15 @@ onUnmounted(() => {
             small
             @click="download"
             name="preview-download"
+          />
+          <BaseButton
+            v-if="previewType === 'markdown'"
+            color="light"
+            :icon="mdiFilePdfBox"
+            small
+            title="Export PDF"
+            @click="markdownRef?.exportPdf()"
+            name="preview-export-pdf"
           />
           <BaseButton
             v-if="!hideClose"
@@ -187,6 +207,7 @@ onUnmounted(() => {
       <PreviewImage v-if="previewType === 'image'" v-model="preview" />
       <PreviewPdf v-else-if="previewType === 'pdf'" v-model="preview" />
       <PreviewVideo v-else-if="previewType === 'video'" v-model="preview" />
+      <PreviewMarkdown v-else-if="previewType === 'markdown'" ref="markdownRef" v-model="preview" readonly />
 
       <div class="flex flex-col" v-else>
         <div class="mb-4 text-center">

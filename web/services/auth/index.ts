@@ -9,6 +9,32 @@ import { store as cryptoStore } from '!/crypto'
 
 export { login, register, pk }
 
+const REDIRECT_KEY = 'hoodik:auth:redirect'
+
+/**
+ * Save the current route path so we can redirect back after auth.
+ * Only saves non-auth routes.
+ */
+function saveIntendedRoute(route: RouteLocationNormalizedLoaded) {
+  const name = String(route.name || '')
+  const authRoutes = ['login', 'login-private-key', 'decrypt', 'lock', 'setup-lock-screen', 'register', 'register-key', 'register-two-factor', 'register-resend-activation', 'forgot-password', 'activate-email']
+  if (authRoutes.includes(name)) return
+
+  sessionStorage.setItem(REDIRECT_KEY, route.fullPath)
+}
+
+/**
+ * Pop the saved redirect path, returning it and clearing storage.
+ */
+export function popIntendedRoute(): string | null {
+  const path = sessionStorage.getItem(REDIRECT_KEY)
+  sessionStorage.removeItem(REDIRECT_KEY)
+
+  // Only allow local paths to prevent open-redirect attacks
+  if (path && path.startsWith('/') && !path.startsWith('//')) return path
+  return null
+}
+
 /**
  * Shortcut to figure out if we can make requests
  */
@@ -97,6 +123,7 @@ async function bounce(
   }
 
   if (route.name !== 'login') {
+    saveIntendedRoute(route)
     router.push({ name: 'login', replace: true })
   } else {
     logger.debug('[auth] already on login page, doing nothing')
@@ -113,5 +140,6 @@ async function decrypt(router: Router, route: RouteLocationNormalizedLoaded) {
   }
 
   logger.debug('Moving to decrypt private key')
+  saveIntendedRoute(route)
   router.push({ name: 'decrypt', replace: true })
 }

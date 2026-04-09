@@ -47,6 +47,9 @@ pub struct CreateFile {
     /// Cipher used to encrypt file chunks and metadata.
     /// Defaults to `"ascon128a"` when not provided (backward-compatible).
     pub cipher: Option<String>,
+    /// Whether this file's content can be replaced (e.g. markdown notes).
+    /// Defaults to `false` for regular uploads.
+    pub editable: Option<bool>,
 }
 
 impl Validation for CreateFile {
@@ -171,6 +174,7 @@ impl CreateFile {
                 sha256: ActiveValue::Set(data.sha256),
                 blake2b: ActiveValue::Set(data.blake2b),
                 cipher: ActiveValue::Set(data.cipher.unwrap_or_else(|| "ascon128a".to_string())),
+                editable: ActiveValue::Set(data.editable.unwrap_or(false)),
                 created_at: ActiveValue::Set(now.and_utc().timestamp()),
                 finished_upload_at: ActiveValue::Set(None),
             },

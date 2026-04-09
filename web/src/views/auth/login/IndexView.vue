@@ -6,6 +6,7 @@ import { AppForm, AppField, AppButton, AppCheckbox } from '@/components/form'
 import * as yup from 'yup'
 import { store } from '!/auth/login'
 import { store as cryptoStore } from '!/crypto'
+import { popIntendedRoute } from '!/auth'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
 import type { ErrorResponse } from '!/api'
@@ -35,7 +36,7 @@ const init = () => {
 
       try {
         await login.withCredentials(crypto, values)
-        router.push({ name: 'files' })
+        router.push(popIntendedRoute() || { name: 'files' })
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}

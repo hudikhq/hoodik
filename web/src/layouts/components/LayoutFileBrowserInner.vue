@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import CreateDirectoryModal from '@/components/files/modals/CreateDirectoryModal.vue'
+import CreateFileModal from '@/components/files/modals/CreateFileModal.vue'
 import DeleteMultipleModal from '@/components/files/modals/DeleteMultipleModal.vue'
 import MoveMultipleModal from '@/components/files/modals/MoveMultipleModal.vue'
 import UploadButton from '@/components/files/browser/UploadButton.vue'
@@ -52,6 +53,7 @@ const Links = linksStore()
 const openBrowseWindow = ref(false)
 const openFolderWindow = ref(false)
 const isModalCreateDirActive = ref(false)
+const isModalCreateFileActive = ref(false)
 const isModalMoveMultipleActive = ref(false)
 const isModalDeleteMultipleActive = ref(false)
 
@@ -317,6 +319,13 @@ const directory = () => {
   isModalCreateDirActive.value = true
 }
 
+/**
+ * Opens a modal to create a new markdown file
+ */
+const file = () => {
+  isModalCreateFileActive.value = true
+}
+
 const load = async () => {
   // We are not loading when we have hash in the url
   // because that means we already have some files and
@@ -353,6 +362,12 @@ watch(
     :Storage="Storage"
     @cancel="isModalCreateDirActive = false"
   />
+  <CreateFileModal
+    v-model="isModalCreateFileActive"
+    :Crypto="Crypto"
+    :Storage="Storage"
+    @cancel="isModalCreateFileActive = false"
+  />
   <ActionsModal v-model="actionFile" @remove="remove" @download="download" @details="details" />
   <DeleteModal v-model="singleRemoveFile" :Storage="Storage" :kp="Crypto.keypair" />
   <DetailsModal v-model="detailsFile" :Storage="Storage" :kp="Crypto.keypair" />
@@ -387,6 +402,7 @@ watch(
       details,
       directory,
       download,
+      file,
       link,
       remove,
       rename

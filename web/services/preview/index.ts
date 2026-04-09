@@ -25,7 +25,20 @@ function isFilePreviewable(item: AppFile): boolean {
       item.mime === 'image/svg+xml' ||
       item.mime === 'image/heic' ||
       item.mime === 'image/heif' ||
+      item.mime === 'text/markdown' ||
+      item.mime === 'text/x-markdown' ||
       item.mime.startsWith('video/'))
+  )
+}
+
+/**
+ * Check if a file is a markdown file by mime type or extension
+ */
+export function isMarkdownFile(item: AppFile): boolean {
+  return (
+    item.mime === 'text/markdown' ||
+    item.mime === 'text/x-markdown' ||
+    item.name.toLowerCase().endsWith('.md')
   )
 }
 
@@ -57,6 +70,7 @@ export abstract class Preview {
   public mime: string
   public size: number | undefined
   public thumbnail?: string
+  public editable: boolean
 
   constructor(data: Omit<ConstructPreview<Preview>, 'chunks'>) {
     this.id = data.id
@@ -65,6 +79,7 @@ export abstract class Preview {
     this.size = data.size
     this.parentId = data.parentId
     this.thumbnail = data.thumbnail
+    this.editable = !!data.editable
   }
 
   /**
@@ -131,10 +146,11 @@ export abstract class Preview {
   /**
    * Easily match the preview type
    */
-  public previewType(): 'image' | 'pdf' | 'video' | null {
+  public previewType(): 'image' | 'pdf' | 'video' | 'markdown' | null {
     if (this.isImage()) return 'image'
     if (this.isPdf()) return 'pdf'
     if (this.isVideo()) return 'video'
+    if (this.isMarkdown()) return 'markdown'
     return null
   }
 
@@ -164,5 +180,16 @@ export abstract class Preview {
    */
   public isVideo(): boolean {
     return this.is() && this.mime.startsWith('video/')
+  }
+
+  /**
+   * Lets us know if the preview is a markdown file
+   */
+  public isMarkdown(): boolean {
+    return (
+      this.mime === 'text/markdown' ||
+      this.mime === 'text/x-markdown' ||
+      this.name.toLowerCase().endsWith('.md')
+    )
   }
 }

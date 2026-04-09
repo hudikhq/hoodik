@@ -2,6 +2,7 @@ import * as meta from './meta'
 import * as queue from '../queue'
 import * as upload from './upload'
 import * as download from './download'
+import { emitFileTreeChange } from './events'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import * as cryptfns from '../cryptfns'
@@ -381,6 +382,7 @@ export const store = defineStore('files', () => {
     removeItem(file.id)
 
     await find(kp, fileId.value)
+    emitFileTreeChange({ type: 'deleted', folderId: file.file_id || undefined })
   }
 
   /**
@@ -389,7 +391,8 @@ export const store = defineStore('files', () => {
   async function removeAll(kp: KeyPair, files: AppFile[]): Promise<void> {
     await meta.removeAll({ ids: files.map((f) => f.id) })
     files.forEach((file) => removeItem(file.id))
-    return find(kp, fileId.value, true)
+    await find(kp, fileId.value, true)
+    emitFileTreeChange({ type: 'deleted', folderId: fileId.value || undefined })
   }
 
   /**
@@ -406,7 +409,8 @@ export const store = defineStore('files', () => {
       files.forEach((file) => removeItem(file.id))
     }
 
-    return find(kp, fileId.value, true)
+    await find(kp, fileId.value, true)
+    emitFileTreeChange({ type: 'moved', folderId: fileId.value || undefined, targetFolderId: file_id || undefined })
   }
 
   /**
@@ -424,7 +428,9 @@ export const store = defineStore('files', () => {
       cipher: cryptfns.cipher.DEFAULT_CIPHER
     }
 
-    return meta.create(keypair, createFile)
+    const dir = await meta.create(keypair, createFile)
+    emitFileTreeChange({ type: 'created', folderId: dir_id })
+    return dir
   }
 
   /**
@@ -439,6 +445,7 @@ export const store = defineStore('files', () => {
     })
 
     updateItem(renamed)
+    emitFileTreeChange({ type: 'renamed', folderId: file.file_id || undefined })
 
     return renamed
   }
@@ -538,13 +545,17 @@ export const store = defineStore('files', () => {
 /**
  * Do a full text search through the files and folders
  */
-export async function search(query: string, kp: KeyPair): Promise<AppFile[]> {
+export async function search(
+  query: string,
+  kp: KeyPair,
+  options?: { editable?: boolean; limit?: number }
+): Promise<AppFile[]> {
   if (!kp.input) {
     throw new Error('Cannot search without private key')
   }
 
   const privateKey = kp.input
-  const response = await meta.search(query)
+  const response = await meta.search(query, options)
 
   const results = await Promise.all(
     response.map(async (file: EncryptedAppFile) => {

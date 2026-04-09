@@ -12,7 +12,7 @@ export class LinkPreview extends Preview {
   constructor(private link: AppLink) {
     const { file_id: id, name, thumbnail, file_mime: mime, file_size: size } = link
 
-    super({ id, name, thumbnail, mime, size })
+    super({ id, name, thumbnail, mime, size, editable: false })
   }
 
   /**

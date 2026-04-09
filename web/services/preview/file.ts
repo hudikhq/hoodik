@@ -8,9 +8,9 @@ export class FilePreview extends Preview implements Preview {
   private items?: FilePreview[]
 
   constructor(public file: AppFile, public keypair: KeyPair) {
-    const { id, name, thumbnail, mime, size, file_id: parentId } = file
+    const { id, name, thumbnail, mime, size, file_id: parentId, editable } = file
 
-    super({ id, name, parentId, thumbnail, mime, size })
+    super({ id, name, parentId, thumbnail, mime, size, editable })
 
     this.file = file
     this.keypair = keypair

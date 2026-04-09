@@ -162,7 +162,7 @@ where
 
     /// Search files based on given tokens and sort by the token weight
     pub(crate) async fn search(&self, search: Search) -> AppResult<Vec<AppFile>> {
-        let (file_id, search, tokens, limit, skip) = search.into_tuple();
+        let (file_id, search, tokens, limit, skip, editable) = search.into_tuple();
 
         let user_id = self.user_id;
         let mut query = self
@@ -174,19 +174,24 @@ where
             query = query.filter(files::Column::FileId.eq(file_id));
         }
 
+        if let Some(editable) = editable {
+            query = query.filter(files::Column::Editable.eq(editable));
+        }
+
         let mut query = query
             .filter(
-                files::Column::Id.eq(&search)
-                .or(files::Column::Md5.eq(&search))
-                .or(files::Column::Sha1.eq(&search))
-                .or(files::Column::Sha256.eq(&search))
-                .or(files::Column::Blake2b.eq(&search))
-                .or(tokens::Column::Hash.is_in(
-                    tokens
-                        .iter()
-                        .map(|t| t.token.clone())
-                        .collect::<Vec<String>>(),
-                ))
+                files::Column::Id
+                    .eq(&search)
+                    .or(files::Column::Md5.eq(&search))
+                    .or(files::Column::Sha1.eq(&search))
+                    .or(files::Column::Sha256.eq(&search))
+                    .or(files::Column::Blake2b.eq(&search))
+                    .or(tokens::Column::Hash.is_in(
+                        tokens
+                            .iter()
+                            .map(|t| t.token.clone())
+                            .collect::<Vec<String>>(),
+                    )),
             )
             .group_by(files::Column::Id)
             .order_by_desc(file_tokens::Column::Weight.sum());

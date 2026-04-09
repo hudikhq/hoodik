@@ -35,9 +35,10 @@ export interface Paginated<T> {
 export interface Parameters extends Query {
   dir_id?: string | null
   order?: 'asc' | 'desc'
-  order_by?: 'created_at' | 'size'
+  order_by?: 'modified_at' | 'size'
   dirs_only?: boolean
   is_owner?: boolean
+  editable?: boolean
 }
 
 export interface SearchQuery {
@@ -45,6 +46,7 @@ export interface SearchQuery {
   dir_id?: string
   limit?: number
   skip?: number
+  editable?: boolean
 }
 
 export interface FileResponse {

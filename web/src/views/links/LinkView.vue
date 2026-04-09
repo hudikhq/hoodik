@@ -3,7 +3,7 @@ import LinkViewInner from './link-view/LinkViewInner.vue'
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import { store as linksStore } from '!/links'
 import { useRoute } from 'vue-router'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const route = useRoute()
 const Links = linksStore()
@@ -16,13 +16,13 @@ const id = computed((): string => {
   return route.params.link_id
 })
 
-const linkKeyHex = computed((): string | undefined => {
-  if (route.hash) {
-    return route.hash.replace('#', '')
-  }
-
-  return undefined
-})
+// Capture the link key once from the URL fragment on page load.
+// This must NOT be reactive to route.hash — anchor links within
+// the markdown preview would overwrite it and destroy the decryption key.
+const initialHash = route.hash
+const linkKeyHex = ref<string | undefined>(
+  initialHash ? initialHash.replace('#', '') : undefined
+)
 </script>
 <template>
   <LayoutGuest>

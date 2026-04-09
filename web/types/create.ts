@@ -79,6 +79,12 @@ export interface CreateFile extends AppFileUnencryptedPart {
    * Defaults to `"ascon128a"` when not provided.
    */
   cipher?: string
+
+  /**
+   * Whether this file's content can be replaced (markdown notes).
+   * Defaults to `false` for regular uploads.
+   */
+  editable?: boolean
 }
 
 export interface EncryptedCreateFile {
@@ -150,4 +156,9 @@ export interface EncryptedCreateFile {
    * Sent to the server so it can be recorded in the file record.
    */
   cipher?: string
+
+  /**
+   * Whether this file's content can be replaced (markdown notes).
+   */
+  editable?: boolean
 }

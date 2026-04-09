@@ -92,6 +92,7 @@ async fn test_creating_file_and_uploading_chunks() {
         sha256: Some("asd".to_string()),
         blake2b: Some("asd".to_string()),
         cipher: None,
+        editable: None,
     };
 
     let req = test::TestRequest::post()
@@ -245,6 +246,7 @@ async fn test_transfer_token_upload_and_download() {
         sha256: None,
         blake2b: None,
         cipher: None,
+        editable: None,
     };
 
     let req = test::TestRequest::post()
@@ -459,6 +461,7 @@ async fn test_download_tar_archive() {
         sha256: None,
         blake2b: None,
         cipher: None,
+        editable: None,
     };
 
     let req = test::TestRequest::post()

@@ -82,6 +82,7 @@ export const KEEP_FINISHED_DOWNLOADS_FOR_MINUTES = 15
  * Preview constants
  */
 export const PREVIEW_MIME_TYPES = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/heic', 'image/heif']
+export const TEXT_MIME_TYPES = ['text/markdown', 'text/x-markdown']
 export const IMAGE_THUMBNAIL_SIZE_PX = 200
 
 export const VIDEO_MIME_TYPES = [
