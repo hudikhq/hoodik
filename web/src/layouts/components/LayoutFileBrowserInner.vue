@@ -363,6 +363,7 @@ watch(
     @cancel="isModalCreateDirActive = false"
   />
   <CreateFileModal
+    v-if="isModalCreateFileActive"
     v-model="isModalCreateFileActive"
     :Crypto="Crypto"
     :Storage="Storage"
