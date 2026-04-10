@@ -3,7 +3,7 @@
 //! All the functions in here are shortcuts to the functions in the `Repository` struct.
 
 use cached::proc_macro::cached;
-use cached::SizedCache;
+use cached::{Cached, SizedCache};
 use context::Context;
 use entity::Uuid;
 
@@ -24,4 +24,11 @@ pub(crate) async fn get_file(context: &Context, owner_id: Uuid, file_id: Uuid) -
         .file(file_id)
         .await
         .ok()
+}
+
+/// Evict a file from the cache so subsequent reads fetch fresh data.
+/// Called after content replacement to avoid stale metadata during re-upload.
+pub(crate) async fn evict_file(file_id: Uuid) {
+    let mut cache = REPOSITORY_GET_FILE.lock().await;
+    cache.cache_remove(&file_id);
 }

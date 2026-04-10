@@ -11,7 +11,8 @@ use error::{AppResult, Error};
 
 use super::Repository;
 use crate::data::{
-    app_file::AppFile, query::Query as RequestQuery, rename::Rename, response::Response,
+    app_file::AppFile, query::Query as RequestQuery, rename::Rename,
+    replace_content::ReplaceContent, response::Response, set_editable::SetEditable,
     update_hashes::UpdateHashes,
 };
 use futures::future::try_join_all;
@@ -59,12 +60,18 @@ where
             parents = self.dir_tree(file_id).await?;
 
             selector = selector.filter(files::Column::FileId.eq(file_id));
+        } else if request_query.editable.is_some() {
+            // When filtering by editable, return files from ALL folders
         } else {
             selector = selector.filter(files::Column::FileId.is_null());
         }
 
         if request_query.dirs_only.unwrap_or(false) {
             selector = selector.filter(files::Column::Mime.eq("dir"));
+        }
+
+        if let Some(editable) = request_query.editable {
+            selector = selector.filter(files::Column::Editable.eq(editable));
         }
 
         let mut order = Order::Asc;
@@ -400,6 +407,61 @@ where
         active_model.update(self.repository.connection()).await?;
 
         self.repository.by_id(file.id, file.user_id).await
+    }
+
+    /// Replace the content of an editable file, resetting chunks so new content
+    /// can be uploaded. Only files with `editable = true` are allowed.
+    pub(crate) async fn replace_content(
+        &self,
+        id: Uuid,
+        data: ReplaceContent,
+    ) -> AppResult<AppFile> {
+        let file = self.repository.by_id(id, self.owner_id).await?;
+
+        if !file.is_owner || file.user_id != self.owner_id {
+            return Err(Error::NotFound("file_not_found".to_string()));
+        }
+
+        if file.is_dir() {
+            return Err(Error::BadRequest("cannot_replace_directory".to_string()));
+        }
+
+        if !file.editable {
+            return Err(Error::BadRequest("file_not_editable".to_string()));
+        }
+
+        let (active_model, hashed_tokens) = data.into_active_model(id)?;
+
+        active_model
+            .update(self.repository.connection())
+            .await?;
+
+        self.repository
+            .tokens(self.owner_id)
+            .rename(id, hashed_tokens)
+            .await?;
+
+        self.repository.by_id(id, self.owner_id).await
+    }
+
+    /// Toggle the `editable` flag on an existing file.
+    /// Only the owner can convert a regular file into an editable note (or back).
+    /// Directories are rejected — `editable` is a file-level concept.
+    pub(crate) async fn set_editable(&self, id: Uuid, data: SetEditable) -> AppResult<AppFile> {
+        let file = self.repository.by_id(id, self.owner_id).await?;
+
+        if !file.is_owner || file.user_id != self.owner_id {
+            return Err(Error::NotFound("file_not_found".to_string()));
+        }
+
+        if file.is_dir() {
+            return Err(Error::BadRequest("cannot_set_editable_on_directory".to_string()));
+        }
+
+        let active_model = data.into_active_model(id)?;
+        active_model.update(self.repository.connection()).await?;
+
+        self.repository.by_id(id, self.owner_id).await
     }
 
     /// Finish the upload of a file by setting the finished_upload_at field

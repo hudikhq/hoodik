@@ -172,6 +172,11 @@ export interface EncryptedAppFile extends AppFileEncryptedPart {
   blake2b?: string
 
   /**
+   * Whether this file's content can be replaced (markdown notes)
+   */
+  editable: boolean
+
+  /**
    * List of chunks that were uploaded
    * by their chunk number from 0 to chunks - 1
    */

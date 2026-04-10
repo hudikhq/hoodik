@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { mdiClose, mdiLogout } from '@mdi/js'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { store as style } from '!/style'
 import { store as login } from '!/auth/login'
 import { store as crypto } from '!/crypto'
-import { store as storageStore } from '!/storage'
 import AsideMenuList from '@/components/ui/AsideMenuList.vue'
 import AsideMenuItem from '@/components/ui/AsideMenuItem.vue'
+import AsideFileTree from '@/components/ui/AsideFileTree.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
-import DirectoryTree from '@/components/files/browser/DirectoryTree.vue'
 import type { AsideMenuItemType } from '@/menuAside'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import StatsLi from '../files/StatsLi.vue'
 
 const props = defineProps<{
@@ -19,36 +18,42 @@ const props = defineProps<{
 
 const loginStore = login()
 const cryptoStore = crypto()
-const Storage = storageStore()
 const router = useRouter()
-const route = useRoute()
 
-const expandableIndex = computed(() => props.menu.findIndex((item) => item.expandable))
+const EXPANDED_KEY = 'hoodik:sidebar:expandedKey'
+const expandedKey = ref<string | null>(sessionStorage.getItem(EXPANDED_KEY))
 
-const beforeTree = computed(() => {
-  const idx = expandableIndex.value
-  return idx >= 0 ? props.menu.slice(0, idx) : props.menu
+const hasKeypair = computed(() => !!cryptoStore.keypair)
+
+watch(expandedKey, (v) => {
+  if (v) sessionStorage.setItem(EXPANDED_KEY, v)
+  else sessionStorage.removeItem(EXPANDED_KEY)
 })
 
-const afterTree = computed(() => {
-  const idx = expandableIndex.value
-  return idx >= 0 ? props.menu.slice(idx + 1) : []
-})
+// Auto-expand the matching section based on current route
+watch(
+  () => router.currentRoute.value.name,
+  (routeName) => {
+    if (!routeName) return
+    const name = String(routeName)
+    for (const item of props.menu) {
+      if (!item.expandable) continue
+      const itemRouteName = (item.to as any)?.name
+      if (name === itemRouteName || name.startsWith(itemRouteName + '-')) {
+        expandedKey.value = itemRouteName
+        return
+      }
+    }
+  },
+  { immediate: true }
+)
 
-const showTree = computed(() => expandableIndex.value >= 0 && !!cryptoStore.keypair)
-
-const activeFolderId = computed(() => route.params.file_id as string | undefined)
-
-const expandedIds = computed(() => {
-  const ids = new Set<string>()
-  for (const parent of Storage.parents) {
-    if (parent.id) ids.add(parent.id)
-  }
-  return ids
-})
+function toggleExpand(item: AsideMenuItemType) {
+  const key = (item.to as any)?.name
+  expandedKey.value = expandedKey.value === key ? null : key
+}
 
 const emit = defineEmits(['menu-click', 'aside-lg-close-click'])
-
 const styleStore = style()
 
 const lockAccountItem = computed(() => ({
@@ -58,13 +63,8 @@ const lockAccountItem = computed(() => ({
   isLogout: true
 }))
 
-const name = computed(() => {
-  return import.meta.env.APP_NAME || 'Hoodik'
-})
-
-const version = computed(() => {
-  return import.meta.env.APP_VERSION || ''
-})
+const name = computed(() => import.meta.env.APP_NAME || 'Hoodik')
+const version = computed(() => import.meta.env.APP_VERSION || '')
 
 const menuClick = (event: Event, item: object) => {
   emit('menu-click', event, item)
@@ -83,7 +83,7 @@ const logoutAction = async () => {
 <template>
   <aside
     id="aside"
-    class="lg:py-2 lg:pl-2 w-60 fixed flex z-40 top-0 h-screen transition-position overflow-hidden"
+    class="lg:py-2 lg:pl-2 w-72 fixed flex z-40 top-0 h-screen transition-position overflow-hidden"
   >
     <div
       :class="styleStore.asideStyle"
@@ -103,21 +103,19 @@ const logoutAction = async () => {
         </button>
       </div>
       <div
-        :class="
-          styleStore.darkMode ? 'aside-scrollbars-[brownish]' : styleStore.asideScrollbarsStyle
-        "
+        :class="styleStore.darkMode ? 'aside-scrollbars-[brownish]' : styleStore.asideScrollbarsStyle"
         class="flex-1 overflow-y-auto overflow-x-hidden"
       >
-        <AsideMenuList :menu="beforeTree" @menu-click="menuClick" />
-        <DirectoryTree
-          v-if="showTree"
-          mode="navigate"
-          :keypair="cryptoStore.keypair!"
-          :active-folder-id="activeFolderId"
-          :expanded-ids="expandedIds"
-          :depth="0"
-        />
-        <AsideMenuList :menu="afterTree" @menu-click="menuClick" />
+        <template v-for="item in menu" :key="(item.to as any)?.name || item.label">
+          <template v-if="item.expandable && hasKeypair">
+            <AsideMenuList :menu="[item]" @menu-click="() => toggleExpand(item)" />
+            <AsideFileTree
+              v-if="expandedKey === (item.to as any)?.name"
+              :keypair="cryptoStore.keypair!"
+            />
+          </template>
+          <AsideMenuList v-else :menu="[item]" @menu-click="menuClick" />
+        </template>
       </div>
 
       <ul>

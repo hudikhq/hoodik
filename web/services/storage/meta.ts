@@ -103,6 +103,7 @@ export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise
     sha1: unencrypted.sha1,
     sha256: unencrypted.sha256,
     blake2b: unencrypted.blake2b,
+    editable: unencrypted.editable,
     ...encryptedParts
   }
 
@@ -244,12 +245,15 @@ export async function stats(): Promise<StorageStatsResponse> {
 /**
  * Get file or directory metadata
  */
-export async function search(input: string, dir_id?: string): Promise<EncryptedAppFile[]> {
-
+export async function search(
+  input: string,
+  options?: { dir_id?: string; editable?: boolean; limit?: number }
+): Promise<EncryptedAppFile[]> {
   const body = {
     search: input,
-    dir_id,
-    limit: 10,
+    dir_id: options?.dir_id,
+    editable: options?.editable,
+    limit: options?.limit ?? 10,
     skip: 0
   }
 
@@ -283,6 +287,35 @@ export async function updateHashes(fileId: string, sha256: string): Promise<AppF
   }
 
   return response.body
+}
+
+/**
+ * Toggle the `editable` flag on an existing file.
+ * Used to convert a regular file into an editable note (or back).
+ */
+export async function setEditable(
+  keypair: KeyPair,
+  fileId: string,
+  editable: boolean
+): Promise<AppFile> {
+  if (!keypair.input) {
+    throw new Error('Cannot update file without private key')
+  }
+
+  const response = await Api.put<{ editable: boolean }, AppFile>(
+    `/api/storage/${fileId}/editable`,
+    undefined,
+    { editable }
+  )
+
+  if (!response?.body?.id) {
+    throw new Error('Failed to update editable flag')
+  }
+
+  const file = response.body
+  const unencryptedPart = await decrypt(file, keypair.input)
+
+  return { ...file, ...unencryptedPart }
 }
 
 /**

@@ -61,6 +61,7 @@ async fn test_creating_and_downloading_link() {
         sha256: Some("asd".to_string()),
         blake2b: Some("asd".to_string()),
         cipher: None,
+        editable: None,
     };
 
     let req = test::TestRequest::post()

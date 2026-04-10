@@ -24,6 +24,7 @@ Hoodik is a lightweight, self-hosted, end-to-end encrypted cloud storage server.
 
 - **End-to-end encryption** — files are encrypted in the browser before upload and decrypted after download using a hybrid RSA + AEGIS-128L scheme
 - **Secure search** — file metadata is tokenized and hashed so the server can match search queries without storing plaintext names
+- **Encrypted notes** — create and edit rich markdown notes with a WYSIWYG editor; content is encrypted, auto-saved, and searchable just like uploaded files
 - **Public sharing links** — share files via a link; the file key is never exposed to the recipient
 - **Two-factor authentication** — optional TOTP-based 2FA per user
 - **Admin dashboard** — manage users, sessions, invitations, and application settings

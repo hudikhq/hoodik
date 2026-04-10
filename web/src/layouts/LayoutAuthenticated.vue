@@ -26,7 +26,7 @@ await ensureAuthenticated(router, route)
 const crypto = cryptoStore()
 const login = loginStore()
 
-const layoutAsidePadding = 'xl:pl-60'
+const layoutAsidePadding = 'xl:pl-72'
 
 const isAsideMobileExpanded = ref(false)
 const isAsideLgActive = ref(false)
@@ -52,13 +52,13 @@ const menuClick = (event: Event, item: NavBarItem) => {
     }"
   >
     <div
-      :class="[layoutAsidePadding, { 'ml-60 lg:ml-0': isAsideMobileExpanded }]"
+      :class="[layoutAsidePadding, { 'ml-72 lg:ml-0': isAsideMobileExpanded }]"
       class="pt-16 min-h-screen w-screen transition-position lg:w-auto bg-white dark:bg-brownish-800 dark:text-brownish-100"
     >
       <NavBar
         v-if="login.authenticated"
         :menu="menuNavBar"
-        :class="[layoutAsidePadding, { 'ml-60 lg:ml-0': isAsideMobileExpanded }]"
+        :class="[layoutAsidePadding, { 'ml-72 lg:ml-0': isAsideMobileExpanded }]"
         @menu-click="menuClick"
       >
         <NavBarItemPlain

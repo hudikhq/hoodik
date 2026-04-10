@@ -36,7 +36,7 @@ const asideLgCloseClick = (event: Event) => {
   <AsideMenuLayer
     :menu="visibleMenu"
     :class="[
-      isAsideMobileExpanded ? 'left-0' : '-left-60 lg:left-0',
+      isAsideMobileExpanded ? 'left-0' : '-left-72 lg:left-0',
       { 'lg:hidden xl:flex': !isAsideLgActive }
     ]"
     @menu-click="menuClick"

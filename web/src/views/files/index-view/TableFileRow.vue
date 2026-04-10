@@ -8,7 +8,7 @@ import { mdiDotsVertical } from '@mdi/js'
 import type { AppFile } from 'types'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { isPreviewable } from '!/preview'
+import { isPreviewable, isMarkdownFile } from '!/preview'
 
 const router = useRouter()
 
@@ -139,7 +139,9 @@ const doubleClick = () => {
 }
 
 const detailsOrPreview = () => {
-  if (props.file.finished_upload_at && isPreviewable(props.file)) {
+  if (props.file.finished_upload_at && isMarkdownFile(props.file)) {
+    router.push({ name: 'notes', params: { id: props.file.id } })
+  } else if (props.file.finished_upload_at && isPreviewable(props.file)) {
     router.push({ name: 'file-preview', params: { id: props.file.id } })
   } else {
     emits('details', props.file)

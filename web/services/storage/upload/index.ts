@@ -6,6 +6,7 @@ import { ref } from 'vue'
 import * as sync from './sync'
 import { pushUploadToWorker } from '../workers'
 import * as cryptfns from '../../cryptfns'
+import { emitFileTreeChange } from '../events'
 import {
   CHUNK_SIZE_BYTES,
   FILES_UPLOADING_AT_ONE_TIME,
@@ -127,6 +128,7 @@ export const store = defineStore('upload', () => {
 
       file.finished_upload_at = Math.floor(new Date().valueOf() / 1000)
       done.value.push(file)
+      emitFileTreeChange({ type: 'created', folderId: file.file_id || undefined })
 
       return
     }
@@ -267,16 +269,22 @@ export const store = defineStore('upload', () => {
       `[upload:create] "${file.name}" — preparation done in ${(performance.now() - t0).toFixed(0)}ms`
     )
 
+    const isMarkdown =
+      file.name.toLowerCase().endsWith('.md') ||
+      file.type === 'text/markdown' ||
+      file.type === 'text/x-markdown'
+
     const createFile: CreateFile = {
       name: file.name,
       size: file.size,
-      mime: file.type || 'application/octet-stream',
+      mime: file.type || (isMarkdown ? 'text/markdown' : 'application/octet-stream'),
       chunks: Math.ceil(file.size / CHUNK_SIZE_BYTES),
       file_id: parent_id,
       file_modified_at: utcStringFromLocal(modified),
       search_tokens_hashed,
       thumbnail,
-      cipher: cryptfns.cipher.DEFAULT_CIPHER
+      cipher: cryptfns.cipher.DEFAULT_CIPHER,
+      editable: isMarkdown || undefined
     }
 
     const created = await meta.create(keypair, createFile)

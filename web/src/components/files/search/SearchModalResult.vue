@@ -4,6 +4,7 @@ import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { mdiFolderOutline, mdiFileOutline } from '@mdi/js'
 import { computed } from 'vue'
 import { formatSize } from '!'
+import { isMarkdownFile } from '!/preview'
 
 const props = defineProps<{
   file: AppFile
@@ -14,16 +15,15 @@ const emits = defineEmits<{
 }>()
 
 const url = computed(() => {
-  if (props.file.mime !== 'dir') {
-    return { name: 'file-preview', params: { id: props.file.id } }
+  if (props.file.mime === 'dir') {
+    return { name: 'files', params: { file_id: props.file.id } }
   }
 
-  return {
-    name: 'files',
-    params: {
-      file_id: props.file.id
-    }
+  if (isMarkdownFile(props.file)) {
+    return { name: 'notes', params: { id: props.file.id } }
   }
+
+  return { name: 'file-preview', params: { id: props.file.id } }
 })
 
 const name = computed(() => {

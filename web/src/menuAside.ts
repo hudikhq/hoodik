@@ -1,4 +1,4 @@
-import { mdiMonitor, mdiLink, mdiHuman, mdiHumanMaleFemale, mdiCog } from '@mdi/js'
+import { mdiMonitor, mdiLink, mdiHuman, mdiHumanMaleFemale, mdiCog, mdiFileDocumentOutline } from '@mdi/js'
 import type { RouteLocation } from 'vue-router'
 
 export interface AsideMenuItemType {
@@ -13,29 +13,34 @@ export default [
   {
     to: { name: 'files' },
     icon: mdiMonitor,
-    label: 'My Files',
+    label: 'Files',
     expandable: true
+  },
+  {
+    to: { name: 'notes' },
+    icon: mdiFileDocumentOutline,
+    label: 'Notes'
   },
   {
     to: { name: 'links' },
     icon: mdiLink,
-    label: 'My links'
+    label: 'Links'
   },
   {
     to: { name: 'account' },
     icon: mdiHuman,
-    label: 'My Account'
+    label: 'Account'
   },
   {
     to: { name: 'manage-users' },
     icon: mdiHumanMaleFemale,
-    label: 'App Users',
+    label: 'Users',
     roles: ['admin']
   },
   {
     to: { name: 'manage-settings' },
     icon: mdiCog,
-    label: 'App Settings',
+    label: 'Settings',
     roles: ['admin']
   }
 ] as AsideMenuItemType[]

@@ -8,6 +8,7 @@ pub struct Query {
     pub order_by: Option<String>,
     pub dirs_only: Option<bool>,
     pub is_owner: Option<bool>,
+    pub editable: Option<bool>,
 }
 
 impl Validation for Query {}

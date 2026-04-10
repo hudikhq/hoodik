@@ -1,3 +1,7 @@
+<script lang="ts">
+export default { inheritAttrs: false }
+</script>
+
 <script setup lang="ts">
 import PreviewView from '@/components/preview/PreviewView.vue'
 import { useRoute, useRouter } from 'vue-router'

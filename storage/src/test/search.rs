@@ -67,6 +67,7 @@ async fn create_files_and_try_searching() {
         search: Some("hello".to_string()),
         skip: None,
         limit: None,
+        editable: None,
     };
 
     let mut results = repository.tokens(user.id).search(search).await.unwrap();
@@ -96,6 +97,7 @@ async fn create_files_and_try_searching_by_hash() {
         search: Some("asd".to_string()), // the hashes aren't actually calculated in the tests, all the files have "asd" as hash
         skip: None,
         limit: None,
+        editable: None,
     };
 
     let mut results = repository.tokens(user.id).search(search).await.unwrap();
