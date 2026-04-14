@@ -78,7 +78,7 @@ pub(crate) async fn head(
     let file_id: String = util::actix::path_var(&req, "file_id")?;
     let file_id = Uuid::from_str(&file_id)?;
     claims.validate_transfer_path(file_id, "download")?;
-    let chunk = util::actix::query_var::<i32>(&req, "chunk").ok();
+    let chunk = util::actix::query_var::<i64>(&req, "chunk").ok();
     let format = util::actix::query_var::<String>(&req, "format").ok();
 
     let file = get_file(&context, claims.sub(), file_id)

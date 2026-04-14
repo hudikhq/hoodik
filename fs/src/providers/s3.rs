@@ -216,33 +216,41 @@ impl FsProviderContract for S3Provider {
     ) -> AppResult<Streamer> {
         let filename = filename.filename()?;
 
-        // S3 doesn't have file handles — fetch all chunk data upfront
-        // and stream from memory.
         let chunks_to_stream: Vec<i64> = match chunk {
             Some(c) => vec![c],
             None => self.get_uploaded_chunks(&filename).await?,
         };
 
-        let mut chunk_data: Vec<Vec<u8>> = Vec::with_capacity(chunks_to_stream.len());
-        for chunk_idx in &chunks_to_stream {
-            let key = self.object_key(&filename.clone().with_chunk(*chunk_idx));
-            let response = self
-                .bucket
-                .get_object(&key)
-                .await
-                .map_err(|e| {
-                    Error::StorageError(format!("S3 stream read failed for '{}': {}", key, e))
-                })?;
-            chunk_data.push(response.to_vec());
-        }
+        // Build a list of S3 object keys to fetch lazily (one at a time during
+        // streaming) instead of fetching all chunk data into memory upfront.
+        let mut keys: Vec<String> = chunks_to_stream
+            .into_iter()
+            .map(|c| self.object_key(&filename.clone().with_chunk(c)))
+            .collect();
 
-        chunk_data.reverse();
+        keys.reverse();
 
-        let stream =
-            futures_util::stream::unfold(chunk_data, |mut data: Vec<Vec<u8>>| async move {
-                let chunk = data.pop()?;
-                Some((Ok(Bytes::from(chunk)), data))
-            });
+        let bucket = self.bucket.clone();
+
+        let stream = futures_util::stream::unfold(
+            (bucket, keys),
+            |(bucket, mut keys)| async move {
+                let key = keys.pop()?;
+                match bucket.get_object(&key).await {
+                    Ok(response) => {
+                        Some((Ok(Bytes::from(response.to_vec())), (bucket, keys)))
+                    }
+                    Err(e) => {
+                        let err = Error::StorageError(format!(
+                            "S3 stream read failed for '{}': {}",
+                            key, e
+                        ));
+                        log::error!("{}", err);
+                        Some((Err(err), (bucket, keys)))
+                    }
+                }
+            },
+        );
 
         Ok(Streamer::new(stream))
     }
