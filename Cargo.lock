@@ -2191,7 +2191,7 @@ dependencies = [
 
 [[package]]
 name = "hoodik"
-version = "1.14.0"
+version = "1.14.1"
 dependencies = [
  "actix-cors",
  "actix-web",
