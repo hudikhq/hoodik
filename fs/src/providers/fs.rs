@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use error::{AppResult, Error};
 use fs4::available_space;
 use tokio::{
-    fs::{remove_file, File, OpenOptions},
+    fs::{remove_file, File},
     io::{AsyncReadExt, AsyncWriteExt},
 };
 
@@ -29,50 +29,55 @@ impl<'provider> FsProvider<'provider> {
     }
 
     /// Create the inner streaming method that is then passed into the streamer for
-    /// better readeability of the code.
+    /// better readability of the code.
+    ///
+    /// Files are opened lazily one at a time during streaming to avoid exhausting
+    /// the OS file descriptor limit for files with many chunks. Only a list of
+    /// file paths is built upfront; each path is opened, read, and closed inside
+    /// the `unfold` closure so at most one FD is held at a time.
     async fn inner_stream<T: IntoFilename>(
         &self,
         filename: &T,
         chunk: Option<i64>,
-    ) -> impl futures_util::Stream<Item = AppResult<actix_web::web::Bytes>> {
-        let mut files: Vec<File> = match chunk {
-            Some(chunk) => match self.get(filename, chunk).await {
-                Ok(file) => vec![file],
-                Err(e) => {
-                    log::error!("Got error when trying to create inner stream: {:#?}", e);
-                    vec![]
-                }
-            },
-            None => match self.all(filename).await {
-                Ok(files) => files,
-                Err(e) => {
-                    log::error!("Got error when trying to create inner stream: {:#?}", e);
-                    vec![]
-                }
-            },
+    ) -> AppResult<impl futures_util::Stream<Item = AppResult<actix_web::web::Bytes>>> {
+        let filename = filename.filename()?;
+
+        let chunk_indices: Vec<i64> = match chunk {
+            Some(c) => vec![c],
+            None => self.get_uploaded_chunks(&filename).await?,
         };
 
-        // Reverse the files so we can pop them from the end
-        files.reverse();
+        let mut paths: Vec<String> = chunk_indices
+            .into_iter()
+            .map(|c| self.full_path(&filename.clone().with_chunk(c)))
+            .collect();
 
-        // We are passing the Vec<File> here because those files are not read yet..
-        // but in the future if we want to create another FsProvider, for example S3, this would
-        // would only have the chunk number and file name passed, or construct of both and then the
-        // file getting would be happening inside the closure itself and not before.
-        futures_util::stream::unfold(files as Vec<File>, |mut files: Vec<File>| async move {
-            let mut file = files.pop()?;
+        // Reverse so we can pop from the end in chunk order.
+        paths.reverse();
 
-            let mut data = vec![];
+        Ok(futures_util::stream::unfold(
+            paths,
+            |mut paths: Vec<String>| async move {
+                let path = paths.pop()?;
 
-            match file.read_to_end(&mut data).await {
-                Ok(_) => (),
-                Err(e) => return Some((Err(Error::from(e)), files)),
-            };
+                let mut file = match File::open(&path).await {
+                    Ok(f) => f,
+                    Err(e) => {
+                        log::error!("Failed to open chunk file {}: {:#?}", path, e);
+                        return Some((Err(Error::from(e)), paths));
+                    }
+                };
 
-            let data = Bytes::from(data);
-
-            Some((Ok(data), files))
-        })
+                let mut data = vec![];
+                match file.read_to_end(&mut data).await {
+                    Ok(_) => Some((Ok(Bytes::from(data)), paths)),
+                    Err(e) => {
+                        log::error!("Failed to read chunk file {}: {:#?}", path, e);
+                        Some((Err(Error::from(e)), paths))
+                    }
+                }
+            },
+        ))
     }
 
     /// Stream all chunks as an uncompressed tar archive. Each chunk becomes a
@@ -199,30 +204,13 @@ impl<'provider> FsProvider<'provider> {
         })
     }
 
-    /// Get a file handle for a specific chunk from the local filesystem.
+    /// Get a read-only file handle for a specific chunk from the local filesystem.
     async fn get<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<File> {
         let filename = filename.filename()?.with_chunk(chunk);
 
-        OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(self.full_path(&filename))
+        File::open(self.full_path(&filename))
             .await
             .map_err(Error::from)
-    }
-
-    /// Get all chunk file handles for a file, in chunk order.
-    async fn all<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<File>> {
-        let filename = filename.filename()?;
-
-        let chunks = self.get_uploaded_chunks(&filename).await?;
-        let mut files: Vec<File> = vec![];
-
-        for chunk in chunks {
-            files.push(self.get(&filename, chunk).await?);
-        }
-
-        Ok(files)
     }
 
     /// Calculate the total tar archive size by statting chunk files in batches.
@@ -256,7 +244,7 @@ impl FsProviderContract for FsProvider<'_> {
     async fn read<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<u8>> {
         let path = self.full_path(&filename.filename()?);
 
-        let mut file = OpenOptions::new().read(true).write(true).open(path).await?;
+        let mut file = File::open(path).await?;
 
         let mut data = vec![];
 
@@ -356,7 +344,7 @@ impl FsProviderContract for FsProvider<'_> {
         chunk: Option<i64>,
     ) -> AppResult<Streamer> {
         let filename = filename.filename()?;
-        let stream = self.inner_stream(&filename, chunk).await;
+        let stream = self.inner_stream(&filename, chunk).await?;
 
         Ok(Streamer::new(stream))
     }

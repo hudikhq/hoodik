@@ -69,7 +69,7 @@ pub(crate) async fn download(
 
     Ok(HttpResponse::Ok()
         .insert_header(("Content-Type", link.file_mime))
-        .insert_header(("Content-Length", link.file_size.unwrap_or(0)))
+        .insert_header(("Content-Length", link.file_size.unwrap_or(0).to_string()))
         .insert_header((
             "Content-Disposition",
             format!("attachment; filename=\"{filename}\""),
@@ -104,7 +104,7 @@ pub(crate) async fn head(
 
     Ok(HttpResponse::NoContent()
         .insert_header(("Content-Type", link.file_mime))
-        .insert_header(("Content-Length", link.file_size.unwrap_or(1)))
+        .insert_header(("Content-Length", link.file_size.unwrap_or(0).to_string()))
         .insert_header((
             "Content-Disposition",
             format!("attachment; filename=\"{filename}\""),
