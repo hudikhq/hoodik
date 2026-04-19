@@ -213,3 +213,56 @@ export async function historyCount(page: Page): Promise<number> {
   if (!(await items.first().isVisible().catch(() => false))) return 0
   return items.count()
 }
+
+/**
+ * Resolve a single history row by its `vN` label. Matching by label (not
+ * position) keeps assertions stable if a reorder bug ever ships — we'd
+ * rather fail loudly than silently act on the wrong row.
+ */
+export function historyRowByVersion(page: Page, version: number) {
+  return page
+    .locator('.vh-panel .vh-item')
+    .filter({ has: page.locator('.vh-item-version', { hasText: new RegExp(`^v${version}$`) }) })
+}
+
+/**
+ * Click the preview button on the row matching vN and wait until the
+ * overlay has decrypted and rendered the version's content. The preview
+ * modal mounts a Milkdown instance under `.vh-preview .ProseMirror`.
+ */
+export async function previewVersion(page: Page, version: number): Promise<void> {
+  await historyRowByVersion(page, version).locator('[name="vh-preview"]').click()
+  const preview = page.locator('.vh-preview')
+  await preview.waitFor({ state: 'visible' })
+  // The decrypt step is async — the "Decrypting…" placeholder flips to
+  // the rendered ProseMirror view once the content is ready.
+  await preview.locator('.ProseMirror').first().waitFor({ state: 'visible', timeout: 15_000 })
+}
+
+/**
+ * Close the version-preview overlay via its footer "Close" button. Scope
+ * to the preview card — the sidebar's own close button (icon-only,
+ * `name="vh-close"`) also carries the accessible name "Close", so a
+ * loose `getByRole` would strict-mode-collide.
+ */
+export async function closeVersionPreview(page: Page): Promise<void> {
+  await page.locator('.vh-preview-card').getByRole('button', { name: 'Close', exact: true }).click()
+  await page.locator('.vh-preview').waitFor({ state: 'hidden' })
+}
+
+/**
+ * Click Delete on the row matching vN and confirm the modal. Does not
+ * wait for the list to shrink — callers assert that themselves.
+ */
+export async function deleteVersionRow(page: Page, version: number): Promise<void> {
+  await historyRowByVersion(page, version).locator('[name="vh-delete"]').click()
+  await page.getByRole('button', { name: /Delete forever/i }).click()
+}
+
+/**
+ * Click "Clear all history" in the footer and confirm the modal.
+ */
+export async function purgeAllHistory(page: Page): Promise<void> {
+  await page.locator('[name="vh-purge-all"]').click()
+  await page.getByRole('button', { name: /Delete all/i }).click()
+}

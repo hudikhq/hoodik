@@ -6,7 +6,12 @@ import {
   openRawMarkdown,
   typeRawMarkdown,
   saveViaButton,
-  openHistory
+  openHistory,
+  historyRowByVersion,
+  previewVersion,
+  closeVersionPreview,
+  deleteVersionRow,
+  purgeAllHistory
 } from './helpers/notes'
 
 async function setup(page: Parameters<typeof createUser>[0]) {
@@ -133,6 +138,129 @@ test.describe('Version history — fork as new note', () => {
     await page.goto(`/notes/${originalId}`)
     await openRawMarkdown(page)
     await expect(page.locator('.md-raw-textarea')).toHaveValue(/^B\s*$/s)
+  })
+})
+
+test.describe('Version history — preview', () => {
+  test('Preview renders the chosen version without touching the active editor', async ({
+    page
+  }) => {
+    await setup(page)
+    await createNoteFromBrowser(page, 'preview.md')
+
+    await openRawMarkdown(page)
+    await typeRawMarkdown(page, 'A\n'); await saveViaButton(page)
+    await typeRawMarkdown(page, 'B\n'); await saveViaButton(page)
+    await typeRawMarkdown(page, 'C\n'); await saveViaButton(page)
+
+    await openHistory(page)
+    // After creation + 3 saves: historical = [v3/B, v2/A, v1/initial];
+    // active is v4/C on the file row.
+    const items = page.locator('.vh-panel .vh-item')
+    await expect(items).toHaveCount(3, { timeout: 10_000 })
+
+    // Preview v2 (content "A"). The overlay decrypts the chunks client-side
+    // and mounts a read-only Milkdown instance so the previewed markdown
+    // renders with the same theme as the live editor.
+    await previewVersion(page, 2)
+    const preview = page.locator('.vh-preview')
+    await expect(preview).toBeVisible()
+    await expect(preview.locator('.ProseMirror')).toContainText('A')
+    // v2's payload is "A\n" — the preview body must NOT contain "C", which
+    // is what the active editor is holding. This is the guard against
+    // preview accidentally mirroring the live document.
+    await expect(preview.locator('.ProseMirror')).not.toContainText('C')
+
+    // The active raw editor behind the overlay is still showing "C".
+    // We can read it even while the overlay is up because the textarea
+    // is still attached; the overlay just darkens the backdrop.
+    await expect(page.locator('.md-raw-textarea')).toHaveValue(/C/)
+
+    // Closing the preview must not mutate the active version.
+    await closeVersionPreview(page)
+    await expect(page.locator('.md-raw-textarea')).toHaveValue(/C/)
+    // History list is unchanged — three rows, v3/v2/v1.
+    await expect(items).toHaveCount(3)
+    await expect(items.nth(0).locator('.vh-item-version')).toHaveText('v3')
+    await expect(items.nth(1).locator('.vh-item-version')).toHaveText('v2')
+    await expect(items.nth(2).locator('.vh-item-version')).toHaveText('v1')
+  })
+})
+
+test.describe('Version history — delete single version', () => {
+  test('Deleting v2 removes only that row and persists across reload', async ({ page }) => {
+    await createPersistedUser(page)
+    const noteId = await createNoteFromBrowser(page, 'delete-single.md')
+
+    await openRawMarkdown(page)
+    await typeRawMarkdown(page, 'A\n'); await saveViaButton(page)
+    await typeRawMarkdown(page, 'B\n'); await saveViaButton(page)
+    await typeRawMarkdown(page, 'C\n'); await saveViaButton(page)
+
+    await openHistory(page)
+    const items = page.locator('.vh-panel .vh-item')
+    await expect(items).toHaveCount(3, { timeout: 10_000 })
+
+    // Confirm v2 is present before we delete it so the negative assertion
+    // below is meaningful.
+    await expect(historyRowByVersion(page, 2)).toHaveCount(1)
+
+    await deleteVersionRow(page, 2)
+
+    // The list must shrink to two rows with v2 gone — v3 and v1 survive.
+    await expect(items).toHaveCount(2, { timeout: 10_000 })
+    await expect(historyRowByVersion(page, 2)).toHaveCount(0)
+    await expect(historyRowByVersion(page, 3)).toHaveCount(1)
+    await expect(historyRowByVersion(page, 1)).toHaveCount(1)
+
+    // Active editor is untouched — the delete acts only on history.
+    await expect(page.locator('.md-raw-textarea')).toHaveValue(/C/)
+
+    // Reload and reopen history — the deletion must be server-side, not
+    // just a UI-local state tweak.
+    await page.reload()
+    await page.waitForURL(new RegExp(`/notes/${noteId}`))
+    await openRawMarkdown(page)
+    await openHistory(page)
+    await expect(items).toHaveCount(2, { timeout: 10_000 })
+    await expect(historyRowByVersion(page, 2)).toHaveCount(0)
+  })
+})
+
+test.describe('Version history — purge all', () => {
+  test('Clear all history empties the list and the active note survives', async ({ page }) => {
+    await createPersistedUser(page)
+    const noteId = await createNoteFromBrowser(page, 'purge.md')
+
+    await openRawMarkdown(page)
+    await typeRawMarkdown(page, 'A\n'); await saveViaButton(page)
+    await typeRawMarkdown(page, 'B\n'); await saveViaButton(page)
+
+    await openHistory(page)
+    // After creation + 2 saves: historical = [v2/A, v1/initial]; active v3/B.
+    const items = page.locator('.vh-panel .vh-item')
+    await expect(items).toHaveCount(2, { timeout: 10_000 })
+
+    await purgeAllHistory(page)
+
+    // The list collapses to the empty-state message; the footer's Clear
+    // button hides along with the list because of the `v-if="list.length"`
+    // guard. Match the empty-state copy explicitly — the preview overlay
+    // uses its own `.vh-empty` for "Decrypting…".
+    await expect(items).toHaveCount(0, { timeout: 10_000 })
+    await expect(page.locator('.vh-panel').getByText(/No history yet/i)).toBeVisible()
+    await expect(page.locator('[name="vh-purge-all"]')).toHaveCount(0)
+
+    // The active version (v3/B) stays — purge only wipes history.
+    await expect(page.locator('.md-raw-textarea')).toHaveValue(/B/)
+
+    // Reload: empty history must persist server-side.
+    await page.reload()
+    await page.waitForURL(new RegExp(`/notes/${noteId}`))
+    await openRawMarkdown(page)
+    await openHistory(page)
+    await expect(items).toHaveCount(0, { timeout: 10_000 })
+    await expect(page.locator('.md-raw-textarea')).toHaveValue(/B/)
   })
 })
 
