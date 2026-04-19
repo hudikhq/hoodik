@@ -33,6 +33,8 @@ sea-orm = { workspace = true, features = [
 ] }
 log = { workspace = true }
 env_logger = { workspace = true }
+url = { workspace = true }
+entity = { path = "../entity" }
 
 config = { path = "../config" }
 email = { path = "../email" }

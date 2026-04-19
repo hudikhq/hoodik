@@ -55,6 +55,11 @@ pub enum Error {
     HandlebarsRenderError(Box<RenderError>),
     HandlebarsTemplateError(Box<TemplateError>),
     TooManyRequests(String),
+    /// Returned when a `replaceContent` is attempted while another edit is
+    /// still in flight (`pending_version IS NOT NULL`). Surfaces as HTTP
+    /// 409 Conflict; the client can retry with `force = true` to abandon
+    /// the previous edit and start fresh.
+    Conflict(String),
 }
 
 impl Error {
@@ -401,6 +406,11 @@ impl From<&Error> for ErrorResponse {
             },
             Error::TooManyRequests(message) => ErrorResponse {
                 status: 429,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::Conflict(message) => ErrorResponse {
+                status: 409,
                 message: message.to_string(),
                 context: None,
             },

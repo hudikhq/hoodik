@@ -21,6 +21,7 @@ pub mod set_editable;
 pub mod stats;
 pub mod update_hashes;
 pub mod upload;
+pub mod versions;
 
 /// Register the storage routes
 /// on to the application server
@@ -41,4 +42,10 @@ pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
     cfg.service(stats::stats);
     cfg.service(update_hashes::update_hashes);
     cfg.service(upload::upload);
+    cfg.service(versions::list);
+    cfg.service(versions::download);
+    cfg.service(versions::restore);
+    cfg.service(versions::fork);
+    cfg.service(versions::delete);
+    cfg.service(versions::purge_all_history);
 }

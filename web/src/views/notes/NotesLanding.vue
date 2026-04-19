@@ -148,6 +148,7 @@ onUnmounted(() => {
       <li
         v-for="note in notes"
         :key="note.id"
+        :title="note.name"
         class="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-colors duration-150 hover:bg-brownish-100 dark:hover:bg-brownish-700/50"
         @click="openNote(note)"
       >

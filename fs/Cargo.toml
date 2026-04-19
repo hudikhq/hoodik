@@ -12,10 +12,23 @@ description = "File system abstraction library"
 
 [features]
 default = []
-s3 = ["dep:s3"]
+s3 = ["dep:s3", "dep:base64", "dep:hex", "dep:md-5", "dep:sha2", "dep:hmac", "dep:http", "dep:hyper", "dep:time", "dep:url"]
+# Gate the S3 versioned-chunk integration suite so the regular `cargo test`
+# pipeline doesn't try to hit MinIO. Enable via `just test-s3-integration`.
+s3-integration-tests = ["s3"]
 
 [dependencies]
 s3 = { workspace = true, optional = true }
+base64 = { workspace = true, optional = true }
+hex = { workspace = true, optional = true }
+md-5 = { version = "0.10", optional = true }
+sha2 = { version = "0.10", optional = true }
+hmac = { version = "0.12", optional = true }
+http = { version = "0.2", optional = true }
+hyper = { version = "0.14", optional = true }
+time = { version = "0.3", optional = true, features = ["formatting", "macros"] }
+url = { version = "^2", optional = true }
+
 config = { path = "../config" }
 error = { path = "../error" }
 
@@ -23,8 +36,14 @@ fs4 = { workspace = true }
 log = { workspace = true }
 actix-web = { workspace = true }
 futures-util = { workspace = true }
+futures = { workspace = true }
 glob = { workspace = true }
 pin-project = { workspace = true }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
+uuid = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

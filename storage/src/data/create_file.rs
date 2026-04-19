@@ -177,6 +177,14 @@ impl CreateFile {
                 editable: ActiveValue::Set(data.editable.unwrap_or(false)),
                 created_at: ActiveValue::Set(now.and_utc().timestamp()),
                 finished_upload_at: ActiveValue::Set(None),
+                // New files start at v1. Chunks land in `v1/` directly until
+                // the first finalize commits them; pending_version stays NULL
+                // for the initial upload (the two-phase swap kicks in only
+                // for subsequent edits, see manage::replace_content).
+                active_version: ActiveValue::Set(1),
+                pending_version: ActiveValue::Set(None),
+                pending_chunks: ActiveValue::Set(None),
+                pending_size: ActiveValue::Set(None),
             },
             data.encrypted_key.unwrap(),
             data.search_tokens_hashed.unwrap_or_default(),

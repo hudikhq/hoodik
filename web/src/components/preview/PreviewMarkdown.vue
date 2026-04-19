@@ -11,8 +11,10 @@ import MarkdownActions from '@/components/editor/MarkdownActions.vue'
 import RenameModal from '@/components/files/modals/RenameModal.vue'
 import DetailsModal from '@/components/files/modals/DetailsModal.vue'
 import LinkModal from '@/components/links/modals/LinkModal.vue'
+import VersionHistory from '@/components/preview/VersionHistory.vue'
 import { useMarkdownSave } from '@/components/editor/composables/useMarkdownSave'
 import { exportPdf } from '@/components/editor/composables/useMarkdownExport'
+import { notification } from '!/index'
 import * as meta from '!/storage/meta'
 import { emitFileTreeChange } from '!/storage/events'
 import { store as storageStore } from '!/storage'
@@ -52,8 +54,6 @@ const canConvertToNote = computed(() => {
   return isOwnedFile.value && !isEditable.value && !props.readonly
 })
 
-// --- State ---
-
 const markdownContent = ref('')
 const isLoaded = ref(false)
 const showRaw = ref(false)
@@ -81,10 +81,12 @@ const router = useRouter()
 const {
   isDirty, isSaving, saveStatus,
   save: doSave, resetAutoSaveTimer, clearAutoSaveTimer,
-  markDirty, setLastSaved
+  markDirty, setLastSaved,
+  resolveConflict, discardConflict
 } = useMarkdownSave()
 
-// --- Helpers ---
+const showHistory = ref(false)
+function toggleHistory() { showHistory.value = !showHistory.value }
 
 function ownedFile(): AppFile | undefined {
   if (preview.value instanceof FilePreview) return (preview.value as FilePreview).file
@@ -94,7 +96,27 @@ function save() {
   doSave(ownedFile(), markdownContent.value)
 }
 
-// --- File actions ---
+async function onResolveConflict() {
+  await resolveConflict(ownedFile())
+}
+
+function onDiscardConflict() {
+  discardConflict()
+}
+
+async function onVersionRestored(updated: AppFile) {
+  // Restore flipped active_version server-side — hand the new metadata
+  // to the preview so the cached content doesn't shadow it, then reload.
+  if (preview.value instanceof FilePreview) {
+    ;(preview.value as FilePreview).updateFile(updated)
+  }
+  await load()
+}
+
+function onVersionForked(forkedFile: AppFile) {
+  // Same UX as creating a new note: drop the user into it.
+  router.push({ name: 'notes', params: { id: forkedFile.id } })
+}
 
 async function convertToNote() {
   const file = ownedFile()
@@ -156,13 +178,9 @@ function handleExportPdf() {
   exportPdf(editorWrapperRef.value, preview.value.name || 'document')
 }
 
-// --- Editor commands ---
-
 function runCommand(command: string, payload?: unknown) {
   editorRef.value?.runCommand(command, payload)
 }
-
-// --- Content lifecycle ---
 
 function onContentUpdate(newContent: string) {
   markdownContent.value = newContent
@@ -186,8 +204,6 @@ async function load() {
 
 watch(() => props.modelValue, load, { immediate: true })
 
-// --- Window event handlers ---
-
 function onBeforeUnload(e: BeforeUnloadEvent) {
   if (isDirty.value) {
     e.preventDefault()
@@ -204,6 +220,16 @@ function onDocumentClick(e: MouseEvent) {
   actionsRef.value?.closeDropdown(e)
 }
 
+// Mac users see "⌘"; everyone else sees "Ctrl". Stays simple — no need
+// for the full Platform detection dance because the click handler
+// accepts both modifiers anyway.
+const linkModifierLabel =
+  typeof navigator !== 'undefined' && navigator.platform?.toLowerCase().includes('mac')
+    ? '⌘'
+    : 'Ctrl'
+
+let modifierHintShown = false
+
 function onEditorClick(e: MouseEvent) {
   const anchor = (e.target as HTMLElement).closest('a')
   if (!anchor) return
@@ -211,7 +237,20 @@ function onEditorClick(e: MouseEvent) {
   const href = anchor.getAttribute('href')
   if (!href) return
 
-  if (isEditable.value && !e.metaKey && !e.ctrlKey) return
+  if (isEditable.value && !e.metaKey && !e.ctrlKey) {
+    // Click swallowed in edit mode — links are click-to-edit by
+    // default. Surface the modifier hint once per session so users
+    // discover the right gesture without having to read docs.
+    if (!modifierHintShown) {
+      modifierHintShown = true
+      notification(
+        `${linkModifierLabel}+click to open links`,
+        'Plain click in edit mode lets you change the link target.',
+        'info'
+      )
+    }
+    return
+  }
 
   if (href.startsWith('#')) {
     e.preventDefault()
@@ -225,11 +264,41 @@ function onEditorClick(e: MouseEvent) {
   window.open(href, '_blank', 'noopener')
 }
 
+/// One-shot pass that stamps `title="Cmd+click to open"` on every
+/// existing anchor inside the editor. We deliberately avoid a
+/// MutationObserver here — Milkdown rebuilds chunks of its DOM on
+/// every keystroke, and watching that fires the callback so often it
+/// freezes the tab. The click-time notification (see onEditorClick)
+/// covers anchors the user adds after the initial render.
+function annotateExistingLinks() {
+  const root = editorWrapperRef.value
+  if (!root || !isEditable.value) return
+  const tooltip = `${linkModifierLabel}+click to open`
+  for (const a of Array.from(root.querySelectorAll('a'))) {
+    if (a.getAttribute('title')) continue
+    a.setAttribute('title', tooltip)
+  }
+}
+
 onMounted(() => {
   window.addEventListener('beforeunload', onBeforeUnload)
   window.addEventListener('blur', onWindowBlur)
   window.addEventListener('click', onDocumentClick)
 })
+
+// Run the link-title pass once after the editor finishes its first
+// render. Cheap, no ongoing observers — much safer than watching
+// Milkdown's mutations.
+watch(
+  () => isLoaded.value && isEditable.value && !showRaw.value,
+  async (active) => {
+    if (active) {
+      await nextTick()
+      annotateExistingLinks()
+    }
+  },
+  { immediate: true }
+)
 
 onUnmounted(() => {
   clearAutoSaveTimer()
@@ -253,8 +322,11 @@ defineExpose({ exportPdf: handleExportPdf })
         :is-dirty="isDirty"
         :is-saving="isSaving"
         :save-status="saveStatus"
+        :show-history-button="isOwnedFile"
+        :is-history-open="showHistory"
         @command="runCommand"
         @save="save"
+        @toggle-history="toggleHistory"
       />
       <MarkdownActions
         ref="actionsRef"
@@ -317,28 +389,58 @@ defineExpose({ exportPdf: handleExportPdf })
       </button>
     </div>
 
-    <!-- Raw markdown editor -->
-    <div v-if="showRaw" class="flex-1 overflow-auto md-raw-wrapper">
-      <textarea
-        :value="markdownContent"
-        class="md-raw-textarea"
-        :readonly="!isEditable"
-        spellcheck="false"
-        @input="onContentUpdate(($event.target as HTMLTextAreaElement).value)"
-      />
-    </div>
+    <!-- Save-conflict prompt — fired when the server returns 409 on
+         replaceContent because a previous save is still pending. -->
+    <CardBoxModal
+      :model-value="saveStatus === 'conflict'"
+      title="Another save is in progress"
+      button="warning"
+      button-label="Discard remote and overwrite"
+      has-cancel
+      @cancel="onDiscardConflict"
+      @confirm="onResolveConflict"
+    >
+      The server has an unfinished save for this note from another session.
+      Choose <strong>Discard remote and overwrite</strong> to drop their pending edit and save your version,
+      or <strong>Cancel</strong> to drop your local changes and let the other save finish.
+    </CardBoxModal>
 
-    <!-- WYSIWYG editor -->
-    <div v-else ref="editorWrapperRef" class="flex-1 overflow-auto milkdown-wrapper" @click="onEditorClick">
-      <MilkdownProvider>
-        <MilkdownEditorInner
-          ref="editorRef"
-          :content="markdownContent"
-          :editable="isEditable"
-          @update:content="onContentUpdate"
-          @save="save"
-        />
-      </MilkdownProvider>
+    <!-- Editor body + optional version-history sidebar. -->
+    <div class="flex-1 flex overflow-hidden">
+      <div class="flex-1 flex flex-col overflow-hidden">
+        <!-- Raw markdown editor -->
+        <div v-if="showRaw" class="flex-1 overflow-auto md-raw-wrapper">
+          <textarea
+            :value="markdownContent"
+            class="md-raw-textarea"
+            :readonly="!isEditable"
+            spellcheck="false"
+            @input="onContentUpdate(($event.target as HTMLTextAreaElement).value)"
+          />
+        </div>
+
+        <!-- WYSIWYG editor -->
+        <div v-else ref="editorWrapperRef" class="flex-1 overflow-auto milkdown-wrapper" @click="onEditorClick">
+          <MilkdownProvider>
+            <MilkdownEditorInner
+              ref="editorRef"
+              :content="markdownContent"
+              :editable="isEditable"
+              @update:content="onContentUpdate"
+              @save="save"
+            />
+          </MilkdownProvider>
+        </div>
+      </div>
+
+      <VersionHistory
+        v-if="showHistory && ownedFile()"
+        :file="ownedFile()!"
+        :keypair="Crypto.keypair"
+        @close="showHistory = false"
+        @restored="onVersionRestored"
+        @forked="onVersionForked"
+      />
     </div>
   </div>
 </template>

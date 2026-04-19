@@ -40,6 +40,14 @@ pub struct AppLink {
     /// Cipher used to encrypt the file chunks (e.g. "ascon128a", "aegis128l").
     /// Comes from the joined `files` table, not from the `links` table itself.
     pub file_cipher: String,
+    /// Active version of the file's chunks. Public link downloads always
+    /// stream the active version — a save in progress on the owner's side
+    /// is invisible to the link recipient until it commits.
+    pub file_active_version: i32,
+    /// Mirrors `files.editable`. Drives the same layout split as the
+    /// owner-facing routes: editable → versioned `v{N}/` path, otherwise
+    /// the legacy flat layout.
+    pub file_editable: bool,
     /// Date when the link will expire, automated cron job
     /// will periodically empty out the expired links of all the
     /// file metadata and encrypted file key.
@@ -100,6 +108,8 @@ impl FromQueryResult for AppLink {
             created_at: link.created_at,
             file_modified_at: file.created_at,
             file_cipher: file.cipher,
+            file_active_version: file.active_version,
+            file_editable: file.editable,
             expires_at: link.expires_at,
             owner_id: user.id,
             owner_email: user.email,

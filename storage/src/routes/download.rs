@@ -35,9 +35,25 @@ pub(crate) async fn download(
 
     let storage = Fs::new(&context.config);
 
+    // Editable files go through the versioned layout so in-flight edits
+    // (chunks living under v{pending_version}/) stay invisible to readers
+    // until finalize flips the active-version pointer. Non-editable files
+    // are write-once — their chunks are in the legacy flat layout and the
+    // versioned path would add nothing.
+    let versioned = file.use_versioned_layout();
+
     if format.as_deref() == Some("tar") {
-        let content_length = storage.tar_content_length(&file).await?;
-        let streamer = storage.stream_tar(&file).await?;
+        let (content_length, streamer) = if versioned {
+            (
+                storage.tar_content_length_v(&file, file.active_version).await?,
+                storage.stream_tar_v(&file, file.active_version).await?,
+            )
+        } else {
+            (
+                storage.tar_content_length(&file).await?,
+                storage.stream_tar(&file).await?,
+            )
+        };
         let filename = format!("{}.tar", file_id);
 
         return Ok(HttpResponse::Ok()
@@ -50,7 +66,11 @@ pub(crate) async fn download(
             .streaming(streamer.stream()));
     }
 
-    let streamer = storage.stream(&file, chunk).await?;
+    let streamer = if versioned {
+        storage.stream_v(&file, file.active_version, chunk).await?
+    } else {
+        storage.stream(&file, chunk).await?
+    };
 
     let filename = match chunk {
         Some(chunk) => file.filename()?.with_chunk(chunk).with_extension(".enc"),

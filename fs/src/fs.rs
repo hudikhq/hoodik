@@ -81,6 +81,89 @@ impl FsProviderContract for StorageProvider<'_> {
     async fn tar_content_length<T: IntoFilename>(&self, filename: &T) -> AppResult<u64> {
         dispatch!(self, tar_content_length(filename))
     }
+
+    async fn push_v<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+        chunk: i64,
+        data: &[u8],
+    ) -> AppResult<()> {
+        dispatch!(self, push_v(filename, version, chunk, data))
+    }
+
+    async fn pull_v<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+        chunk: i64,
+    ) -> AppResult<Vec<u8>> {
+        dispatch!(self, pull_v(filename, version, chunk))
+    }
+
+    async fn exists_v<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+        chunk: i64,
+    ) -> AppResult<bool> {
+        dispatch!(self, exists_v(filename, version, chunk))
+    }
+
+    async fn get_uploaded_chunks_v<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+    ) -> AppResult<Vec<i64>> {
+        dispatch!(self, get_uploaded_chunks_v(filename, version))
+    }
+
+    async fn stream_v<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+        chunk: Option<i64>,
+    ) -> AppResult<Streamer> {
+        dispatch!(self, stream_v(filename, version, chunk))
+    }
+
+    async fn stream_tar_v<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+    ) -> AppResult<Streamer> {
+        dispatch!(self, stream_tar_v(filename, version))
+    }
+
+    async fn tar_content_length_v<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+    ) -> AppResult<u64> {
+        dispatch!(self, tar_content_length_v(filename, version))
+    }
+
+    async fn purge_version<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+    ) -> AppResult<()> {
+        dispatch!(self, purge_version(filename, version))
+    }
+
+    async fn copy_version<S: IntoFilename, D: IntoFilename>(
+        &self,
+        src: &S,
+        src_version: i32,
+        dst: &D,
+        dst_version: i32,
+    ) -> AppResult<()> {
+        dispatch!(self, copy_version(src, src_version, dst, dst_version))
+    }
+
+    async fn purge_all<T: IntoFilename>(&self, filename: &T) -> AppResult<()> {
+        dispatch!(self, purge_all(filename))
+    }
 }
 
 pub struct Fs<'ctx> {
@@ -184,5 +267,92 @@ impl FsProviderContract for Fs<'_> {
 
     async fn tar_content_length<T: IntoFilename>(&self, filename: &T) -> AppResult<u64> {
         self.provider().tar_content_length(filename).await
+    }
+
+    async fn push_v<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+        chunk: i64,
+        data: &[u8],
+    ) -> AppResult<()> {
+        self.provider().push_v(filename, version, chunk, data).await
+    }
+
+    async fn pull_v<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+        chunk: i64,
+    ) -> AppResult<Vec<u8>> {
+        self.provider().pull_v(filename, version, chunk).await
+    }
+
+    async fn exists_v<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+        chunk: i64,
+    ) -> AppResult<bool> {
+        self.provider().exists_v(filename, version, chunk).await
+    }
+
+    async fn get_uploaded_chunks_v<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+    ) -> AppResult<Vec<i64>> {
+        self.provider()
+            .get_uploaded_chunks_v(filename, version)
+            .await
+    }
+
+    async fn stream_v<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+        chunk: Option<i64>,
+    ) -> AppResult<Streamer> {
+        self.provider().stream_v(filename, version, chunk).await
+    }
+
+    async fn stream_tar_v<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+    ) -> AppResult<Streamer> {
+        self.provider().stream_tar_v(filename, version).await
+    }
+
+    async fn tar_content_length_v<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+    ) -> AppResult<u64> {
+        self.provider().tar_content_length_v(filename, version).await
+    }
+
+    async fn purge_version<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+    ) -> AppResult<()> {
+        self.provider().purge_version(filename, version).await
+    }
+
+    async fn copy_version<S: IntoFilename, D: IntoFilename>(
+        &self,
+        src: &S,
+        src_version: i32,
+        dst: &D,
+        dst_version: i32,
+    ) -> AppResult<()> {
+        self.provider()
+            .copy_version(src, src_version, dst, dst_version)
+            .await
+    }
+
+    async fn purge_all<T: IntoFilename>(&self, filename: &T) -> AppResult<()> {
+        self.provider().purge_all(filename).await
     }
 }

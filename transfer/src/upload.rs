@@ -24,8 +24,6 @@ pub trait PlaintextChunkHook {
     fn on_plaintext_chunk(&self, data: &[u8]);
 }
 
-// ── Uploader ─────────────────────────────────────────────────────────────────
-
 /// Configuration and entry point for a chunked, client-side-encrypted file upload.
 ///
 /// Build with [`Uploader::new`], optionally customise with the builder methods, then call
@@ -120,8 +118,6 @@ impl Uploader {
     }
 }
 
-// ── HashState ─────────────────────────────────────────────────────────────────
-
 /// Incremental hash state accumulated over all plaintext chunks during upload.
 ///
 /// Only handles the **inline** hashing path.  When `inline_sha256 = false` (offload mode),
@@ -190,8 +186,6 @@ impl HashState {
         }
     }
 }
-
-// ── Core upload pipeline ──────────────────────────────────────────────────────
 
 /// Run a full chunked, encrypted upload of a file.
 ///
@@ -519,8 +513,6 @@ async fn run_upload_pipeline<'a>(
     Ok(())
 }
 
-// ── Upload helpers ────────────────────────────────────────────────────────────
-
 /// Move as many chunks as possible from `encrypted_waiting` into `in_flight`,
 /// up to `in_flight_cap` concurrent requests.
 #[allow(clippy::too_many_arguments)]
@@ -633,8 +625,6 @@ async fn upload_encrypted(
         Err(e) => Err(e),
     }
 }
-
-// ── Utilities ─────────────────────────────────────────────────────────────────
 
 /// Compute the number of chunks required to upload `total_size` bytes.
 /// An empty file still requires one (empty) chunk.

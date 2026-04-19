@@ -10,8 +10,6 @@ use crate::platform::{DataSource, HttpClient, ProgressReporter};
 use crate::types::{Auth, ChunkResponse, FileHashes};
 use crate::upload::compute_chunk_count;
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
 fn test_auth() -> Auth {
     Auth {
         base_url: "http://localhost:1234".into(),
@@ -25,8 +23,6 @@ fn test_key() -> Vec<u8> {
     // 32 bytes: first 16 = Ascon128a key, last 16 = nonce
     b"test-encryption-key!test-nonce!!" .to_vec()
 }
-
-// ── MockDataSource ───────────────────────────────────────────────────────────
 
 struct MockDataSource {
     data: Vec<u8>,
@@ -54,8 +50,6 @@ impl DataSource for MockDataSource {
         self.data.len() as u64
     }
 }
-
-// ── MockHttpClient ───────────────────────────────────────────────────────────
 
 /// When `scripted_upload_responses` is non-empty, responses are popped FIFO.
 /// Otherwise the upload auto-succeeds and stores the chunk in `stored_chunks`
@@ -211,8 +205,6 @@ impl HttpClient for MockHttpClient {
     }
 }
 
-// ── MockProgressReporter ─────────────────────────────────────────────────────
-
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 enum ProgressEvent {
@@ -293,8 +285,6 @@ impl ProgressReporter for MockProgressReporter {
     }
 }
 
-// ── Helper unit tests ────────────────────────────────────────────────────────
-
 #[test]
 fn chunk_count_zero() {
     assert_eq!(compute_chunk_count(0), 1);
@@ -323,8 +313,6 @@ fn crc16_deterministic() {
     assert_eq!(a, b);
     assert!(!a.is_empty());
 }
-
-// ── Upload tests ─────────────────────────────────────────────────────────────
 
 #[tokio::test(flavor = "current_thread")]
 async fn upload_small_file() {
@@ -657,8 +645,6 @@ async fn upload_hash_disable_mask_omits_optional_hashes() {
     assert!(hashes.blake2b.is_none());
 }
 
-// ── Download tests ───────────────────────────────────────────────────────────
-
 #[tokio::test(flavor = "current_thread")]
 async fn download_roundtrip() {
     let original = b"Hello, this is a roundtrip test with some data!".to_vec();
@@ -788,8 +774,6 @@ async fn download_http_error_propagates() {
         other => panic!("Expected Http error, got: {other:?}"),
     }
 }
-
-// ── Tar download tests ──────────────────────────────────────────────────────
 
 #[tokio::test(flavor = "current_thread")]
 async fn download_all_chunks_tar_roundtrip() {

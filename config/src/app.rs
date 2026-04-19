@@ -81,6 +81,17 @@ pub struct AppConfig {
     ///
     /// possible values: local, s3
     pub storage_provider: String,
+
+    /// MAX_FILE_VERSIONS — how many historical versions to retain per
+    /// editable file. The active version is always preserved; this cap
+    /// only affects historical snapshots created on each edit. When
+    /// exceeded, the oldest historical version is pruned (database row
+    /// + on-disk chunk directory) right after a successful finalize.
+    ///
+    /// *optional*
+    ///
+    /// default: 30
+    pub max_file_versions: usize,
 }
 
 impl AppConfig {
@@ -104,6 +115,9 @@ impl AppConfig {
         let storage_provider = vars
             .var_default("STORAGE_PROVIDER", "local".to_string())
             .get();
+        let max_file_versions = vars
+            .var_default::<usize>("MAX_FILE_VERSIONS", 30)
+            .get();
 
         vars.panic_if_errors("AppConfig");
 
@@ -117,6 +131,7 @@ impl AppConfig {
             app_url,
             client_url,
             storage_provider,
+            max_file_versions,
         }
         .set_env()
     }

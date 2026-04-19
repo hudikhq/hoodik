@@ -10,8 +10,6 @@ use serde_wasm_bindgen::to_value;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
-// ── TransferUploader ──────────────────────────────────────────────────────────
-
 /// WASM class for client-side-encrypted file upload.
 ///
 /// Construct with `new TransferUploader(...)`, optionally call setter methods to configure
@@ -172,8 +170,6 @@ impl TransferUploader {
     }
 }
 
-// ── TransferDownloader ────────────────────────────────────────────────────────
-
 /// WASM class for client-side-decrypted file download.
 ///
 /// Construct with `new TransferDownloader(...)`, then `await downloader.download(...)`.
@@ -281,8 +277,6 @@ impl TransferDownloader {
         .map_err(|e| JsValue::from_str(&format!("{e}")))
     }
 }
-
-// ── Hash mask constant helpers ────────────────────────────────────────────────
 
 /// Returns the bitmask value to OR into `set_hash_mask` to disable MD5 computation.
 #[wasm_bindgen(js_name = "transferHashDisableMd5")]

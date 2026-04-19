@@ -16,7 +16,8 @@ import {
   mdiCheck,
   mdiUndo,
   mdiRedo,
-  mdiAlertCircleOutline
+  mdiAlertCircleOutline,
+  mdiHistory
 } from '@mdi/js'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
@@ -27,11 +28,14 @@ defineProps<{
   isDirty: boolean
   isSaving: boolean
   saveStatus: SaveStatus
+  showHistoryButton?: boolean
+  isHistoryOpen?: boolean
 }>()
 
 const emit = defineEmits<{
   (event: 'command', command: string, payload?: unknown): void
   (event: 'save'): void
+  (event: 'toggle-history'): void
 }>()
 
 const showHeadingDropdown = ref(false)
@@ -109,6 +113,10 @@ defineExpose({ closeDropdown })
       <BaseIcon :path="mdiCheck" :size="14" />
       Saved
     </span>
+    <span v-else-if="saveStatus === 'conflict'" class="md-save-status text-orangy-400 flex items-center gap-1">
+      <BaseIcon :path="mdiAlertCircleOutline" :size="14" />
+      Conflict — another edit in progress
+    </span>
     <span v-else-if="saveStatus === 'error'" class="md-save-status text-redish-400 flex items-center gap-1">
       <BaseIcon :path="mdiAlertCircleOutline" :size="14" />
       Save failed
@@ -122,6 +130,16 @@ defineExpose({ closeDropdown })
       title="Save (Ctrl+S)"
       name="md-save"
       @click="$emit('save')"
+    />
+
+    <BaseButton
+      v-if="showHistoryButton"
+      :color="isHistoryOpen ? 'info' : 'dark'"
+      :icon="mdiHistory"
+      xs
+      title="Version history"
+      name="md-history"
+      @click="emit('toggle-history')"
     />
 
     <span class="md-toolbar-divider" />

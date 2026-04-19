@@ -3,8 +3,9 @@ import ActionsDropdown from '@/components/files/browser/ActionsDropdown.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import TruncatedSpan from '@/components/ui/TruncatedSpan.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { formatPrettyDate, formatSize } from '!'
-import { mdiDotsVertical } from '@mdi/js'
+import { mdiDotsVertical, mdiCloudSyncOutline } from '@mdi/js'
 import type { AppFile } from 'types'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -230,6 +231,16 @@ const drop = (e: DragEvent) => {
       />
 
       <TruncatedSpan :text="fileName" />
+      <!-- Saving-in-another-session badge. Surfaced as soon as the
+           server reports a pending_version on the row so users get a
+           heads-up before they try to edit and run into a 409. -->
+      <span
+        v-if="file.pending_version != null"
+        class="ml-2 inline-flex items-center text-orangy-400"
+        title="Another session is saving this note"
+      >
+        <BaseIcon :path="mdiCloudSyncOutline" :size="14" />
+      </span>
     </button>
 
     <div :class="sizes.size" :title="fileSize">

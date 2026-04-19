@@ -125,6 +125,10 @@ pub async fn create_file<T: super::ConnectionTrait>(
         editable: ActiveValue::Set(false),
         created_at: ActiveValue::Set(Utc::now().timestamp()),
         finished_upload_at: ActiveValue::Set(Some(Utc::now().timestamp())),
+        active_version: ActiveValue::Set(1),
+        pending_version: ActiveValue::Set(None),
+        pending_chunks: ActiveValue::Set(None),
+        pending_size: ActiveValue::Set(None),
     };
 
     crate::files::Entity::insert(file)

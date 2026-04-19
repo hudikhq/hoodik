@@ -9,7 +9,10 @@ use fs::{prelude::*, MAX_CHUNK_SIZE_BYTES};
 
 use crate::{
     data::{app_file::AppFile, meta::Meta},
-    repository::{cached::get_file, Repository},
+    repository::{
+        cached::{evict_file, get_file},
+        Repository,
+    },
 };
 
 /// Method to upload file chunks to the server
@@ -58,32 +61,78 @@ pub(crate) async fn upload(
 
     validate_chunk_size(&file, chunk, request_body.len())?;
 
-    let chunks = file
-        .chunks
+    let versioned = file.use_versioned_layout();
+
+    // Target version only matters on the versioned path. Non-editable
+    // files never snapshot/swap; their chunks live directly in the
+    // legacy flat layout and finalize only stamps `finished_upload_at`.
+    let target_chunks = file
+        .target_chunks()
         .ok_or(Error::BadRequest("file_has_no_chunks".to_string()))?;
 
-    if chunk > chunks {
+    if chunk > target_chunks {
         return Err(Error::as_validation("chunk", "chunk_out_of_range"));
     }
 
-    if storage.exists(&file, chunk).await? {
+    let chunk_exists = if versioned {
+        storage.exists_v(&file, file.target_version(), chunk).await?
+    } else {
+        storage.exists(&file, chunk).await?
+    };
+    if chunk_exists {
         return Err(Error::as_validation("chunk", "chunk_already_exists"));
     }
 
-    storage.push(&file, chunk, &request_body).await?;
-
-    if file.is_file() {
-        let chunks = storage.get_uploaded_chunks(&file).await?;
-
-        file.chunks_stored = Some(chunks.len() as i64);
-        file.uploaded_chunks = Some(chunks);
+    if versioned {
+        storage
+            .push_v(&file, file.target_version(), chunk, &request_body)
+            .await?;
+    } else {
+        storage.push(&file, chunk, &request_body).await?;
     }
 
-    if file.chunks == file.chunks_stored {
-        let mut finished_file = Repository::new(&context.db)
+    if file.is_file() {
+        let stored = if versioned {
+            storage
+                .get_uploaded_chunks_v(&file, file.target_version())
+                .await?
+        } else {
+            storage.get_uploaded_chunks(&file).await?
+        };
+
+        file.chunks_stored = Some(stored.len() as i64);
+        file.uploaded_chunks = Some(stored);
+    }
+
+    if file.chunks_stored == Some(target_chunks) {
+        // On the versioned (edit) path, snapshot insert + pointer swap +
+        // prune commit together so a crash mid-finalize can't leave history
+        // pointing at a version that doesn't exist. On the non-versioned
+        // path `finish` only stamps `finished_upload_at` — the transaction
+        // is redundant there, but keeping it uniform avoids a branch.
+        use entity::TransactionTrait;
+        let txn = context.db.begin().await?;
+        let (mut finished_file, pruned) = Repository::new(&txn)
             .manage(claims.sub())
-            .finish(&file)
+            .finish(&file, context.config.app.max_file_versions)
             .await?;
+        txn.commit().await?;
+
+        // Stale cache would point any immediate follow-up read at the
+        // pre-swap version.
+        evict_file(file_id).await;
+
+        for version in pruned {
+            if let Err(e) = storage.purge_version(&finished_file, version).await {
+                log::warn!(
+                    "Failed to purge pruned v{} for file {}: {}. \
+                     On-disk garbage; caught by next purge_all on file delete.",
+                    version,
+                    file_id,
+                    e
+                );
+            }
+        }
 
         finished_file.chunks_stored = file.chunks_stored;
         finished_file.uploaded_chunks = file.uploaded_chunks;

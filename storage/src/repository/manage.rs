@@ -4,15 +4,16 @@ use std::{collections::HashMap, fmt::Display, str::FromStr};
 
 use chrono::Utc;
 use entity::{
-    files, user_files, ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait,
-    Order, QueryFilter, QueryOrder, Statement, Uuid, Value,
+    file_versions, files, user_files, ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait,
+    EntityTrait, Order, QueryFilter, QueryOrder, Statement, Uuid, Value,
 };
 use error::{AppResult, Error};
+use validr::Validation;
 
 use super::Repository;
 use crate::data::{
     app_file::AppFile, query::Query as RequestQuery, rename::Rename,
-    replace_content::ReplaceContent, response::Response, set_editable::SetEditable,
+    replace_content::ValidatedReplaceContent, response::Response, set_editable::SetEditable,
     update_hashes::UpdateHashes,
 };
 use futures::future::try_join_all;
@@ -345,8 +346,6 @@ where
         encrypted_key: &str,
         hashed_tokens: Vec<String>,
     ) -> AppResult<AppFile> {
-        // Check if the file_id is set, if it is, check if the parent is directory
-        // and if the current user is the owner of that directory.
         if let Some(file_id) = create_file.file_id.clone().into_value() {
             if file_id.to_string().as_str() != "NULL" {
                 let parent = self.repository.by_id(file_id, self.owner_id).await?;
@@ -409,13 +408,30 @@ where
         self.repository.by_id(file.id, file.user_id).await
     }
 
-    /// Replace the content of an editable file, resetting chunks so new content
-    /// can be uploaded. Only files with `editable = true` are allowed.
+    /// Allocate a pending version and stage the in-flight upload metadata.
+    ///
+    /// **Does not touch chunks on disk** — the active version stays fully
+    /// readable for the duration of the edit. Once `chunks_stored ==
+    /// pending_chunks` the upload route fires [`Self::finish`], which
+    /// atomically swaps `active_version = pending_version`.
+    ///
+    /// Returns `(file, abandoned_pending)`:
+    /// - `file` is the post-update record for the response.
+    /// - `abandoned_pending` is `Some(N)` only when `force = true` was used
+    ///   to bypass an in-flight pending — the caller is responsible for
+    ///   purging that version's chunk directory after the DB commit.
+    ///
+    /// Errors:
+    /// - `Conflict("another_edit_is_in_progress")` if a pending exists and
+    ///   `force = false`. Surfaces as HTTP 409.
+    /// - `BadRequest("cannot_replace_directory")` for directories.
+    /// - `BadRequest("file_not_editable")` when the file is not flagged
+    ///   `editable`.
     pub(crate) async fn replace_content(
         &self,
         id: Uuid,
-        data: ReplaceContent,
-    ) -> AppResult<AppFile> {
+        data: ValidatedReplaceContent,
+    ) -> AppResult<(AppFile, Option<i32>)> {
         let file = self.repository.by_id(id, self.owner_id).await?;
 
         if !file.is_owner || file.user_id != self.owner_id {
@@ -430,23 +446,78 @@ where
             return Err(Error::BadRequest("file_not_editable".to_string()));
         }
 
-        let (active_model, hashed_tokens) = data.into_active_model(id)?;
+        // Concurrent-edit guard. The client opts into recovery via
+        // `force = true`, abandoning the previous pending edit.
+        let abandoned_pending = if let Some(pending) = file.pending_version {
+            if !data.force {
+                return Err(Error::Conflict(
+                    "another_edit_is_in_progress".to_string(),
+                ));
+            }
+            Some(pending)
+        } else {
+            None
+        };
 
-        active_model
-            .update(self.repository.connection())
-            .await?;
+        // Allocate the next pending version. With `force`, take a slot
+        // strictly above any abandoned pending so straggler chunk uploads
+        // from the dying client can never accidentally land in the new
+        // pending dir.
+        let next = std::cmp::max(file.active_version, abandoned_pending.unwrap_or(0)) + 1;
+        let now = Utc::now().timestamp();
+
+        let mut active_model = files::ActiveModel {
+            id: ActiveValue::Set(id),
+            pending_version: ActiveValue::Set(Some(next)),
+            pending_chunks: ActiveValue::Set(Some(data.chunks)),
+            pending_size: ActiveValue::Set(Some(data.size)),
+            chunks_stored: ActiveValue::Set(Some(0)),
+            file_modified_at: ActiveValue::Set(now),
+            ..Default::default()
+        };
+
+        // Metadata-only updates swap in immediately — they don't affect
+        // chunk decryption, so concurrent readers seeing the new name with
+        // the old content for a few seconds is harmless.
+        if let Some(name) = data.encrypted_name {
+            active_model.encrypted_name = ActiveValue::Set(name);
+        }
+        if let Some(thumbnail) = data.encrypted_thumbnail {
+            active_model.encrypted_thumbnail = ActiveValue::Set(Some(thumbnail));
+        }
+
+        active_model.update(self.repository.connection()).await?;
 
         self.repository
             .tokens(self.owner_id)
-            .rename(id, hashed_tokens)
+            .rename(id, data.search_tokens_hashed)
             .await?;
 
-        self.repository.by_id(id, self.owner_id).await
+        let file = self.repository.by_id(id, self.owner_id).await?;
+        Ok((file, abandoned_pending))
     }
 
     /// Toggle the `editable` flag on an existing file.
     /// Only the owner can convert a regular file into an editable note (or back).
     /// Directories are rejected — `editable` is a file-level concept.
+    ///
+    /// The flag drives chunk-layout routing (see `AppFile::use_versioned_layout`),
+    /// so a flip mid-edit or after history accumulates would orphan chunks.
+    /// Two guards block that:
+    ///
+    /// - Flipping while `pending_version.is_some()` — rejected, because
+    ///   the in-flight edit is targeting the versioned path; switching
+    ///   mid-stream would strand its chunks.
+    /// - Flipping `editable → false` while history exists (either
+    ///   `active_version > 1` or any `file_versions` row) — rejected,
+    ///   because the versioned directories would become unreachable
+    ///   through the legacy read path. Deleting the file is the only way
+    ///   to go back.
+    ///
+    /// Going `non-editable → editable` on a file with only legacy chunks
+    /// is allowed with no disk I/O here. The first subsequent edit snapshots
+    /// the legacy chunks as v1 and lands the new content in v2 via the
+    /// existing `copy_version` fallback.
     pub(crate) async fn set_editable(&self, id: Uuid, data: SetEditable) -> AppResult<AppFile> {
         let file = self.repository.by_id(id, self.owner_id).await?;
 
@@ -458,31 +529,142 @@ where
             return Err(Error::BadRequest("cannot_set_editable_on_directory".to_string()));
         }
 
-        let active_model = data.into_active_model(id)?;
-        active_model.update(self.repository.connection()).await?;
+        let validated = data.validate()?;
+        let next_editable = validated.editable.unwrap();
 
-        self.repository.by_id(id, self.owner_id).await
-    }
-
-    /// Finish the upload of a file by setting the finished_upload_at field
-    pub(crate) async fn finish(&self, file: &AppFile) -> AppResult<AppFile> {
-        if !file.is_owner || file.user_id != self.owner_id || file.is_dir() {
-            return Err(Error::NotFound("file_not_found".to_string()));
+        if next_editable != file.editable && file.has_pending_upload() {
+            return Err(Error::Conflict(
+                "cannot_change_editable_during_edit".to_string(),
+            ));
         }
 
-        let chunks = file
-            .chunks
-            .ok_or(Error::BadRequest("file_has_no_chunks".to_string()))?;
+        if file.editable && !next_editable {
+            let has_history = file.active_version > 1
+                || file_versions::Entity::find()
+                    .filter(file_versions::Column::FileId.eq(id))
+                    .one(self.repository.connection())
+                    .await?
+                    .is_some();
+            if has_history {
+                return Err(Error::Conflict(
+                    "cannot_disable_editable_with_history".to_string(),
+                ));
+            }
+        }
 
         files::ActiveModel {
-            id: ActiveValue::Set(file.id),
-            chunks_stored: ActiveValue::Set(Some(chunks)),
-            finished_upload_at: ActiveValue::Set(Some(Utc::now().timestamp())),
+            id: ActiveValue::Set(id),
+            editable: ActiveValue::Set(next_editable),
             ..Default::default()
         }
         .update(self.repository.connection())
         .await?;
 
-        self.repository.by_id(file.id, file.user_id).await
+        self.repository.by_id(id, self.owner_id).await
+    }
+
+    /// Commit either an initial upload or an edit. Auto-fired by the
+    /// upload route once `chunks_stored` matches the target chunk count.
+    ///
+    /// **Initial upload** (`pending_version` is None): just sets
+    /// `finished_upload_at`. No `file_versions` row is created — the
+    /// first-ever content has no historical predecessor to snapshot.
+    ///
+    /// **Edit** (`pending_version` is Some): inserts a `file_versions`
+    /// row for the outgoing active version, then atomically swaps the
+    /// pointer. The `(file_id, version)` unique index makes the snapshot
+    /// idempotent — a retried last chunk that double-fires `finish`
+    /// errors out cleanly instead of flipping pointers twice.
+    ///
+    /// After the swap, prunes history over `max_file_versions` and
+    /// returns the version numbers that were dropped from the database.
+    /// The caller is expected to wipe their on-disk directories
+    /// (`fs.purge_version`) post-commit; failures there are best-effort.
+    ///
+    /// Caller is expected to wrap this in a DB transaction so snapshot,
+    /// swap, and prune commit together — the upload route does that.
+    pub(crate) async fn finish(
+        &self,
+        file: &AppFile,
+        max_file_versions: usize,
+    ) -> AppResult<(AppFile, Vec<i32>)> {
+        if !file.is_owner || file.user_id != self.owner_id || file.is_dir() {
+            return Err(Error::NotFound("file_not_found".to_string()));
+        }
+
+        let now = Utc::now().timestamp();
+        let conn = self.repository.connection();
+
+        if let Some(pending) = file.pending_version {
+            // Snapshot the outgoing active version into history.
+            let snapshot = file_versions::ActiveModel {
+                id: ActiveValue::Set(Uuid::new_v4()),
+                file_id: ActiveValue::Set(file.id),
+                version: ActiveValue::Set(file.active_version),
+                user_id: ActiveValue::Set(Some(self.owner_id)),
+                is_anonymous: ActiveValue::Set(false),
+                size: ActiveValue::Set(file.size.unwrap_or(0)),
+                chunks: ActiveValue::Set(file.chunks.unwrap_or(0)),
+                sha256: ActiveValue::Set(file.sha256.clone()),
+                created_at: ActiveValue::Set(now),
+            };
+            file_versions::Entity::insert(snapshot)
+                .exec_without_returning(conn)
+                .await?;
+
+            let new_chunks = file
+                .pending_chunks
+                .ok_or_else(|| Error::BadRequest("pending_chunks_not_set".to_string()))?;
+            let new_size = file
+                .pending_size
+                .ok_or_else(|| Error::BadRequest("pending_size_not_set".to_string()))?;
+
+            // Atomic pointer swap. Hashes go to NULL — `update_hashes`
+            // immediately after this fills them for the new active version.
+            files::ActiveModel {
+                id: ActiveValue::Set(file.id),
+                active_version: ActiveValue::Set(pending),
+                pending_version: ActiveValue::Set(None),
+                pending_chunks: ActiveValue::Set(None),
+                pending_size: ActiveValue::Set(None),
+                chunks: ActiveValue::Set(Some(new_chunks)),
+                size: ActiveValue::Set(Some(new_size)),
+                chunks_stored: ActiveValue::Set(Some(new_chunks)),
+                md5: ActiveValue::Set(None),
+                sha1: ActiveValue::Set(None),
+                sha256: ActiveValue::Set(None),
+                blake2b: ActiveValue::Set(None),
+                finished_upload_at: ActiveValue::Set(Some(now)),
+                ..Default::default()
+            }
+            .update(conn)
+            .await?;
+        } else {
+            // Brand-new file's first commit. No swap, no history row.
+            let chunks = file
+                .chunks
+                .ok_or_else(|| Error::BadRequest("file_has_no_chunks".to_string()))?;
+
+            files::ActiveModel {
+                id: ActiveValue::Set(file.id),
+                chunks_stored: ActiveValue::Set(Some(chunks)),
+                finished_upload_at: ActiveValue::Set(Some(now)),
+                ..Default::default()
+            }
+            .update(conn)
+            .await?;
+        }
+
+        // Prune oldest history beyond the cap. Inside the same transaction
+        // so a partial prune can never escape — either we drop these rows
+        // and the swap commits, or both roll back.
+        let pruned = self
+            .repository
+            .versions(self.owner_id)
+            .prune_over_cap(file.id, max_file_versions)
+            .await?;
+
+        let updated = self.repository.by_id(file.id, file.user_id).await?;
+        Ok((updated, pruned))
     }
 }

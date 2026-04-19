@@ -231,6 +231,7 @@ watch(
       <template v-for="node in treeState.rootNodes" :key="node.file.id">
         <li
           v-if="node.file.mime === 'dir'"
+          :title="node.file.name"
           class="flex items-center gap-1 px-2 py-1 cursor-pointer transition-colors duration-150"
           :class="
             node.file.id === activeFolderId
@@ -269,6 +270,7 @@ watch(
 
         <li
           v-else-if="node.file.mime !== 'dir'"
+          :title="node.file.name"
           class="flex items-center gap-1 px-2 py-1 cursor-pointer transition-colors duration-150"
           :class="
             node.file.id === activeFileId

@@ -96,7 +96,13 @@ export class FilePreview extends Preview implements Preview {
   }
 
   /**
-   * Load the file data
+   * Load the file data.
+   *
+   * The cached `this.file.data` short-circuits re-downloads for the
+   * same FilePreview instance, but edits (version restore, fork,
+   * concurrent save) change what "the current file content" points at
+   * while the FilePreview stays the same object. Callers that know a
+   * refresh is needed should call [[invalidate]] first.
    */
   public async load(): Promise<Uint8Array> {
     if (this.file.data) {
@@ -110,5 +116,25 @@ export class FilePreview extends Preview implements Preview {
     }
 
     return this.file.data
+  }
+
+  /**
+   * Drop the cached decrypted content. The next `load()` re-downloads
+   * the chunks — used after restore/fork so the editor picks up the
+   * newly-flipped active version.
+   */
+  public invalidate(): void {
+    this.file.data = undefined
+  }
+
+  /**
+   * Swap the wrapped file for a fresher snapshot (e.g. post-restore
+   * payload the server returned). Preserves the preview's identity and
+   * forces a re-download on the next `load()`.
+   */
+  public updateFile(file: AppFile): void {
+    // Preserve the symmetric key — it's set by the caller on the
+    // original metadata fetch and the restore response drops it.
+    this.file = { ...this.file, ...file, key: file.key || this.file.key, data: undefined }
   }
 }

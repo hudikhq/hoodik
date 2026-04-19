@@ -6,20 +6,16 @@ use crate::data::Data;
 
 #[async_trait]
 pub trait Factory: Default + Send + Sync + Sized {
-    /// Method that tells the storage actions if they should save the data
+    /// Skip filesystem persistence — useful for tests and ephemeral setups.
     fn memory_only(&self) -> bool {
         false
     }
 
-    /// Implementation of the inner replacement with a new inner data.
     async fn replace_inner(&self, inner: Data);
 
-    /// Attempt to load the configuration from the filesystem.
-    ///
-    /// After the configuration is parsed it will be wrapped in a `Settings` struct
-    /// and it will be stored back on the filesystem so it is clear of any wrong, or
-    /// outdated information. This will also be useful in the future to update any
-    /// new settings that will be added.
+    /// Load settings from disk, write them back round-tripped through the
+    /// current schema (so any removed/renamed keys are dropped on first
+    /// load), and install the result as the in-memory copy.
     async fn create(self, config: &Config) -> AppResult<Self> {
         if self.memory_only() {
             return Ok(self);
@@ -38,7 +34,6 @@ pub trait Factory: Default + Send + Sync + Sized {
         Ok(self)
     }
 
-    /// Refresh the inner data with the data from the filesystem.
     async fn refresh(&self, config: &Config) -> AppResult<()> {
         let inner = crate::store::read(config).await?;
 
@@ -47,7 +42,6 @@ pub trait Factory: Default + Send + Sync + Sized {
         Ok(())
     }
 
-    /// Replace the inner data with the new data, and persist it to the disk
     async fn update(&self, config: &Config, inner: Data) -> AppResult<()> {
         if !self.memory_only() {
             crate::store::write(config, &inner).await?;

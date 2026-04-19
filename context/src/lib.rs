@@ -101,13 +101,13 @@ impl Context {
         use migration::MigratorTrait;
 
         let mut config = Config::empty();
-        config.app.ensure_data_dir(data_dir);
+        config.app.ensure_data_dir(data_dir.clone());
 
         if env_logger::try_init().is_ok() {
             log::debug!("Log has been initialized");
         }
 
-        let db = Database::connect("sqlite::memory:?mode=rwc").await.unwrap();
+        let db = Self::mock_db_connection(data_dir.as_deref()).await;
         let settings = Settings::mock();
 
         let context = Context {
@@ -132,7 +132,7 @@ impl Context {
             log::debug!("Log has been initialized");
         }
 
-        let db = Database::connect("sqlite::memory:?mode=rwc").await.unwrap();
+        let db = Self::mock_db_connection(None).await;
         let settings = Settings::mock();
 
         let context = Context {
@@ -145,6 +145,52 @@ impl Context {
         migration::Migrator::up(&context.db, None).await.unwrap();
 
         context
+    }
+
+    /// When `TEST_DATABASE_URL` is set (e.g. a Postgres URL to a superuser-
+    /// accessible admin DB), create a throwaway database with a unique name
+    /// and connect to it. Falls back to `sqlite::memory:` otherwise. Used
+    /// only by the `mock_*` helpers — lets the integration suite run
+    /// against Postgres to verify SQL parity with the SQLite default.
+    #[cfg(feature = "mock")]
+    async fn mock_db_connection(slug_hint: Option<&str>) -> DatabaseConnection {
+        match std::env::var("TEST_DATABASE_URL").ok() {
+            Some(admin_url) => Self::bootstrap_fresh_pg(&admin_url, slug_hint).await,
+            None => Database::connect("sqlite::memory:?mode=rwc").await.unwrap(),
+        }
+    }
+
+    #[cfg(feature = "mock")]
+    async fn bootstrap_fresh_pg(
+        admin_url: &str,
+        slug_hint: Option<&str>,
+    ) -> DatabaseConnection {
+        use sea_orm::{ConnectionTrait, Statement};
+
+        let slug_source = slug_hint
+            .map(|s| s.trim_start_matches("../").to_string())
+            .unwrap_or_else(|| format!("mock_{}", entity::Uuid::new_v4().simple()));
+        let sanitized: String = slug_source
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '_' })
+            .collect();
+        let unique = entity::Uuid::new_v4().simple().to_string();
+        let db_name = format!("hoodik_test_{}_{}", &sanitized[..sanitized.len().min(32)], &unique[..8]);
+
+        let admin = Database::connect(admin_url).await.unwrap();
+        let backend = admin.get_database_backend();
+        admin
+            .execute(Statement::from_string(
+                backend,
+                format!(r#"CREATE DATABASE "{db_name}""#),
+            ))
+            .await
+            .unwrap();
+
+        let parsed: url::Url = admin_url.parse().unwrap();
+        let mut target = parsed.clone();
+        target.set_path(&format!("/{db_name}"));
+        Database::connect(target.as_str()).await.unwrap()
     }
 
     #[cfg(feature = "mock")]

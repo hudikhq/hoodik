@@ -4,7 +4,10 @@ use context::Context;
 use entity::{TransactionTrait, Uuid};
 use error::AppResult;
 
-use crate::{data::set_editable::SetEditable, repository::Repository};
+use crate::{
+    data::set_editable::SetEditable,
+    repository::{cached::evict_file, Repository},
+};
 
 /// Toggle the `editable` flag on a file.
 ///
@@ -29,6 +32,10 @@ pub(crate) async fn set_editable(
         .await?;
 
     connection.commit().await?;
+
+    // `editable` drives `use_versioned_layout` in upload/download — a
+    // stale cache entry would send the next request down the wrong path.
+    evict_file(file_id).await;
 
     Ok(HttpResponse::Ok().json(file))
 }

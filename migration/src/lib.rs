@@ -12,6 +12,8 @@ pub(crate) mod m20230612_074334_create_invitations;
 pub(crate) mod m20240915_074334_alter_files_add_hashes;
 pub(crate) mod m20260326_000001_alter_files_add_cipher;
 pub(crate) mod m20260406_000001_alter_files_add_editable;
+pub(crate) mod m20260418_000001_alter_files_add_versioning;
+pub(crate) mod m20260418_000002_create_file_versions;
 
 pub struct Migrator;
 
@@ -31,6 +33,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20240915_074334_alter_files_add_hashes::Migration),
             Box::new(m20260326_000001_alter_files_add_cipher::Migration),
             Box::new(m20260406_000001_alter_files_add_editable::Migration),
+            Box::new(m20260418_000001_alter_files_add_versioning::Migration),
+            Box::new(m20260418_000002_create_file_versions::Migration),
         ]
     }
 }

@@ -6,7 +6,8 @@
     "hoodik",
     "web",
     "cryptfns",
-    "transfer"
+    "transfer",
+    "editor"
   ],
   "packageManager": "yarn@1.22.19",
   "devDependencies": {

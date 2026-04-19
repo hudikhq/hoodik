@@ -52,6 +52,13 @@ impl Filename {
 
         self
     }
+
+    /// The bare inner name (typically the file's UUID). Used by the FS
+    /// layer to construct versioned paths like `{inner_name}/v{N}/...`
+    /// without including the legacy timestamp prefix.
+    pub fn inner_name(&self) -> &str {
+        &self.inner_name
+    }
 }
 
 /// Trait to implement on file representations
