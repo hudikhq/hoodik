@@ -7,7 +7,7 @@ default:
 # Run frontend (Vite) and backend (cargo-watch) together
 # Rebuilds WASM first so the browser always gets the latest crypto code.
 # Kills any stale hoodik binaries left over from previous sessions before starting.
-dev: wasm
+dev: wasm build-editor
     #!/usr/bin/env bash
     set -euo pipefail
     trap 'kill 0' EXIT
@@ -62,6 +62,14 @@ wasm:
     mkdir -p web/node_modules/transfer
     cp -R transfer/pkg/. web/node_modules/transfer/
 
+# ── Editor ────────────────────────────────────────────────────────────────────
+
+# Build the @hoodik/editor workspace. web/ imports the compiled bundle from
+# editor/dist/, which is gitignored — a fresh checkout (or CI) has no dist
+# yet, so build-web (and test-web, dev, e2e) must run this first.
+build-editor:
+    yarn workspace @hoodik/editor run build
+
 # ── Testing ───────────────────────────────────────────────────────────────────
 
 # Run all tests (Rust + frontend unit)
@@ -89,7 +97,7 @@ test-transfer:
     cargo test -p transfer
 
 # Run frontend unit tests (Vitest)
-test-web:
+test-web: build-editor
     #!/usr/bin/env bash
     set -euo pipefail
     # transfer WASM uses externref; older Node versions can't parse it and
@@ -171,7 +179,7 @@ lint: clippy lint-web
 # ── Build ─────────────────────────────────────────────────────────────────────
 
 # Build the web frontend for production
-build-web:
+build-web: build-editor
     yarn workspace @hoodik/web run build
 
 # Build the Rust backend in release mode
@@ -245,6 +253,9 @@ setup:
 
     echo "Building WASM crates..."
     just wasm
+
+    echo "Building @hoodik/editor..."
+    just build-editor
 
     echo "Installing Playwright browsers..."
     cd web && npx playwright install chromium
