@@ -89,6 +89,7 @@ test-rust-integration:
     cargo test --test storage_replace_content -- --nocapture
     cargo test --test storage_set_editable -- --nocapture
     cargo test --test storage_legacy_routing -- --nocapture
+    cargo test --test storage_tar_upload -- --nocapture
     cargo test --test links -- --nocapture
     cargo test --test email -- --nocapture
 

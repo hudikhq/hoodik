@@ -1,10 +1,7 @@
 //! # Storage routes
 //!
-//! This module exposes routes for manipulating your files and folders.
-//! Also it exposes routes for uploading and downloading files.
-//!
-//! TODO: This module exposes routes for sharing files with other users
-//! on the platform.
+//! Routes for manipulating files and folders, plus the chunked upload and
+//! download endpoints. Sharing routes live in the `links` crate.
 
 pub mod create;
 pub mod delete;
@@ -21,6 +18,7 @@ pub mod set_editable;
 pub mod stats;
 pub mod update_hashes;
 pub mod upload;
+pub(crate) mod upload_tar;
 pub mod versions;
 
 /// Register the storage routes

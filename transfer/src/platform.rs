@@ -29,6 +29,19 @@ pub trait HttpClient {
         file_id: &str,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + '_>>;
 
+    /// Upload multiple chunks in a single request as a tar archive.
+    ///
+    /// The server endpoint (`POST /api/storage/{file_id}?format=tar`) unpacks
+    /// each entry into the file's chunk storage. Returns the same
+    /// `ChunkResponse` shape as [`Self::upload_chunk`] — callers can treat the
+    /// two paths as interchangeable at the response level.
+    fn upload_chunks_tar(
+        &self,
+        auth: &Auth,
+        file_id: &str,
+        tar_body: Vec<u8>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ChunkResponse>> + '_>>;
+
     /// Send computed file hashes to the server after upload completes.
     fn update_hashes(
         &self,

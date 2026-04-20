@@ -7,6 +7,7 @@ pub mod platform;
 pub mod tar;
 pub mod types;
 pub mod upload;
+pub mod upload_tar;
 
 // Re-export the primary public API for library consumers.
 pub use download::Downloader;
