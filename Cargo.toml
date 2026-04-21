@@ -57,7 +57,7 @@ rcgen = "^0.10"
 rsa = { version = "^0.8", features = ["sha2"] }
 base64 = "^0.21"
 hex = "^0.4"
-jsonwebtoken = "^8"
+jsonwebtoken = { version = "^10", features = ["rust_crypto"] }
 
 # HTTP client
 reqwest = "^0.11"
