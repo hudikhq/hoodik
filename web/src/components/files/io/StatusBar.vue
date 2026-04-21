@@ -98,6 +98,15 @@ const headerLabel = computed(() => {
   return ''
 })
 
+// The standalone count on the right mirrors `totalItems`. Hide it when the
+// header label already contains the same number (e.g. "1 done" + "1" read
+// as "1 done1" in a narrow collapsed popup) — only useful when there's a
+// mix of states so total communicates more than the label alone.
+const showStandaloneCount = computed(() => {
+  const running = upload.running.length + download.running.length
+  return running > 0 && totalItems.value > running
+})
+
 const currentTab = computed(() => tab.value ?? 'all')
 
 const tabs = computed(() => [
@@ -179,7 +188,7 @@ window.addEventListener('keydown', (e) => {
     >
       <span class="text-xs font-medium">{{ headerLabel || 'Transfers' }}</span>
       <div class="flex items-center gap-2">
-        <span class="text-xs tabular-nums" v-if="totalItems">{{ totalItems }}</span>
+        <span class="text-xs tabular-nums" v-if="showStandaloneCount">{{ totalItems }}</span>
         <BaseIcon :path="showTable ? mdiChevronDown : mdiChevronUp" w="w-4" h="h-4" />
       </div>
     </div>

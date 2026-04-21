@@ -11,12 +11,10 @@ impl<'ctx, T> UserActions<'ctx, T>
 where
     T: ConnectionTrait,
 {
-    /// Define what connection will be used
     pub(crate) fn new(connection: &'ctx T) -> Self {
         UserActions { connection }
     }
 
-    /// Create a new user action
     pub(crate) async fn create(
         &self,
         user_action: user_actions::ActiveModel,
@@ -35,7 +33,6 @@ where
         result.ok_or(Error::NotFound("user_action_not_found".to_string()))
     }
 
-    /// Generate new user action for user and specific action.
     pub(crate) async fn for_user(
         &self,
         user: &users::Model,
@@ -54,7 +51,6 @@ where
         self.create(active_model).await
     }
 
-    /// Find user action by id
     pub(crate) async fn get_by_id(
         &self,
         id: entity::Uuid,
@@ -71,7 +67,6 @@ where
         Ok((result.0, result.1.unwrap()))
     }
 
-    /// Find user action by email and action name
     pub(crate) async fn get_by_email_and_action(
         &self,
         email: &str,
@@ -92,7 +87,6 @@ where
         Ok((result.0, result.1.unwrap()))
     }
 
-    /// Delete user action after it has been executed
     pub(crate) async fn delete(&self, id: entity::Uuid) -> AppResult<()> {
         user_actions::Entity::delete_by_id(id)
             .exec(self.connection)

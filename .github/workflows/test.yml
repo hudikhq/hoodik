@@ -14,6 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          # Pinned via .nvmrc — transfer WASM uses externref / reference-types
+          # which older Node WebAssembly engines reject at parse time.
+          node-version-file: '.nvmrc'
+
       - uses: Swatinem/rust-cache@v2
 
       - uses: awalsh128/cache-apt-pkgs-action@latest
@@ -68,3 +74,25 @@ jobs:
             web/playwright-report/
             web/test-results/
           retention-days: 14
+
+  s3-aws-integration:
+    runs-on: ubuntu-latest
+    # GitHub secrets aren't available to forked-PR workflows — skip cleanly
+    # instead of failing so external contributors' PRs aren't blocked.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      S3_ENDPOINT: ${{ secrets.AWS_S3_TEST_ENDPOINT }}
+      S3_REGION: ${{ secrets.AWS_S3_TEST_REGION }}
+      S3_BUCKET: ${{ secrets.AWS_S3_TEST_BUCKET }}
+      S3_ACCESS_KEY: ${{ secrets.AWS_S3_TEST_ACCESS_KEY }}
+      S3_SECRET_KEY: ${{ secrets.AWS_S3_TEST_SECRET_KEY }}
+      S3_PATH_STYLE: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev
+          version: 1.0
+      - name: Run S3 versioned integration tests against AWS
+        run: cargo test -p fs --features s3-integration-tests providers::s3::s3_versioned_tests -- --nocapture

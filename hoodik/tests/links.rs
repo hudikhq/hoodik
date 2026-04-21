@@ -11,7 +11,7 @@ use crate::helpers::{create_byte_chunks, CHUNK_SIZE_BYTES};
 
 #[actix_web::test]
 async fn test_creating_and_downloading_link() {
-    let context = context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
+    let context = context::Context::mock_with_data_dir(Some("../data-test-links".to_string())).await;
 
     let private = cryptfns::rsa::private::generate().unwrap();
     let public = cryptfns::rsa::public::from_private(&private).unwrap();

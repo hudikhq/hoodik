@@ -217,6 +217,59 @@ impl HttpClient for WasmHttpClient {
         })
     }
 
+    fn upload_chunks_tar(
+        &self,
+        auth: &Auth,
+        file_id: &str,
+        tar_body: Vec<u8>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ChunkResponse>> + '_>> {
+        let auth = auth.clone();
+        let file_id = file_id.to_string();
+
+        Box::pin(async move {
+            let headers = Self::build_headers(&auth)?;
+            headers
+                .set("Content-Type", "application/x-tar")
+                .map_err(|e| Error::Io(format!("{e:?}")))?;
+
+            let url = format!(
+                "{}/api/storage/{}?format=tar",
+                auth.base_url, file_id
+            );
+
+            let body = js_sys::Uint8Array::from(tar_body.as_slice());
+
+            let opts = RequestInit::new();
+            opts.set_method("POST");
+            opts.set_headers(&headers);
+            opts.set_body(&body);
+            opts.set_mode(RequestMode::Cors);
+            opts.set_credentials(RequestCredentials::Include);
+
+            let resp = Self::do_fetch(&opts, &url).await?;
+            let status = resp.status();
+
+            let text_promise = resp.text().map_err(|e| Error::Io(format!("{e:?}")))?;
+            let text = JsFuture::from(text_promise)
+                .await
+                .map_err(|e| Error::Io(format!("{e:?}")))?
+                .as_string()
+                .unwrap_or_default();
+
+            if status >= 400 {
+                let validation = parse_validation(&text, status);
+                return Err(Error::Http(HttpError {
+                    status,
+                    message: text,
+                    validation,
+                }));
+            }
+
+            serde_json::from_str::<ChunkResponse>(&text)
+                .map_err(|e| Error::Io(format!("Failed to parse upload-tar response: {e}")))
+        })
+    }
+
     fn update_hashes(
         &self,
         auth: &Auth,

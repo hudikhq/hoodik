@@ -66,6 +66,7 @@ async function fetchAndExpand(node: TreeNode) {
 <template>
   <li
     v-if="node.file.mime === 'dir'"
+    :title="node.file.name"
     class="flex items-center gap-1 py-1 cursor-pointer transition-colors duration-150"
     :class="
       node.file.id === activeFolderId
@@ -113,6 +114,7 @@ async function fetchAndExpand(node: TreeNode) {
 
   <li
     v-else-if="node.file.mime !== 'dir'"
+    :title="node.file.name"
     class="flex items-center gap-1 py-1 cursor-pointer transition-colors duration-150"
     :class="
       node.file.id === activeFileId

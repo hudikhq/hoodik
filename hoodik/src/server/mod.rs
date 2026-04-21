@@ -45,28 +45,27 @@ pub fn app(
         .app_data(web::Data::new(context))
         .wrap(cors::setup())
         .configure(configure)
-        .route(
-            "/api/liveness",
-            web::get().to(|| async {
-                actix_web::HttpResponse::Ok()
-                    .json(serde_json::json!({"METHOD": "GET", "message": "I am alive"}))
-            }),
-        )
-        .route(
-            "/api/liveness",
-            web::post().to(|| async {
-                actix_web::HttpResponse::Ok()
-                    .json(serde_json::json!({"METHOD": "POST", "message": "I am alive"}))
-            }),
-        )
-        .route(
-            "/api/liveness",
-            web::head().to(|| async {
-                actix_web::HttpResponse::Ok()
-                    .json(serde_json::json!({"METHOD": "HEAD", "message": "I am alive"}))
-            }),
-        )
+        .route("/api/liveness", web::get().to(|| liveness("GET")))
+        .route("/api/liveness", web::post().to(|| liveness("POST")))
+        .route("/api/liveness", web::head().to(|| liveness("HEAD")))
         .service(client::client)
+}
+
+/// Compiled-in server version, surfaced on `/api/liveness` so clients can
+/// detect when they're talking to an out-of-date self-hosted instance and
+/// nudge the operator to upgrade. Sourced from the crate's Cargo.toml at
+/// build time — no runtime config, nothing to misconfigure.
+const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+async fn liveness(method: &'static str) -> actix_web::HttpResponse {
+    // `METHOD` and `message` are kept for backward compatibility: existing
+    // monitors that parse those fields pre-date the version addition, and
+    // we don't want a quiet alert flip when operators upgrade.
+    actix_web::HttpResponse::Ok().json(serde_json::json!({
+        "METHOD": method,
+        "message": "I am alive",
+        "version": SERVER_VERSION,
+    }))
 }
 
 /// Start the server

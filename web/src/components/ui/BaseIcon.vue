@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, normalizeClass, type PropType } from 'vue'
 
 const props = defineProps({
   path: {
@@ -19,8 +19,12 @@ const props = defineProps({
     default: null,
     required: false
   },
+  // Accept the full Vue class-binding surface (string, array, object-of-booleans)
+  // so callers can use the same patterns they'd use on native elements.
   class: {
-    type: String,
+    type: [String, Array, Object] as PropType<
+      string | string[] | Record<string, boolean>
+    >,
     default: '',
     required: false
   },
@@ -33,7 +37,7 @@ const props = defineProps({
 const spanClass = computed(
   () =>
     `${props.flex ? 'inline-flex' : ''} justify-center items-center ${props.w} ${props.h} ${
-      props.class
+      normalizeClass(props.class)
     }`
 )
 

@@ -86,7 +86,8 @@ where
 
         for file in files.iter() {
             if file.mime.as_str() != "dir" {
-                fs.purge(file).await?;
+                // Drop every version + legacy chunks; safe across both layouts.
+                fs.purge_all(file).await?;
             }
         }
 

@@ -28,7 +28,9 @@ pub(crate) async fn delete(
 
     for file in files.iter_mut() {
         if file.is_file() {
-            fs.purge(file).await?;
+            // purge_all wipes every version directory AND any leftover
+            // legacy chunks — safe on files never touched post-migration.
+            fs.purge_all(file).await?;
         }
     }
 

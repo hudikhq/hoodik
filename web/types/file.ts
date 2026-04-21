@@ -1,234 +1,136 @@
 import type { EncryptedLink } from './links'
 import type { WorkerErrorType } from './worker'
 
-/**
- * Delete many files at once
- */
 export interface DeleteManyFiles {
   ids: string[]
 }
 
-/**
- * Move many files to a new directory
- */
 export interface MoveManyFiles {
   ids: string[]
   file_id?: string | null | undefined
 }
 
 export interface UploadAppFile extends AppFile {
-  /**
-   * File system file
-   */
   file: File
-
-  /**
-   * Start of the upload
-   */
   started_upload_at?: string
-
-  /**
-   * Last progress report
-   */
   last_progress_at?: string
-
-  /**
-   * Possible error while uploading the file
-   */
   error?: WorkerErrorType
-
-  /**
-   * Signalize the file to cancel the upload
-   */
   cancel?: boolean
 }
 
 export interface DownloadAppFile extends AppFile {
-  /**
-   * Start of the download
-   */
   started_download_at?: string
-
-  /**
-   * Finish of the file downloading
-   */
   finished_downloading_at?: string
-
-  /**
-   * Possible error while uploading the file
-   */
   error?: WorkerErrorType
-
-  /**
-   * Signalize the file to cancel the upload
-   */
   cancel?: boolean
-
-  /**
-   * Number of bytes downloaded so far
-   */
   downloadedBytes?: number
 }
 
 export interface AppFile extends EncryptedAppFile, AppFileUnencryptedPart {
-  /**
-   * Decrypted data of the file
-   */
   data?: Uint8Array
 
   /**
-   * Temporary ID that is only used within the client application
-   * it helps us keep track of the file while its moving through
-   * various process methods so we don't duplicate it in the UI
+   * Client-only id that follows a file across worker/UI boundaries before
+   * the server assigns the real one, so it doesn't show up twice in lists.
    */
   temporaryId?: string
 }
 
 export interface EncryptedAppFile extends AppFileEncryptedPart {
   id: string
-
-  /**
-   * User id of the user that loaded the file
-   */
   user_id: string
-
-  /**
-   * Is the current user file owner
-   */
   is_owner: boolean
-
-  /**
-   * Unencrypted file name hash
-   */
   name_hash: string
-
-  /**
-   * Mime type of the unencrypted file
-   */
   mime: string
-
-  /**
-   * Size of the unencrypted file in bytes
-   */
   size?: number
 
-  /**
-   * Number of chunks the file is split into,
-   * this is Math.ceil(size / CHUNK_SIZE_BYTES)
-   */
+  /** `Math.ceil(size / CHUNK_SIZE_BYTES)`. */
   chunks: number
 
-  /**
-   * Number of chunks that were uploaded
-   */
   chunks_stored?: number
 
-  /**
-   * If the file or directory is a child of another
-   * directory then this will be the parent directory id
-   */
+  /** Parent directory id; null/undefined means the user's root. */
   file_id?: string
 
-  /**
-   * This is an optional field that can be
-   * set to the original file creation date
-   */
+  /** Client-supplied override for the original file's mtime. */
   file_modified_at: number
 
-  /**
-   * Database file creation date
-   */
   created_at: number
 
-  /**
-   * Date of the last uploaded chunk
-   */
+  /** Timestamp of the final chunk upload — presence means finalize fired. */
   finished_upload_at?: number
 
-  /**
-   * Lets us know if the file was newly created or was
-   * already in the database
-   */
+  /** True only in the response to `createFile`; false on subsequent fetches. */
   is_new: boolean
 
-  /**
-   * MD5 hash of the file (if it is uploaded, and a file)
-   */
   md5?: string
-
-  /**
-   * SHA1 hash of the file (if it is uploaded, and a file)
-   */
   sha1?: string
-
-  /**
-   * SHA256 hash of the file (if it is uploaded, and a file)
-   */
   sha256?: string
-
-  /**
-   * SHA512 hash of the file (if it is uploaded, and a file)
-   */
   blake2b?: string
 
-  /**
-   * Whether this file's content can be replaced (markdown notes)
-   */
+  /** Whether this file's content can be replaced (markdown notes). */
   editable: boolean
 
   /**
-   * List of chunks that were uploaded
-   * by their chunk number from 0 to chunks - 1
+   * Version of the chunks readers should fetch. Always set; defaults to 1.
+   * Increments on every successful edit so clients can cache-bust.
    */
-  uploaded_chunks?: number[]
+  active_version: number
 
   /**
-   * File shared public link (if it exists)
+   * Set while a save is in flight — chunks are landing into `v{pending_version}/`.
+   * Atomically swapped to `active_version` on finalize.
    */
+  pending_version?: number
+
+  /**
+   * Total chunks expected for the in-flight upload (undefined when none).
+   * Auto-finalize fires when `chunks_stored` matches this.
+   */
+  pending_chunks?: number
+
+  pending_size?: number
+
+  /** Indices 0..chunks-1 of already-stored chunks; used for resume. */
+  uploaded_chunks?: number[]
+
   link?: EncryptedLink
 }
 
 /**
- * Unencrypted file parts
+ * Historical snapshot of an editable file. Returned by
+ * `GET /api/storage/{file_id}/versions`. The active version is NOT in
+ * this list — it lives on the file row itself.
  */
+export interface FileVersion {
+  id: string
+  file_id: string
+  version: number
+  /** UUID of the user who saved, or null for anonymous link saves. */
+  user_id: string | null
+  /** True for anonymous saves through a shared editable link (A4). */
+  is_anonymous: boolean
+  size: number
+  chunks: number
+  /** Per-version sha256 for exact restore. */
+  sha256: string | null
+  /** Unix seconds — time the version was archived. */
+  created_at: number
+}
+
 export interface AppFileUnencryptedPart {
-  /**
-   * Decrypted file key
-   */
   key?: Uint8Array
-
-  /**
-   * Decrypted file name
-   */
   name: string
-
-  /**
-   * Decrypted file thumbnail
-   */
   thumbnail?: string
 }
 
-/**
- * Encrypted file parts
- */
 export interface AppFileEncryptedPart {
-  /**
-   * Encrypted file metadata
-   */
+  /** Symmetric file key wrapped with the owner's RSA public key. */
   encrypted_key: string
 
-  /**
-   * Encrypted file name
-   */
   encrypted_name: string
-
-  /**
-   * Encrypted file thumbnail
-   */
   encrypted_thumbnail?: string
 
-  /**
-   * Cipher used to encrypt the file chunks and metadata.
-   */
+  /** Cipher used for both chunk payloads and metadata (name, thumbnail). */
   cipher: string
 }

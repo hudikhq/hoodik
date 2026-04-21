@@ -1209,12 +1209,14 @@ dependencies = [
  "actix-web",
  "config",
  "email",
+ "entity",
  "env_logger",
  "error",
  "log",
  "migration",
  "sea-orm",
  "settings",
+ "url",
 ]
 
 [[package]]
@@ -1836,16 +1838,28 @@ version = "1.0.0"
 dependencies = [
  "actix-web",
  "async-trait",
+ "base64 0.21.7",
  "chrono",
  "config",
  "error",
  "fs4",
+ "futures",
  "futures-util",
  "glob",
+ "hex",
+ "hmac",
+ "http 0.2.12",
+ "hyper",
  "log",
+ "md-5",
  "pin-project",
  "rust-s3",
+ "sha2",
+ "tempfile",
+ "time",
  "tokio",
+ "url",
+ "uuid",
 ]
 
 [[package]]
@@ -2191,7 +2205,7 @@ dependencies = [
 
 [[package]]
 name = "hoodik"
-version = "1.14.1"
+version = "1.15.0"
 dependencies = [
  "actix-cors",
  "actix-web",

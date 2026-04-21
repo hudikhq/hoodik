@@ -1,4 +1,5 @@
 pub mod file_tokens;
+pub mod file_versions;
 pub mod files;
 pub mod invitations;
 pub mod links;

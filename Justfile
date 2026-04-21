@@ -7,7 +7,7 @@ default:
 # Run frontend (Vite) and backend (cargo-watch) together
 # Rebuilds WASM first so the browser always gets the latest crypto code.
 # Kills any stale hoodik binaries left over from previous sessions before starting.
-dev: wasm
+dev: wasm build-editor
     #!/usr/bin/env bash
     set -euo pipefail
     trap 'kill 0' EXIT
@@ -62,6 +62,14 @@ wasm:
     mkdir -p web/node_modules/transfer
     cp -R transfer/pkg/. web/node_modules/transfer/
 
+# ── Editor ────────────────────────────────────────────────────────────────────
+
+# Build the @hoodik/editor workspace. web/ imports the compiled bundle from
+# editor/dist/, which is gitignored — a fresh checkout (or CI) has no dist
+# yet, so build-web (and test-web, dev, e2e) must run this first.
+build-editor:
+    yarn workspace @hoodik/editor run build
+
 # ── Testing ───────────────────────────────────────────────────────────────────
 
 # Run all tests (Rust + frontend unit)
@@ -78,6 +86,10 @@ test-rust-unit:
 test-rust-integration:
     cargo test --test web_authentication -- --nocapture
     cargo test --test storage -- --nocapture
+    cargo test --test storage_replace_content -- --nocapture
+    cargo test --test storage_set_editable -- --nocapture
+    cargo test --test storage_legacy_routing -- --nocapture
+    cargo test --test storage_tar_upload -- --nocapture
     cargo test --test links -- --nocapture
     cargo test --test email -- --nocapture
 
@@ -86,7 +98,20 @@ test-transfer:
     cargo test -p transfer
 
 # Run frontend unit tests (Vitest)
-test-web:
+test-web: build-editor
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # transfer WASM uses externref; older Node versions can't parse it and
+    # every spec fails to load with a cryptic WebAssembly.compile() error.
+    # Fail loud with the real fix instead of letting the user chase it.
+    required=$(cat .nvmrc 2>/dev/null || echo 22)
+    actual=$(node --version 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')
+    if [ -z "$actual" ] || [ "$actual" -lt "$required" ]; then
+        echo "error: Node ${required}+ required (got $(node --version 2>/dev/null || echo 'none'))"
+        echo "       The transfer WASM crate uses reference-types (externref) that older Node rejects."
+        echo "       Run 'nvm use' (reads .nvmrc) or install Node ${required}."
+        exit 1
+    fi
     yarn workspace @hoodik/web run test:unit
 
 # Run frontend unit tests in watch mode
@@ -155,7 +180,7 @@ lint: clippy lint-web
 # ── Build ─────────────────────────────────────────────────────────────────────
 
 # Build the web frontend for production
-build-web:
+build-web: build-editor
     yarn workspace @hoodik/web run build
 
 # Build the Rust backend in release mode
@@ -189,6 +214,29 @@ minio-down:
 migrate-storage:
     cargo run --release -- migrate-storage
 
+# Run the S3 versioned-chunk integration suite.
+# Loads `.env` if present (see `.env.example` for the S3_* variables);
+# otherwise falls back to MinIO defaults and brings the container up.
+# Works against any S3-compatible backend — AWS, MinIO, Cloudflare R2, etc.
+test-s3-integration:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -f .env ]; then
+        echo "Loading .env for S3 integration tests..."
+        set -a; source ./.env; set +a
+    fi
+    endpoint="${S3_ENDPOINT:-http://127.0.0.1:9000}"
+    case "$endpoint" in
+        *127.0.0.1*|*localhost*)
+            echo "Using MinIO at $endpoint — ensuring container is up..."
+            just minio-up
+            ;;
+        *)
+            echo "Using remote S3 at $endpoint — skipping MinIO startup."
+            ;;
+    esac
+    cargo test -p fs --features s3-integration-tests providers::s3::s3_versioned_tests -- --nocapture
+
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 # First-time setup: install deps, build WASM, copy env
@@ -206,6 +254,9 @@ setup:
 
     echo "Building WASM crates..."
     just wasm
+
+    echo "Building @hoodik/editor..."
+    just build-editor
 
     echo "Installing Playwright browsers..."
     cd web && npx playwright install chromium

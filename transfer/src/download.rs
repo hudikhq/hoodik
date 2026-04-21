@@ -7,8 +7,6 @@ use std::str::FromStr;
 use futures::stream::{FuturesUnordered, StreamExt};
 use std::collections::BTreeMap;
 
-// ── Downloader ────────────────────────────────────────────────────────────────
-
 /// Configuration and entry point for a chunked, client-side-decrypted file download.
 ///
 /// Build with [`Downloader::new`], then call [`Downloader::run`] to execute the transfer.
@@ -80,8 +78,6 @@ impl Downloader {
         .await
     }
 }
-
-// ── Core download pipeline ────────────────────────────────────────────────────
 
 /// Download and decrypt all chunks of a file, returning the reassembled plaintext.
 ///
@@ -199,8 +195,6 @@ async fn fetch_and_decrypt<'a>(
     .await;
     (chunk, result)
 }
-
-// ── Chunk-to-disk pipeline (no decryption) ───────────────────────────────────
 
 /// Download all chunks to individual files without decrypting.
 ///

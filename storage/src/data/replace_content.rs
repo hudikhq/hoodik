@@ -1,26 +1,53 @@
 //! Data struct for replacing the content of an editable file.
-//! Used when saving updated markdown content via `PUT /api/storage/{file_id}/content`.
+//!
+//! Drives the two-phase versioned-chunks flow:
+//!
+//! 1. Client sends `PUT /api/storage/{file_id}/content` with the new size,
+//!    chunk count, and (optionally) updated metadata.
+//! 2. Server allocates a new pending version and stores `pending_chunks` /
+//!    `pending_size`. **No on-disk side effects** — the active version's
+//!    chunks remain untouched and readers continue to see the previous
+//!    content.
+//! 3. Client uploads the new chunks. Each one lands under
+//!    `{file_id}/v{pending_version}/`.
+//! 4. When `chunks_stored == pending_chunks`, the upload route auto-fires
+//!    `Manage::finish`, which atomically swaps `active_version =
+//!    pending_version` inside a transaction.
+//!
+//! `force = true` is the recovery escape hatch when a previous edit died
+//! mid-way: it overrides the 409 conflict, abandons the orphaned pending
+//! directory on disk, and starts a fresh pending version. Without `force`
+//! the second `replaceContent` returns 409 `UploadInProgress` — that's the
+//! safety net against accidental concurrent edits from a second device.
+//!
+//! Note: `cipher` is intentionally NOT in this payload. Changing the cipher
+//! mid-edit would break decryption of the active version's chunks. If a
+//! cipher swap is ever needed, it has to land via a separate, full file
+//! re-upload path.
 
 use ::error::AppResult;
-use chrono::Utc;
-use entity::{files::ActiveModel as ActiveModelFile, ActiveValue, Uuid};
+use entity::Uuid;
 use serde::{Deserialize, Serialize};
 use validr::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ReplaceContent {
-    /// New total size of the file content
+    /// New total size of the file content.
     pub size: Option<i64>,
-    /// New total number of chunks
+    /// New total number of chunks for the upcoming upload.
     pub chunks: Option<i64>,
-    /// Cipher used to encrypt the new content (keeps existing if not provided)
-    pub cipher: Option<String>,
-    /// Updated encrypted file name (keeps existing if not provided)
+    /// Updated encrypted file name (kept as the display name across edits;
+    /// only swapped if the client explicitly provides a new value).
     pub encrypted_name: Option<String>,
-    /// Updated encrypted thumbnail (keeps existing if not provided)
+    /// Updated encrypted thumbnail (same opt-in semantics as `encrypted_name`).
     pub encrypted_thumbnail: Option<String>,
-    /// Updated search tokens from content tokenization
+    /// Updated search tokens computed from the new plaintext content.
     pub search_tokens_hashed: Option<Vec<String>>,
+    /// When true, abandon any in-progress edit (`pending_version`) and
+    /// start fresh. The repository purges the orphaned pending directory
+    /// on disk and allocates a brand-new pending version. Without this
+    /// flag, the request 409s when a pending upload exists.
+    pub force: Option<bool>,
 }
 
 impl Validation for ReplaceContent {
@@ -50,38 +77,32 @@ impl Validation for ReplaceContent {
     }
 }
 
+/// The validated, normalized form passed to `Manage::replace_content`.
+/// Consumes [`ReplaceContent`] so callers can't accidentally use the raw
+/// payload after validation.
+pub struct ValidatedReplaceContent {
+    pub _id: Uuid,
+    pub size: i64,
+    pub chunks: i64,
+    pub encrypted_name: Option<String>,
+    pub encrypted_thumbnail: Option<String>,
+    pub search_tokens_hashed: Vec<String>,
+    pub force: bool,
+}
+
 impl ReplaceContent {
-    pub fn into_active_model(self, id: Uuid) -> AppResult<(ActiveModelFile, Vec<String>)> {
+    pub fn validate_into(self, id: Uuid) -> AppResult<ValidatedReplaceContent> {
         let data = self.validate()?;
-        let now = Utc::now().naive_utc();
-
-        let mut active_model = ActiveModelFile {
-            id: ActiveValue::Set(id),
-            size: ActiveValue::Set(data.size),
-            chunks: ActiveValue::Set(data.chunks),
-            chunks_stored: ActiveValue::Set(Some(0)),
-            finished_upload_at: ActiveValue::Set(None),
-            file_modified_at: ActiveValue::Set(now.and_utc().timestamp()),
-            // Clear stale hashes — new hashes will be computed after re-upload
-            md5: ActiveValue::Set(None),
-            sha1: ActiveValue::Set(None),
-            sha256: ActiveValue::Set(None),
-            blake2b: ActiveValue::Set(None),
-            ..Default::default()
-        };
-
-        if let Some(cipher) = data.cipher {
-            active_model.cipher = ActiveValue::Set(cipher);
-        }
-
-        if let Some(encrypted_name) = data.encrypted_name {
-            active_model.encrypted_name = ActiveValue::Set(encrypted_name);
-        }
-
-        if let Some(encrypted_thumbnail) = data.encrypted_thumbnail {
-            active_model.encrypted_thumbnail = ActiveValue::Set(Some(encrypted_thumbnail));
-        }
-
-        Ok((active_model, data.search_tokens_hashed.unwrap_or_default()))
+        Ok(ValidatedReplaceContent {
+            _id: id,
+            // `validate()` enforces these via `rule_required!` — unwraps
+            // are unreachable past that point.
+            size: data.size.unwrap(),
+            chunks: data.chunks.unwrap(),
+            encrypted_name: data.encrypted_name,
+            encrypted_thumbnail: data.encrypted_thumbnail,
+            search_tokens_hashed: data.search_tokens_hashed.unwrap_or_default(),
+            force: data.force.unwrap_or(false),
+        })
     }
 }

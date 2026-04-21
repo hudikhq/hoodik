@@ -10,8 +10,6 @@ use crate::platform::{DataSource, HttpClient, ProgressReporter};
 use crate::types::{Auth, ChunkResponse, FileHashes};
 use crate::upload::compute_chunk_count;
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
 fn test_auth() -> Auth {
     Auth {
         base_url: "http://localhost:1234".into(),
@@ -25,8 +23,6 @@ fn test_key() -> Vec<u8> {
     // 32 bytes: first 16 = Ascon128a key, last 16 = nonce
     b"test-encryption-key!test-nonce!!" .to_vec()
 }
-
-// ── MockDataSource ───────────────────────────────────────────────────────────
 
 struct MockDataSource {
     data: Vec<u8>,
@@ -55,8 +51,6 @@ impl DataSource for MockDataSource {
     }
 }
 
-// ── MockHttpClient ───────────────────────────────────────────────────────────
-
 /// When `scripted_upload_responses` is non-empty, responses are popped FIFO.
 /// Otherwise the upload auto-succeeds and stores the chunk in `stored_chunks`
 /// so it can be read back during download (roundtrip testing).
@@ -66,6 +60,8 @@ struct MockHttpClient {
     upload_call_count: Cell<u64>,
     scripted_download_responses: RefCell<std::collections::VecDeque<Result<Vec<u8>>>>,
     received_hashes: RefCell<Option<FileHashes>>,
+    scripted_upload_tar_responses: RefCell<std::collections::VecDeque<Result<ChunkResponse>>>,
+    last_upload_tar_body: RefCell<Option<Vec<u8>>>,
 }
 
 impl MockHttpClient {
@@ -76,6 +72,8 @@ impl MockHttpClient {
             upload_call_count: Cell::new(0),
             scripted_download_responses: RefCell::new(std::collections::VecDeque::new()),
             received_hashes: RefCell::new(None),
+            scripted_upload_tar_responses: RefCell::new(std::collections::VecDeque::new()),
+            last_upload_tar_body: RefCell::new(None),
         }
     }
 
@@ -93,6 +91,10 @@ impl MockHttpClient {
 
     fn upload_count(&self) -> u64 {
         self.upload_call_count.get()
+    }
+
+    fn take_last_tar_body(&self) -> Option<Vec<u8>> {
+        self.last_upload_tar_body.borrow_mut().take()
     }
 }
 
@@ -157,47 +159,53 @@ impl HttpClient for MockHttpClient {
         _auth: &Auth,
         _file_id: &str,
     ) -> Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + '_>> {
-        // Build a tar archive from stored chunks.
         let stored = self.stored_chunks.borrow();
         let mut indices: Vec<u64> = stored.keys().copied().collect();
         indices.sort();
 
-        let mut archive = Vec::new();
-        for idx in indices {
-            if let Some(data) = stored.get(&idx) {
-                // Build a minimal tar header.
-                let name = format!("{:06}.enc", idx);
-                let name_bytes = name.as_bytes();
-
-                let mut header = [0u8; 512];
-                header[..name_bytes.len()].copy_from_slice(name_bytes);
-                header[100..107].copy_from_slice(b"0000644");
-                header[108..115].copy_from_slice(b"0000000");
-                header[116..123].copy_from_slice(b"0000000");
-                let size_octal = format!("{:011o}", data.len());
-                header[124..135].copy_from_slice(size_octal.as_bytes());
-                header[136..147].copy_from_slice(b"00000000000");
-                header[156] = b'0';
-                header[257..263].copy_from_slice(b"ustar\0");
-                header[263..265].copy_from_slice(b"00");
-                header[148..156].copy_from_slice(b"        ");
-                let checksum: u32 = header.iter().map(|&b| b as u32).sum();
-                let checksum_octal = format!("{:06o}\0 ", checksum);
-                header[148..156].copy_from_slice(&checksum_octal.as_bytes()[..8]);
-
-                archive.extend_from_slice(&header);
-                archive.extend_from_slice(data);
-
-                let remainder = data.len() % 512;
-                if remainder != 0 {
-                    archive.extend(std::iter::repeat(0u8).take(512 - remainder));
-                }
-            }
-        }
-        // End-of-archive: two zero blocks.
-        archive.extend(std::iter::repeat(0u8).take(1024));
-
+        let entries: Vec<(String, Vec<u8>)> = indices
+            .into_iter()
+            .filter_map(|idx| stored.get(&idx).map(|d| (format!("{:06}.enc", idx), d.clone())))
+            .collect();
+        let archive = crate::tar::build_tar(&entries);
         Box::pin(async move { Ok(archive) })
+    }
+
+    fn upload_chunks_tar(
+        &self,
+        _auth: &Auth,
+        _file_id: &str,
+        tar_body: Vec<u8>,
+    ) -> Pin<Box<dyn std::future::Future<Output = Result<ChunkResponse>> + '_>> {
+        let scripted = self.scripted_upload_tar_responses.borrow_mut().pop_front();
+        *self.last_upload_tar_body.borrow_mut() = Some(tar_body.clone());
+
+        if let Some(result) = scripted {
+            return Box::pin(async move { result });
+        }
+
+        let entries = match crate::tar::extract_tar(&tar_body) {
+            Ok(e) => e,
+            Err(e) => return Box::pin(async move { Err(e) }),
+        };
+
+        for entry in &entries {
+            let idx: u64 = entry
+                .name
+                .strip_suffix(".enc")
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            self.stored_chunks
+                .borrow_mut()
+                .insert(idx, entry.data.clone());
+        }
+
+        let stored = self.stored_chunks.borrow().len() as i64;
+        let resp = ChunkResponse {
+            chunks_stored: Some(stored),
+            finished_upload_at: None,
+        };
+        Box::pin(async move { Ok(resp) })
     }
 
     fn update_hashes(
@@ -210,8 +218,6 @@ impl HttpClient for MockHttpClient {
         Box::pin(async { Ok(()) })
     }
 }
-
-// ── MockProgressReporter ─────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -289,11 +295,9 @@ impl ProgressReporter for MockProgressReporter {
     fn is_cancelled(&self, _file_id: &str) -> bool {
         let n = self.is_cancelled_calls.get();
         self.is_cancelled_calls.set(n + 1);
-        self.cancel_on_call.map_or(false, |threshold| n >= threshold)
+        self.cancel_on_call.is_some_and(|threshold| n >= threshold)
     }
 }
-
-// ── Helper unit tests ────────────────────────────────────────────────────────
 
 #[test]
 fn chunk_count_zero() {
@@ -323,8 +327,6 @@ fn crc16_deterministic() {
     assert_eq!(a, b);
     assert!(!a.is_empty());
 }
-
-// ── Upload tests ─────────────────────────────────────────────────────────────
 
 #[tokio::test(flavor = "current_thread")]
 async fn upload_small_file() {
@@ -657,8 +659,6 @@ async fn upload_hash_disable_mask_omits_optional_hashes() {
     assert!(hashes.blake2b.is_none());
 }
 
-// ── Download tests ───────────────────────────────────────────────────────────
-
 #[tokio::test(flavor = "current_thread")]
 async fn download_roundtrip() {
     let original = b"Hello, this is a roundtrip test with some data!".to_vec();
@@ -789,8 +789,6 @@ async fn download_http_error_propagates() {
     }
 }
 
-// ── Tar download tests ──────────────────────────────────────────────────────
-
 #[tokio::test(flavor = "current_thread")]
 async fn download_all_chunks_tar_roundtrip() {
     let original = b"Hello, tar download roundtrip test!".to_vec();
@@ -875,4 +873,99 @@ async fn download_all_chunks_tar_multi_chunk() {
         reassembled.extend_from_slice(&plaintext);
     }
     assert_eq!(reassembled, data);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn upload_tar_roundtrip_via_mock() {
+    // Feed N chunks through the in-memory tar uploader and verify the tar
+    // body the mock captured contains the exact same bytes back out.
+    let http = MockHttpClient::new();
+    let up = MockProgressReporter::new();
+
+    let entries = vec![
+        ("000000.enc".to_string(), vec![0xAAu8; 2048]),
+        ("000001.enc".to_string(), vec![0xBBu8; 1024]),
+        ("000002.enc".to_string(), vec![0xCCu8; 512]),
+    ];
+
+    crate::upload_tar::upload_chunks_as_tar_in_memory(
+        &http,
+        &up,
+        &test_auth(),
+        "file-roundtrip",
+        entries.clone(),
+    )
+    .await
+    .unwrap();
+
+    let captured = http.take_last_tar_body().expect("mock must record the tar body");
+    let parsed = crate::tar::extract_tar(&captured).expect("captured body must parse as tar");
+    assert_eq!(parsed.len(), entries.len());
+    for (expected, actual) in entries.iter().zip(parsed.iter()) {
+        assert_eq!(actual.name, expected.0);
+        assert_eq!(actual.data, expected.1);
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn upload_tar_progress_reported() {
+    let http = MockHttpClient::new();
+    let up = MockProgressReporter::new();
+
+    let entries = vec![
+        ("000000.enc".to_string(), vec![0u8; 1024]),
+        ("000001.enc".to_string(), vec![1u8; 1024]),
+    ];
+
+    crate::upload_tar::upload_chunks_as_tar_in_memory(
+        &http,
+        &up,
+        &test_auth(),
+        "file-progress",
+        entries,
+    )
+    .await
+    .unwrap();
+
+    let events = up.events();
+    let mut downloaded_bytes: Vec<u64> = Vec::new();
+    let mut saw_complete = false;
+    for ev in events {
+        match ev {
+            ProgressEvent::ChunkDownloaded { bytes, .. } => downloaded_bytes.push(bytes),
+            ProgressEvent::Complete => saw_complete = true,
+            _ => {}
+        }
+    }
+    assert!(!downloaded_bytes.is_empty(), "expected at least one progress tick");
+    assert!(
+        downloaded_bytes.iter().all(|&b| b > 0),
+        "progress must report non-zero bytes"
+    );
+    assert!(saw_complete, "on_complete must fire once all chunks are stored");
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn upload_tar_cancellation() {
+    // Immediate cancellation: is_cancelled returns true on its first call,
+    // before the HTTP send runs. The mock never sees a request.
+    let http = MockHttpClient::new();
+    let up = MockProgressReporter::cancelling_immediately();
+
+    let entries = vec![("000000.enc".to_string(), vec![0xFFu8; 256])];
+    let err = crate::upload_tar::upload_chunks_as_tar_in_memory(
+        &http,
+        &up,
+        &test_auth(),
+        "file-cancel",
+        entries,
+    )
+    .await
+    .expect_err("cancellation must surface as an error");
+
+    assert!(matches!(err, Error::Cancelled));
+    assert!(
+        http.take_last_tar_body().is_none(),
+        "cancelled upload must not have hit the HTTP client"
+    );
 }

@@ -62,10 +62,16 @@ pub(crate) async fn download(
 
     repository.increment_downloads(link.id).await?;
 
-    let streamer = Fs::new(&context.config)
-        .stream(&link, None)
-        .await?
-        .map(move |chunk| map_chunk(chunk, file_key.clone(), cipher));
+    // Match the storage routes' split: editable files through the
+    // versioned layout (so the recipient never sees an in-flight edit),
+    // non-editable through the legacy flat layout.
+    let fs = Fs::new(&context.config);
+    let streamer = if link.file_editable {
+        fs.stream_v(&link, link.file_active_version, None).await?
+    } else {
+        fs.stream(&link, None).await?
+    }
+    .map(move |chunk| map_chunk(chunk, file_key.clone(), cipher));
 
     Ok(HttpResponse::Ok()
         .insert_header(("Content-Type", link.file_mime))

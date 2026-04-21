@@ -48,6 +48,13 @@ When you upload a file:
 2. The file is encrypted chunk-by-chunk with that key using the file's cipher (default: AEGIS-128L).
 3. The cipher identifier and the encrypted key are stored in the database alongside the file, so old files can always be decrypted with the correct algorithm even after the default cipher changes.
 
+Chunks move over one of two HTTP endpoints, both client-side encrypted:
+
+- `POST /api/storage/{file_id}?chunk=N&checksum=...` — upload one encrypted chunk; the server verifies the CRC16 per chunk and stores it.
+- `POST /api/storage/{file_id}?format=tar` — upload many chunks in one request as an uncompressed tar archive whose entries are named `{index:06}.enc`. Fewer HTTP round-trips on slow networks; the per-chunk integrity check is skipped (TLS + the file-level hash still cover transport and content).
+
+Download mirrors the same split: `GET /api/storage/{file_id}?chunk=N` streams a single chunk, while `GET /api/storage/{file_id}?format=tar` streams every chunk as a single tar archive.
+
 ### Search
 
 Searchable metadata (file name, etc.) is tokenized, hashed, and stored as opaque tokens. When you search, the same operation is applied to your query and the hashes are matched server-side — no plaintext ever leaves the browser.

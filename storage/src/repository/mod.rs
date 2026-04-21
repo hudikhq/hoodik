@@ -2,10 +2,11 @@ pub(crate) mod cached;
 pub(crate) mod manage;
 pub(crate) mod query;
 pub(crate) mod tokens;
+pub(crate) mod versions;
 
 use crate::data::app_file::AppFile;
 
-use self::{manage::Manage, query::Query, tokens::Tokens};
+use self::{manage::Manage, query::Query, tokens::Tokens, versions::Versions};
 use entity::{
     files, links, user_files, ColumnTrait, ConnectionTrait, EntityTrait, Expr, IntoCondition,
     JoinType, QueryFilter, QuerySelect, RelationTrait, Select, Uuid, Value,
@@ -52,6 +53,17 @@ where
         Self: 'repository,
     {
         Tokens::<'repository>::new(self, user_id)
+    }
+
+    /// Versioned-chunks history operations: list/restore/fork/delete.
+    pub(crate) fn versions<'repository>(
+        &'repository self,
+        owner_id: Uuid,
+    ) -> Versions<'repository, T>
+    where
+        Self: 'repository,
+    {
+        Versions::<'repository>::new(self, owner_id)
     }
 
     /// Get the inner database connection

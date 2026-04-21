@@ -180,6 +180,50 @@ impl HttpClient for NativeHttpClient {
         })
     }
 
+    fn upload_chunks_tar(
+        &self,
+        auth: &Auth,
+        file_id: &str,
+        tar_body: Vec<u8>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ChunkResponse>> + '_>> {
+        let auth = auth.clone();
+        let file_id = file_id.to_string();
+
+        Box::pin(async move {
+            let url = format!("{}/api/storage/{}", auth.base_url, file_id);
+            let headers = Self::auth_headers(&auth);
+
+            let resp = self
+                .client
+                .post(&url)
+                .headers(headers)
+                .query(&[("format", "tar")])
+                .header("Content-Type", "application/x-tar")
+                .body(tar_body)
+                .send()
+                .await
+                .map_err(|e| Error::Io(format!("Upload tar request failed: {e}")))?;
+
+            let status = resp.status().as_u16();
+            let text = resp
+                .text()
+                .await
+                .map_err(|e| Error::Io(format!("Failed to read response: {e}")))?;
+
+            if status >= 400 {
+                let validation = parse_validation(&text, status);
+                return Err(Error::Http(HttpError {
+                    status,
+                    message: text,
+                    validation,
+                }));
+            }
+
+            serde_json::from_str::<ChunkResponse>(&text)
+                .map_err(|e| Error::Io(format!("Failed to parse upload-tar response: {e}")))
+        })
+    }
+
     fn update_hashes(
         &self,
         auth: &Auth,
