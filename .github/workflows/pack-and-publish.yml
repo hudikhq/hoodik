@@ -160,6 +160,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          # Pinned via .nvmrc — transfer WASM uses externref / reference-types
+          # which older Node WebAssembly engines reject at parse time.
+          node-version-file: '.nvmrc'
+
       - name: Download changelog
         uses: ./.github/actions/retry-download-artifact
         with:
