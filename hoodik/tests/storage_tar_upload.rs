@@ -11,6 +11,7 @@ mod helpers;
 use actix_web::{http::StatusCode, test};
 use auth::data::create_user::CreateUser;
 use fs::tar::{tar_header, tar_padding_len, TAR_END_OF_ARCHIVE_LEN};
+use fs::MAX_CHUNK_SIZE_BYTES;
 use hoodik::server;
 use storage::data::app_file::AppFile;
 
@@ -318,6 +319,74 @@ async fn test_upload_tar_not_owned() {
     // existence to unrelated users. Both are 4xx client errors.
     let resp = send_tar!(app, stranger_jwt, file.id, tar_of(&[(0, &chunks[0])]));
     assert!(resp.status().is_client_error(), "got {}", resp.status());
+    context.config.app.cleanup();
+}
+
+/// End-to-end reproduction of the Flutter upload failure observed on
+/// 2026-04-27: any file ≥ 4 MiB bounces off the tar route with
+/// `chunk_size_exceeds_max`. Encrypts a 12 MiB payload through real
+/// AEGIS-128L exactly the way every Hoodik client does, packs the three
+/// 4 MiB-plus-16 B ciphertexts into the same tar shape `transfer::upload_tar`
+/// emits, and POSTs it. The existing tar tests use synthetic chunks of a
+/// few KiB so they never crossed the encrypted-size ceiling that real
+/// uploads sit on.
+#[actix_web::test]
+async fn test_upload_tar_three_chunk_aegis_encrypted_file() {
+    setup!(
+        context,
+        app,
+        jwt,
+        "../data-test-tar-upload-multi-chunk-aegis",
+        "tar-multi-aegis@test.com"
+    );
+
+    let chunk_count = 3usize;
+    let plaintext_chunk_len = MAX_CHUNK_SIZE_BYTES as usize;
+    let key = cryptfns::aegis::generate_key().unwrap();
+
+    let encrypted_chunks: Vec<Vec<u8>> = (0..chunk_count)
+        .map(|i| {
+            let plaintext: Vec<u8> = (0..plaintext_chunk_len)
+                .map(|n| ((i * 17 + n) as u8).wrapping_mul(31))
+                .collect();
+            cryptfns::aegis::encrypt(key.clone(), plaintext).unwrap()
+        })
+        .collect();
+
+    for (i, c) in encrypted_chunks.iter().enumerate() {
+        assert_eq!(
+            c.len(),
+            plaintext_chunk_len + 16,
+            "chunk {i} must carry the AEGIS-128L 16-byte tag",
+        );
+    }
+
+    let file = create_file!(
+        app,
+        jwt,
+        create_file_json(&encrypted_chunks, "multi-chunk-aegis.enc")
+    );
+
+    let resp = send_tar!(app, jwt, file.id, tar_of(&tar_entries(&encrypted_chunks)));
+    assert_eq!(
+        resp.status(),
+        StatusCode::OK,
+        "tar upload of a 3-chunk AEGIS-encrypted file must succeed; this is \
+         the exact shape the Flutter app produces for any file ≥ 4 MiB",
+    );
+
+    let updated: AppFile = serde_json::from_slice(&test::read_body(resp).await).unwrap();
+    assert_eq!(updated.chunks_stored, Some(chunk_count as i64));
+    assert!(updated.finished_upload_at.is_some());
+
+    let expected: Vec<u8> = encrypted_chunks
+        .iter()
+        .flat_map(|c| c.iter().copied())
+        .collect();
+    assert_eq!(download_bytes!(app, jwt, file.id), expected);
+
+    use fs::prelude::{Fs, FsProviderContract};
+    Fs::new(&context.config).purge_all(&updated).await.unwrap();
     context.config.app.cleanup();
 }
 

@@ -5,7 +5,7 @@ use auth::data::transfer_claims::StorageClaims;
 use context::Context;
 use entity::Uuid;
 use error::{AppResult, Error};
-use fs::{prelude::*, MAX_CHUNK_SIZE_BYTES};
+use fs::{prelude::*, MAX_CHUNK_PAYLOAD_BYTES};
 use futures::StreamExt;
 
 use crate::{
@@ -15,13 +15,6 @@ use crate::{
         Repository,
     },
 };
-
-/// Per-chunk upload ceiling — one chunk plus the 1% slack the client is
-/// allowed to add on top of [`MAX_CHUNK_SIZE_BYTES`]. Shared between the
-/// chunk-size validator and the manual body collector so a single constant
-/// governs "how much we'll accept for one chunk".
-const MAX_CHUNK_PAYLOAD_BYTES: u64 =
-    MAX_CHUNK_SIZE_BYTES + MAX_CHUNK_SIZE_BYTES / 100;
 
 /// Upload one chunk (per-chunk mode, legacy) or a tar archive of many
 /// chunks (`?format=tar`, bulk mode).

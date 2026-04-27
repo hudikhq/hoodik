@@ -1,6 +1,6 @@
 [package]
 name = "hoodik"
-version = "1.15.0"
+version = "1.15.1"
 edition = "2021"
 rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
