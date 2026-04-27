@@ -24,7 +24,7 @@ use error::{AppResult, Error};
 use fs::{
     prelude::*,
     tar::{parse_next_entry, TarStep},
-    MAX_CHUNK_SIZE_BYTES,
+    MAX_CHUNK_PAYLOAD_BYTES,
 };
 use futures::StreamExt;
 use std::collections::HashSet;
@@ -40,10 +40,10 @@ use crate::{
 
 /// Hard cap on how many bytes we'll hold in the stream-parser buffer before
 /// declaring the request malformed. A compliant request never needs more than
-/// one header (512 B) + one padded chunk payload (≤ MAX_CHUNK_SIZE_BYTES + 512)
+/// one header (512 B) + one padded chunk payload (≤ MAX_CHUNK_PAYLOAD_BYTES + 512)
 /// in flight at once. The generous headroom absorbs header-straddle reads and
 /// any residual bytes behind the current entry without ballooning memory.
-const MAX_BUFFER_BYTES: usize = (MAX_CHUNK_SIZE_BYTES as usize) + 16 * 1024;
+const MAX_BUFFER_BYTES: usize = (MAX_CHUNK_PAYLOAD_BYTES as usize) + 16 * 1024;
 
 /// Handle `POST /api/storage/{file_id}?format=tar`. Dispatched from
 /// [`super::upload::upload`] when the `format` query is set.
@@ -215,7 +215,7 @@ fn validate_chunk_index(chunk_index: i64, target_chunks: i64) -> AppResult<()> {
 }
 
 fn reject_oversize_chunk(len: usize) -> AppResult<()> {
-    if len as u64 > MAX_CHUNK_SIZE_BYTES {
+    if len as u64 > MAX_CHUNK_PAYLOAD_BYTES {
         return Err(Error::as_validation("chunk", "chunk_size_exceeds_max"));
     }
     Ok(())
