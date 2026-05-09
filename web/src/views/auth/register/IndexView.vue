@@ -4,10 +4,11 @@ import * as yup from 'yup'
 import { zxcvbn } from '@zxcvbn-ts/core'
 import { store } from '!/auth/register'
 import { useRoute, useRouter } from 'vue-router'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import type { CreateUser } from 'types'
 import * as logger from '!/logger'
 
@@ -17,6 +18,16 @@ const route = useRoute()
 
 const config = ref()
 const working = ref(false)
+
+register.getStatus()
+
+// Invited users (with an `invitation_id` query param) bypass the public
+// allow_register flag server-side, so we keep the form available for them
+// even when general registration is closed.
+const hasInvitation = computed(() => !!route.query.invitation_id)
+const registrationDisabled = computed(
+  () => register.allowRegister === false && !hasInvitation.value
+)
 
 const init = () => {
   register.preload(route)
@@ -59,8 +70,19 @@ init()
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass">
         <h1 class="text-2xl text-white">Create Account</h1>
+
+        <div v-if="registrationDisabled" class="mt-8 space-y-6" data-testid="registration-disabled">
+          <p class="text-sm text-dirty-white">
+            Registration is disabled by the server administrator.
+          </p>
+          <p class="text-sm text-brownish-300">
+            If you were invited, please use the invitation link you received.
+          </p>
+          <BaseButton :to="{ name: 'login' }" color="info" label="Back to login" />
+        </div>
+
         <AppForm
-          v-if="config"
+          v-else-if="config"
           :config="config"
           :working="working"
           class="mt-8 space-y-6"
@@ -90,7 +112,7 @@ init()
           />
           <AppButton color="info" type="submit">Next</AppButton>
 
-          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-400">
+          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-100">
             Already have an account?
             <router-link
               :to="{ name: 'login' }"

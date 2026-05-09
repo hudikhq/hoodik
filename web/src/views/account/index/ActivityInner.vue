@@ -74,8 +74,8 @@ watch(query, find, { deep: true, immediate: true })
     <div class="-mx-4 -mt-4 px-6 py-4 border-b border-brownish-100 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2">
-          <BaseIcon :path="mdiHistory" :size="14" class="text-brownish-400 dark:text-brownish-500" />
-          <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-500">Login Sessions</p>
+          <BaseIcon :path="mdiHistory" :size="14" class="text-brownish-400 dark:text-brownish-100" />
+          <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">Login Sessions</p>
           <span v-if="total" class="text-xs font-medium bg-brownish-100 dark:bg-brownish-700 text-brownish-400 dark:text-brownish-300 px-2 py-0.5 rounded-full">{{ total }}</span>
         </div>
 

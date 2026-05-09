@@ -66,7 +66,7 @@ const icon = computed((): { icon: any; type: ColorType } => {
         <IconRounded :icon="icon.icon" :color="icon.type" class="md:mr-6" />
         <div class="text-center space-y-1 md:text-left md:mr-6">
           <h4 class="text-xl">${{ amount }}</h4>
-          <p class="text-brownish-500 dark:text-brownish-400">
+          <p class="text-brownish-500 dark:text-brownish-100">
             <b>{{ date }}</b> via {{ business }}
           </p>
         </div>

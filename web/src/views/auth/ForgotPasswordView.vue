@@ -11,7 +11,7 @@ import ChangePasswordForm from '@/components/account/ChangePasswordForm.vue'
         <h1 class="text-2xl text-white">Recover your account</h1>
         <ChangePasswordForm :forgotPassword="true" />
 
-        <div class="text-sm font-medium text-brownish-500 dark:text-brownish-400 pt-2">
+        <div class="text-sm font-medium text-brownish-500 dark:text-brownish-100 pt-2">
           Know your password?
           <router-link
             :to="{ name: 'login' }"

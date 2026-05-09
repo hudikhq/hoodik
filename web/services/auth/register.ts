@@ -22,6 +22,33 @@ export const store = defineStore('register', () => {
     () => _errors.value as InnerValidationErrors | null
   )
 
+  const _allowRegister = ref<boolean | null>(null)
+
+  const allowRegister = computed<boolean | null>(() => _allowRegister.value)
+
+  /**
+   * Public flag the SPA uses to decide whether to render the registration form
+   * and the "Create an Account" link on the login pages. Exposed by the server
+   * regardless of authentication state — only the boolean is shared, never the
+   * whitelist or blacklist rules.
+   */
+  async function getStatus(): Promise<boolean> {
+    if (_allowRegister.value !== null) {
+      return _allowRegister.value
+    }
+
+    try {
+      const response = await Api.get<{ allow_register: boolean }>('/api/auth/register/status')
+      _allowRegister.value = response.body?.allow_register ?? true
+    } catch {
+      // Fall back to allowing the form to render so a transient outage cannot
+      // lock new users out. The server still rejects disallowed submissions.
+      _allowRegister.value = true
+    }
+
+    return _allowRegister.value
+  }
+
   /**
    * This function will be called only from the API response interceptor
    * and error itself always has the unknown type so we need to cast it
@@ -148,6 +175,10 @@ export const store = defineStore('register', () => {
     verifyEmail,
     resendActivation,
     preload,
+
+    // Public registration status
+    allowRegister,
+    getStatus,
 
     // Errors
     errors,

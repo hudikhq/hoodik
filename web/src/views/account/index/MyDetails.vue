@@ -64,8 +64,8 @@ async function copyToClipboard(value: string, field: string) {
 
     <div class="-mx-4 px-6 py-5 border-b border-brownish-100 dark:border-brownish-700/50">
       <div class="flex items-center gap-2 mb-4">
-        <BaseIcon :path="mdiLock" :size="14" class="text-brownish-400 dark:text-brownish-500" />
-        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-500">Security</p>
+        <BaseIcon :path="mdiLock" :size="14" class="text-brownish-400 dark:text-brownish-100" />
+        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">Security</p>
       </div>
 
       <div class="space-y-4">
@@ -124,7 +124,7 @@ async function copyToClipboard(value: string, field: string) {
     <div class="-mx-4 -mb-4">
       <button
         @click="showDetails = !showDetails"
-        class="w-full flex items-center justify-between px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-500 hover:bg-brownish-50 dark:hover:bg-brownish-700/30 transition-colors rounded-b-2xl"
+        class="w-full flex items-center justify-between px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 hover:bg-brownish-50 dark:hover:bg-brownish-700/30 transition-colors rounded-b-2xl"
       >
         <div class="flex items-center gap-2">
           <BaseIcon :path="mdiKey" :size="14" />
@@ -135,7 +135,7 @@ async function copyToClipboard(value: string, field: string) {
 
       <div v-if="showDetails" class="px-6 pb-5 space-y-3 border-t border-brownish-100 dark:border-brownish-700/50 pt-4">
         <div class="flex items-start gap-3">
-          <span class="w-28 shrink-0 text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-500 mt-0.5">Email</span>
+          <span class="w-28 shrink-0 text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mt-0.5">Email</span>
           <div class="flex-1 min-w-0">
             <span class="text-sm">{{ user.email }}</span>
             <span v-if="emailVerifiedAt" class="ml-2 inline-flex items-center text-xs bg-greeny-500/15 text-greeny-500 dark:text-greeny-400 px-2 py-0.5 rounded-full">verified {{ emailVerifiedAt }}</span>
@@ -144,7 +144,7 @@ async function copyToClipboard(value: string, field: string) {
         </div>
 
         <div class="flex items-start gap-3">
-          <span class="w-28 shrink-0 text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-500 mt-0.5">Public Key</span>
+          <span class="w-28 shrink-0 text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mt-0.5">Public Key</span>
           <div class="flex-1 min-w-0 flex items-start gap-2">
             <code class="flex-1 font-mono text-xs break-all text-brownish-400 dark:text-brownish-300 leading-relaxed bg-brownish-50 dark:bg-brownish-900/50 px-2.5 py-1.5 rounded-lg">{{ user.pubkey }}</code>
             <button
@@ -158,7 +158,7 @@ async function copyToClipboard(value: string, field: string) {
         </div>
 
         <div class="flex items-start gap-3">
-          <span class="w-28 shrink-0 text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-500 mt-0.5">Fingerprint</span>
+          <span class="w-28 shrink-0 text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mt-0.5">Fingerprint</span>
           <div class="flex-1 min-w-0 flex items-start gap-2">
             <code class="flex-1 font-mono text-xs break-all text-brownish-400 dark:text-brownish-300 bg-brownish-50 dark:bg-brownish-900/50 px-2.5 py-1.5 rounded-lg">{{ user.fingerprint }}</code>
             <button

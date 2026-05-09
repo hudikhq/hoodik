@@ -5,6 +5,7 @@ import CardBox from '@/components/ui/CardBox.vue'
 import { AppForm, AppField, AppButton, AppCheckbox } from '@/components/form'
 import * as yup from 'yup'
 import { store } from '!/auth/login'
+import { store as registerStore } from '!/auth/register'
 import { store as cryptoStore } from '!/crypto'
 import { popIntendedRoute } from '!/auth'
 import { useRouter } from 'vue-router'
@@ -14,11 +15,14 @@ import type { Credentials } from 'types'
 import BaseButton from '@/components/ui/BaseButton.vue'
 
 const login = store()
+const register = registerStore()
 const router = useRouter()
 const crypto = cryptoStore()
 
 const config = ref()
 const authenticationError = ref<string | null>(null)
+
+register.getStatus()
 
 const init = () => {
   config.value = {
@@ -93,14 +97,16 @@ init()
             class="float-right"
           />
 
-          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-400">
-            Don't have an account yet?
-            <router-link
-              :to="{ name: 'register' }"
-              class="text-primary-700 hover:underline dark:text-primary-500"
-              >Create an Account</router-link
-            >
-            <br />
+          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-100">
+            <template v-if="register.allowRegister !== false">
+              Don't have an account yet?
+              <router-link
+                :to="{ name: 'register' }"
+                class="text-primary-700 hover:underline dark:text-primary-500"
+                >Create an Account</router-link
+              >
+              <br />
+            </template>
             Forgot your password?
             <router-link
               :to="{ name: 'forgot-password' }"

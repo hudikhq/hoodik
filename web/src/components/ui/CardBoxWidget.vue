@@ -51,7 +51,7 @@ defineProps({
     </BaseLevel>
     <BaseLevel mobile>
       <div>
-        <h3 class="text-lg leading-tight text-brownish-500 dark:text-brownish-400">
+        <h3 class="text-lg leading-tight text-brownish-500 dark:text-brownish-100">
           {{ label }}
         </h3>
         <h1 class="text-3xl leading-tight font-semibold">
