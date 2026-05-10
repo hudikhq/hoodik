@@ -207,7 +207,7 @@ window.addEventListener('keydown', (e) => {
           :class="
             currentTab === t.key
               ? 'bg-brownish-300 dark:bg-brownish-600 text-brownish-900 dark:text-white'
-              : 'text-brownish-500 dark:text-brownish-400 hover:bg-brownish-200 dark:hover:bg-brownish-700'
+              : 'text-brownish-500 dark:text-brownish-100 hover:bg-brownish-200 dark:hover:bg-brownish-700'
           "
           @click="tab = t.key === 'all' ? undefined : (t.key as NonNullable<typeof tab>)"
         >
@@ -223,7 +223,7 @@ window.addEventListener('keydown', (e) => {
         </template>
 
         <template v-if="!displaying.length">
-          <div class="text-center pb-3 pt-4 text-sm text-brownish-500 dark:text-brownish-400">
+          <div class="text-center pb-3 pt-4 text-sm text-brownish-500 dark:text-brownish-100">
             No activity in progress
           </div>
         </template>

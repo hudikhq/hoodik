@@ -39,10 +39,10 @@ const sendTestEmail = async () => {
   <CardBox :class="props.class">
     <div class="-mx-4 -mt-4 px-6 py-5 border-b border-brownish-100 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex items-center gap-2 mb-3">
-        <BaseIcon :path="mdiEmail" :size="14" class="text-brownish-400 dark:text-brownish-500" />
-        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-500">Email Configuration</p>
+        <BaseIcon :path="mdiEmail" :size="14" class="text-brownish-400 dark:text-brownish-100" />
+        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">Email Configuration</p>
       </div>
-      <p class="text-sm text-brownish-400 dark:text-brownish-500 leading-relaxed">
+      <p class="text-sm text-brownish-400 dark:text-brownish-100 leading-relaxed">
         Verify your SMTP configuration by sending a test email to your account address.
       </p>
     </div>
@@ -60,7 +60,7 @@ const sendTestEmail = async () => {
         <div class="flex items-center justify-between gap-4">
           <div class="min-w-0">
             <p class="text-sm font-medium">Test Email</p>
-            <p class="text-xs text-brownish-400 dark:text-brownish-500 mt-0.5">Sends to your registered account address</p>
+            <p class="text-xs text-brownish-400 dark:text-brownish-100 mt-0.5">Sends to your registered account address</p>
           </div>
           <div class="flex items-center gap-3 shrink-0">
             <span v-if="testingEmail" class="text-xs text-brownish-400 animate-pulse">Sending…</span>

@@ -13,6 +13,7 @@ pub mod credentials;
 pub mod logout;
 pub mod refresh;
 pub mod register;
+pub mod register_status;
 pub mod resend_activation;
 pub mod signature;
 pub mod transfer_token;
@@ -29,6 +30,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(credentials::credentials);
     cfg.service(logout::logout);
     cfg.service(register::register);
+    cfg.service(register_status::register_status);
     cfg.service(resend_activation::resend_activation);
     cfg.service(signature::signature);
     cfg.service(two_factor::disable_two_factor);

@@ -18,3 +18,7 @@ web/test-results/
 
 # TypeScript build cache
 *.tsbuildinfo
+
+# nix build output symlinks
+result
+result-*

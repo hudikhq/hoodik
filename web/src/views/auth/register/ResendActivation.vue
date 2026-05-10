@@ -78,7 +78,7 @@ init()
             <span v-else> Re-send </span>
           </AppButton>
 
-          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-400">
+          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-100">
             Already activated an account?
             <router-link
               :to="{ name: 'login' }"

@@ -36,7 +36,7 @@ await init()
 </script>
 <template>
   <div class="mb-8">
-    <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-500 mb-3 px-1">Application Settings</h2>
+    <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">Application Settings</h2>
     <div class="flex flex-col lg:flex-row gap-6">
       <UserSettings
         class="w-full lg:w-7/12"

@@ -203,12 +203,12 @@ watch(
             <div class="px-4 py-4 border-b border-brownish-100 dark:border-brownish-700/50">
               <div v-if="!editQuota" class="flex items-center justify-between">
                 <div>
-                  <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-500 mb-0.5">Storage Quota</p>
+                  <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-0.5">Storage Quota</p>
                   <p class="text-sm">{{ quota ?? 'default' }}</p>
                 </div>
               </div>
               <div v-else class="space-y-3">
-                <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-500">Edit Storage Quota</p>
+                <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100">Edit Storage Quota</p>
                 <QuotaSlider v-model="user.quota" />
                 <div class="flex items-center gap-2 pt-1">
                   <BaseButtonConfirm
@@ -230,7 +230,7 @@ watch(
 
             <!-- Storage breakdown -->
             <div class="px-4 py-3">
-              <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-500 mb-3">Storage Breakdown</p>
+              <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3">Storage Breakdown</p>
               <StatsTable :data="data.stats" />
             </div>
           </div>
@@ -301,7 +301,7 @@ watch(
             <CardBoxComponentHeader title="Encryption Keys" />
             <div class="-mx-4 -mb-4 px-4 py-3 space-y-3">
               <div>
-                <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-500 mb-1">Public Key</p>
+                <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-1">Public Key</p>
                 <div class="flex items-start gap-2">
                   <code class="flex-1 font-mono text-xs break-all text-brownish-400 dark:text-brownish-300 leading-relaxed">{{ user.pubkey }}</code>
                   <button @click="copyToClipboard(user.pubkey, 'pubkey')" class="shrink-0 mt-0.5 text-brownish-400 hover:text-white transition-colors">
@@ -310,7 +310,7 @@ watch(
                 </div>
               </div>
               <div class="pb-1">
-                <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-500 mb-1">Fingerprint</p>
+                <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-1">Fingerprint</p>
                 <div class="flex items-start gap-2">
                   <code class="flex-1 font-mono text-xs break-all text-brownish-400 dark:text-brownish-300">{{ user.fingerprint }}</code>
                   <button @click="copyToClipboard(user.fingerprint, 'fingerprint')" class="shrink-0 mt-0.5 text-brownish-400 hover:text-white transition-colors">

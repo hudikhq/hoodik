@@ -49,8 +49,8 @@ const usageTextColor = computed(() => {
   <CardBox :class="props.class">
     <div class="-mx-4 -mt-4 px-6 py-6 border-b border-brownish-100 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex items-center gap-2 mb-4">
-        <BaseIcon :path="mdiDatabase" :size="14" class="text-brownish-400 dark:text-brownish-500" />
-        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-500">Storage Usage</p>
+        <BaseIcon :path="mdiDatabase" :size="14" class="text-brownish-400 dark:text-brownish-100" />
+        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">Storage Usage</p>
       </div>
 
       <div class="flex items-end justify-between mb-3">
@@ -76,8 +76,8 @@ const usageTextColor = computed(() => {
     <div v-if="data" class="-mx-4 -mb-4">
       <div class="px-6 pt-4 pb-1">
         <div class="flex items-center gap-2 mb-2">
-          <BaseIcon :path="mdiChartDonut" :size="14" class="text-brownish-400 dark:text-brownish-500" />
-          <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-500">By File Type</p>
+          <BaseIcon :path="mdiChartDonut" :size="14" class="text-brownish-400 dark:text-brownish-100" />
+          <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">By File Type</p>
         </div>
       </div>
       <div class="px-4 pb-4">

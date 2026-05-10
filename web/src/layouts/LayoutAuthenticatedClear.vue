@@ -16,7 +16,7 @@ const loginStore = login()
 
 <template>
   <div :class="{ dark: styleStore.darkMode }">
-    <div class="bg-brownish-50 dark:bg-brownish-800 dark:text-brownish-100">
+    <div class="bg-brownish-50 text-brownish-900 dark:bg-brownish-800 dark:text-dirty-white">
       <slot :authenticated="loginStore.authenticated" :keypair="crypto.keypair" />
     </div>
   </div>
