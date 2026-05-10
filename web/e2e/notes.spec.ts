@@ -110,11 +110,16 @@ test.describe('Formatting — A1 toolbar commands', () => {
     await page.keyboard.press('Control+End')
     await page.keyboard.type('MARKER')
 
-    // Select the word we just typed — 6 Shift+ArrowLeft presses walk
-    // the caret back across the six characters of "MARKER".
+    // Select the word we just typed by holding Shift while walking the
+    // caret back across the six characters of "MARKER". Holding Shift
+    // throughout (rather than press-and-release per iteration) is what
+    // keeps the selection extending — every Shift keyup between presses
+    // can collapse the ProseMirror selection on slower CI runners.
+    await page.keyboard.down('Shift')
     for (let i = 0; i < 6; i++) {
-      await page.keyboard.press('Shift+ArrowLeft')
+      await page.keyboard.press('ArrowLeft')
     }
+    await page.keyboard.up('Shift')
 
     // Apply Bold via the toolbar button.
     await page.locator('[name="md-bold"]').click()
