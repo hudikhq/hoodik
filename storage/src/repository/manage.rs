@@ -325,7 +325,7 @@ where
 
         // Sort files by id and then run dedup_by to remove all duplicates,
         // without sorting, this won't remove all duplicates
-        files.sort_by(|a, b| a.id.cmp(&b.id));
+        files.sort_by_key(|a| a.id);
         files.dedup_by(|a, b| a.id == b.id);
 
         let ids: Vec<Uuid> = files.iter().map(|f| f.id).collect();

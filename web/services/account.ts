@@ -24,6 +24,10 @@ export async function changePassword(payload: UnsecureChangePassword): Promise<v
     email: payload.email
   }
 
+  if (payload.token) {
+    data.token = payload.token
+  }
+
   if (payload.current_password) {
     data.current_password = payload.current_password
   } else {

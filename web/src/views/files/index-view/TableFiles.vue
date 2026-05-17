@@ -175,6 +175,12 @@ const sizes = {
     class="w-full p-2 mb-2 flex rounded-t-md bg-brownish-100 dark:bg-brownish-900 gap-4"
     v-if="showActions"
   >
+    <span
+      v-if="checkedRows.length"
+      data-testid="files-selected-count"
+      class="self-center text-sm text-brownish-700 dark:text-brownish-200"
+    >{{ checkedRows.length }} selected</span>
+
     <BaseButton
       title="Delete"
       :iconSize="20"
