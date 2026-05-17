@@ -91,6 +91,34 @@ test.describe('Rename', () => {
   })
 })
 
+test.describe('Selection counter', () => {
+  test('shows the count of selected items in the toolbar and updates as selection changes', async ({ page }) => {
+    await setup(page)
+
+    for (const name of ['Folder_A', 'Folder_B']) {
+      await page.locator('[name="create-dir"]').click()
+      await page.locator('#name').fill(name)
+      await page.getByRole('button', { name: 'Create', exact: true }).click()
+      await expect(page.getByTestId(`file-row-${name}`)).toBeVisible()
+    }
+
+    const counter = page.getByTestId('files-selected-count')
+    await expect(counter).toHaveCount(0)
+
+    await page.getByTestId('file-row-Folder_A').locator('input[type="checkbox"]').check()
+    await expect(counter).toHaveText(/^1 selected$/)
+
+    await page.getByTestId('file-row-Folder_B').locator('input[type="checkbox"]').check()
+    await expect(counter).toHaveText(/^2 selected$/)
+
+    await page.getByTestId('file-row-Folder_A').locator('input[type="checkbox"]').uncheck()
+    await expect(counter).toHaveText(/^1 selected$/)
+
+    await page.getByTestId('file-row-Folder_B').locator('input[type="checkbox"]').uncheck()
+    await expect(counter).toHaveCount(0)
+  })
+})
+
 test.describe('Delete', () => {
   test('can delete a file', async ({ page }) => {
     await setup(page)
