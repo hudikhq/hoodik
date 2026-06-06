@@ -53,6 +53,7 @@ const menuClick = (event: Event) => {
       :to="item.to ?? null"
       :href="item.href ?? null"
       :target="item.target ?? null"
+      :rel="item.rel ?? null"
       class="flex cursor-pointer"
       :class="componentClass"
       @click="menuClick"
