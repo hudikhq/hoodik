@@ -2,7 +2,6 @@ import path from 'path'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
-import wasmPack from 'vite-plugin-wasm-pack'
 import wasm from 'vite-plugin-wasm'
 import topLevelAwait from 'vite-plugin-top-level-await'
 import { serviceWorkerPlugin } from './plugins/service-worker'
@@ -29,7 +28,7 @@ export default defineConfig({
   envPrefix: 'APP_',
   worker: {
     // Same as main build so nested workers (e.g. hash-worker) resolve `transfer` WASM correctly.
-    plugins: [wasm(), topLevelAwait(), wasmPack(['../transfer'])],
+    plugins: [wasm(), topLevelAwait()],
     rollupOptions: {
       // Dynamic `import()` inside nested workers (hash-worker) must stay one chunk — otherwise Rollup
       // code-splits and conflicts with the sw.ts worker bundle format (IIFE / service-worker plugin).
@@ -46,7 +45,6 @@ export default defineConfig({
     vueJsx(),
     wasm(),
     topLevelAwait(),
-    wasmPack(['../transfer']),
     serviceWorkerPlugin({
       filename: 'sw.ts'
     })

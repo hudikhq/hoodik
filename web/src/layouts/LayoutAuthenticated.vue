@@ -16,6 +16,7 @@ import { store as cryptoStore } from '!/crypto'
 import SearchButton from '@/components/files/search/SearchButton.vue'
 import SearchModal from '@/components/files/search/SearchModal.vue'
 import ResendActivationNotification from './components/ResendActivationNotification.vue'
+import { useAuthedShareBootstrap } from '@/composables/useAuthedShareBootstrap'
 
 const router = useRouter()
 const route = useRoute()
@@ -25,6 +26,7 @@ const style = styleStore()
 await ensureAuthenticated(router, route)
 const crypto = cryptoStore()
 const login = loginStore()
+useAuthedShareBootstrap()
 
 const layoutAsidePadding = 'xl:pl-72'
 

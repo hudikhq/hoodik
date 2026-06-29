@@ -12,10 +12,12 @@ const props = defineProps<{
 const emits = defineEmits<{
   (event: 'update:modelValue', value: AppFile | undefined): void
   (event: 'remove', file: AppFile): void
-  (event: 'link', file: AppFile): void
+  (event: 'sharing', file: AppFile): void
   (event: 'download', file: AppFile): void
   (event: 'details', file: AppFile): void
   (event: 'rename', file: AppFile): void
+  (event: 'fork', file: AppFile): void
+  (event: 'leave', file: AppFile): void
 }>()
 
 const file = computed(() => props.modelValue)
@@ -28,10 +30,12 @@ const file = computed(() => props.modelValue)
       :model-value="file"
       :hide-delete="props.hideDelete"
       @remove="emits('remove', file)"
-      @links="emits('link', file)"
       @details="emits('details', file)"
       @download="emits('download', file)"
       @rename="emits('rename', file)"
+      @sharing="emits('sharing', file)"
+      @fork="emits('fork', file)"
+      @leave="emits('leave', file)"
     />
   </DropdownModal>
 </template>

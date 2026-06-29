@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import type { AppLink, LinksStore } from 'types'
 import EnterKeyInner from './EnterKeyInner.vue'
+import LinkUnavailableInner from './LinkUnavailableInner.vue'
 import { computed, ref } from 'vue'
 import type { ErrorResponse } from '!/api'
 import { LinkPreview } from '!/preview/link'
@@ -18,6 +19,11 @@ const props = defineProps<{
 const title = useTitle()
 const infoLink = ref()
 const unlockError = ref()
+/** True when the backend has confirmed the link doesn't exist — revoked
+ *  or never created. Distinct from a missing / wrong unlock key so the
+ *  page can swap the unlock form for a friendly "no longer available"
+ *  panel instead of repeatedly prompting for a key that won't help. */
+const linkUnavailable = ref(false)
 const typedLinkKeyHex = ref<string>()
 const link = ref<AppLink>()
 
@@ -51,7 +57,14 @@ const isExpired = computed(() => {
 })
 
 /**
- * Load the binary data of the link from the backend
+ * Load the binary data of the link from the backend.
+ *
+ * Two distinct failure modes split out here: a 404 from the metadata
+ * endpoint means the link itself is gone (revoked or expired beyond
+ * the server's grace window), so the page renders an unavailable
+ * panel. Any other failure (wrong key, decrypt failure, network) keeps
+ * the unlock form on screen with the error text — the caller can
+ * retype the key without leaving the page.
  */
 const load = async () => {
   if (!linkKeyHex.value) return
@@ -62,6 +75,11 @@ const load = async () => {
     title.value = `${link.value.name} -- ${window.defaultDocumentTitle}`
   } catch (e) {
     const error = e as ErrorResponse<unknown>
+    if (error?.status === 404) {
+      linkUnavailable.value = true
+      unlockError.value = undefined
+      return
+    }
     unlockError.value = error.description || error.message
   }
 }
@@ -111,5 +129,6 @@ await load()
       <span v-else class="text-redish-300">This link has expired on {{ linkExpiresAt }}</span>
     </div>
   </PreviewView>
+  <LinkUnavailableInner v-else-if="linkUnavailable" />
   <EnterKeyInner v-else :unlockingError="unlockError" @unlock="unlock" />
 </template>

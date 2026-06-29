@@ -3,6 +3,7 @@ import LayoutAuthenticatedWithLoader from '@/layouts/LayoutAuthenticatedWithLoad
 import SectionMain from '@/components/ui/SectionMain.vue'
 import MyDetails from './index/MyDetails.vue'
 import StorageStats from './index/StorageStats.vue'
+import SharingPreferences from './index/SharingPreferences.vue'
 import EnableTfaModal from '@/components/modals/EnableTfaModal.vue'
 import DisableTfaModal from '@/components/modals/DisableTfaModal.vue'
 import { ref } from 'vue'
@@ -38,6 +39,11 @@ const enableTfaModal = ref(false)
             />
             <StorageStats class="w-full lg:w-5/12" />
           </div>
+        </div>
+
+        <div class="mb-8">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">Sharing</h2>
+          <SharingPreferences :user="authenticated.user" class="w-full" />
         </div>
 
         <div>

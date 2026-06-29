@@ -156,7 +156,7 @@ async function forkAsNew(v: FileVersion) {
       mime: 'text/markdown',
       cipher,
       editable: true,
-      file_id: props.file.file_id,
+      file_id: props.file.file_id ?? undefined,
       search_tokens_hashed: cryptfns.stringToHashedTokens(newName.toLowerCase())
     }
 

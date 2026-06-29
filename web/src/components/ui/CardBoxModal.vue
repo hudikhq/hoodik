@@ -56,23 +56,24 @@ window.addEventListener('keydown', (e) => {
       v-show="value"
       class="shadow-lg max-h-modal w-11/12 md:w-3/5 lg:w-2/5 xl:w-4/12 z-50"
       is-modal
+      has-component-layout
     >
-      <CardBoxComponentTitle v-if="title" :title="title">
-        <BaseButton
-          v-if="hasCancel || hasClose"
-          :icon="mdiClose"
-          color="dark"
-          small
-          rounded-full
-          @click.prevent="cancel"
-        />
-      </CardBoxComponentTitle>
-
-      <div>
+      <!-- relative: lets a modal's own content render a full-cover overlay (e.g. the share submit blur) -->
+      <div class="relative flex-1 min-h-0 overflow-y-auto p-4">
+        <CardBoxComponentTitle v-if="title" :title="title">
+          <BaseButton
+            v-if="hasCancel || hasClose"
+            :icon="mdiClose"
+            color="dark"
+            small
+            rounded-full
+            @click.prevent="cancel"
+          />
+        </CardBoxComponentTitle>
         <slot />
       </div>
 
-      <template #footer v-if="!hideSubmit || hasCancel">
+      <footer v-if="!hideSubmit || hasCancel" class="p-6">
         <BaseButtons>
           <slot name="buttons">
             <BaseButton
@@ -93,7 +94,7 @@ window.addEventListener('keydown', (e) => {
             />
           </slot>
         </BaseButtons>
-      </template>
+      </footer>
     </CardBox>
   </OverlayLayer>
 </template>

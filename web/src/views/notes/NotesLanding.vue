@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { mdiFileDocumentOutline, mdiPlus, mdiMagnify } from '@mdi/js'
 import { formatSize } from '!'
 import { search } from '!/storage'
 import * as meta from '!/storage/meta'
 import { isMarkdownFile } from '!/preview'
+import { store as loginStore } from '!/auth/login'
 import type { KeyPair, AppFile } from 'types'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -14,6 +15,9 @@ import CreateNoteModal from './CreateNoteModal.vue'
 const props = defineProps<{
   keypair: KeyPair
 }>()
+
+const login = loginStore()
+const authenticatedUserId = computed(() => login.authenticated?.user.id)
 
 const router = useRouter()
 const notes = ref<AppFile[]>([])
@@ -166,6 +170,7 @@ onUnmounted(() => {
     <CreateNoteModal
       v-model="showCreateModal"
       :keypair="keypair"
+      :authenticated-user-id="authenticatedUserId"
       @created="onNoteCreated"
     />
   </div>

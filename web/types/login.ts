@@ -14,6 +14,7 @@ export interface User {
   updated_at: number
   email_verified_at?: number
   secret: boolean
+  share_notifications_enabled?: boolean
 }
 
 export interface Session {

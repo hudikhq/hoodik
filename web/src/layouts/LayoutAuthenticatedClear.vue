@@ -4,6 +4,7 @@ import { store as style } from '!/style'
 import { store as login } from '!/auth/login'
 import { ensureAuthenticated } from '!/auth'
 import { store as cryptoStore } from '!/crypto'
+import { useAuthedShareBootstrap } from '@/composables/useAuthedShareBootstrap'
 
 const styleStore = style()
 const router = useRouter()
@@ -12,6 +13,7 @@ const route = useRoute()
 await ensureAuthenticated(router, route)
 const crypto = cryptoStore()
 const loginStore = login()
+useAuthedShareBootstrap()
 </script>
 
 <template>

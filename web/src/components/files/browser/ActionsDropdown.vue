@@ -23,8 +23,10 @@ const emits = defineEmits<{
   (event: 'remove', file: AppFile): void
   (event: 'details', file: AppFile): void
   (event: 'rename', file: AppFile): void
-  (event: 'link', file: AppFile): void
+  (event: 'sharing', file: AppFile): void
   (event: 'download', file: AppFile): void
+  (event: 'fork', file: AppFile): void
+  (event: 'leave', file: AppFile): void
   (event: 'update:modelValue', value: AppFile): void
 }>()
 
@@ -48,14 +50,24 @@ const details = () => {
   emits('details', file.value)
 }
 
-const link = () => {
-  close()
-  emits('link', file.value)
-}
-
 const download = () => {
   close()
   emits('download', file.value)
+}
+
+const sharing = () => {
+  close()
+  emits('sharing', file.value)
+}
+
+const fork = () => {
+  close()
+  emits('fork', file.value)
+}
+
+const leave = () => {
+  close()
+  emits('leave', file.value)
 }
 
 /**
@@ -137,12 +149,14 @@ window.addEventListener('keydown', (e) => {
       <ActionsButtons
         v-model="file"
         :hide-delete="hideDelete"
-        :share="share"
+        :share="props.share"
         @remove="remove"
         @details="details"
-        @link="link"
         @download="download"
         @rename="rename"
+        @sharing="sharing"
+        @fork="fork"
+        @leave="leave"
       />
     </div>
   </div>

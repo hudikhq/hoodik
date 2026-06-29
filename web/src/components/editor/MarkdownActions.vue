@@ -8,7 +8,7 @@ import {
   mdiDeleteOutline,
   mdiFileMove,
   mdiDownload,
-  mdiLink,
+  mdiShareVariantOutline,
   mdiFilePdfBox,
   mdiInformationSlabCircleOutline,
   mdiNotePlusOutline
@@ -26,7 +26,7 @@ const emit = defineEmits<{
   (event: 'details'): void
   (event: 'rename'): void
   (event: 'download'): void
-  (event: 'link'): void
+  (event: 'sharing', initial?: 'people' | 'link'): void
   (event: 'export-pdf'): void
   (event: 'toggle-raw'): void
   (event: 'convert'): void
@@ -38,6 +38,11 @@ const showMenu = ref(false)
 
 function action(eventName: string) {
   emit(eventName as any)
+  showMenu.value = false
+}
+
+function openSharing(): void {
+  emit('sharing', 'people')
   showMenu.value = false
 }
 
@@ -72,9 +77,13 @@ defineExpose({ closeDropdown })
         <BaseIcon :path="mdiDownload" :size="16" />
         Download
       </button>
-      <button class="md-actions-option" @click="action('link')">
-        <BaseIcon :path="mdiLink" :size="16" />
-        Public link
+      <button
+        class="md-actions-option"
+        data-testid="md-actions-sharing"
+        @click="openSharing"
+      >
+        <BaseIcon :path="mdiShareVariantOutline" :size="16" />
+        Sharing
       </button>
       <button class="md-actions-option" @click="action('export-pdf')">
         <BaseIcon :path="mdiFilePdfBox" :size="16" />

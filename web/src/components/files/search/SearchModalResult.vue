@@ -14,12 +14,20 @@ const emits = defineEmits<{
   (event: 'clicked', file: AppFile): void
 }>()
 
+const canWrite = computed(() => {
+  // Owner rows have no `share_role` set; recipients carry their role
+  // so we can route Readers to the preview and skip the editor crash.
+  if (props.file.is_owner) return true
+  const role = props.file.share_role
+  return role === 'editor' || role === 'co-owner'
+})
+
 const url = computed(() => {
   if (props.file.mime === 'dir') {
     return { name: 'files', params: { file_id: props.file.id } }
   }
 
-  if (isMarkdownFile(props.file)) {
+  if (isMarkdownFile(props.file) && canWrite.value) {
     return { name: 'notes', params: { id: props.file.id } }
   }
 

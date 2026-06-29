@@ -15,6 +15,7 @@ const LAST_FOLDER_KEY = 'hoodik:notes:lastFolder'
 const props = defineProps<{
   modelValue?: boolean
   keypair: KeyPair
+  authenticatedUserId?: string
 }>()
 
 const emit = defineEmits(['update:modelValue', 'cancel', 'created'])
@@ -67,7 +68,12 @@ const init = () => {
     }),
     onSubmit: async (values: { name: string }, ctx: any) => {
       try {
-        const file = await createNote(props.keypair, values.name, folderId.value)
+        const file = await createNote(
+          props.keypair,
+          values.name,
+          folderId.value,
+          props.authenticatedUserId
+        )
 
         saveLastFolder()
         emitFileTreeChange({ type: 'created', folderId: folderId.value })

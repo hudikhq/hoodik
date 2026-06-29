@@ -16,6 +16,11 @@ const baseURL =
   env.APP_URL ||
   'http://localhost:5173'
 
+// PWSLOWMO=500 just e2e --headed       (half-second between actions)
+// PWSLOWMO=1000 just e2e --headed       (one second)
+// Unset or 0 disables slowMo (default for CI / headless runs).
+const slowMo = Number.parseInt(process.env.PWSLOWMO ?? '0', 10) || 0
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
@@ -27,6 +32,8 @@ export default defineConfig({
     baseURL,
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    trace: 'retain-on-failure',
     viewport: { width: 1280, height: 800 },
+    launchOptions: slowMo > 0 ? { slowMo } : undefined,
   },
 })

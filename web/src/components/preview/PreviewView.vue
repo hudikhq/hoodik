@@ -190,6 +190,7 @@ onUnmounted(() => {
           />
           <span
             class="inline-flex justify-center items-center whitespace-nowrap transition-colors p-1"
+            data-testid="preview-counter"
           >
             {{ index + 1 }} / {{ total }}
           </span>

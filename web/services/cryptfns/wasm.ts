@@ -9,7 +9,9 @@ import {
   rsa_fingerprint_public,
   rsa_fingerprint_private,
   rsa_sign,
+  rsa_sign_bytes,
   rsa_verify,
+  rsa_verify_bytes,
   rsa_public_key_size,
   rsa_private_key_size,
   aes_generate_key,
@@ -21,7 +23,13 @@ import {
   cipher_generate_key,
   cipher_encrypt,
   cipher_decrypt,
-  text_into_hashed_tokens
+  text_into_hashed_tokens,
+  share_payload_encode_v1,
+  audit_event_sig_input_encode_v1,
+  audit_event_encode_v1,
+  entries_encode_v1,
+  member_sig_encode_v1,
+  folder_member_list_encode_v1
 } from '../../node_modules/transfer/transfer.js'
 
 /**
@@ -48,7 +56,9 @@ export {
   rsa_fingerprint_public,
   rsa_fingerprint_private,
   rsa_sign,
+  rsa_sign_bytes,
   rsa_verify,
+  rsa_verify_bytes,
   rsa_public_key_size,
   rsa_private_key_size,
   aes_generate_key,
@@ -60,5 +70,11 @@ export {
   cipher_generate_key,
   cipher_encrypt,
   cipher_decrypt,
-  text_into_hashed_tokens
+  text_into_hashed_tokens,
+  share_payload_encode_v1,
+  audit_event_sig_input_encode_v1,
+  audit_event_encode_v1,
+  entries_encode_v1,
+  member_sig_encode_v1,
+  folder_member_list_encode_v1
 }

@@ -9,6 +9,7 @@ import {
   mdiFolderMove,
   mdiFolder,
   mdiFolderOpen,
+  mdiFolderAccount,
   mdiMonitor
 } from '@mdi/js'
 import BaseButtonConfirm from '@/components/ui/BaseButtonConfirm.vue'
@@ -27,10 +28,12 @@ const props = withDefaults(
     activeFolderId?: string
     expandedIds?: Set<string>
     depth?: number
+    shared?: boolean
   }>(),
   {
     mode: 'select',
-    depth: 0
+    depth: 0,
+    shared: false
   }
 )
 
@@ -76,10 +79,14 @@ const opened = ref(false)
 watch(
   opened,
   async (value) => {
-    if (value) {
-      items.value = await getStorage().directories(props.keypair, props.parent?.id)
-    } else {
+    if (!value) {
       items.value = []
+      return
+    }
+    if (props.shared && props.parent) {
+      items.value = await getStorage().sharedDirectories(props.keypair, props.parent.id)
+    } else {
+      items.value = await getStorage().directories(props.keypair, props.parent?.id)
     }
   },
   { immediate: true }
@@ -118,6 +125,29 @@ watch(
   },
   { immediate: true, deep: true }
 )
+
+/**
+ * The "Shared with me" branch is rendered once, alongside the caller's own
+ * drive, on the top-level select node. It lists folders shared with the
+ * caller that they can write to; reader-only shares are filtered out at the
+ * store level so they're never offered as a destination the server would
+ * reject.
+ */
+const isTopLevelSelect = computed(
+  () => props.mode === 'select' && !props.parent && !props.shared
+)
+
+const sharedRootItems = ref<AppFile[]>([])
+const sharedOpened = ref(true)
+
+watch(
+  isTopLevelSelect,
+  async (topLevel) => {
+    if (!topLevel) return
+    sharedRootItems.value = await getStorage().sharedRoots(props.keypair)
+  },
+  { immediate: true }
+)
 </script>
 <template>
   <ul v-if="mode === 'select'">
@@ -126,6 +156,7 @@ watch(
       :class="{
         'pl-4': parent
       }"
+      :data-testid="`picker-row-${parent?.name ?? 'root'}`"
     >
       <div class="flex flex-shrink">
         <div class="w-full cursor-pointer prevent-select" @click="opened = !opened">
@@ -151,10 +182,42 @@ watch(
         :keypair="keypair"
         :Storage="Storage"
         :parent="item"
+        :shared="shared"
         mode="select"
         @select="select"
       />
     </li>
+
+    <template v-if="isTopLevelSelect && sharedRootItems.length > 0">
+      <li class="w-full border-t-[1px] border-brownish-800 p-1">
+        <div
+          class="w-full cursor-pointer prevent-select"
+          @click="sharedOpened = !sharedOpened"
+          data-testid="directory-tree-shared-with-me"
+        >
+          <BaseIcon
+            :path="sharedOpened ? mdiChevronDown : mdiChevronUp"
+            size="20"
+            w="w-6"
+            h="h-6"
+          />
+          <BaseIcon :path="mdiFolderAccount" size="18" w="w-6" h="h-6" />
+          Shared with me
+        </div>
+      </li>
+      <li class="pl-4" v-if="sharedOpened">
+        <DirectoryTree
+          v-for="item in sharedRootItems"
+          :key="item.id"
+          :keypair="keypair"
+          :Storage="Storage"
+          :parent="item"
+          shared
+          mode="select"
+          @select="select"
+        />
+      </li>
+    </template>
   </ul>
 
   <ul v-else-if="isRoot">

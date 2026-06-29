@@ -15,6 +15,7 @@ import {
 import * as logger from '!/logger'
 
 import type {
+  AppFile,
   CreateFile,
   UploadProgressFunction,
   UploadAppFile,
@@ -24,6 +25,12 @@ import type {
   QueueStore
 } from 'types'
 import { createThumbnail } from './thumbnail'
+import {
+  uploadIntoSharedFolder,
+  type UploadIntoSharedFolderArgs,
+  type UploadIntoSharedFolderOptions,
+  type UploadIntoSharedFolderProgress
+} from '../../shares/editable'
 
 export const store = defineStore('upload', () => {
   /**
@@ -102,6 +109,16 @@ export const store = defineStore('upload', () => {
       file.cancel = true
     }
 
+    // Stamp the completion timestamp BEFORE the upsert. The upload
+    // worker reports `isDone` from the WASM transfer layer but does not
+    // re-fetch the row, so the `file` it hands us lacks the server's
+    // `finished_upload_at`. Without this the storage store would store
+    // the row as still-pending and the UI would render a forever-
+    // uploading state even after the last chunk landed.
+    if (isDone && !file.finished_upload_at) {
+      file.finished_upload_at = Math.floor(new Date().valueOf() / 1000)
+    }
+
     const currentFileId = file.file_id || null
     const currentDirId = storage?.dir?.id || null
 
@@ -126,7 +143,6 @@ export const store = defineStore('upload', () => {
     if (isDone || file.finished_upload_at) {
       logger.info(`File "${file.name}" finished uploading`)
 
-      file.finished_upload_at = Math.floor(new Date().valueOf() / 1000)
       done.value.push(file)
       emitFileTreeChange({ type: 'created', folderId: file.file_id || undefined })
 
@@ -201,6 +217,41 @@ export const store = defineStore('upload', () => {
   }
 
   /**
+   * Add a file to the queue when the parent directory is a shared folder
+   * the caller does NOT own. Routes the metadata create through
+   * `POST /api/storage/upload-multikey` so every current member of the
+   * folder gets their own RSA-wrapped copy of the file key.
+   *
+   * The chunk-upload step that follows is identical to the regular
+   * `push` flow — chunks land via `POST /api/storage/{file_id}` once the
+   * metadata row exists.
+   */
+  async function pushIntoSharedFolder(
+    keypair: KeyPair,
+    file: File,
+    parentFolder: AppFile,
+    callerUserId: string,
+    options: {
+      onProgress?: (p: UploadIntoSharedFolderProgress) => void
+      signal?: AbortSignal
+      onUnknownMember?: UploadIntoSharedFolderArgs['onUnknownMember']
+    } = {}
+  ): Promise<UploadAppFile> {
+    logger.info(
+      `[upload:pushIntoSharedFolder] "${file.name}" (${(file.size / 1024 / 1024).toFixed(2)} MB)`
+    )
+    const created = await createInSharedFolder(
+      keypair,
+      file,
+      parentFolder,
+      callerUserId,
+      options
+    )
+    waiting.value.push({ ...created, temporaryId: uuidv4() })
+    return created
+  }
+
+  /**
    * Add new file to the upload queue
    */
   async function push(keypair: KeyPair, file: File, parent_id?: string) {
@@ -253,6 +304,109 @@ export const store = defineStore('upload', () => {
   }
 
   /**
+   * Create the file's metadata via the multi-key upload protocol — used
+   * when the parent directory is a shared folder the caller does not own.
+   * The resulting `UploadAppFile` is otherwise identical to what `create`
+   * returns, so the rest of the queue/worker pipeline is oblivious to
+   * which path produced it.
+   *
+   * The crypto pipeline lives in `services/shares/editable.ts`; this
+   * helper handles the storage-layer adapter — building the placeholder
+   * row the chunk uploader consumes.
+   */
+  async function createInSharedFolder(
+    keypair: KeyPair,
+    file: File,
+    parentFolder: AppFile,
+    callerUserId: string,
+    options: {
+      onProgress?: (p: UploadIntoSharedFolderProgress) => void
+      signal?: AbortSignal
+      onUnknownMember?: UploadIntoSharedFolderArgs['onUnknownMember']
+    } = {}
+  ): Promise<UploadAppFile> {
+    if (!keypair.input || !keypair.publicKey) {
+      throw new Error('Cannot upload without an active keypair')
+    }
+    const modified = file.lastModified ? new Date(file.lastModified) : new Date()
+    const search_tokens_hashed = cryptfns.stringToHashedTokens(file.name.toLowerCase())
+    const thumbnail = await createThumbnail(file)
+    const isMarkdown =
+      file.name.toLowerCase().endsWith('.md') ||
+      file.type === 'text/markdown' ||
+      file.type === 'text/x-markdown'
+    const mime = file.type || (isMarkdown ? 'text/markdown' : 'application/octet-stream')
+    const cipher = cryptfns.cipher.DEFAULT_CIPHER
+    const fileKey = await cryptfns.cipher.generateKey(cipher)
+    const fileKeyHex = cryptfns.uint8.toHex(fileKey)
+    const encryptedName = await cryptfns.cipher.encryptString(cipher, file.name, fileKey)
+    const encryptedThumbnail = thumbnail
+      ? await cryptfns.cipher.encryptString(cipher, thumbnail, fileKey)
+      : undefined
+    const nameHash = cryptfns.sha256.digest(file.name)
+    const chunks = Math.ceil(file.size / CHUNK_SIZE_BYTES)
+    const newFileId = uuidv4()
+
+    const { trustedFingerprintsStore } = await import('../../shares')
+    const trusted = trustedFingerprintsStore()
+
+    const uploadArgs: UploadIntoSharedFolderArgs = {
+      callerUserId,
+      callerPrivateKey: keypair.input,
+      callerPublicKey: keypair.publicKey,
+      payload: {
+        newFileId,
+        parentFileId: parentFolder.id,
+        fileKeyHex,
+        nameHash,
+        encryptedName,
+        encryptedThumbnail,
+        mime,
+        size: file.size,
+        chunks,
+        cipher,
+        editable: isMarkdown || undefined,
+        fileModifiedAt: utcStringFromLocal(modified),
+        searchTokensHashed: search_tokens_hashed
+      },
+      trustedFingerprints: trusted,
+      onUnknownMember: options.onUnknownMember ?? (async () => true)
+    }
+    const uploadOptions: UploadIntoSharedFolderOptions = {
+      signal: options.signal,
+      onProgress: options.onProgress
+    }
+    const result = await uploadIntoSharedFolder(uploadArgs, uploadOptions)
+
+    // Construct the same UploadAppFile shape the regular create path
+    // emits so the queue + chunk-upload code is unchanged downstream.
+    const placeholder: UploadAppFile = {
+      id: result.file_id,
+      user_id: callerUserId,
+      is_owner: true,
+      name_hash: nameHash,
+      mime,
+      size: file.size,
+      chunks,
+      file_id: parentFolder.id,
+      file_modified_at: Math.floor(modified.getTime() / 1000),
+      created_at: Math.floor(Date.now() / 1000),
+      is_new: true,
+      editable: isMarkdown,
+      active_version: 1,
+      encrypted_key: '',
+      encrypted_name: encryptedName,
+      encrypted_thumbnail: encryptedThumbnail,
+      cipher,
+      key: fileKey,
+      name: file.name,
+      thumbnail,
+      file
+    } as UploadAppFile
+    return placeholder
+  }
+
+  /**
    * Create new file metadata and add it to the upload queue
    */
   async function create(keypair: KeyPair, file: File, parent_id?: string): Promise<UploadAppFile> {
@@ -300,7 +454,9 @@ export const store = defineStore('upload', () => {
     active,
     start,
     push,
+    pushIntoSharedFolder,
     create,
+    createInSharedFolder,
     cancel,
     progress
   }

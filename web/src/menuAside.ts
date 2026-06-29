@@ -1,4 +1,11 @@
-import { mdiMonitor, mdiLink, mdiHuman, mdiHumanMaleFemale, mdiCog, mdiFileDocumentOutline } from '@mdi/js'
+import {
+  mdiMonitor,
+  mdiShareVariantOutline,
+  mdiHuman,
+  mdiHumanMaleFemale,
+  mdiCog,
+  mdiFileDocumentOutline
+} from '@mdi/js'
 import type { RouteLocation } from 'vue-router'
 
 export interface AsideMenuItemType {
@@ -22,9 +29,9 @@ export default [
     label: 'Notes'
   },
   {
-    to: { name: 'links' },
-    icon: mdiLink,
-    label: 'Links'
+    to: { name: 'share' },
+    icon: mdiShareVariantOutline,
+    label: 'Share'
   },
   {
     to: { name: 'account' },
