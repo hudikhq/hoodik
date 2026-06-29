@@ -1,5 +1,6 @@
 #![allow(unexpected_cfgs)]
 use crate::aes;
+use crate::asn1;
 use crate::chacha;
 use crate::rsa;
 use crate::rsa::PublicKeyParts;
@@ -70,6 +71,23 @@ pub fn rsa_verify(message: String, signature: String, public_key: String) -> boo
     crate::utils::set_panic_hook();
 
     rsa::public::verify(&message, &signature, &public_key).is_ok()
+}
+
+/// Sign raw bytes — sharing's signed payloads are DER blobs that are not
+/// valid UTF-8 and cannot round-trip through `String`.
+#[wasm_bindgen]
+pub fn rsa_sign_bytes(message: Vec<u8>, private_key: String) -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    rsa::private::sign_bytes(&message, &private_key).ok()
+}
+
+/// Verify a signature over raw bytes.
+#[wasm_bindgen]
+pub fn rsa_verify_bytes(message: Vec<u8>, signature: String, public_key: String) -> bool {
+    crate::utils::set_panic_hook();
+
+    rsa::public::verify_bytes(&message, &signature, &public_key).is_ok()
 }
 
 #[wasm_bindgen]
@@ -162,4 +180,257 @@ pub fn text_into_hashed_tokens(input: &str) -> Option<String> {
     crate::tokenizer::into_hashed_tokens(input)
         .ok()
         .map(crate::tokenizer::into_string)
+}
+
+fn share_role_from_u8(v: u8) -> Option<asn1::ShareRoleEnum> {
+    match v {
+        0 => Some(asn1::ShareRoleEnum::Reader),
+        1 => Some(asn1::ShareRoleEnum::Editor),
+        2 => Some(asn1::ShareRoleEnum::CoOwner),
+        _ => None,
+    }
+}
+
+fn bytes_to_array_wasm<const N: usize>(input: &[u8]) -> Option<[u8; N]> {
+    if input.len() != N {
+        return None;
+    }
+    let mut out = [0u8; N];
+    out.copy_from_slice(input);
+    Some(out)
+}
+
+/// DER-encode `ShareRequestPayloadV1`. Returns `None` on invalid input
+/// (wrong array length, unknown share-role discriminant, …).
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)] // wasm-bindgen surface — flat primitives only
+pub fn share_payload_encode_v1(
+    sender_id: Vec<u8>,
+    recipient_id: Vec<u8>,
+    recipient_pubkey_fingerprint: Vec<u8>,
+    share_role: u8,
+    root_file_id: Vec<u8>,
+    entries_hash: Vec<u8>,
+    timestamp: i64,
+    nonce: Vec<u8>,
+) -> Option<Vec<u8>> {
+    crate::utils::set_panic_hook();
+
+    let payload = asn1::ShareRequestPayloadV1 {
+        sender_id: bytes_to_array_wasm::<16>(&sender_id)?,
+        recipient_id: bytes_to_array_wasm::<16>(&recipient_id)?,
+        recipient_pubkey_fingerprint: bytes_to_array_wasm::<32>(&recipient_pubkey_fingerprint)?,
+        share_role: share_role_from_u8(share_role)?,
+        root_file_id: bytes_to_array_wasm::<16>(&root_file_id)?,
+        entries_hash: bytes_to_array_wasm::<32>(&entries_hash)?,
+        timestamp,
+        nonce: bytes_to_array_wasm::<16>(&nonce)?,
+    };
+    asn1::encode_share_request_v1(&payload).ok()
+}
+
+/// DER-encode `MemberSigPayloadV1`.
+#[wasm_bindgen]
+pub fn member_sig_encode_v1(
+    user_id: Vec<u8>,
+    pubkey_der: Vec<u8>,
+    fingerprint: Vec<u8>,
+    share_role: u8,
+    signed_at: i64,
+) -> Option<Vec<u8>> {
+    crate::utils::set_panic_hook();
+
+    let payload = asn1::MemberSigPayloadV1 {
+        user_id: bytes_to_array_wasm::<16>(&user_id)?,
+        pubkey_der,
+        fingerprint: bytes_to_array_wasm::<32>(&fingerprint)?,
+        share_role: share_role_from_u8(share_role)?,
+        signed_at,
+    };
+    asn1::encode_member_sig_v1(&payload).ok()
+}
+
+/// DER-encode `AuditEventRowV1`. `share_role` is the wire byte (0–2) or
+/// `255` to encode the row without a role (e.g. revoke events).
+#[wasm_bindgen]
+pub fn audit_event_encode_v1(
+    sender_id: Vec<u8>,
+    recipient_id: Vec<u8>,
+    file_id: Vec<u8>,
+    action: String,
+    share_role: u8,
+    created_at: i64,
+) -> Option<Vec<u8>> {
+    crate::utils::set_panic_hook();
+
+    let share_role = match share_role {
+        255 => None,
+        v => Some(share_role_from_u8(v)?),
+    };
+    let row = asn1::AuditEventRowV1 {
+        sender_id: bytes_to_array_wasm::<16>(&sender_id)?,
+        recipient_id: bytes_to_array_wasm::<16>(&recipient_id)?,
+        file_id: bytes_to_array_wasm::<16>(&file_id)?,
+        action,
+        share_role,
+        created_at,
+    };
+    asn1::encode_audit_event_v1(&row).ok()
+}
+
+fn audit_action_from_u8(v: u8) -> Option<asn1::AuditEventActionEnum> {
+    use asn1::AuditEventActionEnum::*;
+    match v {
+        0 => Some(Grant),
+        1 => Some(Revoke),
+        2 => Some(RoleChange),
+        3 => Some(SharedFolderUpload),
+        4 => Some(Fork),
+        5 => Some(SharedByCoOwner),
+        6 => Some(SharedFolderEdit),
+        7 => Some(SharedFolderRestore),
+        8 => Some(SharedFolderEvict),
+        9 => Some(SharedFolderMoveOut),
+        _ => None,
+    }
+}
+
+/// DER-encode `AuditEventSigInputV1`. The two role fields and the
+/// `recipient_id` accept the wire byte `255` as a sentinel for "absent",
+/// matching `audit_event_encode_v1`'s convention. The `recipient_id`
+/// sentinel is an empty `Vec` because `255` is a legal byte value inside
+/// a UUID.
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn audit_event_sig_input_encode_v1(
+    sender_id: Vec<u8>,
+    recipient_id: Vec<u8>,
+    file_id: Vec<u8>,
+    action: u8,
+    share_role_before: u8,
+    share_role_after: u8,
+    timestamp: i64,
+) -> Option<Vec<u8>> {
+    crate::utils::set_panic_hook();
+
+    let recipient_id = if recipient_id.is_empty() {
+        None
+    } else {
+        Some(bytes_to_array_wasm::<16>(&recipient_id)?)
+    };
+    let share_role_before = match share_role_before {
+        255 => None,
+        v => Some(share_role_from_u8(v)?),
+    };
+    let share_role_after = match share_role_after {
+        255 => None,
+        v => Some(share_role_from_u8(v)?),
+    };
+
+    let payload = asn1::AuditEventSigInputV1 {
+        sender_id: bytes_to_array_wasm::<16>(&sender_id)?,
+        recipient_id,
+        file_id: bytes_to_array_wasm::<16>(&file_id)?,
+        action: audit_action_from_u8(action)?,
+        share_role_before,
+        share_role_after,
+        timestamp,
+    };
+    asn1::encode_audit_event_sig_input_v1(&payload).ok()
+}
+
+/// DER-encode a v1 folder member list. Members travel as flat parallel
+/// arrays: `user_ids` and `signed_by_user_ids` concatenate every 16-byte
+/// UUID, `pubkey_fingerprints` concatenates every 32-byte SHA-256, and
+/// `share_roles` / `is_owner_flags` carry one byte per member. All
+/// arrays must contain the same number of entries; the encoder sorts
+/// on `user_id` so callers can pass members in any order.
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn folder_member_list_encode_v1(
+    folder_id: Vec<u8>,
+    folder_owner_id: Vec<u8>,
+    user_ids: Vec<u8>,
+    pubkey_fingerprints: Vec<u8>,
+    share_roles: Vec<u8>,
+    is_owner_flags: Vec<u8>,
+    signed_by_user_ids: Vec<u8>,
+    members_signed_at: i64,
+) -> Option<Vec<u8>> {
+    crate::utils::set_panic_hook();
+
+    let count = share_roles.len();
+    if is_owner_flags.len() != count
+        || user_ids.len() != count * 16
+        || signed_by_user_ids.len() != count * 16
+        || pubkey_fingerprints.len() != count * 32
+    {
+        return None;
+    }
+
+    let mut members = Vec::with_capacity(count);
+    for i in 0..count {
+        let user_id = bytes_to_array_wasm::<16>(&user_ids[i * 16..(i + 1) * 16])?;
+        let signed_by_user_id =
+            bytes_to_array_wasm::<16>(&signed_by_user_ids[i * 16..(i + 1) * 16])?;
+        let pubkey_fingerprint =
+            bytes_to_array_wasm::<32>(&pubkey_fingerprints[i * 32..(i + 1) * 32])?;
+        members.push(asn1::FolderListMember {
+            user_id,
+            pubkey_fingerprint,
+            share_role: share_role_from_u8(share_roles[i])?,
+            is_owner: is_owner_flags[i] != 0,
+            signed_by_user_id,
+        });
+    }
+
+    let payload = asn1::FolderMemberListV1 {
+        folder_id: bytes_to_array_wasm::<16>(&folder_id)?,
+        folder_owner_id: bytes_to_array_wasm::<16>(&folder_owner_id)?,
+        members,
+        members_signed_at,
+    };
+    asn1::encode_folder_member_list_v1(&payload).ok()
+}
+
+/// DER-encode the canonical entries list that `entries_hash` commits to.
+/// Inputs are flat parallel arrays — `file_ids` is the concatenation of
+/// every 16-byte file UUID, `encrypted_keys_flat` is the concatenation of
+/// every per-entry ciphertext, and `encrypted_key_lengths` carries the
+/// length of each ciphertext so the host can slice the flat buffer.
+///
+/// The encoder sorts by `file_id` exactly like the Rust side, so callers
+/// hash `sha256(output)` to derive `entries_hash`.
+#[wasm_bindgen]
+pub fn entries_encode_v1(
+    file_ids: Vec<u8>,
+    encrypted_keys_flat: Vec<u8>,
+    encrypted_key_lengths: Vec<u32>,
+) -> Option<Vec<u8>> {
+    crate::utils::set_panic_hook();
+
+    let count = encrypted_key_lengths.len();
+    if file_ids.len() != count * 16 {
+        return None;
+    }
+
+    let expected_total: usize = encrypted_key_lengths.iter().map(|&n| n as usize).sum();
+    if encrypted_keys_flat.len() != expected_total {
+        return None;
+    }
+
+    let mut entries = Vec::with_capacity(count);
+    let mut key_cursor = 0usize;
+    for (i, &len) in encrypted_key_lengths.iter().enumerate() {
+        let len = len as usize;
+        let file_id = bytes_to_array_wasm::<16>(&file_ids[i * 16..(i + 1) * 16])?;
+        let encrypted_key = encrypted_keys_flat[key_cursor..key_cursor + len].to_vec();
+        key_cursor += len;
+        entries.push(asn1::ShareEntry {
+            file_id,
+            encrypted_key,
+        });
+    }
+
+    asn1::encode_entries_v1(&entries).ok()
 }

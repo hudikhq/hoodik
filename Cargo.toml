@@ -14,6 +14,7 @@ members = [
   "links",
   "migration",
   "settings",
+  "shares",
   "storage",
   "transfer",
   "util",
@@ -55,6 +56,7 @@ rustls = "^0.20"
 rustls-pemfile = "^1"
 rcgen = "^0.10"
 rsa = { version = "^0.8", features = ["sha2"] }
+der = { version = "^0.6", features = ["derive", "oid", "alloc"] }
 base64 = "^0.21"
 hex = "^0.4"
 jsonwebtoken = { version = "^10", features = ["rust_crypto"] }
@@ -66,7 +68,7 @@ reqwest = "^0.11"
 s3 = { package = "rust-s3", version = "^0.35", default-features = false, features = ["tokio-rustls-tls"] }
 
 # Utilities
-uuid = { version = "1.2.2", features = ["serde", "v4"] }
+uuid = { version = "1.2.2", features = ["serde", "v4", "v7"] }
 url = "^2"
 glob = "^0.3"
 num-traits = "0.2"

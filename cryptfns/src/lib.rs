@@ -1,5 +1,6 @@
 pub mod aegis;
 pub mod aes;
+pub mod asn1;
 pub mod base64;
 pub mod chacha;
 pub mod cipher;

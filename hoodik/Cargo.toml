@@ -1,6 +1,6 @@
 [package]
 name = "hoodik"
-version = "1.15.2"
+version = "1.16.0"
 edition = "2021"
 rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
@@ -33,17 +33,21 @@ error = { path = "../error" }
 fs = { path = "../fs", features = ["s3"] }
 links = { path = "../links" }
 migration = { path = "../migration" }
+shares = { path = "../shares" }
 storage = { path = "../storage" }
 
 [dev-dependencies]
 chrono = { workspace = true }
+rand = "^0.8"
+sha2 = "0.10"
 auth = { path = "../auth", features = ["mock"] }
 context = { path = "../context", features = ["mock"] }
 cryptfns = { path = "../cryptfns", features = ["mock"] }
 email = { path = "../email", features = ["mock"] }
 links = { path = "../links", features = ["mock"] }
+shares = { path = "../shares", features = ["mock", "test-support"] }
 storage = { path = "../storage", features = ["mock"] }
-settings = { path = "../settings", features = [] }
+settings = { path = "../settings", features = ["mock"] }
 transfer = { path = "../transfer" }
 
 # Configuration for metadata of the deb package

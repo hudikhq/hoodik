@@ -15,6 +15,31 @@ services:
     ports:
       - "5432:5432"
 
+  # Ephemeral Postgres for the Rust integration suite.
+  # `tmpfs` keeps the data dir in RAM so the container starts in ~1s and
+  # leaves no state behind between runs. Port 5433 avoids colliding with a
+  # developer's local Postgres on 5432.
+  postgres-test:
+    image: postgres:16-alpine
+    hostname: postgres-test
+    container_name: postgres-test
+    environment:
+      POSTGRES_USER: hoodik_test
+      POSTGRES_PASSWORD: hoodik_test
+      POSTGRES_DB: hoodik_test
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hoodik_test"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    tmpfs:
+      # 4 GB is enough headroom for one full test suite run; each per-test
+      # database is ~10 MB after migrations and the harness leaves them
+      # behind until the container is recreated.
+      - /var/lib/postgresql/data:size=4g
+
   minio:
     image: minio/minio:latest
     hostname: minio

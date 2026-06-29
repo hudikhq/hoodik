@@ -26,6 +26,11 @@ pub(crate) async fn set_editable(
     let repository = Repository::new(&connection);
     let file_id: Uuid = util::actix::path_var(&req, "file_id")?;
 
+    // Set-editable is owner-only — flipping the flag
+    // affects which chunk layout the file uses, which only the file's
+    // owner is allowed to change.
+    crate::permission::require_owner(&connection, file_id, claims.sub).await?;
+
     let file = repository
         .manage(claims.sub)
         .set_editable(file_id, data.into_inner())

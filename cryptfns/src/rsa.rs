@@ -54,19 +54,32 @@ pub mod private {
         RsaPrivateKey::from_pkcs1_pem(&input).map_err(Error::from)
     }
 
-    /// Sign a message with private key
-    pub fn sign_with(message: &str, key: PrivateKey) -> CryptoResult<String> {
+    /// Sign raw bytes with a private key. Returns a base64-encoded signature.
+    /// Sharing's signed-payload protocol requires signing DER-encoded
+    /// payloads alongside a domain-prefix, which are not UTF-8 strings.
+    pub fn sign_with_bytes(message: &[u8], key: PrivateKey) -> CryptoResult<String> {
         let signing_key = SigningKey::<Sha256>::from(key);
         let mut rng = rand::thread_rng();
-        let signature = signing_key.try_sign_with_rng(&mut rng, message.as_bytes())?;
+        let signature = signing_key.try_sign_with_rng(&mut rng, message)?;
 
         Ok(crate::base64::encode(signature))
+    }
+
+    /// Sign a message with private key
+    pub fn sign_with(message: &str, key: PrivateKey) -> CryptoResult<String> {
+        sign_with_bytes(message.as_bytes(), key)
     }
 
     /// Sign a message with private key input string
     pub fn sign(message: &str, key: &str) -> CryptoResult<String> {
         let key = from_str(key)?;
         sign_with(message, key)
+    }
+
+    /// Sign raw bytes with a PEM-encoded private key.
+    pub fn sign_bytes(message: &[u8], key: &str) -> CryptoResult<String> {
+        let key = from_str(key)?;
+        sign_with_bytes(message, key)
     }
 
     /// Decrypt some data with private key
@@ -141,23 +154,48 @@ pub mod public {
         RsaPublicKey::from_pkcs1_pem(&input).map_err(Error::from)
     }
 
-    /// Verify message with public key
-    pub fn verify_with(message: &str, signature: &str, key: PublicKey) -> CryptoResult<()> {
-        let signature_decoded = crate::base64::decode(signature)?;
-        let message_as_bytes = message.as_bytes();
+    /// PKCS#1 DER bytes of the public key — the raw octet string the
+    /// `MemberSigPayloadV1` encoder needs. The PEM-stored form is just
+    /// base64(DER) + armor, so the DER body is recovered without a
+    /// re-encode by going through the typed `RsaPublicKey` first.
+    pub fn to_pkcs1_der(input: &str) -> CryptoResult<Vec<u8>> {
+        let key = from_str(input)?;
+        let doc = key.to_pkcs1_der().map_err(Error::from)?;
+        Ok(doc.as_bytes().to_vec())
+    }
 
+    /// Verify a signature over raw bytes with a public key. The sharing
+    /// protocol signs DER bytes prefixed with a domain separator, so the
+    /// server verifies against the exact bytes-as-received (sign-what-you-send).
+    pub fn verify_with_bytes(
+        message: &[u8],
+        signature: &str,
+        key: PublicKey,
+    ) -> CryptoResult<()> {
+        let signature_decoded = crate::base64::decode(signature)?;
         let signature = Signature::try_from(signature_decoded.as_slice())?;
         let verifying_key = VerifyingKey::<Sha256>::from(key);
 
         verifying_key
-            .verify(message_as_bytes, &signature)
+            .verify(message, &signature)
             .map_err(Error::from)
+    }
+
+    /// Verify message with public key
+    pub fn verify_with(message: &str, signature: &str, key: PublicKey) -> CryptoResult<()> {
+        verify_with_bytes(message.as_bytes(), signature, key)
     }
 
     /// Sign a message with public key input string
     pub fn verify(message: &str, signature: &str, key: &str) -> CryptoResult<()> {
         let key = from_str(key)?;
         verify_with(message, signature, key)
+    }
+
+    /// Verify a signature over raw bytes with a PEM-encoded public key.
+    pub fn verify_bytes(message: &[u8], signature: &str, key: &str) -> CryptoResult<()> {
+        let key = from_str(key)?;
+        verify_with_bytes(message, signature, key)
     }
 
     /// Encrypt a message with public key
@@ -423,5 +461,34 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
             .expect("can decrypt message that was encrypted in javascript");
 
         assert_eq!(decrypted, "hello world");
+    }
+
+    #[test]
+    fn test_rsa_sign_verify_bytes_roundtrip() {
+        let message: &[u8] = b"hoodik-share-v1\0\x30\x82\x01\x02\x03\xff\xfe";
+        let signature = private::sign_bytes(message, TEST_PRIVATE_KEY).unwrap();
+        public::verify_bytes(message, &signature, TEST_PUBLIC_KEY).unwrap();
+    }
+
+    #[test]
+    fn test_rsa_sign_bytes_delegates_to_string_signing() {
+        // String and bytes variants must produce mutually verifiable
+        // signatures, since the str path now delegates to the bytes path.
+        let message = "28004708";
+        let s = private::sign(message, TEST_PRIVATE_KEY).unwrap();
+        public::verify_bytes(message.as_bytes(), &s, TEST_PUBLIC_KEY).unwrap();
+
+        let b = private::sign_bytes(message.as_bytes(), TEST_PRIVATE_KEY).unwrap();
+        public::verify(message, &b, TEST_PUBLIC_KEY).unwrap();
+    }
+
+    #[test]
+    fn test_rsa_verify_bytes_rejects_tampered_message() {
+        let message: &[u8] = b"hoodik-share-v1\0\x30\x82";
+        let signature = private::sign_bytes(message, TEST_PRIVATE_KEY).unwrap();
+
+        let mut tampered = message.to_vec();
+        tampered[0] ^= 0x01;
+        assert!(public::verify_bytes(&tampered, &signature, TEST_PUBLIC_KEY).is_err());
     }
 }

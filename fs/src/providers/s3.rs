@@ -515,7 +515,7 @@ impl FsProviderContract for S3Provider {
             .collect();
 
         let bucket = self.bucket.clone();
-        futures::stream::iter(src_keys.into_iter().zip(dst_keys.into_iter()))
+        futures::stream::iter(src_keys.into_iter().zip(dst_keys))
             .map(|(src_key, dst_key)| {
                 let bucket = bucket.clone();
                 async move {

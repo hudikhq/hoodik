@@ -60,6 +60,10 @@ pub enum Error {
     /// 409 Conflict; the client can retry with `force = true` to abandon
     /// the previous edit and start fresh.
     Conflict(String),
+    /// HTTP 503. The admin kill switch in `Settings.sharing.enabled` is
+    /// off, so every `/api/shares/...` route refuses traffic until it is
+    /// flipped back on. Existing rows are preserved across toggles.
+    ServiceUnavailable(String),
 }
 
 impl Error {
@@ -411,6 +415,11 @@ impl From<&Error> for ErrorResponse {
             },
             Error::Conflict(message) => ErrorResponse {
                 status: 409,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::ServiceUnavailable(message) => ErrorResponse {
+                status: 503,
                 message: message.to_string(),
                 context: None,
             },

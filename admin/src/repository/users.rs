@@ -1,8 +1,8 @@
 use chrono::Utc;
 use entity::{
     paginated::Paginated, sessions, sort::Sortable, users, ActiveValue, ColumnTrait,
-    ConnectionTrait, EntityTrait, Expr, IntoCondition, JoinType, ModelTrait, PaginatorTrait,
-    QueryFilter, QueryOrder, QuerySelect, RelationTrait, Select, Uuid,
+    ConnectionTrait, EntityTrait, Expr, IntoCondition, JoinType, ModelTrait, NullOrdering, Order,
+    PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, RelationTrait, Select, Uuid,
 };
 use error::{AppResult, Error};
 use validr::Validation;
@@ -44,7 +44,15 @@ where
                 }),
         );
 
-        query = query.order_by_desc(sessions::Column::UpdatedAt);
+        // Default null ordering for `ORDER BY ... DESC` differs between
+        // engines: PG puts NULLs first, SQLite puts them last. Force
+        // NULLS LAST so users without an active session sort *after*
+        // those with one — preserving the "logged-in users first" intent.
+        query = query.order_by_with_nulls(
+            sessions::Column::UpdatedAt,
+            Order::Desc,
+            NullOrdering::Last,
+        );
 
         query
     }
@@ -78,8 +86,16 @@ where
             }
         }
 
+        // Postgres rejects `SELECT sessions.* ... GROUP BY users.id` so the
+        // count subquery has to be built from the user side only. Count the
+        // distinct users that match the join + WHERE clauses, not the rows
+        // of the projected join (which would inflate the count anyway, by
+        // multiple sessions per user). The `dedup_users` step below applies
+        // the same dedup to the returned page.
         let total = query
             .clone()
+            .select_only()
+            .column_as(users::Column::Id.count(), "num")
             .group_by(users::Column::Id)
             .count(self.repository.connection())
             .await?;
@@ -135,12 +151,23 @@ where
         self.get(user_id).await
     }
 
-    /// Delete the user forever and all of their linked entities
+    /// Delete the user forever and all of their linked entities.
+    ///
+    /// Ordering matters: sharing audit rows are emitted *before*
+    /// the user row is dropped so the FK SET NULL on
+    /// `share_events.sender_id` / `recipient_id` finds the rows after
+    /// they're committed. Then the `files.owner_id` cascade fires from
+    /// `files().delete_many`, then `user_files.user_id` /
+    /// `user_files.shared_by_user_id` cascade together when the user
+    /// row itself goes.
     pub(crate) async fn delete(&self, user_id: Uuid) -> AppResult<()> {
         let user = users::Entity::find_by_id(user_id)
             .one(self.repository.connection())
             .await?
             .ok_or_else(|| Error::NotFound("User not found".to_string()))?;
+
+        let now = chrono::Utc::now().timestamp();
+        shares::pre_emit_for_user_delete(self.repository.connection(), user_id, now).await?;
 
         let files = self.repository.files().find_for(user_id).await?;
 

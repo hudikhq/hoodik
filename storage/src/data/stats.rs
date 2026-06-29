@@ -25,6 +25,7 @@ impl FromQueryResult for Stats {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Response {
     pub stats: Vec<Stats>,
+    /// Bytes stored by files the caller owns, counted against `quota`.
     pub used_space: i64,
     pub quota: Option<u64>,
 }

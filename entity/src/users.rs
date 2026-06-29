@@ -26,6 +26,7 @@ pub struct Model {
     pub email_verified_at: Option<i64>,
     pub created_at: i64,
     pub updated_at: i64,
+    pub share_notifications_enabled: bool,
 }
 
 impl Model {
@@ -76,6 +77,7 @@ mod test {
             email_verified_at: None,
             created_at: 0,
             updated_at: 0,
+            share_notifications_enabled: true,
         };
 
         let mut user2 = user.clone();

@@ -21,6 +21,7 @@ fn configure(cfg: &mut web::ServiceConfig) {
     admin::routes::configure(cfg);
     auth::routes::configure(cfg);
     links::routes::configure(cfg);
+    shares::routes::configure(cfg);
     storage::routes::configure(cfg);
 }
 

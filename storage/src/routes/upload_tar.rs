@@ -32,6 +32,7 @@ use std::str::FromStr;
 
 use crate::{
     data::app_file::AppFile,
+    permission::require_write,
     repository::{
         cached::{evict_file, get_file},
         Repository,
@@ -57,6 +58,7 @@ pub(crate) async fn upload_tar(
     let file_id: String = util::actix::path_var(&req, "file_id")?;
     let file_id = Uuid::from_str(&file_id)?;
     claims.validate_transfer_path(file_id, "upload")?;
+    require_write(&context.db, file_id, claims.sub()).await?;
 
     let file = get_file(&context, claims.sub(), file_id)
         .await

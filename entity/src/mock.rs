@@ -27,6 +27,7 @@ pub async fn create_user<T: super::ConnectionTrait>(
         email_verified_at: ActiveValue::Set(Some(Utc::now().timestamp())),
         created_at: ActiveValue::Set(Utc::now().timestamp()),
         updated_at: ActiveValue::Set(Utc::now().timestamp()),
+        share_notifications_enabled: ActiveValue::Set(true),
     };
 
     crate::users::Entity::insert(user)
@@ -129,6 +130,10 @@ pub async fn create_file<T: super::ConnectionTrait>(
         pending_version: ActiveValue::Set(None),
         pending_chunks: ActiveValue::Set(None),
         pending_size: ActiveValue::Set(None),
+        last_membership_change_at: ActiveValue::Set(None),
+        members_list_signature: ActiveValue::Set(None),
+        members_list_signed_at: ActiveValue::Set(None),
+        members_list_signed_by_user_id: ActiveValue::Set(None),
     };
 
     crate::files::Entity::insert(file)
@@ -150,6 +155,10 @@ pub async fn create_file<T: super::ConnectionTrait>(
         encrypted_key: ActiveValue::Set(name.to_string()),
         created_at: ActiveValue::Set(Utc::now().timestamp()),
         expires_at: ActiveValue::NotSet,
+        share_role: ActiveValue::Set("co-owner".to_string()),
+        shared_at: ActiveValue::NotSet,
+        shared_by_user_id: ActiveValue::NotSet,
+        member_signature: ActiveValue::NotSet,
     };
 
     user_files::Entity::insert(user_file)

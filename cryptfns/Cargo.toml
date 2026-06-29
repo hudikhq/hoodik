@@ -23,6 +23,7 @@ tokenizer = ["dep:tokenizers"]
 [dependencies]
 rand = "^0.8"
 rsa = { workspace = true }
+der = { workspace = true }
 sha256 = { version = "^1", default-features = false }
 base64 = { workspace = true }
 hex = { workspace = true }

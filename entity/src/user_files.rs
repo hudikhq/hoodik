@@ -12,6 +12,10 @@ pub struct Model {
     pub is_owner: bool,
     pub created_at: i64,
     pub expires_at: Option<i64>,
+    pub share_role: String,
+    pub shared_at: Option<i64>,
+    pub shared_by_user_id: Option<Uuid>,
+    pub member_signature: Option<Vec<u8>>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

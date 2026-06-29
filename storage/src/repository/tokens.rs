@@ -5,7 +5,8 @@ use std::cmp::Ordering;
 
 use cryptfns::tokenizer::Token;
 use entity::{
-    file_tokens, files, tokens, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect, Uuid
+    file_tokens, files, links, tokens, user_files, ActiveValue, ColumnTrait, ConnectionTrait,
+    EntityTrait, QueryFilter, QueryOrder, QuerySelect, Uuid,
 };
 use error::AppResult;
 
@@ -178,22 +179,42 @@ where
             query = query.filter(files::Column::Editable.eq(editable));
         }
 
+        // `files.id` is a `uuid` column; Postgres refuses to compare it
+        // against a `text` argument and SQLite happily coerces. Only
+        // include the id-equality predicate when the search term parses
+        // as a Uuid — otherwise drop it. The hash columns are `varchar`
+        // and compare against arbitrary strings on both backends.
+        let search_uuid = Uuid::parse_str(&search).ok();
+
+        // Postgres only infers functional dependency from the GROUP BY
+        // column to columns of the *same* table. The selector projects
+        // columns from `files`, `user_files`, and (left-joined) `links`,
+        // so all three primary keys have to appear in the GROUP BY for
+        // PG to accept the projection. SQLite is permissive and ignores
+        // the extra columns. `links.id` is nullable under the left join,
+        // which is fine — NULL forms its own group in PG and rows without
+        // a matching link still aggregate correctly.
+        let mut filter = files::Column::Md5
+            .eq(&search)
+            .or(files::Column::Sha1.eq(&search))
+            .or(files::Column::Sha256.eq(&search))
+            .or(files::Column::Blake2b.eq(&search))
+            .or(tokens::Column::Hash.is_in(
+                tokens
+                    .iter()
+                    .map(|t| t.token.clone())
+                    .collect::<Vec<String>>(),
+            ));
+
+        if let Some(uuid) = search_uuid {
+            filter = files::Column::Id.eq(uuid).or(filter);
+        }
+
         let mut query = query
-            .filter(
-                files::Column::Id
-                    .eq(&search)
-                    .or(files::Column::Md5.eq(&search))
-                    .or(files::Column::Sha1.eq(&search))
-                    .or(files::Column::Sha256.eq(&search))
-                    .or(files::Column::Blake2b.eq(&search))
-                    .or(tokens::Column::Hash.is_in(
-                        tokens
-                            .iter()
-                            .map(|t| t.token.clone())
-                            .collect::<Vec<String>>(),
-                    )),
-            )
+            .filter(filter)
             .group_by(files::Column::Id)
+            .group_by(user_files::Column::Id)
+            .group_by(links::Column::Id)
             .order_by_desc(file_tokens::Column::Weight.sum());
 
         if let Some(limit) = limit {
