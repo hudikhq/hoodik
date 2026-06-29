@@ -47,13 +47,34 @@ vi.mock('../services/storage/meta', () => ({
       size: 42,
       key: new Uint8Array(32)
     })
-  )
+  ),
+  get: vi.fn(() => Promise.reject(new Error('parent_directory_not_found')))
+}))
+
+vi.mock('../services/shares/editable', () => ({
+  uploadIntoSharedFolder: vi.fn(() => Promise.resolve({ file_id: 'shared-file-id' }))
+}))
+
+vi.mock('../services/shares', () => ({
+  trustedFingerprintsStore: () => ({})
+}))
+
+vi.mock('../services', () => ({
+  uuidv4: () => 'shared-file-id',
+  utcStringFromLocal: (d: Date) => d.toISOString()
 }))
 
 vi.mock('../services/cryptfns', () => ({
   stringToHashedTokens: vi.fn(() => ['tok-a', 'tok-b']),
   sha256: { digest: vi.fn(() => 'name-hash') },
-  cipher: { DEFAULT_CIPHER: 'aegis-128l' }
+  cipher: {
+    DEFAULT_CIPHER: 'aegis-128l',
+    generateKey: vi.fn(() => Promise.resolve(new Uint8Array(32))),
+    encryptString: vi.fn(() => Promise.resolve('cipher-blob'))
+  },
+  uint8: {
+    toHex: vi.fn(() => 'deadbeef')
+  }
 }))
 
 vi.mock('../services/storage/upload/sync', () => ({
@@ -64,9 +85,16 @@ vi.mock('../services/constants', () => ({
   CHUNK_SIZE_BYTES: 1_048_576
 }))
 
-import { replaceContent, saveFileContent, createNote, SaveConflictError } from '../services/storage/save'
+import {
+  replaceContent,
+  saveFileContent,
+  createNote,
+  needsMultikeyCreate,
+  SaveConflictError
+} from '../services/storage/save'
 import Api, { ErrorResponse } from '../services/api'
-import { requestTransferToken, create as metaCreate } from '../services/storage/meta'
+import { requestTransferToken, create as metaCreate, get as metaGet } from '../services/storage/meta'
+import { uploadIntoSharedFolder } from '../services/shares/editable'
 import { uploadChunk } from '../services/storage/upload/sync'
 import { stringToHashedTokens } from '../services/cryptfns'
 import type { AppFile, KeyPair } from 'types'
@@ -317,5 +345,93 @@ describe('createNote', () => {
       .calls[0] as [unknown, Uint8Array]
     const decoded = new TextDecoder().decode(chunkBytes)
     expect(decoded).toBe('# shopping-list\n')
+  })
+})
+
+describe('needsMultikeyCreate', () => {
+  // The owner-only `POST /api/storage` rejects every non-owner parent
+  // ("parent_directory_not_found"). The flag below tells the create path
+  // to fan keys out via the multi-key endpoint instead.
+  it('UNIT: true for a folder the caller does not own', () => {
+    expect(
+      needsMultikeyCreate({ mime: 'dir', is_owner: false } as unknown as AppFile)
+    ).toBe(true)
+  })
+
+  it('UNIT: true for an owned folder that already has a signed member list', () => {
+    expect(
+      needsMultikeyCreate({
+        mime: 'dir',
+        is_owner: true,
+        members_signed_at: 1_700_000_000
+      } as unknown as AppFile)
+    ).toBe(true)
+  })
+
+  it('UNIT: false for a private owned folder', () => {
+    expect(
+      needsMultikeyCreate({ mime: 'dir', is_owner: true } as unknown as AppFile)
+    ).toBe(false)
+  })
+
+  it('UNIT: false for null or non-directory parents', () => {
+    expect(needsMultikeyCreate(null)).toBe(false)
+    expect(needsMultikeyCreate(undefined)).toBe(false)
+    expect(
+      needsMultikeyCreate({ mime: 'text/plain', is_owner: false } as unknown as AppFile)
+    ).toBe(false)
+  })
+})
+
+describe('createNote into a shared folder', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  function makeKeypair(): KeyPair {
+    return {
+      publicKey: 'pub',
+      input: 'priv',
+      fingerprint: 'fp'
+    } as KeyPair
+  }
+
+  it('UNIT: routes through uploadIntoSharedFolder when parent is a shared folder', async () => {
+    const parent = {
+      id: 'folder-id',
+      mime: 'dir',
+      is_owner: false,
+      share_role: 'editor'
+    } as unknown as AppFile
+    ;(metaGet as unknown as { mockResolvedValueOnce: (v: AppFile) => void }).mockResolvedValueOnce(
+      parent
+    )
+    ;(metaGet as unknown as { mockResolvedValueOnce: (v: AppFile) => void }).mockResolvedValueOnce({
+      ...parent,
+      id: 'shared-file-id',
+      name: 'note.md'
+    } as unknown as AppFile)
+
+    await createNote(makeKeypair(), 'note', parent, 'caller-id')
+
+    expect(uploadIntoSharedFolder).toHaveBeenCalledTimes(1)
+    // Regular create must not fire — that would 400 with the
+    // owner-only parent check.
+    expect(metaCreate).not.toHaveBeenCalled()
+    expect(requestTransferToken).toHaveBeenCalledWith('shared-file-id', 'upload')
+    expect(uploadChunk).toHaveBeenCalledTimes(1)
+  })
+
+  it('UNIT: routes through regular create for an owned parent', async () => {
+    const parent = {
+      id: 'folder-id',
+      mime: 'dir',
+      is_owner: true
+    } as unknown as AppFile
+
+    await createNote(makeKeypair(), 'note', parent, 'caller-id')
+
+    expect(uploadIntoSharedFolder).not.toHaveBeenCalled()
+    expect(metaCreate).toHaveBeenCalledTimes(1)
   })
 })

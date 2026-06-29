@@ -70,11 +70,25 @@ export async function createUserWithTwoFactor(page: Page, email: string, passwor
 /**
  * Log in with email and password (no 2FA).
  * Waits for redirect to the files view.
+ *
+ * When `options.remember` is true, the login form's Remember me checkbox is
+ * ticked so the encrypted private key gets persisted to local storage. That
+ * lets a subsequent `page.goto(...)` reload survive — the SPA's refresh path
+ * reads the key from storage instead of in-memory state that resets on a
+ * fresh page load.
  */
-export async function loginAsUser(page: Page, email: string, password: string) {
+export async function loginAsUser(
+  page: Page,
+  email: string,
+  password: string,
+  options: { remember?: boolean } = {}
+) {
   await page.goto('/auth/login')
   await page.locator('#email').fill(email)
   await page.locator('#password').fill(password)
+  if (options.remember) {
+    await page.locator('input[name="remember"]').check()
+  }
   await page.getByRole('button', { name: 'Login' }).click()
   await page.waitForURL('**/')
 }

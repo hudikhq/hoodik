@@ -19,12 +19,14 @@ test.describe('Public links', () => {
     await page.getByTestId('upload-active').waitFor({ state: 'hidden', timeout: 30_000 })
     await expect(page.getByTestId('file-row-test-image.png')).toBeVisible()
 
-    // Open actions dropdown and click "Public link"
+    // Open actions dropdown and click "Sharing", then switch to the
+    // Link tab inside the unified modal.
     await page.getByTestId('file-row-test-image.png').locator('[name="actions-dropdown"]').click()
-    await page.locator('[name="public-link"]').first().click()
+    await page.locator('[name="sharing"]').first().click()
+    await page.getByTestId('sharing-modal-tab-link').click()
 
     // Create the link
-    await page.getByRole('button', { name: 'Create link' }).click()
+    await page.getByTestId('sharing-link-create').click()
 
     // Read the generated link URL
     const linkUrl = await page.locator('input[name="link"]').inputValue()
