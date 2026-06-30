@@ -435,6 +435,46 @@ mod test {
     }
 
     #[test]
+    fn test_workers_var() {
+        let mut vars = Vars::create("test", "0.1.0", "test");
+
+        // Unset: stays None so Actix keeps its one-worker-per-CPU default.
+        assert_eq!(vars.maybe_var::<usize>("WORKERS").maybe_get(), None);
+
+        std::env::set_var("WORKERS", "3");
+        assert_eq!(vars.maybe_var::<usize>("WORKERS").maybe_get(), Some(3));
+
+        std::env::set_var("WORKERS", "abc");
+        let _ = vars.maybe_var::<usize>("WORKERS");
+        assert!(!vars.clone_errors().is_empty());
+
+        std::env::remove_var("WORKERS");
+    }
+
+    #[test]
+    fn test_storage_instance_quota_bytes_var() {
+        let mut vars = Vars::create("test", "0.1.0", "test");
+
+        // Unset: stays None so only per-user quotas apply.
+        assert_eq!(
+            vars.maybe_var::<u64>("STORAGE_INSTANCE_QUOTA_BYTES").maybe_get(),
+            None
+        );
+
+        std::env::set_var("STORAGE_INSTANCE_QUOTA_BYTES", "1048576");
+        assert_eq!(
+            vars.maybe_var::<u64>("STORAGE_INSTANCE_QUOTA_BYTES").maybe_get(),
+            Some(1048576)
+        );
+
+        std::env::set_var("STORAGE_INSTANCE_QUOTA_BYTES", "abc");
+        let _ = vars.maybe_var::<u64>("STORAGE_INSTANCE_QUOTA_BYTES");
+        assert!(!vars.clone_errors().is_empty());
+
+        std::env::remove_var("STORAGE_INSTANCE_QUOTA_BYTES");
+    }
+
+    #[test]
     #[should_panic]
     fn test_vars_fails_on_empty_env() {
         let mut vars = Vars::create("test", "0.1.0", "test");

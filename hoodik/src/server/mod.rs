@@ -12,6 +12,7 @@ use actix_web::{
 };
 use context::Context;
 use error::{AppResult, Error};
+use fs::prelude::{Fs, FsProviderContract};
 
 pub mod client;
 pub mod cors;
@@ -49,6 +50,7 @@ pub fn app(
         .route("/api/liveness", web::get().to(|| liveness("GET")))
         .route("/api/liveness", web::post().to(|| liveness("POST")))
         .route("/api/liveness", web::head().to(|| liveness("HEAD")))
+        .route("/api/readiness", web::get().to(readiness))
         .service(client::client)
 }
 
@@ -69,18 +71,48 @@ async fn liveness(method: &'static str) -> actix_web::HttpResponse {
     }))
 }
 
+/// Readiness gate, distinct from `/api/liveness`: it proves the instance can
+/// actually serve traffic, not merely that the process is up. Returns 200 only
+/// when both the database and the storage backend respond, otherwise 503 — so
+/// a bad S3 credential or a missing data directory fails here rather than at
+/// the first upload. Used by provisioning and the upgrade health gate.
+async fn readiness(context: web::Data<Context>) -> actix_web::HttpResponse {
+    let db_ok = context.db.ping().await.is_ok();
+    let storage_ok = Fs::new(&context.config).health_check().await.is_ok();
+
+    if db_ok && storage_ok {
+        actix_web::HttpResponse::Ok().json(serde_json::json!({ "status": "ready" }))
+    } else {
+        actix_web::HttpResponse::ServiceUnavailable().json(serde_json::json!({
+            "status": "not_ready",
+            "db": db_ok,
+            "storage": storage_ok,
+        }))
+    }
+}
+
 /// Start the server
 pub async fn engage(context: Context) -> AppResult<()> {
     let bind_address = context.config.get_full_bind_address();
     let disabled = context.config.ssl.disabled;
     let app_url = context.config.get_app_url();
+    let workers = context.config.app.workers;
     let config = context.config.ssl.build_rustls_config(vec![app_url])?;
-    
-    let server = HttpServer::new(move || {
-        app(context.clone()).wrap(Logger::new(
-            "%a %{X-Forwarded-For}i \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %T",
-        ))
+
+    let mut server = HttpServer::new(move || {
+        // Health probes hit /api/liveness every few seconds; logging them buries
+        // every real request, so keep them out of the access log.
+        app(context.clone()).wrap(
+            Logger::new(
+                "%a %{X-Forwarded-For}i \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %T",
+            )
+            .exclude("/api/liveness"),
+        )
     });
+
+    if let Some(workers) = workers {
+        server = server.workers(workers);
+    }
 
     if disabled {
         server.bind(&bind_address)?.run().await.map_err(Error::from)

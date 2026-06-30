@@ -8,8 +8,8 @@ use crate::data::app_file::AppFile;
 
 use self::{manage::Manage, query::Query, tokens::Tokens, versions::Versions};
 use entity::{
-    files, links, user_files, users, ColumnTrait, ConnectionTrait, EntityTrait, Expr,
-    IntoCondition, JoinType, QueryFilter, QuerySelect, RelationTrait, Select, Uuid, Value,
+    files, links, numeric::Numeric, user_files, users, ColumnTrait, ConnectionTrait, EntityTrait,
+    Expr, IntoCondition, JoinType, QueryFilter, QuerySelect, RelationTrait, Select, Uuid, Value,
 };
 use error::{AppResult, Error};
 use std::{
@@ -72,6 +72,26 @@ where
     /// Get the inner database connection
     pub(crate) fn connection(&self) -> &impl ConnectionTrait {
         self.connection
+    }
+
+    /// Total owner-attributed bytes stored across the whole instance. Mirrors
+    /// the per-user [`query::Query::used_space`] aggregate with the per-user
+    /// filter dropped, so the instance ceiling counts every owned file exactly
+    /// once regardless of who owns it.
+    pub(crate) async fn instance_used_space(&self) -> AppResult<i64> {
+        let bytes = user_files::Entity::find()
+            .select_only()
+            .filter(user_files::Column::IsOwner.eq(true))
+            .join(JoinType::InnerJoin, user_files::Relation::Files.def())
+            .column_as(files::Column::Size.sum(), "sum_of_size")
+            .into_tuple::<Option<Numeric>>()
+            .one(self.connection)
+            .await?;
+
+        Ok(bytes
+            .unwrap_or_default()
+            .map(|numeric| numeric.into())
+            .unwrap_or(0))
     }
 
     /// Load the file from the database by its id

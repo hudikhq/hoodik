@@ -76,12 +76,14 @@ test-rust-unit:
 test-rust-integration:
     cargo test --test web_authentication -- --nocapture
     cargo test --test web_liveness -- --nocapture
+    cargo test --test readiness -- --nocapture
     cargo test --test web_registration -- --nocapture
     cargo test --test storage -- --nocapture
     cargo test --test storage_replace_content -- --nocapture
     cargo test --test storage_set_editable -- --nocapture
     cargo test --test storage_legacy_routing -- --nocapture
     cargo test --test storage_tar_upload -- --nocapture
+    cargo test --test storage_instance_quota -- --nocapture
     cargo test --test links -- --nocapture
     cargo test --test email -- --nocapture
     cargo test --test shares_asn1_fixtures -- --nocapture

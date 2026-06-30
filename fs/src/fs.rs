@@ -38,6 +38,10 @@ impl FsProviderContract for StorageProvider<'_> {
         dispatch!(self, available_space())
     }
 
+    async fn health_check(&self) -> AppResult<()> {
+        dispatch!(self, health_check())
+    }
+
     async fn read<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<u8>> {
         dispatch!(self, read(filename))
     }
@@ -231,6 +235,10 @@ impl FsProviderContract for Fs<'_> {
 
     async fn available_space(&self) -> AppResult<u64> {
         self.provider().available_space().await
+    }
+
+    async fn health_check(&self) -> AppResult<()> {
+        self.provider().health_check().await
     }
 
     async fn exists<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<bool> {

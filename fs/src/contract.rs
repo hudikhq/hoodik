@@ -8,6 +8,12 @@ pub trait FsProviderContract {
     /// Get the available space on the storage provider
     async fn available_space(&self) -> AppResult<u64>;
 
+    /// Probe that the backing store is reachable and usable: that the S3
+    /// bucket credentials work, or that the local data directory is present.
+    /// Backs the `/api/readiness` gate so provisioning fails fast on bad
+    /// storage configuration instead of at the first upload.
+    async fn health_check(&self) -> AppResult<()>;
+
     /// Direct read of the file data
     async fn read<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<u8>>;
 

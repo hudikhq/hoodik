@@ -241,31 +241,55 @@ async fn enforce_quota_pre_read(
     claims: &StorageClaims,
     advertised: u64,
 ) -> AppResult<()> {
-    let quota = match claims.get_quota(context).await {
-        Some(q) => q,
-        None => return Ok(()),
-    };
-    let used = Repository::new(&context.db)
-        .query(claims.sub())
-        .used_space()
-        .await?;
-    if used.saturating_add(advertised as i64) > quota as i64 {
-        return Err(Error::BadRequest("quota_exceeded".to_string()));
+    if let Some(quota) = claims.get_quota(context).await {
+        let used = Repository::new(&context.db)
+            .query(claims.sub())
+            .used_space()
+            .await?;
+        if used.saturating_add(advertised as i64) > quota as i64 {
+            return Err(Error::BadRequest("quota_exceeded".to_string()));
+        }
     }
+
+    if let Some(instance_quota) = context.config.app.storage_instance_quota_bytes {
+        let used = Repository::new(&context.db).instance_used_space().await?;
+        if used.saturating_add(advertised as i64) > instance_quota as i64 {
+            return Err(Error::BadRequest("quota_exceeded".to_string()));
+        }
+    }
+
     Ok(())
 }
 
-/// Remaining bytes the caller is allowed to add before running into their
-/// quota. `None` means "no quota", e.g. transfer tokens — in which case the
-/// running-total check is a no-op.
+/// Remaining bytes the caller is allowed to add before running into the
+/// tighter of the per-user and per-instance quotas. `None` means "no quota"
+/// (e.g. a transfer token on an instance with no instance ceiling) — in which
+/// case the running-total check is a no-op.
 async fn remaining_quota_bytes(context: &Context, claims: &StorageClaims) -> Option<i64> {
-    let quota = claims.get_quota(context).await?;
-    let used = Repository::new(&context.db)
-        .query(claims.sub())
-        .used_space()
-        .await
-        .unwrap_or(0);
-    Some((quota as i64).saturating_sub(used))
+    let mut remaining: Option<i64> = None;
+
+    if let Some(quota) = claims.get_quota(context).await {
+        let used = Repository::new(&context.db)
+            .query(claims.sub())
+            .used_space()
+            .await
+            .unwrap_or(0);
+        remaining = Some((quota as i64).saturating_sub(used));
+    }
+
+    if let Some(instance_quota) = context.config.app.storage_instance_quota_bytes {
+        let used = Repository::new(&context.db)
+            .instance_used_space()
+            .await
+            .unwrap_or(0);
+        let instance_remaining = (instance_quota as i64).saturating_sub(used);
+        remaining = Some(match remaining {
+            Some(user_remaining) => user_remaining.min(instance_remaining),
+            None => instance_remaining,
+        });
+    }
+
+    remaining
 }
 
 /// Same transactional commit the per-chunk path runs: snapshot + swap +

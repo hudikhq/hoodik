@@ -147,6 +147,43 @@ impl Context {
         context
     }
 
+    /// SQLite context backed by a uniquely-named **shared-cache** in-memory
+    /// database with a multi-connection pool. Plain `sqlite::memory:` gives each
+    /// pooled connection its own database, which is fine for sequential tests
+    /// but useless for concurrency tests — two connections would see two empty
+    /// databases. Shared cache makes every connection in the pool observe the
+    /// same database, so tests can drive genuinely concurrent transactions; the
+    /// unique name keeps each test isolated from the others, and a kept-alive
+    /// minimum connection stops the database from being dropped between calls.
+    #[cfg(feature = "mock")]
+    pub async fn mock_sqlite_shared() -> Context {
+        use migration::MigratorTrait;
+        use sea_orm::ConnectOptions;
+
+        let config = Config::mock_with_env();
+
+        if env_logger::try_init().is_ok() {
+            log::debug!("Log has been initialized");
+        }
+
+        let name = format!("hoodik_shared_{}", entity::Uuid::new_v4().simple());
+        let mut opt = ConnectOptions::new(format!("sqlite:file:{name}?mode=memory&cache=shared"));
+        opt.max_connections(5).min_connections(1);
+        let db = Database::connect(opt).await.unwrap();
+        let settings = Settings::mock();
+
+        let context = Context {
+            config,
+            db,
+            sender: None,
+            settings,
+        };
+
+        migration::Migrator::up(&context.db, None).await.unwrap();
+
+        context
+    }
+
     /// When `TEST_DATABASE_URL` is set (e.g. a Postgres URL to a superuser-
     /// accessible admin DB), create a throwaway database with a unique name
     /// and connect to it. Falls back to `sqlite::memory:` otherwise. Used
