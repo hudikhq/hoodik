@@ -14,6 +14,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Free disk space
+        # The workspace builds a large debug target/ across the integration test
+        # binaries; with the restored rust-cache, Node deps, and Playwright on
+        # top it overran the runner's ~14 GB (ENOSPC during yarn install). Drop
+        # preinstalled SDKs the job never touches (Android alone is ~9 GB).
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
+
       - uses: actions/setup-node@v4
         with:
           # Pinned via .nvmrc — transfer WASM uses externref / reference-types
