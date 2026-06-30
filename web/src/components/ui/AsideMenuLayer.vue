@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mdiClose, mdiLogout } from '@mdi/js'
+import { mdiClose, mdiLogout, mdiCellphoneLink } from '@mdi/js'
 import { computed, ref, watch } from 'vue'
 import { store as style } from '!/style'
 import { store as login } from '!/auth/login'
@@ -63,6 +63,14 @@ const lockAccountItem = computed(() => ({
   isLogout: true
 }))
 
+const getAppsItem = computed(() => ({
+  label: 'Get the apps',
+  icon: mdiCellphoneLink,
+  href: 'https://hoodik.io/apps?utm_source=hoodik-server',
+  target: '_blank',
+  rel: 'noopener noreferrer'
+}))
+
 const name = computed(() => import.meta.env.APP_NAME || 'Hoodik')
 const version = computed(() => import.meta.env.APP_VERSION || '')
 
@@ -119,6 +127,7 @@ const logoutAction = async () => {
       </div>
 
       <ul>
+        <AsideMenuItem :item="getAppsItem" />
         <StatsLi />
         <AsideMenuItem :item="lockAccountItem" @menu-click="logoutAction" />
       </ul>
