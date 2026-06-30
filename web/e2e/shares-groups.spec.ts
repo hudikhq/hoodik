@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import path from 'path'
 
 import { createUser, loginAsUser, logout, randomEmail, randomPassword } from './helpers/auth'
-import { openShareDialogFor, openSharedWithMe } from './helpers/shares'
+import { discoverRecipient, openShareDialogFor, openSharedWithMe } from './helpers/shares'
 
 const imageFixture = path.join(__dirname, 'fixtures', 'test-image.png')
 
@@ -117,6 +117,68 @@ test.describe('Group sharing', () => {
     const carolRow = page.getByTestId('file-row-test-image.png')
     await expect(carolRow).toBeVisible({ timeout: 15_000 })
     await expect(carolRow.getByTestId('shared-by-badge')).toContainText(alice.email)
+  })
+
+  test('Sharing to a group whose member already holds the file at a different role lands a role_change, not a 400', async ({
+    page
+  }) => {
+    const alice = await createUser(page, randomEmail(), randomPassword())
+    await logout(page)
+    const bob = await createUser(page, randomEmail(), randomPassword())
+    await logout(page)
+
+    await loginAsUser(page, alice.email, alice.password)
+    await page.setInputFiles('[name="upload-file-input"]', imageFixture)
+    await page.getByTestId('upload-active').waitFor({ state: 'hidden', timeout: 30_000 })
+
+    // Alice grants Bob reader directly first, so when the group fan-out reaches
+    // Bob it's a role move, not a fresh grant. Before the fix the fan-out signed
+    // a `grant` canonical while the server reconstructed `role_change` from
+    // Bob's existing row, failing the whole fan-out with `event_signature_invalid`.
+    await openShareDialogFor(page, 'test-image.png')
+    await discoverRecipient(page, bob.email)
+    await page.getByTestId('share-dialog-role-reader').check()
+    await page.getByTestId('share-dialog-submit').click()
+    await expect(page.getByTestId('share-dialog-target')).toHaveCount(0, { timeout: 15_000 })
+
+    const aliceStorage = await page.request.get('/api/storage')
+    const fileId = ((await aliceStorage.json()) as { children: { id: string }[] }).children[0].id
+
+    // A group with Bob in it; sharing to the group at editor moves Bob reader→editor.
+    await gotoGroups(page)
+    await createGroup(page, 'RoleMoveTeam')
+    await addMember(page, bob.email)
+
+    // Back to the file browser via the aside (an in-SPA route — a hard reload
+    // would drop the in-memory private key and bounce to login).
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Escape')
+    await page.locator('aside').locator(':text-is("Files")').first().click()
+    await expect(page.getByTestId('file-row-test-image.png')).toBeVisible({ timeout: 15_000 })
+    await openShareDialogFor(page, 'test-image.png')
+    await page.locator('input[name="recipient-email"]').fill('RoleMoveTeam')
+    await page.getByTestId('share-dialog-discover').click()
+    await expect(page.getByTestId('share-dialog-group-panel')).toBeVisible({ timeout: 15_000 })
+    await page.getByTestId('share-dialog-group-role-editor').check()
+    await page.getByTestId('share-dialog-submit').click()
+    // The dialog only closes on a successful fan-out; a 400 leaves it open.
+    await expect(page.getByTestId('share-dialog-target')).toHaveCount(0, { timeout: 60_000 })
+
+    // Bob's role on the file is now editor, and the audit log carries a
+    // role_change row for this file — proof the transition was signed correctly.
+    const recipients = (await (
+      await page.request.get(`/api/shares/${fileId}`)
+    ).json()) as Array<{ recipient_email: string; share_role: string }>
+    expect(
+      recipients.some((r) => r.recipient_email === bob.email && r.share_role === 'editor')
+    ).toBe(true)
+
+    const events = (await (
+      await page.request.get('/api/shares/events?limit=50&offset=0')
+    ).json()) as { events: Array<{ action: string; file_id: string }> }
+    expect(
+      events.events.some((e) => e.action === 'role_change' && e.file_id === fileId)
+    ).toBe(true)
   })
 
   test('Group delete opens a CardBoxModal: not a native confirm dialog', async ({ page }) => {

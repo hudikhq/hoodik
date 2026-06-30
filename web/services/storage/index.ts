@@ -756,6 +756,21 @@ export const store = defineStore('files', () => {
   }
 
   /**
+   * Drop every account-scoped value so a logout (or a switch to a different
+   * account without a page reload) doesn't surface the previous user's
+   * decrypted file list. Persisted per-directory sort prefs are device-level,
+   * not account-level, so they're intentionally left intact.
+   */
+  function reset(): void {
+    _items.value = []
+    selected.value = []
+    fileId.value = undefined
+    error.value = null
+    stats.value = undefined
+    loading.value = false
+  }
+
+  /**
    * Set the sort value for a given directory
    */
   function setSort(dir: string, parameter: string, order: 'asc' | 'desc'): void {
@@ -804,6 +819,7 @@ export const store = defineStore('files', () => {
     removeItem,
     rename,
     replaceItem,
+    reset,
     selectAll,
     selected,
     selectOne,

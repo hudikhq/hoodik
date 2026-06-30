@@ -193,6 +193,13 @@ describe('share-to-group fan-out', () => {
     return { user_id: userId, email: `${userId}@example.com`, pubkey, fingerprint, group_role: 'reader' }
   }
 
+  // The fan-out reads the root file's existing recipients to pick the right
+  // audit action per member. Default to none so each test models a fresh share
+  // unless it explicitly seeds a prior role.
+  beforeEach(() => {
+    vi.spyOn(sharesApi, 'getShareRecipients').mockResolvedValue([])
+  })
+
   it('share_to_group_fans_out_one_share_per_member', async () => {
     const kpOwner = await cryptfns.rsa.generateKeyPair()
     const kpBob = await cryptfns.rsa.generateKeyPair()
@@ -341,6 +348,278 @@ describe('share-to-group fan-out', () => {
 
     // The owner's grant was rejected and skipped; Bob's still went through.
     expect(shared).toEqual([FILE_X])
+  })
+
+  it('share_to_group_signs_role_change_for_a_member_who_already_holds_the_file', async () => {
+    const kpOwner = await cryptfns.rsa.generateKeyPair()
+    const kpBob = await cryptfns.rsa.generateKeyPair()
+    const kpCarol = await cryptfns.rsa.generateKeyPair()
+
+    const fileKey = await cryptfns.aes.generateKey()
+    const ownerWrap = await cryptfns.rsa.encryptMessage(
+      cryptfns.uint8.toHex(fileKey),
+      kpOwner.publicKey as string
+    )
+
+    const fpBob = shareCrypto.computeFingerprint(kpBob.publicKey as string)
+    vi.spyOn(sharesApi, 'groupMembers').mockResolvedValue([
+      makeMemberWithKey(MEMBER_A, kpBob.publicKey as string, fpBob),
+      makeMemberWithKey(MEMBER_B, kpCarol.publicKey as string)
+    ])
+
+    // Bob already holds the root file as a reader; the group share moves him to
+    // editor. The server reconstructs `role_change` (before=reader) from its own
+    // state and verifies against that, so the envelope must sign the transition
+    // — not a `grant`. Carol is fresh and must still get a `grant`.
+    vi.spyOn(sharesApi, 'getShareRecipients').mockResolvedValue([
+      {
+        file_id: FILE_X,
+        recipient_id: MEMBER_A,
+        recipient_email: 'bob@example.com',
+        recipient_pubkey_fingerprint: fpBob,
+        share_role: 'reader',
+        created_at: 1,
+        shared_at: 1,
+        shared_by_user_id: OWNER_ID,
+        shared_by_email: 'owner@example.com'
+      }
+    ])
+
+    const envelopes: CreateShareEnvelope[] = []
+    vi.spyOn(sharesApi, 'createShare').mockImplementation(async (envelope) => {
+      envelopes.push(envelope)
+      return { shares: [] }
+    })
+
+    await shareGroups.shareToGroup({
+      groupId: GROUP_ID,
+      root: { id: FILE_X, user_id: OWNER_ID, mime: 'application/pdf', encrypted_key: ownerWrap, is_owner: true } as never,
+      subtree: [{ id: FILE_X, user_id: OWNER_ID, mime: 'application/pdf', encrypted_key: ownerWrap, is_owner: true } as never],
+      shareRole: 'editor',
+      senderId: OWNER_ID,
+      privateKey: kpOwner.input as string,
+      trusted: trustedFingerprintsStore()
+    })
+
+    expect(envelopes.length).toBe(2)
+
+    // Bob's envelope must verify as a `role_change` from reader→editor against
+    // the owner's pubkey; the `grant` canonical for the same move must fail.
+    const bobEnvelope = (
+      await Promise.all(
+        envelopes.map(async (env) => ({
+          env,
+          forBob: await cryptfns.rsa
+            .decryptMessage(kpBob, env.entries[0].encrypted_key)
+            .then(() => true)
+            .catch(() => false)
+        }))
+      )
+    ).find((e) => e.forBob)!.env
+
+    const roleChangeInput = shareCrypto.buildAuditEventSigInput({
+      senderId: OWNER_ID,
+      recipientId: MEMBER_A,
+      fileId: FILE_X,
+      action: 'role_change',
+      shareRoleBefore: 'reader',
+      shareRoleAfter: 'editor',
+      timestamp: BigInt(bobEnvelope.member_signed_at as number)
+    })
+    expect(
+      await shareCrypto.verifyAuditEvent(
+        roleChangeInput,
+        bobEnvelope.event_signature,
+        kpOwner.publicKey as string
+      )
+    ).toBe(true)
+
+    const grantInput = shareCrypto.buildAuditEventSigInput({
+      senderId: OWNER_ID,
+      recipientId: MEMBER_A,
+      fileId: FILE_X,
+      action: 'grant',
+      shareRoleBefore: null,
+      shareRoleAfter: 'editor',
+      timestamp: BigInt(bobEnvelope.member_signed_at as number)
+    })
+    expect(
+      await shareCrypto.verifyAuditEvent(
+        grantInput,
+        bobEnvelope.event_signature,
+        kpOwner.publicKey as string
+      )
+    ).toBe(false)
+  })
+
+  it('share_to_group_skips_a_member_who_already_holds_the_file_at_the_same_role', async () => {
+    const kpOwner = await cryptfns.rsa.generateKeyPair()
+    const kpBob = await cryptfns.rsa.generateKeyPair()
+    const kpCarol = await cryptfns.rsa.generateKeyPair()
+
+    const fileKey = await cryptfns.aes.generateKey()
+    const ownerWrap = await cryptfns.rsa.encryptMessage(
+      cryptfns.uint8.toHex(fileKey),
+      kpOwner.publicKey as string
+    )
+
+    const fpBob = shareCrypto.computeFingerprint(kpBob.publicKey as string)
+    vi.spyOn(sharesApi, 'groupMembers').mockResolvedValue([
+      makeMemberWithKey(MEMBER_A, kpBob.publicKey as string, fpBob),
+      makeMemberWithKey(MEMBER_B, kpCarol.publicKey as string)
+    ])
+    // Bob already holds the file at the role being shared; the server would
+    // no-op his grant, so the fan-out skips him and only Carol is POSTed.
+    vi.spyOn(sharesApi, 'getShareRecipients').mockResolvedValue([
+      {
+        file_id: FILE_X,
+        recipient_id: MEMBER_A,
+        recipient_email: 'bob@example.com',
+        recipient_pubkey_fingerprint: fpBob,
+        share_role: 'editor',
+        created_at: 1,
+        shared_at: 1,
+        shared_by_user_id: OWNER_ID,
+        shared_by_email: 'owner@example.com'
+      }
+    ])
+
+    const recipients: string[] = []
+    vi.spyOn(sharesApi, 'createShare').mockImplementation(async (envelope) => {
+      const forCarol = await cryptfns.rsa
+        .decryptMessage(kpCarol, envelope.entries[0].encrypted_key)
+        .then(() => true)
+        .catch(() => false)
+      recipients.push(forCarol ? MEMBER_B : MEMBER_A)
+      return { shares: [] }
+    })
+
+    let lastProgress: [number, number] = [0, 0]
+    await shareGroups.shareToGroup({
+      groupId: GROUP_ID,
+      root: { id: FILE_X, user_id: OWNER_ID, mime: 'application/pdf', encrypted_key: ownerWrap, is_owner: true } as never,
+      subtree: [{ id: FILE_X, user_id: OWNER_ID, mime: 'application/pdf', encrypted_key: ownerWrap, is_owner: true } as never],
+      shareRole: 'editor',
+      senderId: OWNER_ID,
+      privateKey: kpOwner.input as string,
+      trusted: trustedFingerprintsStore(),
+      onProgress: (done, total) => {
+        lastProgress = [done, total]
+      }
+    })
+
+    expect(recipients).toEqual([MEMBER_B])
+    // Progress still counts the skipped member so the bar reaches 100%.
+    expect(lastProgress).toEqual([2, 2])
+  })
+
+  it('share_to_group_signs_grant_not_role_change_for_a_same_role_folder_member', async () => {
+    const kpOwner = await cryptfns.rsa.generateKeyPair()
+    const kpBob = await cryptfns.rsa.generateKeyPair()
+    const kpCarol = await cryptfns.rsa.generateKeyPair()
+
+    const fileKey = await cryptfns.aes.generateKey()
+    const ownerWrap = await cryptfns.rsa.encryptMessage(
+      cryptfns.uint8.toHex(fileKey),
+      kpOwner.publicKey as string
+    )
+
+    const fpBob = shareCrypto.computeFingerprint(kpBob.publicKey as string)
+    vi.spyOn(sharesApi, 'groupMembers').mockResolvedValue([
+      makeMemberWithKey(MEMBER_A, kpBob.publicKey as string, fpBob),
+      makeMemberWithKey(MEMBER_B, kpCarol.publicKey as string)
+    ])
+
+    // Bob already holds the folder root at the role being shared. For a single
+    // file that's a pure no-op (skipped above), but a folder still has to
+    // back-fill the descendants Bob doesn't hold — so he is POSTed. Because the
+    // root role is not moving, the server reconstructs a `grant` (before=null),
+    // not a `role_change`; signing role_change here would 400 the whole fan-out.
+    vi.spyOn(sharesApi, 'getShareRecipients').mockResolvedValue([
+      {
+        file_id: FOLDER_ID,
+        recipient_id: MEMBER_A,
+        recipient_email: 'bob@example.com',
+        recipient_pubkey_fingerprint: fpBob,
+        share_role: 'reader',
+        created_at: 1,
+        shared_at: 1,
+        shared_by_user_id: OWNER_ID,
+        shared_by_email: 'owner@example.com'
+      }
+    ])
+
+    const envelopes: CreateShareEnvelope[] = []
+    vi.spyOn(sharesApi, 'createShare').mockImplementation(async (envelope) => {
+      envelopes.push(envelope)
+      return { shares: [] }
+    })
+
+    await shareGroups.shareToGroup({
+      groupId: GROUP_ID,
+      root: { id: FOLDER_ID, user_id: OWNER_ID, mime: 'dir', encrypted_key: ownerWrap, is_owner: true } as never,
+      subtree: [
+        { id: FOLDER_ID, user_id: OWNER_ID, mime: 'dir', encrypted_key: ownerWrap, is_owner: true } as never,
+        { id: CHILD_ID, user_id: OWNER_ID, mime: 'application/pdf', encrypted_key: ownerWrap, is_owner: true } as never
+      ],
+      shareRole: 'reader',
+      senderId: OWNER_ID,
+      privateKey: kpOwner.input as string,
+      trusted: trustedFingerprintsStore()
+    })
+
+    // A folder back-fills descendants, so the same-role member is not skipped:
+    // both Bob and the fresh Carol are POSTed.
+    expect(envelopes.length).toBe(2)
+
+    const bobEnvelope = (
+      await Promise.all(
+        envelopes.map(async (env) => ({
+          env,
+          forBob: await cryptfns.rsa
+            .decryptMessage(kpBob, env.entries[0].encrypted_key)
+            .then(() => true)
+            .catch(() => false)
+        }))
+      )
+    ).find((e) => e.forBob)!.env
+
+    // The envelope must verify as a `grant` (before=null) against the owner's
+    // pubkey — the canonical the server reconstructs for a same-role member; the
+    // `role_change` canonical for the same move must fail.
+    const grantInput = shareCrypto.buildAuditEventSigInput({
+      senderId: OWNER_ID,
+      recipientId: MEMBER_A,
+      fileId: FOLDER_ID,
+      action: 'grant',
+      shareRoleBefore: null,
+      shareRoleAfter: 'reader',
+      timestamp: BigInt(bobEnvelope.member_signed_at as number)
+    })
+    expect(
+      await shareCrypto.verifyAuditEvent(
+        grantInput,
+        bobEnvelope.event_signature,
+        kpOwner.publicKey as string
+      )
+    ).toBe(true)
+
+    const roleChangeInput = shareCrypto.buildAuditEventSigInput({
+      senderId: OWNER_ID,
+      recipientId: MEMBER_A,
+      fileId: FOLDER_ID,
+      action: 'role_change',
+      shareRoleBefore: 'reader',
+      shareRoleAfter: 'reader',
+      timestamp: BigInt(bobEnvelope.member_signed_at as number)
+    })
+    expect(
+      await shareCrypto.verifyAuditEvent(
+        roleChangeInput,
+        bobEnvelope.event_signature,
+        kpOwner.publicKey as string
+      )
+    ).toBe(false)
   })
 
   it('share_to_group_signs_post_share_roster_for_folder_root', async () => {
@@ -626,6 +905,7 @@ describe('share dialog group target routing', () => {
       { user_id: MEMBER_A, email: 'bob@example.com', pubkey: kpBob.publicKey as string, fingerprint: fpBob, group_role: 'reader' },
       { user_id: MEMBER_B, email: 'carol@example.com', pubkey: kpCarol.publicKey as string, fingerprint: fpCarol, group_role: 'editor' }
     ])
+    vi.spyOn(sharesApi, 'getShareRecipients').mockResolvedValue([])
     // The dialog gates submit only on a known-zero owned roster, so seed a
     // group with members so the Share button is enabled.
     const groupWithMembers = makeGroup({

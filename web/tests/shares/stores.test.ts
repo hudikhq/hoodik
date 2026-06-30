@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
+import Api from '../../services/api'
 import * as sharesApi from '../../services/shares/api'
 import {
   store as sharesStore,
@@ -8,6 +9,9 @@ import {
   capabilitiesStore
 } from '../../services/shares'
 import { store as storageStore } from '../../services/storage'
+import { store as loginStore } from '../../services/auth/login'
+
+import type { CryptoStore } from '../../types'
 
 import type { Capabilities, IncomingSharePage, CreateShareResponse } from '../../types/shares'
 
@@ -248,6 +252,48 @@ describe('shares store', () => {
     expect(store.unreadCount).toEqual(1)
     store.lastSeenAt = SAMPLE_INCOMING.items[0].shared_at as number
     expect(store.unreadCount).toEqual(0)
+  })
+})
+
+describe('files store reset on logout', () => {
+  it('files_store_reset_clears_account_scoped_state', () => {
+    const files = storageStore()
+    files.addItem({
+      id: '22222222-2222-2222-2222-222222222222',
+      file_id: null,
+      mime: 'image/png',
+      name: 'prev-account-file.png',
+      is_owner: true
+    } as never)
+    expect(files.getItem('22222222-2222-2222-2222-222222222222')).not.toBeNull()
+
+    files.reset()
+
+    expect(files.items).toHaveLength(0)
+    expect(files.selected).toHaveLength(0)
+    expect(files.getItem('22222222-2222-2222-2222-222222222222')).toBeNull()
+  })
+
+  it('logout_resets_the_file_list_so_a_different_account_does_not_see_it', async () => {
+    // The previous account's decrypted listing must not survive a logout —
+    // otherwise logging in as a different user (no page reload) shows their
+    // files until a refresh.
+    vi.spyOn(Api, 'post').mockResolvedValue({ body: {} } as never)
+
+    const files = storageStore()
+    files.addItem({
+      id: '22222222-2222-2222-2222-222222222222',
+      file_id: null,
+      mime: 'image/png',
+      name: 'prev-account-file.png',
+      is_owner: true
+    } as never)
+
+    const cryptoStub = { clear: vi.fn() } as unknown as CryptoStore
+    await loginStore().logout(cryptoStub)
+
+    expect(files.items).toHaveLength(0)
+    expect(cryptoStub.clear).toHaveBeenCalled()
   })
 })
 

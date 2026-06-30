@@ -39,7 +39,6 @@ const role = computed({
     </div>
     <p class="text-xs text-brownish-300" data-testid="share-dialog-group-note">
       Every member of this group receives the share at the role you pick.
-      New members added later get it automatically.
     </p>
     <div>
       <span class="block text-xs uppercase tracking-wider text-brownish-300 mb-1.5">Access</span>

@@ -92,6 +92,11 @@ export const store = defineStore('login', () => {
     crypto.clear()
     pk.clearRememberMe()
     sessionStorage.clear()
+    // The file store holds the previous account's decrypted listing; drop it so
+    // a login as a different account (no page reload) doesn't show their files.
+    // Lazy import avoids the storage → services → auth import cycle at boot.
+    const { store: filesStore } = await import('../storage')
+    filesStore().reset()
     clearInterval(_refresher.value)
 
     if (full) {

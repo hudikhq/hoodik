@@ -167,10 +167,35 @@ export async function shareToGroup(args: ShareToGroupArgs): Promise<void> {
     throw new Error('This group has no one else to share with yet.')
   }
 
+  // A recipient already holding the root file at a different role makes the
+  // server resolve the audit action to `role_change` (with the existing role
+  // as the before-value) and verify the event signature against THAT — so the
+  // envelope has to be signed for the right transition or the whole fan-out
+  // 400s on `event_signature_invalid`. One owner-side recipient fetch keyed on
+  // the root file (the same key the server's audit canonical uses) covers every
+  // member without an N+1, mirroring the single-share People-tab path.
+  const existingRoles = new Map<string, ShareRole>(
+    (await api.getShareRecipients(args.root.id)).map((r) => [r.recipient_id, r.share_role])
+  )
+
   const total = recipients.length
   args.onProgress?.(0, total)
   for (let i = 0; i < recipients.length; i++) {
     const member = recipients[i]
+    const existingRole = existingRoles.get(member.user_id) ?? null
+    // Mirror the server's resolution: it treats the action as `role_change`
+    // only when the recipient's existing root role actually moves. A same-role
+    // re-share reconstructs to a `grant`, so signing `role_change` for it would
+    // 400. (The server applies the same `share_role != requested` filter.)
+    const isRoleChange = existingRole !== null && existingRole !== args.shareRole
+    if (existingRole === args.shareRole && args.subtree.length === 1) {
+      // A single-file re-share at the same role is a pure no-op server-side, so
+      // skip it to keep the audit log clean. A folder is never skipped on the
+      // root role alone — descendants the recipient doesn't hold yet still need
+      // their wraps, and the server inserts those per file under a `grant`.
+      args.onProgress?.(i + 1, total)
+      continue
+    }
     const verifiedFingerprint = verifyMemberFingerprint(member, args.trusted)
     const target: DiscoveredUser = {
       user_id: member.user_id,
@@ -190,7 +215,12 @@ export async function shareToGroup(args: ShareToGroupArgs): Promise<void> {
       shareRole: args.shareRole,
       senderId: args.senderId,
       privateKey: args.privateKey,
-      action: args.root.is_owner ? 'grant' : 'shared_by_co_owner'
+      action: isRoleChange
+        ? 'role_change'
+        : args.root.is_owner
+          ? 'grant'
+          : 'shared_by_co_owner',
+      shareRoleBefore: isRoleChange ? existingRole : null
     })
     try {
       await api.createShare(envelope)
