@@ -10,8 +10,6 @@ default:
 dev: wasm build-editor
     #!/usr/bin/env bash
     set -euo pipefail
-    trap 'kill 0' EXIT
-
     # Kill any stale hoodik processes (debug or release) from previous sessions.
     stale=$(pgrep -f "target/(debug|release)/hoodik" 2>/dev/null || true)
     if [ -n "$stale" ]; then
@@ -20,35 +18,27 @@ dev: wasm build-editor
         sleep 0.5
     fi
 
-    echo "Starting Vite dev server..."
-    yarn workspace @hoodik/web run dev &
+    # Vite (frontend, hot-reload) runs in the background on :5173; its output
+    # goes to a log so bacon's terminal UI stays clean, and it's torn down on exit.
+    yarn workspace @hoodik/web run dev >/tmp/hoodik-vite.log 2>&1 &
+    vite_pid=$!
+    trap 'kill $vite_pid 2>/dev/null' EXIT
+    echo "▶ Vite (frontend)  http://localhost:5173   (logs: /tmp/hoodik-vite.log)"
+    echo "▶ Backend in bacon below — rebuilds + reruns on save; press r to restart, q to quit."
+    echo
 
-    echo "Starting Rust backend with auto-reload..."
-    # hoodik/build.rs regenerates hoodik/src/client.rs on every build; that touches a .rs file and
-    # would otherwise restart cargo-watch in an infinite loop. Ignore it + churn from the web bundle.
-    cargo watch \
-        --watch-when-idle \
-        -i "hoodik/src/client.rs" \
-        -i "web/**" \
-        -i "**/node_modules/**" \
-        -i "transfer/pkg/**" \
-        -x run &
-
-    wait
+    # bacon's run-long job builds and runs the server, restarting on source
+    # changes, with interactive r=restart / q=quit. Replaces cargo-watch, which
+    # hangs at startup when given this workspace's full -w watch set.
+    bacon run-long
 
 # Run only the Vite frontend dev server
 dev-web:
     yarn workspace @hoodik/web run dev
 
-# Run only the Rust backend with auto-reload on save
+# Run only the Rust backend (bacon: rebuild + rerun on save; r=restart, q=quit)
 dev-api:
-    cargo watch \
-        --watch-when-idle \
-        -i "hoodik/src/client.rs" \
-        -i "web/**" \
-        -i "**/node_modules/**" \
-        -i "transfer/pkg/**" \
-        -x run
+    bacon run-long
 
 # Run the Rust backend once without auto-reload
 run:
@@ -82,16 +72,72 @@ test-rust: test-rust-unit test-rust-integration
 test-rust-unit:
     cargo test --workspace --lib -- --nocapture
 
-# Run Rust integration tests (auth, storage, links, email)
+# Run Rust integration tests (auth, storage, links, email, shares fixtures)
 test-rust-integration:
     cargo test --test web_authentication -- --nocapture
+    cargo test --test web_liveness -- --nocapture
+    cargo test --test readiness -- --nocapture
+    cargo test --test web_registration -- --nocapture
     cargo test --test storage -- --nocapture
     cargo test --test storage_replace_content -- --nocapture
     cargo test --test storage_set_editable -- --nocapture
     cargo test --test storage_legacy_routing -- --nocapture
     cargo test --test storage_tar_upload -- --nocapture
+    cargo test --test storage_instance_quota -- --nocapture
     cargo test --test links -- --nocapture
     cargo test --test email -- --nocapture
+    cargo test --test shares_asn1_fixtures -- --nocapture
+    cargo test --test shares_basic -- --nocapture
+    cargo test --test shares_folder -- --nocapture
+    cargo test --test shares_editable_folders -- --nocapture
+    cargo test --test shares_permissions -- --nocapture
+    cargo test --test shares_search -- --nocapture
+    cargo test --test shares_audit -- --nocapture
+    cargo test --test shares_admin_kill_switch -- --nocapture
+    cargo test --test shares_groups -- --nocapture
+    cargo test --test shares_fork -- --nocapture
+    cargo test --test shares_quota -- --nocapture
+    cargo test --test shares_discover -- --nocapture
+    cargo test --test shares_account_deletion -- --nocapture
+    cargo test --test shares_email -- --nocapture
+    cargo test --test shares_recipient_navigation -- --nocapture
+
+# ── Postgres integration testing ──────────────────────────────────────────────
+
+# Start the throwaway Postgres container used by the integration suite
+# and block until its healthcheck reports ready.
+test-pg-up:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    docker compose up -d postgres-test
+    echo "Waiting for postgres-test to be healthy..."
+    for i in $(seq 1 60); do
+        status=$(docker inspect -f '{{{{.State.Health.Status}}' postgres-test 2>/dev/null || echo "starting")
+        if [ "$status" = "healthy" ]; then
+            echo "postgres-test is healthy"
+            exit 0
+        fi
+        sleep 1
+    done
+    echo "postgres-test did not become healthy within 60s"
+    docker compose logs postgres-test
+    exit 1
+
+# Stop and remove the throwaway Postgres container.
+test-pg-down:
+    docker compose stop postgres-test
+    docker compose rm -f postgres-test
+
+# Run the integration suite against Postgres. Brings the container up
+# first and tears it down on exit regardless of test outcome — the trap
+# fires on success, failure, and Ctrl-C alike.
+test-rust-integration-pg:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just test-pg-up
+    trap 'just test-pg-down' EXIT
+    export TEST_DATABASE_URL="postgres://hoodik_test:hoodik_test@localhost:5433/hoodik_test"
+    just test-rust-integration
 
 # Run Rust tests for the transfer crate only
 test-transfer:
@@ -118,8 +164,13 @@ test-web: build-editor
 test-watch:
     yarn workspace @hoodik/web run test:watch
 
-# Run E2E tests: build backend, start it, run Playwright, then clean up
-e2e:
+# Run E2E tests: build backend, start it, run Playwright, then clean up.
+# Pass any Playwright flags as extra args, e.g.
+#   PWSLOWMO=500 just e2e --headed
+#   just e2e --headed -g "Reader"
+#   just e2e e2e/shares-basic.spec.ts --headed
+#   just e2e --debug -g "Reader"
+e2e *args:
     #!/usr/bin/env bash
     set -eo pipefail
 
@@ -136,6 +187,12 @@ e2e:
 
     mkdir -p "$DATA_DIR"
 
+    # The server bundles `web/dist/` into its binary via hoodik/build.rs,
+    # so a stale or missing `dist` makes every Playwright `page.goto` land
+    # on an empty 200 OK and every test time out waiting for selectors.
+    just wasm
+    just build-web
+
     cargo build --bin hoodik --release
 
     RUST_LOG=error $PWD/target/release/hoodik &
@@ -147,11 +204,12 @@ e2e:
     node_modules/.bin/wait-on -t 600000 http://127.0.0.1:5443/api/liveness
 
     export ENV_FILE="../.env.e2e"
-    yarn workspace @hoodik/web test:e2e
+    yarn workspace @hoodik/web test:e2e -- {{args}}
 
-# Open Playwright test UI interactively (useful for debugging)
-e2e-ui:
-    yarn workspace @hoodik/web test:e2e:ui
+# Open Playwright test UI interactively (useful for debugging).
+# Pass any Playwright flags as extra args, e.g. just e2e-ui --headed
+e2e-ui *args:
+    yarn workspace @hoodik/web test:e2e:ui -- {{args}}
 
 # ── Code Quality ──────────────────────────────────────────────────────────────
 
@@ -267,3 +325,7 @@ setup:
 
 # Full CI test pipeline (used by GitHub Actions)
 ci-test: clippy test-rust-unit test-rust-integration wasm test-web build-web e2e
+
+# CI pipeline against Postgres instead of SQLite (clippy + unit + integration-pg).
+# Skips the WASM/web/e2e stack — those don't care which RDBMS the server uses.
+ci-test-pg: clippy test-rust-unit test-rust-integration-pg

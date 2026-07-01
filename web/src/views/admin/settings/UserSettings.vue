@@ -7,7 +7,7 @@ import ListInput from '@/components/ui/ListInput.vue'
 import { computed } from 'vue'
 import QuotaSlider from '@/components/ui/QuotaSlider.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import { mdiContentSave, mdiAccountPlus, mdiEmailSearch, mdiDatabase } from '@mdi/js'
+import { mdiContentSave, mdiAccountPlus, mdiEmailSearch, mdiDatabase, mdiShareVariantOutline } from '@mdi/js'
 
 const props = defineProps<{
   modelValue?: Data
@@ -78,6 +78,26 @@ const data = computed({
             Emails matching these patterns are always blocked — overrides whitelist and invitations.
           </p>
         </div>
+      </div>
+    </div>
+
+    <div class="-mx-4 px-6 py-5 border-b border-brownish-100 dark:border-brownish-700/50">
+      <div class="flex items-center gap-2 mb-3">
+        <BaseIcon :path="mdiShareVariantOutline" :size="14" class="text-brownish-400 dark:text-brownish-100" />
+        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">Sharing</p>
+      </div>
+
+      <div class="p-3 rounded-xl bg-brownish-50/50 dark:bg-brownish-700/20 border border-brownish-100/50 dark:border-brownish-700/30">
+        <UniversalCheckbox
+          label="Account-to-account sharing"
+          name="sharing_enabled"
+          v-model="data.sharing.enabled"
+          :disabled="loading"
+          data-testid="admin-sharing-enabled-toggle"
+        />
+        <p class="text-xs text-brownish-400 dark:text-brownish-100 pl-7 leading-relaxed mt-1">
+          When off, the Share entry vanishes from every file row and all <code class="font-mono bg-brownish-100 dark:bg-brownish-700 px-1 rounded">/api/shares/*</code> endpoints return 503. Existing share rows are preserved across toggles; nothing is deleted.
+        </p>
       </div>
     </div>
 

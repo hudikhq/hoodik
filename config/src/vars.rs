@@ -1,7 +1,13 @@
 use std::str::FromStr;
 
 use clap::{builder::Str, Arg, ArgMatches, Command};
-use dotenv::{from_path, vars};
+// `from_path_iter` is deprecated upstream in favour of `from_path` + `var`,
+// but the replacement implies a singleton-load of `.env` that we explicitly
+// must avoid here so ENV_FILE-only loads (e.g. `.env.e2e`) don't get
+// shadowed by a developer's local `.env`. See `dotenv` function below.
+#[allow(deprecated)]
+use dotenv::from_path_iter;
+use dotenv::vars;
 
 pub(crate) trait GetterType: FromStr + Clone + Send + Sync + 'static {}
 impl<T> GetterType for T where T: FromStr + Clone + Send + Sync + 'static {}
@@ -292,22 +298,28 @@ impl Vars {
         value
     }
 
-    /// Loads the env variables from the provided path
+    /// Loads the env variables from the provided path.
+    ///
+    /// `dotenv::vars()` calls `dotenv::dotenv()` on its first invocation,
+    /// which auto-loads `./.env` regardless of whether the caller passed an
+    /// explicit `ENV_FILE`. That clobbers `.env.e2e` and similar overrides
+    /// with whatever the developer happened to leave in their local `.env`,
+    /// so when a path is provided we deliberately read just that file via
+    /// `from_path_iter` and ignore the implicit `.env` lookup.
+    #[allow(deprecated)]
     pub(crate) fn dotenv(&self, path: Option<String>) {
         let vars: Vec<(String, String)> = match path {
-            Some(p) => {
-                match from_path(&p) {
-                    Ok(_) => (),
-                    Err(e) => panic!("Couldn't load the dotenv config at '{p}', error: {e}"),
-                }
-
-                vars().collect()
-            }
+            Some(p) => match from_path_iter(&p) {
+                Ok(iter) => iter.filter_map(Result::ok).collect(),
+                Err(e) => panic!("Couldn't load the dotenv config at '{p}', error: {e}"),
+            },
             None => vars().collect(),
         };
 
         for (key, value) in vars.iter() {
-            std::env::set_var(key, value);
+            if std::env::var(key).is_err() {
+                std::env::set_var(key, value);
+            }
         }
     }
 
@@ -420,6 +432,46 @@ mod test {
         let errors = vars.clone_errors();
         assert_eq!(errors.len(), 1);
         vars.panic_if_errors("test");
+    }
+
+    #[test]
+    fn test_workers_var() {
+        let mut vars = Vars::create("test", "0.1.0", "test");
+
+        // Unset: stays None so Actix keeps its one-worker-per-CPU default.
+        assert_eq!(vars.maybe_var::<usize>("WORKERS").maybe_get(), None);
+
+        std::env::set_var("WORKERS", "3");
+        assert_eq!(vars.maybe_var::<usize>("WORKERS").maybe_get(), Some(3));
+
+        std::env::set_var("WORKERS", "abc");
+        let _ = vars.maybe_var::<usize>("WORKERS");
+        assert!(!vars.clone_errors().is_empty());
+
+        std::env::remove_var("WORKERS");
+    }
+
+    #[test]
+    fn test_storage_instance_quota_bytes_var() {
+        let mut vars = Vars::create("test", "0.1.0", "test");
+
+        // Unset: stays None so only per-user quotas apply.
+        assert_eq!(
+            vars.maybe_var::<u64>("STORAGE_INSTANCE_QUOTA_BYTES").maybe_get(),
+            None
+        );
+
+        std::env::set_var("STORAGE_INSTANCE_QUOTA_BYTES", "1048576");
+        assert_eq!(
+            vars.maybe_var::<u64>("STORAGE_INSTANCE_QUOTA_BYTES").maybe_get(),
+            Some(1048576)
+        );
+
+        std::env::set_var("STORAGE_INSTANCE_QUOTA_BYTES", "abc");
+        let _ = vars.maybe_var::<u64>("STORAGE_INSTANCE_QUOTA_BYTES");
+        assert!(!vars.clone_errors().is_empty());
+
+        std::env::remove_var("STORAGE_INSTANCE_QUOTA_BYTES");
     }
 
     #[test]

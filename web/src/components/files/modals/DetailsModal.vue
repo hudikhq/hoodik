@@ -4,13 +4,12 @@ import CardBoxComponentTitle from '@/components/ui/CardBoxComponentTitle.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { mdiFileOutline, mdiFolderOutline, mdiClose } from '@mdi/js'
 import { computed } from 'vue'
-import type { KeyPair, AppFile } from 'types'
+import type { AppFile } from 'types'
 import { formatPrettyDate, formatSize } from '!/index'
 import { AppField } from '@/components/form'
 
 const props = defineProps<{
   modelValue: AppFile | undefined
-  kp: KeyPair
 }>()
 
 const emits = defineEmits<{

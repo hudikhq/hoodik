@@ -119,6 +119,7 @@ impl CreateUser {
             email_verified_at: ActiveValue::Set(None),
             created_at: ActiveValue::Set(Utc::now().timestamp()),
             updated_at: ActiveValue::Set(Utc::now().timestamp()),
+            share_notifications_enabled: ActiveValue::Set(true),
         })
     }
 }

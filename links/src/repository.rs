@@ -122,10 +122,13 @@ impl<'ctx> Repository<'ctx> {
         entity::join::add_columns_with_prefix::<_, files::Entity>(&mut selector, "file");
 
         if !with_expired {
+            // `expires_at` is a `bigint` unix timestamp, not a datetime
+            // column. Postgres rejects bigint > timestamp comparisons;
+            // SQLite is lax. Compare against a unix timestamp on both.
             selector = selector.filter(
                 links::Column::ExpiresAt
                     .is_null()
-                    .or(links::Column::ExpiresAt.gt(chrono::Utc::now().naive_utc())),
+                    .or(links::Column::ExpiresAt.gt(chrono::Utc::now().timestamp())),
             );
         }
 

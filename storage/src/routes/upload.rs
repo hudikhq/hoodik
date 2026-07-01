@@ -10,6 +10,7 @@ use futures::StreamExt;
 
 use crate::{
     data::{app_file::AppFile, meta::Meta},
+    permission::require_write,
     repository::{
         cached::{evict_file, get_file},
         Repository,
@@ -76,6 +77,11 @@ async fn upload_one_chunk(
     if let Some(key) = key_hex {
         request_body = encrypt_request_body(&key, request_body)?;
     }
+
+    // Permission gate before any FS I/O: Readers / non-members get
+    // rejected here so we don't waste bytes on chunk payload they have
+    // no right to push.
+    require_write(&context.db, file_id, claims.sub()).await?;
 
     let storage = Fs::new(&context.config);
 

@@ -10,8 +10,9 @@ import {
   mdiEye,
   mdiInformationOutline,
   mdiFolderMove,
-  mdiLink
+  mdiShareVariantOutline
 } from '@mdi/js'
+import { useCapability } from '@/composables/useCapability'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import SortableName from '@/components/ui/SortableName.vue'
 import TableFileRowWatcher from './TableFileRowWatcher.vue'
@@ -20,6 +21,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import { computed, ref, watch } from 'vue'
 import type { AppFile } from 'types'
 import { isPreviewable, isMarkdownFile } from '!/preview'
+import { SHARED_WITH_ME_DIR_ID } from '!/storage'
 
 const props = defineProps<{
   selected: AppFile[]
@@ -46,11 +48,13 @@ const emits = defineEmits<{
   (event: 'file'): void
   (event: 'download-many'): void
   (event: 'download', file: AppFile): void
-  (event: 'link', file: AppFile): void
   (event: 'move-all'): void
   (event: 'remove-all'): void
   (event: 'remove', file: AppFile): void
   (event: 'rename', file: AppFile): void
+  (event: 'sharing', file: AppFile): void
+  (event: 'fork', file: AppFile): void
+  (event: 'leave', file: AppFile): void
   (event: 'select-all', files: AppFile[], fileId: string | null | undefined): void
   (event: 'select-one', select: boolean, file: AppFile): void
   (event: 'set-sort-simple', value: string): void
@@ -84,11 +88,36 @@ const showMoveAll = computed(() => {
   return checkedRows.value.length > 0
 })
 
+const { sharingEnabled } = useCapability()
+
 const showDownloadMany = computed(() => {
   const hasDirsChecked = checkedRows.value.some((item) => item.mime === 'dir')
   const hasIncompleteUploads = checkedRows.value.some((item) => !item.finished_upload_at)
 
   return checkedRows.value.length > 0 && !hasDirsChecked && !hasIncompleteUploads
+})
+
+/**
+ * Inside the synthetic "Shared with me" folder there is no real parent
+ * to upload into — the user must first navigate into one of the shared
+ * folders surfaced as a row. Write actions stay hidden to keep that
+ * affordance unambiguous.
+ */
+const isSharedWithMeRoot = computed(() => props.parentId === SHARED_WITH_ME_DIR_ID)
+
+/**
+ * Inside a shared folder (caller has a write share but doesn't own it),
+ * file uploads go through the multi-key path. Creating a subdirectory
+ * has no multi-key equivalent yet, so the directory affordance hides
+ * until that endpoint exists — falling back to the regular create would
+ * produce a `parent_directory_not_found` toast the user can't recover
+ * from.
+ */
+const isSharedFolder = computed(() => {
+  const d = props.dir
+  if (!d) return false
+  if (d.mime !== 'dir') return false
+  return d.is_owner === false
 })
 
 const singleSelected = computed(() => {
@@ -138,6 +167,8 @@ const drop = (e: DragEvent) => {
 
   e.preventDefault()
   e.stopPropagation()
+
+  if (isSharedWithMeRoot.value) return
 
   // Extract FileSystemEntry objects synchronously — DataTransferItemList is only valid
   // during the event and becomes empty after the handler returns.
@@ -203,6 +234,7 @@ const sizes = {
 
     <BaseButton
       title="Move"
+      data-testid="move-selected"
       :iconSize="20"
       :xs="true"
       :icon="mdiFolderMove"
@@ -244,17 +276,23 @@ const sizes = {
     />
 
     <BaseButton
-      title="File link"
+      title="Sharing"
       :iconSize="20"
       :xs="true"
-      :icon="mdiLink"
+      :icon="mdiShareVariantOutline"
       color="light"
       v-if="
         singleSelected &&
-        singleSelected.mime !== 'dir' &&
-        singleSelected.chunks === singleSelected.chunks_stored
+        sharingEnabled &&
+        singleSelected.id !== SHARED_WITH_ME_DIR_ID &&
+        (
+          singleSelected.is_owner === false ||
+          singleSelected.mime === 'dir' ||
+          !!singleSelected.finished_upload_at
+        )
       "
-      @click="() => emits('link', singleSelected as AppFile)"
+      data-testid="bulk-sharing-button"
+      @click="() => emits('sharing', singleSelected as AppFile)"
     />
 
     <BaseButton
@@ -265,7 +303,7 @@ const sizes = {
       :icon="mdiFolderPlusOutline"
       color="light"
       @click="emits('directory')"
-      v-if="!checkedRows.length"
+      v-if="!checkedRows.length && !isSharedWithMeRoot && !isSharedFolder"
     />
 
     <BaseButton
@@ -276,7 +314,7 @@ const sizes = {
       :icon="mdiFileDocumentPlusOutline"
       color="light"
       @click="emits('file')"
-      v-if="!checkedRows.length"
+      v-if="!checkedRows.length && !isSharedWithMeRoot"
     />
 
     <BaseButton
@@ -287,7 +325,7 @@ const sizes = {
       :icon="mdiFilePlusOutline"
       color="light"
       @click="emits('browse')"
-      v-if="!checkedRows.length"
+      v-if="!checkedRows.length && !isSharedWithMeRoot"
     />
 
     <BaseButton
@@ -298,7 +336,7 @@ const sizes = {
       :icon="mdiFolderArrowUpOutline"
       color="light"
       @click="emits('browse-folder')"
-      v-if="!checkedRows.length"
+      v-if="!checkedRows.length && !isSharedWithMeRoot && !isSharedFolder"
     />
   </div>
 
@@ -379,9 +417,11 @@ const sizes = {
           @deselect-all="emits('deselect-all')"
           @details="(f: AppFile) => emits('details', f)"
           @download="(f: AppFile) => emits('download', f)"
-          @link="(f: AppFile) => emits('link', f)"
           @remove="(f: AppFile) => emits('remove', f)"
           @rename="(f: AppFile) => emits('rename', f)"
+          @sharing="(f: AppFile) => emits('sharing', f)"
+          @fork="(f: AppFile) => emits('fork', f)"
+          @leave="(f: AppFile) => emits('leave', f)"
           @select-one="(v: boolean, f: AppFile) => emits('select-one', v, f)"
           @upload-many="(f: FileList, d?: string) => emits('upload-many', f, d)"
         />

@@ -45,18 +45,38 @@ where
         Ok(file)
     }
 
-    /// Find all files and folders that are shared with the user
+    /// List the files and folders visible to the caller inside a
+    /// directory (or at the root).
+    ///
+    /// When `dir_id` is `None` (root listing) and the caller hasn't
+    /// passed `is_owner` explicitly, the default is "only what I own"
+    /// — shared content surfaces via the dedicated `/share/with-me`
+    /// view, not at the root.
+    ///
+    /// When `dir_id` is `Some(_)`, the listing includes every
+    /// `user_files` row the caller has for that directory's children,
+    /// owner or non-owner. This is what makes the Shared-with-me row
+    /// click-through into the file browser work — a recipient browses
+    /// a shared folder and sees every file they have a key for, no
+    /// matter who originally uploaded it.
     pub(crate) async fn find(&self, request_query: RequestQuery) -> AppResult<Response> {
         let mut parents = vec![];
 
         let user_id = self.owner_id;
-        let mut selector = self
-            .repository
-            .selector(user_id, true)
-            .filter(user_files::Column::IsOwner.eq(request_query.is_owner.unwrap_or(true)));
+        let scoped_by_dir = request_query.dir_id.is_some();
+        let restrict_to_owner = match request_query.is_owner {
+            Some(value) => Some(value),
+            None if scoped_by_dir => None,
+            None => Some(true),
+        };
+        let mut selector = self.repository.selector(user_id, false);
+        if let Some(is_owner) = restrict_to_owner {
+            selector = selector.filter(user_files::Column::IsOwner.eq(is_owner));
+        }
 
         if let Some(dir_id) = request_query.dir_id.as_ref() {
-            let file_id = Uuid::from_str(dir_id)?;
+            let file_id = Uuid::from_str(dir_id)
+                .map_err(|_| Error::BadRequest("invalid_dir_id".to_string()))?;
 
             parents = self.dir_tree(file_id).await?;
 
@@ -92,17 +112,33 @@ where
             selector = selector.order_by(column, order);
         }
 
-        selector
+        let mut children = selector
             .into_model::<AppFile>()
             .all(self.repository.connection())
             .await
-            .map(|children| Response { parents, children })
-            .map_err(Error::from)
+            .map_err(Error::from)?;
+        self.repository.enrich_owner_emails(&mut children).await?;
+        self.repository
+            .enrich_shared_with_counts(&mut children)
+            .await?;
+        self.repository
+            .enrich_owner_emails(&mut parents)
+            .await?;
+        self.repository
+            .enrich_shared_with_counts(&mut parents)
+            .await?;
+        Ok(Response { parents, children })
     }
 
-    /// Get the directory tree for the owner,
-    /// tree is starting with the oldest parent leading all the way up to
-    /// the given directory id
+    /// Breadcrumb trail from the given directory up to the highest
+    /// ancestor the caller can see.
+    ///
+    /// "Can see" means the caller has a `user_files` row for it —
+    /// owner or non-owner. When a recipient navigates into a folder
+    /// shared with them, the trail stops at that shared root because
+    /// they have no row for the owner's ancestor directories. For
+    /// owner callers the trail walks all the way back to root, same
+    /// as before.
     pub(crate) async fn dir_tree(&self, id: Uuid) -> AppResult<Vec<AppFile>> {
         let sql = r#"
             WITH RECURSIVE file_tree(id, file_id) AS (
@@ -134,7 +170,7 @@ where
 
         let mut results = self
             .repository
-            .selector(user_id, true)
+            .selector(user_id, false)
             .filter(files::Column::Id.is_in(ids))
             .filter(files::Column::Mime.eq("dir"))
             .into_model::<AppFile>()
@@ -290,7 +326,12 @@ where
         Ok(results.rows_affected)
     }
 
-    /// Rename a file or directory for the owner
+    /// Rename a file or directory.
+    ///
+    /// The route layer gates this with `permission::require_write` plus
+    /// the editable-and-not-dir guard when the
+    /// caller is a non-owner. For owner callers there's no extra guard
+    /// — owners can rename anything they own.
     pub(crate) async fn rename(&self, id: Uuid, data: Rename) -> AppResult<AppFile> {
         let (active_model, hashed_tokens, name_hash) = data.into_active_model(id)?;
 
@@ -298,10 +339,6 @@ where
 
         if self.by_name(&name_hash, file.file_id).await.is_ok() {
             return Err(Error::BadRequest("file_already_exists".to_string()));
-        }
-
-        if !file.is_owner || file.user_id != self.owner_id {
-            return Err(Error::NotFound("file_not_found".to_string()));
         }
 
         active_model.update(self.repository.connection()).await?;
@@ -314,7 +351,9 @@ where
         self.repository.by_id(file.id, file.user_id).await
     }
 
-    /// Delete many files or directories for the owner
+    /// Delete many files or directories for the owner. Each id in `ids`
+    /// must be one the caller owns; non-owner
+    /// ids are routed to [`Self::self_remove_recursive`] instead.
     pub(crate) async fn delete_many(&self, ids: Vec<Uuid>) -> AppResult<Vec<AppFile>> {
         let mut files = try_join_all(ids.into_iter().map(|id| self.file_tree(id)))
             .await?
@@ -336,6 +375,70 @@ where
             .await?;
 
         Ok(files)
+    }
+
+    /// "Remove from my view" — drop the caller's `user_files` row for
+    /// each id and for every descendant in the case of folders, without
+    /// touching the file itself or any other recipient's row.
+    /// Reader/Editor/Co-owner DELETEs are routed here.
+    pub(crate) async fn self_remove_recursive(&self, ids: Vec<Uuid>) -> AppResult<()> {
+        // Collect every file_id the caller can see under each root,
+        // owner or non-owner. The cascade we want to drop is exactly
+        // the caller's user_files rows (`is_owner=false`) — owner-row
+        // self-deletes are nonsense (an owner's "delete" is the real
+        // delete handled above).
+        let mut all_ids: Vec<Uuid> = Vec::new();
+        for id in ids {
+            let subtree = self.subtree_ids(id).await?;
+            all_ids.extend(subtree);
+        }
+        all_ids.sort();
+        all_ids.dedup();
+
+        if all_ids.is_empty() {
+            return Ok(());
+        }
+
+        user_files::Entity::delete_many()
+            .filter(user_files::Column::UserId.eq(self.owner_id))
+            .filter(user_files::Column::IsOwner.eq(false))
+            .filter(user_files::Column::FileId.is_in(all_ids))
+            .exec(self.repository.connection())
+            .await?;
+        Ok(())
+    }
+
+    /// `file_tree(root)` but returning bare `file_id`s with no
+    /// ownership filter. Used by [`Self::self_remove_recursive`] which
+    /// only needs the id set.
+    pub(crate) async fn subtree_ids(&self, root_id: Uuid) -> AppResult<Vec<Uuid>> {
+        let sql = r#"
+            WITH RECURSIVE file_tree(id, file_id) AS (
+            SELECT id, file_id FROM files WHERE id = $1
+            UNION ALL
+            SELECT child.id, child.file_id FROM files child
+            JOIN file_tree parent ON parent.id = child.file_id
+            )
+            SELECT id FROM file_tree;
+        "#;
+        let rows = files::Entity::find()
+            .from_raw_sql(Statement::from_sql_and_values(
+                self.repository.connection().get_database_backend(),
+                sql,
+                [root_id.into()],
+            ))
+            .into_json()
+            .all(self.repository.connection())
+            .await?;
+        let mut ids = Vec::with_capacity(rows.len());
+        for row in rows {
+            if let Some(s) = row.get("id").and_then(|v| v.as_str()) {
+                if let Ok(id) = Uuid::from_str(s) {
+                    ids.push(id);
+                }
+            }
+        }
+        Ok(ids)
     }
 
     /// Create a file entry in the database and set the owner with the
@@ -378,6 +481,10 @@ where
             encrypted_key: ActiveValue::Set(encrypted_key.to_string()),
             created_at: ActiveValue::Set(Utc::now().timestamp()),
             expires_at: ActiveValue::NotSet,
+            share_role: ActiveValue::Set("co-owner".to_string()),
+            shared_at: ActiveValue::NotSet,
+            shared_by_user_id: ActiveValue::NotSet,
+            member_signature: ActiveValue::NotSet,
         };
 
         user_files::Entity::insert(user_file)
@@ -390,7 +497,10 @@ where
             .map(|f| f.is_new(true))
     }
 
-    /// Update the content hashes of a file after upload completes
+    /// Update the content hashes of a file after upload completes.
+    /// Route gates by `permission::require_write` — Editors and
+    /// Co-owners can update hashes on shared files they just chunk-
+    /// uploaded.
     pub(crate) async fn update_hashes(
         &self,
         id: Uuid,
@@ -398,7 +508,7 @@ where
     ) -> AppResult<AppFile> {
         let file = self.repository.by_id(id, self.owner_id).await?;
 
-        if !file.is_owner || file.user_id != self.owner_id || file.is_dir() {
+        if file.is_dir() {
             return Err(Error::NotFound("file_not_found".to_string()));
         }
 
@@ -432,11 +542,13 @@ where
         id: Uuid,
         data: ValidatedReplaceContent,
     ) -> AppResult<(AppFile, Option<i32>)> {
+        // Caller may be the file's owner or an Editor / Co-owner on a
+        // share — the route layer gates with `permission::require_write`
+        // before reaching this method, so the `is_owner` check that used
+        // to live here is gone. Whether the row is owner or non-owner,
+        // the saver-attribution machinery in `finish` writes the
+        // caller's id into `file_versions.user_id`.
         let file = self.repository.by_id(id, self.owner_id).await?;
-
-        if !file.is_owner || file.user_id != self.owner_id {
-            return Err(Error::NotFound("file_not_found".to_string()));
-        }
 
         if file.is_dir() {
             return Err(Error::BadRequest("cannot_replace_directory".to_string()));
@@ -588,7 +700,10 @@ where
         file: &AppFile,
         max_file_versions: usize,
     ) -> AppResult<(AppFile, Vec<i32>)> {
-        if !file.is_owner || file.user_id != self.owner_id || file.is_dir() {
+        // Caller must hold a `user_files` row for this file. Whether
+        // they're owner or non-owner is up to the route gate; here we
+        // just need a way to load the file and a non-directory target.
+        if file.user_id != self.owner_id || file.is_dir() {
             return Err(Error::NotFound("file_not_found".to_string()));
         }
 

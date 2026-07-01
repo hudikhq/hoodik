@@ -6,8 +6,8 @@ use entity::{
     paginated::Paginated,
     sessions::{self, ActiveModel},
     sort::Sortable,
-    users, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, JoinType, PaginatorTrait,
-    QueryFilter, QuerySelect, RelationTrait, Uuid,
+    users, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, Expr, Func, JoinType,
+    PaginatorTrait, QueryFilter, QuerySelect, RelationTrait, Uuid,
 };
 use error::AppResult;
 use validr::Validation;
@@ -56,11 +56,17 @@ where
             if let Some(uuid) = maybe_uuid {
                 query = query.filter(sessions::Column::Id.eq(uuid));
             } else {
+                // Postgres `LIKE` is case-sensitive; SQLite's is not. Lower
+                // both sides so admin search behaves identically on either
+                // backend (matters for "brave" vs "Brave Something?").
+                let needle = format!("%{}%", search.to_lowercase());
                 query = query.filter(
-                    users::Column::Email
-                        .contains(search.as_str())
-                        .or(sessions::Column::Ip.contains(search.as_str()))
-                        .or(sessions::Column::UserAgent.contains(search.as_str())),
+                    Expr::expr(Func::lower(Expr::col(users::Column::Email)))
+                        .like(needle.clone())
+                        .or(Expr::expr(Func::lower(Expr::col(sessions::Column::Ip)))
+                            .like(needle.clone()))
+                        .or(Expr::expr(Func::lower(Expr::col(sessions::Column::UserAgent)))
+                            .like(needle)),
                 );
             }
         }

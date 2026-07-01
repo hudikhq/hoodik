@@ -1,8 +1,10 @@
 mod blacklist;
+mod sharing;
 mod users;
 mod whitelist;
 
 pub use blacklist::Blacklist;
+pub use sharing::Sharing;
 pub use users::Users;
 pub use whitelist::Whitelist;
 
@@ -12,6 +14,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Data {
     pub users: Users,
+    #[serde(default)]
+    pub sharing: Sharing,
 }
 
 impl Data {

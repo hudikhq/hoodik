@@ -61,6 +61,24 @@ just e2e               # E2E tests (Playwright) — builds backend, starts it, r
 just e2e-ui            # Interactive Playwright UI for debugging
 ```
 
+### Postgres parity
+
+The Rust suite runs against SQLite by default — fast, no Docker required.
+To exercise the Postgres code paths (functional dependency in `GROUP BY`,
+strict type coercion, native `NULL` ordering, etc.) run the suite against
+a throwaway Postgres container instead:
+
+```shell
+just test-rust-integration-pg   # docker compose up postgres-test, run integration tests, tear down
+just ci-test-pg                 # clippy + unit tests + integration-pg
+```
+
+`test-rust-integration-pg` brings the `postgres-test` service up, sets
+`TEST_DATABASE_URL=postgres://hoodik_test:hoodik_test@localhost:5433/hoodik_test`,
+runs the same set as `test-rust-integration`, and tears the container
+down on exit (success or failure). The container backs `/var/lib/postgresql/data`
+with `tmpfs`, so startup is sub-second and nothing is persisted between runs.
+
 ## Code quality
 
 ```shell

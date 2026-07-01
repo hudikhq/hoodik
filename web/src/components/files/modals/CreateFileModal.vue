@@ -13,6 +13,7 @@ const props = defineProps<{
   modelValue?: boolean | undefined
   Storage: FilesStore
   Crypto: CryptoStore
+  authenticatedUserId?: string
 }>()
 
 const emit = defineEmits(['update:modelValue', 'cancel', 'confirm'])
@@ -31,8 +32,14 @@ const init = () => {
     }),
     onSubmit: async (values: { name: string }, ctx: any) => {
       try {
-        const folderId = props.Storage.dir?.id
-        const file = await createNote(props.Crypto.keypair, values.name, folderId)
+        const parent = props.Storage.dir ?? null
+        const folderId = parent?.id
+        const file = await createNote(
+          props.Crypto.keypair,
+          values.name,
+          parent,
+          props.authenticatedUserId
+        )
 
         emitFileTreeChange({ type: 'created', folderId })
         props.Storage.find(props.Crypto.keypair, folderId || undefined)

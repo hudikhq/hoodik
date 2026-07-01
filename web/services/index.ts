@@ -142,6 +142,31 @@ export function formatPrettyDate(date: Date | string | number): string {
 }
 
 /**
+ * Render a unix timestamp as a relative phrase ("2 minutes ago",
+ * "yesterday") when the event is recent, falling back to the absolute
+ * pretty date for older events. Used by the audit log where the typical
+ * reader cares about "did this just happen" first and the exact wall
+ * clock time second.
+ */
+export function formatRelative(unixSeconds: number, now: number = Date.now() / 1000): string {
+  const delta = Math.max(0, now - unixSeconds)
+  if (delta < 60) return 'just now'
+  if (delta < 3600) {
+    const m = Math.round(delta / 60)
+    return `${m} minute${m === 1 ? '' : 's'} ago`
+  }
+  if (delta < 86400) {
+    const h = Math.round(delta / 3600)
+    return `${h} hour${h === 1 ? '' : 's'} ago`
+  }
+  if (delta < 7 * 86400) {
+    const d = Math.round(delta / 86400)
+    return `${d} day${d === 1 ? '' : 's'} ago`
+  }
+  return formatPrettyDate(unixSeconds)
+}
+
+/**
  * Format bytes to human readable string
  */
 export function formatSize(b?: number | string, unit?: 'B' | 'KB' | 'MB' | 'GB'): string {

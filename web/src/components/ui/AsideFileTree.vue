@@ -21,10 +21,20 @@ const treeState = reactive({
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { mdiFolder, mdiFolderOpen, mdiFileDocumentOutline, mdiFileOutline, mdiChevronRight, mdiChevronDown } from '@mdi/js'
+import {
+  mdiFolder,
+  mdiFolderOpen,
+  mdiFolderAccount,
+  mdiFileDocumentOutline,
+  mdiFileOutline,
+  mdiChevronRight,
+  mdiChevronDown
+} from '@mdi/js'
 import { isMarkdownFile } from '!/preview'
 import * as meta from '!/storage/meta'
 import { onFileTreeChange } from '!/storage/events'
+import * as sharesApi from '!/shares/api'
+import { SHARED_WITH_ME_DIR_ID } from '!/storage'
 import type { KeyPair } from 'types'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import AsideFileTreeNode from '@/components/ui/AsideFileTreeNode.vue'
@@ -73,10 +83,120 @@ function toNode(file: AppFile): TreeNode {
   return { file, children: [], loaded: false, loading: false }
 }
 
+/**
+ * Root node for the synthetic "Shared with me" folder. Pinned first in the
+ * sidebar tree with the `mdiFolderAccount` icon. Unlike owned folders the
+ * children are not fetched from `/api/storage` — they come from the
+ * recipient-roots filter on `/api/shares/mine`, so the data source can't be
+ * shared with `fetchChildren`. The node renders with `loaded: false` so the
+ * expand affordance triggers `loadSharedRoots` on first click.
+ */
+function syntheticSharedNode(): TreeNode {
+  const file: AppFile = {
+    id: SHARED_WITH_ME_DIR_ID,
+    user_id: '',
+    is_owner: false,
+    name: 'Shared with me',
+    name_hash: '',
+    mime: 'dir',
+    chunks: 0,
+    file_id: null,
+    file_modified_at: 0,
+    created_at: 0,
+    is_new: false,
+    editable: false,
+    active_version: 1,
+    encrypted_key: '',
+    encrypted_name: '',
+    cipher: ''
+  } as AppFile
+  return { file, children: [], loaded: false, loading: false }
+}
+
+async function hasIncomingShares(): Promise<boolean> {
+  try {
+    const page = await sharesApi.getSharesMine(1, 0)
+    return page.total > 0 || page.items.length > 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Translate the recipient's incoming-share roots into tree nodes. Each row
+ * is the entry point into a shared file or folder — owned-by-someone-else
+ * content the recipient can navigate into. Descendants stay server-side; the
+ * tree shows the share roots only, same shape as the virtual folder in the
+ * main file list.
+ */
+async function loadSharedRoots(): Promise<void> {
+  const node = treeState.rootNodes.find((n) => n.file.id === SHARED_WITH_ME_DIR_ID)
+  if (!node) return
+  if (node.loaded || node.loading) return
+  node.loading = true
+  try {
+    const page = await sharesApi.getSharesMine()
+    const privateKey = props.keypair.input as string
+    const children: AppFile[] = []
+    for (const row of page.items) {
+      const base: AppFile = {
+        id: row.file_id,
+        user_id: row.owner_id,
+        is_owner: false,
+        name: row.file_id,
+        name_hash: '',
+        mime: row.mime,
+        size: row.size ?? undefined,
+        chunks: row.chunks ?? 0,
+        chunks_stored: row.chunks_stored ?? undefined,
+        finished_upload_at: row.finished_upload_at ?? undefined,
+        file_id: SHARED_WITH_ME_DIR_ID,
+        file_modified_at: row.created_at,
+        created_at: row.created_at,
+        is_new: false,
+        editable: row.editable,
+        active_version: 1,
+        encrypted_key: row.encrypted_key,
+        encrypted_name: row.encrypted_name,
+        cipher: row.cipher,
+        share_role: row.share_role,
+        shared_by_email: row.shared_by_email ?? row.owner_email,
+        owner_email: row.owner_email
+      } as AppFile
+      try {
+        const decrypted = await meta.decrypt(
+          {
+            cipher: row.cipher,
+            encrypted_key: row.encrypted_key,
+            encrypted_name: row.encrypted_name
+          },
+          privateKey
+        )
+        children.push({ ...base, ...decrypted })
+      } catch {
+        children.push(base)
+      }
+    }
+    children.sort((a, b) => {
+      if (a.mime === 'dir' && b.mime !== 'dir') return -1
+      if (a.mime !== 'dir' && b.mime === 'dir') return 1
+      return (a.name || '').localeCompare(b.name || '')
+    })
+    node.children = children.map(toNode)
+    node.loaded = true
+  } finally {
+    node.loading = false
+  }
+}
+
 async function loadRoot() {
   rootLoading.value = true
-  const items = await fetchChildren(undefined)
-  treeState.rootNodes = items.map(toNode)
+  const [items, incomingShared] = await Promise.all([
+    fetchChildren(undefined),
+    hasIncomingShares()
+  ])
+  const nodes = items.map(toNode)
+  treeState.rootNodes = incomingShared ? [syntheticSharedNode(), ...nodes] : nodes
   treeState.loaded = true
   treeState.userFingerprint = props.keypair.fingerprint || undefined
   rootLoading.value = false
@@ -89,7 +209,14 @@ async function loadRoot() {
 }
 
 async function expandToFolder(folderId: string) {
-  // Fetch the directory to get its parent chain
+  // The synthetic root is a client-only marker; the server has no row
+  // for it and would 400 on the parsed-id branch. Auto-expand for the
+  // virtual folder is handled by `loadSharedRoots` below.
+  if (folderId === SHARED_WITH_ME_DIR_ID) {
+    treeState.expanded.add(folderId)
+    await loadSharedRoots()
+    return
+  }
   const response = await meta.find({ dir_id: folderId })
   const privateKey = props.keypair.input as string
 
@@ -133,6 +260,17 @@ async function expandToFolder(folderId: string) {
 async function toggleFolder(node: TreeNode) {
   const id = node.file.id
 
+  if (id === SHARED_WITH_ME_DIR_ID) {
+    if (treeState.expanded.has(id)) {
+      treeState.expanded.delete(id)
+    } else {
+      treeState.expanded.add(id)
+      await loadSharedRoots()
+    }
+    router.push({ name: 'files', params: { file_id: id } })
+    return
+  }
+
   if (treeState.expanded.has(id)) {
     treeState.expanded.delete(id)
   } else {
@@ -158,6 +296,7 @@ function onFileClick(file: AppFile) {
 }
 
 function iconFor(file: AppFile): string {
+  if (file.id === SHARED_WITH_ME_DIR_ID) return mdiFolderAccount
   if (file.mime === 'dir') {
     return treeState.expanded.has(file.id) ? mdiFolderOpen : mdiFolder
   }
@@ -185,7 +324,11 @@ async function refreshFolder(folderId?: string) {
   const items = await fetchChildren(folderId)
 
   if (!folderId) {
-    treeState.rootNodes = mergeChildren(treeState.rootNodes, items)
+    const synthetic = treeState.rootNodes.find(
+      (n) => n.file.id === SHARED_WITH_ME_DIR_ID
+    )
+    const merged = mergeChildren(treeState.rootNodes, items)
+    treeState.rootNodes = synthetic ? [synthetic, ...merged] : merged
     return
   }
 
@@ -230,7 +373,28 @@ watch(
     <ul v-else class="flex flex-col py-0.5">
       <template v-for="node in treeState.rootNodes" :key="node.file.id">
         <li
-          v-if="node.file.mime === 'dir'"
+          v-if="node.file.id === SHARED_WITH_ME_DIR_ID"
+          :title="node.file.name"
+          class="flex items-center gap-1 px-2 py-1 cursor-pointer transition-colors duration-150"
+          :class="
+            node.file.id === activeFolderId
+              ? 'bg-orangy-500/15 text-orangy-300'
+              : 'text-brownish-300 hover:bg-brownish-700/50 hover:text-brownish-100'
+          "
+          data-testid="aside-tree-shared-with-me"
+          @click="toggleFolder(node)"
+        >
+          <BaseIcon
+            :path="treeState.expanded.has(node.file.id) ? mdiChevronDown : mdiChevronRight"
+            :size="12"
+            class="flex-shrink-0 text-brownish-500"
+          />
+          <BaseIcon :path="iconFor(node.file)" :size="14" class="flex-shrink-0 text-orangy-400" />
+          <span class="truncate">{{ node.file.name }}</span>
+        </li>
+
+        <li
+          v-else-if="node.file.mime === 'dir'"
           :title="node.file.name"
           class="flex items-center gap-1 px-2 py-1 cursor-pointer transition-colors duration-150"
           :class="
@@ -264,7 +428,18 @@ watch(
               @toggle-folder="toggleFolder"
               @file-click="onFileClick"
             />
-            <li v-if="!node.children.length" class="py-1 text-brownish-500 italic" style="padding-left: 24px">Empty</li>
+            <li
+              v-if="!node.children.length"
+              class="py-1 text-brownish-500 italic"
+              style="padding-left: 24px"
+              :data-testid="
+                node.file.id === SHARED_WITH_ME_DIR_ID
+                  ? 'aside-tree-shared-with-me-empty'
+                  : undefined
+              "
+            >
+              {{ node.file.id === SHARED_WITH_ME_DIR_ID ? 'No incoming shares yet' : 'Empty' }}
+            </li>
           </template>
         </template>
 

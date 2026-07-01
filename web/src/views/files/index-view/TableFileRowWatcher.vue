@@ -26,9 +26,11 @@ const emits = defineEmits<{
   (event: 'deselect-all'): void
   (event: 'details', file: AppFile): void
   (event: 'download', file: AppFile): void
-  (event: 'link', file: AppFile): void
+  (event: 'sharing', file: AppFile): void
   (event: 'remove', file: AppFile): void
   (event: 'rename', file: AppFile): void
+  (event: 'fork', file: AppFile): void
+  (event: 'leave', file: AppFile): void
   (event: 'select-one', value: boolean, file: AppFile): void
   (event: 'upload-many', files: FileList, dirId?: string): void
 }>()
@@ -75,9 +77,11 @@ onMounted(() => {
       @deselect-all="() => emits('deselect-all')"
       @details="(f: AppFile) => emits('details', f)"
       @download="(f: AppFile) => emits('download', f)"
-      @link="(f: AppFile) => emits('link', f)"
       @remove="(f: AppFile) => emits('remove', f)"
       @rename="(f: AppFile) => emits('rename', f)"
+      @sharing="(f: AppFile) => emits('sharing', f)"
+      @fork="(f: AppFile) => emits('fork', f)"
+      @leave="(f: AppFile) => emits('leave', f)"
       @select-one="(v: boolean, f: AppFile) => emits('select-one', v, f)"
       @upload-many="(f: FileList, d?: string) => emits('upload-many', f, d)"
     />

@@ -21,6 +21,12 @@ fn main() -> io::Result<()> {
     let out_dir = PathBuf::from("src");
     let mut client_out_file = File::create(out_dir.join("client.rs"))?;
 
+    // Always emit the rerun-if-changed directive — without it, a first build
+    // that ran before `web/dist/` existed would never re-run build.rs once
+    // the Vite output finally lands, and the release binary would ship a
+    // permanently-empty client embed.
+    println!("cargo:rerun-if-changed=../web/dist");
+
     if !client_dist_dir.exists() {
         return handle_no_dist(&mut client_out_file);
     }
@@ -61,8 +67,6 @@ fn main() -> io::Result<()> {
         }
     }
     writeln!(client_out_file, "];")?;
-
-    println!("cargo:rerun-if-changed=web/dist");
 
     Ok(())
 }

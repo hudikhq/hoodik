@@ -92,6 +92,25 @@ pub struct AppConfig {
     ///
     /// default: 30
     pub max_file_versions: usize,
+
+    /// WORKERS — number of HTTP worker threads to spawn.
+    ///
+    /// *optional*
+    ///
+    /// When unset, Actix spawns one worker per logical CPU. Set this to cap the
+    /// thread count on shared hosts that pack many instances onto one box, where
+    /// one-worker-per-core would oversubscribe the machine.
+    pub workers: Option<usize>,
+
+    /// STORAGE_INSTANCE_QUOTA_BYTES — ceiling on the total owner-attributed
+    /// bytes stored across the whole instance, independent of any per-user
+    /// quota. Enforced at every file-creation entry point.
+    ///
+    /// *optional*
+    ///
+    /// When unset only per-user quotas apply, which is the standard
+    /// self-hosted case.
+    pub storage_instance_quota_bytes: Option<u64>,
 }
 
 impl AppConfig {
@@ -118,6 +137,8 @@ impl AppConfig {
         let max_file_versions = vars
             .var_default::<usize>("MAX_FILE_VERSIONS", 30)
             .get();
+        let workers = vars.maybe_var::<usize>("WORKERS");
+        let storage_instance_quota_bytes = vars.maybe_var::<u64>("STORAGE_INSTANCE_QUOTA_BYTES");
 
         vars.panic_if_errors("AppConfig");
 
@@ -132,6 +153,8 @@ impl AppConfig {
             client_url,
             storage_provider,
             max_file_versions,
+            workers: workers.maybe_get(),
+            storage_instance_quota_bytes: storage_instance_quota_bytes.maybe_get(),
         }
         .set_env()
     }

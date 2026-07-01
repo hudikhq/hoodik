@@ -3,6 +3,7 @@ const props = defineProps<{
   type?: string
   class?: string
   modelValue: boolean
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -10,6 +11,7 @@ const emit = defineEmits<{
 }>()
 
 const check = (event: Event) => {
+  if (props.disabled) return
   // @ts-ignore
   emit('update:modelValue', !!event.target?.checked)
 }
@@ -17,8 +19,8 @@ const check = (event: Event) => {
 
 <template>
   <component :is="type || 'span'" :class="props.class || 'lg:w-1'">
-    <label class="checkbox">
-      <input :checked="modelValue" @change="check" type="checkbox" />
+    <label class="checkbox" :class="{ 'opacity-40 cursor-not-allowed': disabled }">
+      <input :checked="modelValue" :disabled="disabled" @change="check" type="checkbox" />
       <span class="check" />
     </label>
   </component>

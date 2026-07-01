@@ -316,6 +316,18 @@ impl FsProviderContract for FsProvider<'_> {
         available_space(self.data_dir).map_err(Error::from)
     }
 
+    async fn health_check(&self) -> AppResult<()> {
+        tokio::fs::metadata(self.data_dir)
+            .await
+            .map(|_| ())
+            .map_err(|e| {
+                Error::StorageError(format!(
+                    "data directory '{}' is unreachable: {e}",
+                    self.data_dir
+                ))
+            })
+    }
+
     /// Direct read of the file data
     async fn read<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<u8>> {
         let path = self.full_path(&filename.filename()?);
@@ -752,6 +764,18 @@ mod tests {
     use super::*;
     use crate::filename::Filename;
     use tempfile::tempdir;
+
+    /// Readiness is OK for a present data directory and an error for a missing
+    /// one — the local equivalent of "the bucket is reachable".
+    #[tokio::test]
+    async fn health_check_reflects_data_dir_presence() {
+        let dir = tempdir().unwrap();
+        let present = FsProvider::new(dir.path().to_str().unwrap());
+        assert!(present.health_check().await.is_ok());
+
+        let missing = FsProvider::new("/no/such/hoodik/data/dir");
+        assert!(missing.health_check().await.is_err());
+    }
 
     /// A versioned write+read round-trip lands chunks under `{uuid}/v{N}/`
     /// and reads them back via the versioned API. Validates the basic happy

@@ -5,11 +5,17 @@ import TruncatedSpan from '@/components/ui/TruncatedSpan.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { formatPrettyDate, formatSize } from '!'
-import { mdiDotsVertical, mdiCloudSyncOutline } from '@mdi/js'
+import {
+  mdiDotsVertical,
+  mdiCloudSyncOutline,
+  mdiFolderAccount,
+  mdiShareVariantOutline
+} from '@mdi/js'
 import type { AppFile } from 'types'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { isPreviewable, isMarkdownFile } from '!/preview'
+import { SHARED_WITH_ME_DIR_ID } from '!/storage'
 
 const router = useRouter()
 
@@ -37,9 +43,11 @@ const emits = defineEmits<{
   (event: 'deselect-all'): void
   (event: 'details', file: AppFile): void
   (event: 'download', file: AppFile): void
-  (event: 'link', file: AppFile): void
+  (event: 'sharing', file: AppFile): void
   (event: 'remove', file: AppFile): void
   (event: 'rename', file: AppFile): void
+  (event: 'fork', file: AppFile): void
+  (event: 'leave', file: AppFile): void
   (event: 'select-one', value: boolean, file: AppFile): void
   (event: 'upload-many', files: FileList, dirId?: string): void
 }>()
@@ -95,6 +103,44 @@ const sharedClass = computed(() => {
   return 'dark:bg-brownish-900 hover:bg-dirty-white hover:dark:bg-brownish-700'
 })
 
+/**
+ * Owner-of-row email surfaced next to the file name when the caller does
+ * not own the row. `owner_email` is the server-side ground truth from the
+ * storage listing; `shared_by_email` is the synthetic-root fallback the
+ * incoming-share mapper sets when listing `__shared_with_me__`. Owned
+ * rows skip the badge — the caller already knows whose folder they are
+ * sitting in.
+ */
+const ownerBadgeEmail = computed(() => {
+  if (props.file.is_owner) return ''
+  return props.file.owner_email || props.file.shared_by_email || ''
+})
+
+/**
+ * Inline hint next to the name when the caller (as owner) has shared
+ * this row with at least one other account. Recipient-side rows surface
+ * an "owned by" badge instead, so this stays hidden on incoming shares.
+ */
+const isSharedOut = computed(() => {
+  if (!props.file.is_owner) return false
+  return (props.file.shared_with_count ?? 0) > 0
+})
+
+const sharedOutTitle = computed(() => {
+  const n = props.file.shared_with_count ?? 0
+  if (n === 1) return 'Shared with 1 other account'
+  return `Shared with ${n} other accounts`
+})
+
+/**
+ * The synthetic "Shared with me" root is rendered as an injected
+ * navigation affordance, not a real `user_files` row. Selecting or
+ * actioning it would push the synthetic id into endpoints that demand a
+ * UUID, so the checkbox and dropdown stay hidden — only the click-through
+ * to navigate into the virtual folder remains.
+ */
+const isSyntheticRoot = computed(() => props.file.id === SHARED_WITH_ME_DIR_ID)
+
 const border = 'sm:border-l sm:border-brownish-50 sm:dark:border-brownish-950'
 const sizes = computed(() => {
   return {
@@ -139,8 +185,19 @@ const doubleClick = () => {
   }
 }
 
+const canWriteMarkdown = computed(() => {
+  // Owners always; recipients only if their role allows writes. The
+  // editor's save toolbar wires through `preview.editable` which is
+  // the file row's editable flag — true for every markdown file — so
+  // the routing decision is the place to gate Readers out of the
+  // editor and into the read-only preview instead.
+  if (props.file.is_owner) return true
+  const role = props.file.share_role
+  return role === 'editor' || role === 'co-owner'
+})
+
 const detailsOrPreview = () => {
-  if (props.file.finished_upload_at && isMarkdownFile(props.file)) {
+  if (props.file.finished_upload_at && isMarkdownFile(props.file) && canWriteMarkdown.value) {
     router.push({ name: 'notes', params: { id: props.file.id } })
   } else if (props.file.finished_upload_at && isPreviewable(props.file)) {
     router.push({ name: 'file-preview', params: { id: props.file.id } })
@@ -150,6 +207,7 @@ const detailsOrPreview = () => {
 }
 
 const singleClick = () => {
+  if (isSyntheticRoot.value) return
   emits('deselect-all')
   selectOne(!checked.value)
 }
@@ -214,7 +272,11 @@ const drop = (e: DragEvent) => {
     }"
   >
     <div :class="sizes.checkbox">
-      <TableCheckboxCell v-if="!props.hideCheckbox" v-model="checked" />
+      <TableCheckboxCell
+        v-if="!props.hideCheckbox"
+        v-model="checked"
+        :disabled="isSyntheticRoot"
+      />
     </div>
 
     <button
@@ -230,7 +292,23 @@ const drop = (e: DragEvent) => {
         class="w-6 h-6 mr-2 rounded-md"
       />
 
+      <BaseIcon
+        v-if="file.id === SHARED_WITH_ME_DIR_ID"
+        :path="mdiFolderAccount"
+        :size="18"
+        class="mr-2 text-orangy-400"
+        data-testid="shared-with-me-folder-icon"
+      />
+
       <TruncatedSpan :text="fileName" />
+      <span
+        v-if="isSharedOut"
+        class="ml-2 inline-flex items-center text-brownish-400 dark:text-brownish-300"
+        :title="sharedOutTitle"
+        data-testid="shared-out-badge"
+      >
+        <BaseIcon :path="mdiShareVariantOutline" :size="14" />
+      </span>
       <!-- Saving-in-another-session badge. Surfaced as soon as the
            server reports a pending_version on the row so users get a
            heads-up before they try to edit and run into a 409. -->
@@ -240,6 +318,14 @@ const drop = (e: DragEvent) => {
         title="Another session is saving this note"
       >
         <BaseIcon :path="mdiCloudSyncOutline" :size="14" />
+      </span>
+      <span
+        v-if="ownerBadgeEmail"
+        class="ml-2 inline-flex items-center max-w-[10rem] truncate px-2 py-0.5 rounded-full text-[11px] uppercase tracking-wider bg-brownish-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200"
+        :title="`Owned by ${ownerBadgeEmail}`"
+        data-testid="shared-by-badge"
+      >
+        {{ ownerBadgeEmail }}
       </span>
     </button>
 
@@ -256,27 +342,31 @@ const drop = (e: DragEvent) => {
     </div>
 
     <div :class="sizes.buttons">
-      <BaseButton
-        class="ml-2 sm:hidden float-right"
-        color="dark"
-        :icon="mdiDotsVertical"
-        small
-        name="actions-modal"
-        @click="emits('actions', file)"
-        :disabled="!props.file.id"
-      />
-      <ActionsDropdown
-        class="ml-2 hidden sm:block float-right"
-        :model-value="props.file"
-        :disabled="!props.file.id"
-        :hide-delete="props.hideDelete"
-        :share="props.share"
-        @details="(f: AppFile) => emits('details', f)"
-        @download="(f: AppFile) => emits('download', f)"
-        @link="(f: AppFile) => emits('link', f)"
-        @remove="(f: AppFile) => emits('remove', f)"
-        @rename="(f: AppFile) => emits('rename', f)"
-      />
+      <template v-if="!isSyntheticRoot">
+        <BaseButton
+          class="ml-2 sm:hidden float-right"
+          color="dark"
+          :icon="mdiDotsVertical"
+          small
+          name="actions-modal"
+          @click="emits('actions', file)"
+          :disabled="!props.file.id"
+        />
+        <ActionsDropdown
+          class="ml-2 hidden sm:block float-right"
+          :model-value="props.file"
+          :disabled="!props.file.id"
+          :hide-delete="props.hideDelete"
+          :share="props.share"
+          @details="(f: AppFile) => emits('details', f)"
+          @download="(f: AppFile) => emits('download', f)"
+          @remove="(f: AppFile) => emits('remove', f)"
+          @rename="(f: AppFile) => emits('rename', f)"
+          @sharing="(f: AppFile) => emits('sharing', f)"
+          @fork="(f: AppFile) => emits('fork', f)"
+          @leave="(f: AppFile) => emits('leave', f)"
+        />
+      </template>
     </div>
   </div>
 

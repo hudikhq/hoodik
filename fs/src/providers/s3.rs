@@ -171,6 +171,15 @@ impl FsProviderContract for S3Provider {
         Ok(u64::MAX)
     }
 
+    async fn health_check(&self) -> AppResult<()> {
+        // A HEAD on any key is one cheap round-trip that exercises the
+        // credentials and bucket reachability; a 404 (key absent) is still a
+        // successful response, only an auth/connectivity failure surfaces as
+        // an error.
+        let key = format!("{}.hoodik-readiness", self.prefix);
+        head_exists(&self.bucket, &key).await.map(|_| ())
+    }
+
     async fn read<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<u8>> {
         let key = self.object_key(&filename.filename()?);
 

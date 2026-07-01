@@ -11,5 +11,12 @@ module.exports = {
   ],
   parserOptions: {
     ecmaVersion: 'latest'
-  }
+  },
+  ignorePatterns: [
+    'dist/',
+    'node_modules/',
+    'playwright-report/',
+    'test-results/',
+    'coverage/'
+  ]
 }

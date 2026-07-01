@@ -1,0 +1,35 @@
+[package]
+name = "shares"
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.91"
+authors = ["Tibor Hudik <hello@hudik.eu>"]
+license-file = "../LICENSE.md"
+description = "Account-to-account sharing service: signed share grants, audit log, capability surface."
+
+[features]
+mock = ["context/mock", "entity/mock"]
+test-support = []
+
+[dependencies]
+log = { workspace = true }
+actix-web = { workspace = true }
+validr = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+cached = { workspace = true }
+sha2 = "0.10"
+
+auth = { path = "../auth" }
+context = { path = "../context" }
+cryptfns = { path = "../cryptfns" }
+entity = { path = "../entity" }
+error = { path = "../error" }
+settings = { path = "../settings" }
+util = { path = "../util" }
+
+[dev-dependencies]
+context = { path = "../context", features = ["mock"] }
+entity = { path = "../entity", features = ["mock"] }
+settings = { path = "../settings", features = ["mock"] }

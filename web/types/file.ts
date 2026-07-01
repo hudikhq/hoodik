@@ -50,7 +50,7 @@ export interface EncryptedAppFile extends AppFileEncryptedPart {
   chunks_stored?: number
 
   /** Parent directory id; null/undefined means the user's root. */
-  file_id?: string
+  file_id?: string | null
 
   /** Client-supplied override for the original file's mtime. */
   file_modified_at: number
@@ -95,6 +95,44 @@ export interface EncryptedAppFile extends AppFileEncryptedPart {
   uploaded_chunks?: number[]
 
   link?: EncryptedLink
+
+  /**
+   * Folders only: timestamp of the `FolderMemberListV1` signature, when
+   * the folder has ever been shared. Null/undefined means it has not.
+   * Owner-side uploads route through the multi-key endpoint whenever
+   * this is set so members get a key wrap with the new file.
+   */
+  members_signed_at?: number | null
+
+  /**
+   * Recipient's role on this file (`"reader"` / `"editor"` /
+   * `"co-owner"`). `null` for files the caller owns. Used to decide
+   * whether a row click opens the editor or the preview, and whether
+   * write actions are available.
+   */
+  share_role?: 'reader' | 'editor' | 'co-owner' | null
+
+  /**
+   * Email of the user who granted access — owner or any Co-owner in the
+   * chain. Set client-side when rendering rows inside the virtual
+   * "Shared with me" folder so the row carries a "shared by …" badge.
+   * Never round-tripped to the server.
+   */
+  shared_by_email?: string | null
+
+  /**
+   * Email of the file's owner. Same lifecycle as `shared_by_email` —
+   * populated only on rows mapped from incoming shares.
+   */
+  owner_email?: string | null
+
+  /**
+   * Number of non-owner `user_files` rows for this file. Owner-side
+   * listings surface this so the SPA can render a "shared with others"
+   * hint inline next to the name; stays 0 on rows the caller doesn't
+   * own.
+   */
+  shared_with_count?: number
 }
 
 /**

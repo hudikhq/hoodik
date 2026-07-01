@@ -7,7 +7,7 @@ import * as yup from 'yup'
 import { ref } from 'vue'
 
 defineProps<{
-  unlockingError?: boolean
+  unlockingError?: string
 }>()
 const emits = defineEmits<{
   (event: 'unlock', password: string): void

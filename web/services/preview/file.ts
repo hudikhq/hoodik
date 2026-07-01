@@ -8,9 +8,9 @@ export class FilePreview extends Preview implements Preview {
   private items?: FilePreview[]
 
   constructor(public file: AppFile, public keypair: KeyPair) {
-    const { id, name, thumbnail, mime, size, file_id: parentId, editable } = file
+    const { id, name, thumbnail, mime, size, file_id, editable } = file
 
-    super({ id, name, parentId, thumbnail, mime, size, editable })
+    super({ id, name, parentId: file_id ?? undefined, thumbnail, mime, size, editable })
 
     this.file = file
     this.keypair = keypair
@@ -25,7 +25,7 @@ export class FilePreview extends Preview implements Preview {
       return
     }
 
-    await store.find(this.keypair, this.file.file_id)
+    await store.find(this.keypair, this.file.file_id ?? undefined)
 
     this.items = store.items
       .map((i) => new FilePreview(i, this.keypair as KeyPair))

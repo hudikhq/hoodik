@@ -21,6 +21,11 @@ pub(crate) async fn name_hash(
     let name_hash = util::actix::path_var::<String>(&req, "name_hash")?;
     let file_id = util::actix::query_var::<Uuid>(&req, "parent_id").ok();
 
+    // Owner-context lookup by name hash — this
+    // route is Owner-only to prevent enumeration. `manage(claims.sub)` is
+    // already keyed on the caller's owner_id, but we don't apply an
+    // explicit `permission()` check here because `by_name` filters
+    // `is_owner=true` directly. Non-owner callers see 404.
     let mut file = Repository::new(&context.db)
         .manage(claims.sub)
         .by_name(&name_hash, file_id)

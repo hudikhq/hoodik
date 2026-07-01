@@ -23,9 +23,11 @@ entity = { path = "../entity" }
 error = { path = "../error" }
 fs = { path = "../fs" }
 settings = { path = "../settings" }
+shares = { path = "../shares" }
 util = { path = "../util" }
 
 [dev-dependencies]
 async-std = { workspace = true }
 entity = { path = "../entity", features = ["mock"] }
 context = { path = "../context", features = ["mock"] }
+shares = { path = "../shares", features = ["mock"] }

@@ -36,9 +36,13 @@ where
 
     /// Sum all of the used space for the user so we can check if the user is over the quota limit
     pub(crate) async fn used_space(&self) -> AppResult<i64> {
+        self.used_bytes_where(true).await
+    }
+
+    async fn used_bytes_where(&self, is_owner: bool) -> AppResult<i64> {
         let user_id = self.user_id;
 
-        let used_space = user_files::Entity::find()
+        let bytes = user_files::Entity::find()
             .select_only()
             .filter(user_files::Column::UserId.eq(user_id))
             .join(
@@ -48,7 +52,7 @@ where
                     .on_condition(move |left, _right| {
                         Expr::col((left, user_files::Column::UserId))
                             .eq(user_id)
-                            .and(user_files::Column::IsOwner.eq(true))
+                            .and(user_files::Column::IsOwner.eq(is_owner))
                             .into_condition()
                     }),
             )
@@ -58,7 +62,7 @@ where
             .one(self.repository.connection())
             .await?;
 
-        Ok(used_space
+        Ok(bytes
             .unwrap_or_default()
             .map(|numeric| numeric.into())
             .unwrap_or(0))

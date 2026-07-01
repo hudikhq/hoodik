@@ -220,12 +220,22 @@ export async function getByName(
 }
 
 /**
- * Get file or directory metadata
+ * Get file or directory metadata.
+ *
+ * The synthetic `__shared_with_me__` parent is a client-only marker; the
+ * recipient-side listing lives behind `/api/shares/mine` instead. Short-
+ * circuit here so a stray caller (e.g. the sidebar tree auto-expanding a
+ * route) never sends the synthetic id to a UUID-parsing endpoint.
  */
 export async function find(parameters: Parameters): Promise<FileResponse> {
   // @ts-ignore
   if (typeof parameters.dir_id !== 'undefined' && typeof parameters.dir_id !== 'string') {
     delete parameters.dir_id
+  }
+
+  // @ts-ignore
+  if (parameters.dir_id === '__shared_with_me__') {
+    return { children: [], parents: [] }
   }
 
   const response = await Api.get<FileResponse>(`/api/storage`, parameters)

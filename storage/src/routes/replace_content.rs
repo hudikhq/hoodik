@@ -36,6 +36,7 @@ pub(crate) async fn replace_content(
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let file_id: Uuid = util::actix::path_var(&req, "file_id")?;
+    crate::permission::require_write(&context.db, file_id, claims.sub).await?;
     let validated = data.into_inner().validate_into(file_id)?;
 
     let fs = Fs::new(&context.config);

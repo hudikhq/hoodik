@@ -25,6 +25,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(account::change_password);
     cfg.service(account::kill_all);
     cfg.service(account::kill);
+    cfg.service(account::patch_me);
     cfg.service(action::action);
     cfg.service(authenticated_self::authenticated_self);
     cfg.service(credentials::credentials);

@@ -5,6 +5,11 @@ import type { store as filesStore } from '../services/storage'
 import type { store as queueStore } from '../services/queue'
 import type { store as cryptoStore } from '../services/crypto'
 import type { store as linksStore } from '../services/links'
+import type {
+  store as sharesStore,
+  trustedFingerprintsStore,
+  capabilitiesStore
+} from '../services/shares'
 import type { store as loginStore } from '../services/auth/login'
 import type { AppFile, UploadAppFile, DownloadAppFile } from './file'
 
@@ -17,6 +22,7 @@ export * from './links'
 export * from './login'
 export * from './queue'
 export * from './register'
+export * from './shares'
 export * from './worker'
 
 export type UploadStore = ReturnType<typeof uploadStore>
@@ -26,6 +32,9 @@ export type QueueStore = ReturnType<typeof queueStore>
 export type LoginStore = ReturnType<typeof loginStore>
 export type CryptoStore = ReturnType<typeof cryptoStore>
 export type LinksStore = ReturnType<typeof linksStore>
+export type SharesStore = ReturnType<typeof sharesStore>
+export type TrustedFingerprintsStore = ReturnType<typeof trustedFingerprintsStore>
+export type CapabilitiesStore = ReturnType<typeof capabilitiesStore>
 
 export interface Paginated<T> {
   data: T[]

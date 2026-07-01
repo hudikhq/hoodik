@@ -10,7 +10,8 @@ import MarkdownToolbar from '@/components/editor/MarkdownToolbar.vue'
 import MarkdownActions from '@/components/editor/MarkdownActions.vue'
 import RenameModal from '@/components/files/modals/RenameModal.vue'
 import DetailsModal from '@/components/files/modals/DetailsModal.vue'
-import LinkModal from '@/components/links/modals/LinkModal.vue'
+import SharingModal from '@/components/shares/SharingModal.vue'
+import { store as loginStore } from '!/auth/login'
 import VersionHistory from '@/components/preview/VersionHistory.vue'
 import { useMarkdownSave } from '@/components/editor/composables/useMarkdownSave'
 import { exportPdf } from '@/components/editor/composables/useMarkdownExport'
@@ -66,7 +67,8 @@ const editorWrapperRef = ref<HTMLElement>()
 
 const renameFile = ref<AppFile>()
 const detailsFile = ref<AppFile>()
-const linkFile = ref<AppFile>()
+const sharingFileId = ref<string | undefined>()
+const sharingInitialTab = ref<'people' | 'link'>('people')
 const confirmingDelete = ref(false)
 const showMoveModal = ref(false)
 const moveFolderId = ref<string | undefined>()
@@ -76,6 +78,7 @@ const Storage = storageStore()
 const Crypto = cryptoStore()
 const Download = downloadStore()
 const Links = linksStore()
+const login = loginStore()
 const router = useRouter()
 
 const {
@@ -138,7 +141,21 @@ async function convertToNote() {
 
 function openRename() { renameFile.value = ownedFile() }
 function openDetails() { detailsFile.value = ownedFile() }
-function openLink() { linkFile.value = ownedFile() }
+function openSharing(initial: 'people' | 'link' = 'people') {
+  const file = ownedFile()
+  if (!file) return
+  sharingFileId.value = file.id
+  sharingInitialTab.value = initial
+}
+
+/**
+ * Live lookup against the Pinia storage store so the modal always sees
+ * the latest row — important for the link blob landing on a file after
+ * SharingLinkPanel.create() forces a fresh listing.
+ */
+const sharingFile = computed<AppFile | undefined>(() =>
+  sharingFileId.value ? (Storage.getItem(sharingFileId.value) ?? undefined) : undefined
+)
 
 function downloadFile() {
   const file = ownedFile()
@@ -336,7 +353,7 @@ defineExpose({ exportPdf: handleExportPdf })
         @details="openDetails"
         @rename="openRename"
         @download="downloadFile"
-        @link="openLink"
+        @sharing="openSharing"
         @export-pdf="handleExportPdf"
         @toggle-raw="showRaw = !showRaw"
         @convert="convertToNote"
@@ -347,8 +364,17 @@ defineExpose({ exportPdf: handleExportPdf })
 
     <!-- Modals -->
     <RenameModal v-if="renameFile" v-model="renameFile" :Storage="Storage" :Crypto="Crypto" />
-    <DetailsModal v-model="detailsFile" :kp="Crypto.keypair" />
-    <LinkModal v-model="linkFile" :Storage="Storage" :Links="Links" :kp="Crypto.keypair" />
+    <DetailsModal v-model="detailsFile" />
+    <SharingModal
+      v-if="sharingFile && login.authenticated"
+      :file="sharingFile"
+      :authenticated-user-id="login.authenticated.user.id"
+      :keypair="Crypto.keypair"
+      :storage="Storage"
+      :links="Links"
+      :initial-tab="sharingInitialTab"
+      @close="() => { sharingFileId = undefined }"
+    />
 
     <CardBoxModal
       :model-value="confirmingDelete"

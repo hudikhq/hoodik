@@ -1,5 +1,6 @@
 use ascon_aead::Error as AsconError;
 use base64::DecodeError;
+use der::Error as DerError;
 use getrandom::Error as RandomError;
 use hex::FromHexError;
 use rsa::{
@@ -22,9 +23,11 @@ pub enum Error {
     FromUtf8Error(FromUtf8Error),
     FromHexError(FromHexError),
     DecodeError(DecodeError),
+    DerError(DerError),
     AsconError(AsconError),
     RandomError(RandomError),
     UnknownCipher(String),
+    InvalidLength(&'static str),
     #[cfg(feature = "tokenizer")]
     TokenizersError(TokenizersError),
 }
@@ -85,6 +88,12 @@ impl From<FromHexError> for Error {
 impl From<DecodeError> for Error {
     fn from(error: DecodeError) -> Self {
         Error::DecodeError(error)
+    }
+}
+
+impl From<DerError> for Error {
+    fn from(error: DerError) -> Self {
+        Error::DerError(error)
     }
 }
 

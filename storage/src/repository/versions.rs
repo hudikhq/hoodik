@@ -191,9 +191,14 @@ where
         new_file_active_model: files::ActiveModel,
         encrypted_key: String,
     ) -> AppResult<ForkOutcome> {
+        // Caller's permission was already gated at the route. The
+        // `by_id(source_file_id, caller_id)` call confirms the caller
+        // has at least a `user_files` row on the source — whether owner
+        // or non-owner. Fork creates a brand-new file owned by the
+        // caller; the source row stays untouched.
         let source = self.repository.by_id(source_file_id, self.owner_id).await?;
 
-        if !source.is_owner || source.user_id != self.owner_id {
+        if source.user_id != self.owner_id {
             return Err(Error::NotFound("file_not_found".to_string()));
         }
 
@@ -222,6 +227,10 @@ where
             encrypted_key: ActiveValue::Set(encrypted_key),
             created_at: ActiveValue::Set(Utc::now().timestamp()),
             expires_at: ActiveValue::NotSet,
+            share_role: ActiveValue::Set("co-owner".to_string()),
+            shared_at: ActiveValue::NotSet,
+            shared_by_user_id: ActiveValue::NotSet,
+            member_signature: ActiveValue::NotSet,
         };
         entity::user_files::Entity::insert(user_file)
             .exec_without_returning(self.repository.connection())

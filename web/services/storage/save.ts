@@ -3,6 +3,12 @@ import * as cryptfns from '../cryptfns'
 import { CHUNK_SIZE_BYTES } from '../constants'
 import { uploadChunk } from './upload/sync'
 import * as meta from './meta'
+import {
+  uploadIntoSharedFolder,
+  type UploadIntoSharedFolderArgs
+} from '../shares/editable'
+import { trustedFingerprintsStore } from '../shares'
+import { uuidv4, utcStringFromLocal } from '..'
 
 import type { AppFile, KeyPair, CreateFile } from 'types'
 
@@ -123,19 +129,76 @@ export async function saveFileContent(
 }
 
 /**
+ * Whether a new file/note created at this parent must take the multi-key
+ * shared-folder path instead of the single-owner `POST /api/storage` one.
+ * The backend's owner-only check on the regular create rejects every
+ * non-owner parent ("parent_directory_not_found"), so any folder the
+ * caller doesn't own must route through `uploadIntoSharedFolder` to fan
+ * the new file's key out to all current members. Owned folders that have
+ * been shared go through the same path so the cascade fires without the
+ * owner having to re-upload manually.
+ */
+export function needsMultikeyCreate(parent: AppFile | null | undefined): boolean {
+  if (!parent) return false
+  if (parent.mime !== 'dir') return false
+  if (parent.is_owner === false) return true
+  return parent.members_signed_at != null
+}
+
+/**
  * Create a new markdown note with initial heading content,
  * upload it as a single chunk, and return the created file.
+ *
+ * When `parent` is supplied as an `AppFile` and it's a shared folder, the
+ * create routes through the multi-key pipeline so every current member
+ * receives an RSA-wrapped copy of the file key. Callers that only have
+ * the parent id can pass a string and the helper will fetch the
+ * `AppFile` lazily — the round trip is the cost of not threading the
+ * full row through every caller.
  */
 export async function createNote(
   keypair: KeyPair,
   name: string,
-  folderId?: string
+  parent?: AppFile | string | null,
+  callerUserId?: string
 ): Promise<AppFile> {
   const fileName = name.endsWith('.md') ? name : `${name}.md`
   const tokens = cryptfns.stringToHashedTokens(fileName.toLowerCase())
 
   const initialContent = `# ${fileName.replace(/\.md$/i, '')}\n`
   const contentBytes = new TextEncoder().encode(initialContent)
+
+  let parentFile: AppFile | null = null
+  if (parent && typeof parent === 'object') {
+    parentFile = parent
+  } else if (typeof parent === 'string' && parent) {
+    try {
+      parentFile = await meta.get(keypair, parent)
+    } catch {
+      // Caller-passed id might predate a sync — fall through to the
+      // regular create path; the server will produce a clearer error if
+      // the row truly does not exist.
+      parentFile = null
+    }
+  }
+
+  if (needsMultikeyCreate(parentFile)) {
+    if (!parentFile) throw new Error('Cannot create file without parent context')
+    if (!keypair.input || !keypair.publicKey) {
+      throw new Error('Cannot create file without an active keypair')
+    }
+    if (!callerUserId) {
+      throw new Error('Cannot create file in a shared folder without caller id')
+    }
+    return createNoteInSharedFolder({
+      keypair,
+      callerUserId,
+      parent: parentFile,
+      fileName,
+      contentBytes,
+      tokens
+    })
+  }
 
   const createData: CreateFile = {
     name: fileName,
@@ -144,7 +207,7 @@ export async function createNote(
     size: contentBytes.length,
     chunks: 1,
     search_tokens_hashed: tokens,
-    file_id: folderId,
+    file_id: parentFile?.id ?? (typeof parent === 'string' ? parent : undefined),
     cipher: cryptfns.cipher.DEFAULT_CIPHER
   }
 
@@ -166,4 +229,83 @@ export async function createNote(
   )
 
   return file
+}
+
+async function createNoteInSharedFolder(args: {
+  keypair: KeyPair
+  callerUserId: string
+  parent: AppFile
+  fileName: string
+  contentBytes: Uint8Array
+  tokens: string[]
+}): Promise<AppFile> {
+  const cipher = cryptfns.cipher.DEFAULT_CIPHER
+  const fileKey = await cryptfns.cipher.generateKey(cipher)
+  const fileKeyHex = cryptfns.uint8.toHex(fileKey)
+  const encryptedName = await cryptfns.cipher.encryptString(cipher, args.fileName, fileKey)
+  const nameHash = cryptfns.sha256.digest(args.fileName)
+  const newFileId = uuidv4()
+  const modified = new Date()
+
+  const uploadArgs: UploadIntoSharedFolderArgs = {
+    callerUserId: args.callerUserId,
+    callerPrivateKey: args.keypair.input as string,
+    callerPublicKey: args.keypair.publicKey as string,
+    payload: {
+      newFileId,
+      parentFileId: args.parent.id,
+      fileKeyHex,
+      nameHash,
+      encryptedName,
+      mime: 'text/markdown',
+      size: args.contentBytes.length,
+      chunks: 1,
+      cipher,
+      editable: true,
+      fileModifiedAt: utcStringFromLocal(modified),
+      searchTokensHashed: args.tokens
+    },
+    trustedFingerprints: trustedFingerprintsStore(),
+    onUnknownMember: async () => true
+  }
+
+  await uploadIntoSharedFolder(uploadArgs)
+
+  const { token } = await meta.requestTransferToken(newFileId, 'upload')
+  const api = new Api({ ...new Api().toJson(), jwtToken: token, refreshToken: undefined })
+
+  const placeholder = {
+    id: newFileId,
+    user_id: args.callerUserId,
+    is_owner: true,
+    name_hash: nameHash,
+    mime: 'text/markdown',
+    size: args.contentBytes.length,
+    chunks: 1,
+    file_id: args.parent.id,
+    file_modified_at: Math.floor(modified.getTime() / 1000),
+    created_at: Math.floor(Date.now() / 1000),
+    is_new: true,
+    editable: true,
+    active_version: 1,
+    encrypted_key: '',
+    encrypted_name: encryptedName,
+    cipher,
+    key: fileKey,
+    name: args.fileName,
+    temporaryId: newFileId
+  } as AppFile & { temporaryId: string }
+
+  await uploadChunk(
+    {
+      ...placeholder,
+      file: new File([args.contentBytes], args.fileName)
+    },
+    args.contentBytes,
+    0,
+    0,
+    api
+  )
+
+  return await meta.get(args.keypair, newFileId)
 }

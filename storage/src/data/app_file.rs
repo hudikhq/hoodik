@@ -41,6 +41,32 @@ pub struct AppFile {
     pub is_new: bool,
     pub uploaded_chunks: Option<Vec<i64>>,
     pub link: Option<links::Model>,
+    /// Timestamp of the folder's most recent
+    /// `FolderMemberListV1` signature, or `None` for folders that have
+    /// never been shared. Surfaced so the upload UI can route owner-side
+    /// adds through `upload-multikey` (which fans the file key out to
+    /// every member) instead of the single-key create path.
+    pub members_signed_at: Option<i64>,
+    /// Recipient's role on this file (`"reader"`, `"editor"`,
+    /// `"co-owner"`), or `None` when the caller is the owner. The UI
+    /// uses this together with `editable` to decide whether a row
+    /// click opens the editor or the read-only preview — without it,
+    /// Editors land in the preview and Readers crash into the editor
+    /// only to have save fail server-side.
+    pub share_role: Option<String>,
+    /// Email of the file's owner — the user holding the `is_owner=true`
+    /// `user_files` row. Populated only when the caller is a non-owner
+    /// of the row, so shared listings can render a "owned by …" badge
+    /// without leaking the caller's own email back at them.
+    pub owner_email: Option<String>,
+    /// Number of non-owner `user_files` rows for this file. Populated
+    /// only for rows the caller owns so the file browser can render a
+    /// "shared with N others" hint next to the name. Stays 0 on rows
+    /// the caller doesn't own — the recipient already sees an "owned
+    /// by" badge and doesn't need to know who else the owner shared
+    /// the file with.
+    #[serde(default)]
+    pub shared_with_count: i64,
 }
 
 impl IntoFilename for AppFile {
@@ -144,6 +170,14 @@ impl FromQueryResult for AppFile {
             is_new: false,
             uploaded_chunks: None,
             link,
+            members_signed_at: file.members_list_signed_at,
+            share_role: if user_file.is_owner {
+                None
+            } else {
+                Some(user_file.share_role.clone())
+            },
+            owner_email: None,
+            shared_with_count: 0,
         })
     }
 }

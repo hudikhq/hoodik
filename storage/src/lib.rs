@@ -1,3 +1,4 @@
+pub(crate) mod permission;
 pub(crate) mod repository;
 
 pub mod data;

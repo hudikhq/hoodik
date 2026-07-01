@@ -368,7 +368,7 @@ export default class Api {
    * @throws
    */
   async make<B, R>(
-    method: 'get' | 'post' | 'put' | 'delete',
+    method: 'get' | 'post' | 'put' | 'patch' | 'delete',
     path: string,
     query?: Query,
     body?: B,
@@ -444,7 +444,7 @@ export default class Api {
    * Build request parameters
    */
   static buildRequest<B>(
-    method: 'get' | 'post' | 'put' | 'delete',
+    method: 'get' | 'post' | 'put' | 'patch' | 'delete',
     path: string,
     query?: Query,
     body?: B,

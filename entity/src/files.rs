@@ -44,6 +44,24 @@ pub struct Model {
     /// `pending_chunks` — keeps `size` accurate for active-version readers
     /// during a save.
     pub pending_size: Option<i64>,
+    /// Last time the folder's share-member set changed. Bumped on every
+    /// add/remove/role-change. NULL for non-folder rows and folders that
+    /// have never been shared. The editable-folder TOCTOU defense
+    /// compares the uploader's snapshot against this value.
+    pub last_membership_change_at: Option<i64>,
+    /// RSA-PSS-SHA256 signature over the canonical sorted member list,
+    /// produced by the actor that most recently mutated the membership
+    /// (folder owner or any current Co-owner). Returned verbatim from
+    /// the `/api/shares/folder/{F}/members` endpoint; verified
+    /// client-side before any multi-key upload. NULL until the first
+    /// client writes a signed list.
+    pub members_list_signature: Option<Vec<u8>>,
+    /// Timestamp covered by `members_list_signature` (and embedded in
+    /// the signed payload). NULL while the signature itself is NULL.
+    pub members_list_signed_at: Option<i64>,
+    /// User who produced `members_list_signature`. FK to `users.id`,
+    /// SET NULL on actor deletion so the audit trail survives.
+    pub members_list_signed_by_user_id: Option<Uuid>,
 }
 
 impl IntoFilename for Model {

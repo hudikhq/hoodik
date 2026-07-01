@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     data::create_file::CreateFile,
+    permission::{require_owner, require_read, require_write},
     repository::{cached::evict_file, Repository},
 };
 
@@ -29,6 +30,10 @@ pub(crate) async fn list(
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let file_id: Uuid = util::actix::path_var(&req, "file_id")?;
+
+    // Any member of a share can browse the version history; only
+    // Editor / Co-owner / Owner can restore.
+    require_read(&context.db, file_id, claims.sub).await?;
 
     let versions = Repository::new(&context.db)
         .versions(claims.sub)
@@ -53,8 +58,8 @@ pub(crate) async fn download(
     let chunk = util::actix::query_var::<i64>(&req, "chunk").ok();
     let format = util::actix::query_var::<String>(&req, "format").ok();
 
-    // Authorization + existence go through the repository — both file
-    // and historical version must exist for the calling owner.
+    require_read(&context.db, file_id, claims.sub).await?;
+
     let file = Repository::new(&context.db)
         .manage(claims.sub)
         .file(file_id)
@@ -104,6 +109,8 @@ pub(crate) async fn restore(
     let context = context.into_inner();
     let file_id: Uuid = util::actix::path_var(&req, "file_id")?;
     let version: i32 = util::actix::path_var(&req, "version")?;
+
+    require_write(&context.db, file_id, claims.sub).await?;
 
     let storage = Fs::new(&context.config);
 
@@ -166,6 +173,11 @@ pub(crate) async fn fork(
     let context = context.into_inner();
     let source_file_id: Uuid = util::actix::path_var(&req, "file_id")?;
     let source_version: i32 = util::actix::path_var(&req, "version")?;
+
+    // Version-level fork is write-equivalent (Owner /
+    // Co-owner / Editor). Distinct from the Co-owner-only file-level
+    // fork at `POST /api/shares/{file_id}/fork`.
+    require_write(&context.db, source_file_id, claims.sub).await?;
 
     let source = Repository::new(&context.db)
         .manage(claims.sub)
@@ -248,6 +260,8 @@ pub(crate) async fn delete(
     let file_id: Uuid = util::actix::path_var(&req, "file_id")?;
     let version: i32 = util::actix::path_var(&req, "version")?;
 
+    require_owner(&context.db, file_id, claims.sub).await?;
+
     Repository::new(&context.db)
         .versions(claims.sub)
         .delete(file_id, version)
@@ -281,6 +295,8 @@ pub(crate) async fn purge_all_history(
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let file_id: Uuid = util::actix::path_var(&req, "file_id")?;
+
+    require_owner(&context.db, file_id, claims.sub).await?;
 
     let pruned = Repository::new(&context.db)
         .versions(claims.sub)

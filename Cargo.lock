@@ -282,6 +282,7 @@ dependencies = [
  "serde",
  "serde_json",
  "settings",
+ "shares",
  "strum 0.24.1",
  "strum_macros 0.24.3",
  "util",
@@ -1386,6 +1387,7 @@ dependencies = [
  "chacha20poly1305",
  "console_error_panic_hook",
  "crc",
+ "der 0.6.1",
  "getrandom 0.2.17",
  "hex",
  "num-traits",
@@ -1535,6 +1537,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1a467a65c5e759bce6e65eaf91cc29f466cdc57cb65777bd646872a8a1fd4de"
 dependencies = [
  "const-oid 0.9.6",
+ "der_derive",
  "pem-rfc7468 0.6.0",
  "zeroize",
 ]
@@ -1548,6 +1551,18 @@ dependencies = [
  "const-oid 0.9.6",
  "pem-rfc7468 0.7.0",
  "zeroize",
+]
+
+[[package]]
+name = "der_derive"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ef71ddb5b3a1f53dee24817c8f70dfa1cb29e804c18d88c228d4bc9c86ee3b9"
+dependencies = [
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -2446,7 +2461,7 @@ dependencies = [
 
 [[package]]
 name = "hoodik"
-version = "1.15.4"
+version = "1.16.0"
 dependencies = [
  "actix-cors",
  "actix-web",
@@ -2466,10 +2481,13 @@ dependencies = [
  "log",
  "migration",
  "openssl",
+ "rand 0.8.6",
  "reqwest",
  "serde",
  "serde_json",
  "settings",
+ "sha2",
+ "shares",
  "storage",
  "tokio",
  "transfer",
@@ -3892,6 +3910,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "proc-macro-error"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da25490ff9892aab3fcf7c36f08cfb902dd3e71ca0f9f9517bea02a73a5ce38c"
+dependencies = [
+ "proc-macro-error-attr",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+ "version_check",
+]
+
+[[package]]
+name = "proc-macro-error-attr"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1be40180e52ecc98ad80b184934baf3d0d29f979574e439af5a55274b35f869"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "version_check",
+]
+
+[[package]]
 name = "proc-macro-error-attr2"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5000,6 +5042,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
  "lazy_static",
+]
+
+[[package]]
+name = "shares"
+version = "1.0.0"
+dependencies = [
+ "actix-web",
+ "auth",
+ "cached",
+ "chrono",
+ "context",
+ "cryptfns",
+ "entity",
+ "error",
+ "log",
+ "serde",
+ "serde_json",
+ "settings",
+ "sha2",
+ "util",
+ "validr",
 ]
 
 [[package]]

@@ -181,14 +181,17 @@ export const store = defineStore('links', () => {
   }
 
   /**
-   * Load all the shared links for the user.
+   * Load all the public links the caller owns. The endpoint is owner-
+   * scoped — public links are entirely owner-side.
    */
   async function find(kp: KeyPair): Promise<void> {
     loading.value = true
 
     const encryptedLinks = await meta.all()
 
-    const links = await Promise.all(encryptedLinks.map((link) => crypto.decryptLinkRsa(link, kp)))
+    const links = await Promise.all(
+      encryptedLinks.map((link) => crypto.decryptLinkRsa(link, kp))
+    )
 
     for (const link of links) {
       upsertItem(link)

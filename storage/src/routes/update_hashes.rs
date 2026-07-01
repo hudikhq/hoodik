@@ -21,6 +21,7 @@ pub(crate) async fn update_hashes(
     let context = context.into_inner();
     let file_id: Uuid = util::actix::path_var(&req, "file_id")?;
     claims.validate_transfer_path(file_id, "upload")?;
+    crate::permission::require_write(&context.db, file_id, claims.sub()).await?;
     let repository = Repository::new(&context.db);
 
     let file = repository

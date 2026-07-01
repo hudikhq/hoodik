@@ -14,6 +14,16 @@ pub(crate) mod m20260326_000001_alter_files_add_cipher;
 pub(crate) mod m20260406_000001_alter_files_add_editable;
 pub(crate) mod m20260418_000001_alter_files_add_versioning;
 pub(crate) mod m20260418_000002_create_file_versions;
+pub(crate) mod m20260601_000001_alter_user_files_share_role;
+pub(crate) mod m20260601_000002_alter_user_files_share_metadata;
+pub(crate) mod m20260601_000003_add_user_files_indexes;
+pub(crate) mod m20260601_000004_create_share_events;
+pub(crate) mod m20260601_000005_alter_users_share_notifications;
+pub(crate) mod m20260601_000006_create_share_groups;
+pub(crate) mod m20260601_000007_create_share_group_members;
+pub(crate) mod m20260601_000008_alter_settings_sharing_kill_switch;
+pub(crate) mod m20260601_000009_alter_files_folder_member_list;
+pub(crate) mod m20260601_000010_alter_share_group_members_role;
 
 pub struct Migrator;
 
@@ -35,6 +45,16 @@ impl MigratorTrait for Migrator {
             Box::new(m20260406_000001_alter_files_add_editable::Migration),
             Box::new(m20260418_000001_alter_files_add_versioning::Migration),
             Box::new(m20260418_000002_create_file_versions::Migration),
+            Box::new(m20260601_000001_alter_user_files_share_role::Migration),
+            Box::new(m20260601_000002_alter_user_files_share_metadata::Migration),
+            Box::new(m20260601_000003_add_user_files_indexes::Migration),
+            Box::new(m20260601_000004_create_share_events::Migration),
+            Box::new(m20260601_000005_alter_users_share_notifications::Migration),
+            Box::new(m20260601_000006_create_share_groups::Migration),
+            Box::new(m20260601_000007_create_share_group_members::Migration),
+            Box::new(m20260601_000008_alter_settings_sharing_kill_switch::Migration),
+            Box::new(m20260601_000009_alter_files_folder_member_list::Migration),
+            Box::new(m20260601_000010_alter_share_group_members_role::Migration),
         ]
     }
 }
