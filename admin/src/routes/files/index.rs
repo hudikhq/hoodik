@@ -18,7 +18,8 @@ pub(crate) async fn index(staff: Staff, context: web::Data<Context>) -> AppResul
     let repository = Repository::new(&context, &context.db);
 
     let stats = repository.files().stats().await?;
-    let available_space = repository.files().available_space().await?;
+    let used: i64 = stats.iter().map(|s| s.size).sum();
+    let available_space = repository.files().available_space(used).await?;
 
     Ok(HttpResponse::Ok().json(Response {
         available_space,

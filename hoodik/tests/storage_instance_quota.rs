@@ -171,6 +171,29 @@ async fn instance_quota_concurrent_creates_admit_exactly_one() {
 }
 
 #[actix_web::test]
+async fn instance_quota_shapes_admin_available_space() {
+    let mut context = context::Context::mock_sqlite().await;
+    context.config.app.storage_instance_quota_bytes = Some(10240);
+    let app = test::init_service(server::app(context.clone())).await;
+    // The first registered user is the admin (auth/contracts/register.rs).
+    register!(app, jwt, "alice@example.com");
+
+    let create = post_create!(app, jwt, sized_create("hash-admin-space", &[4096]));
+    assert_eq!(create.status(), StatusCode::OK);
+
+    let req = test::TestRequest::get()
+        .uri("/api/admin/files")
+        .cookie(jwt.clone())
+        .to_request();
+    let body: Value = test::call_and_read_body_json(&app, req).await;
+    assert_eq!(
+        body["available_space"], 6144,
+        "available space must be the instance ceiling minus what's actually used, \
+         not the storage provider's raw (and for S3, meaningless) capacity"
+    );
+}
+
+#[actix_web::test]
 async fn instance_quota_rejects_tar_pre_read() {
     let mut context = context::Context::mock_with_data_dir(Some(
         "../data-test-instq-preread".to_string(),

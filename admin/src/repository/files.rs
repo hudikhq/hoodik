@@ -98,8 +98,15 @@ where
             .rows_affected)
     }
 
-    /// Get the available space on the storage provider
-    pub(crate) async fn available_space(&self) -> AppResult<u64> {
+    /// Get the available space on the storage provider. When an instance-wide
+    /// quota is configured, that quota is the real ceiling — an S3-backed
+    /// provider otherwise reports `u64::MAX` (no such thing as "disk free space"
+    /// on object storage), which is meaningless to show an operator.
+    pub(crate) async fn available_space(&self, used: i64) -> AppResult<u64> {
+        if let Some(quota) = self.repository.context().config.app.storage_instance_quota_bytes {
+            return Ok(quota.saturating_sub(used.max(0) as u64));
+        }
+
         let fs = Fs::new(&self.repository.context().config);
         fs.available_space().await
     }
