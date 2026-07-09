@@ -80,23 +80,38 @@ pub(crate) async fn verify_post_mutation_signature<C: ConnectionTrait>(
         ));
     }
 
-    let payload = FolderMemberListV1 {
-        folder_id: folder_id.into_bytes(),
-        folder_owner_id: folder_owner_id.into_bytes(),
-        members: members_after.iter().map(ProspectiveMember::to_list).collect(),
-        members_signed_at: sig.signed_at,
-    };
-    let der = encode_folder_member_list_v1(&payload)
-        .map_err(|e| Error::CryptoError(Box::new(e)))?;
+    let der = encode_roster(folder_id, folder_owner_id, members_after, sig.signed_at, None)?;
+    let signer_type = KeyType::from_str(&signer.key_type)?;
+    if signer_type
+        .verify_bytes(&roster_input(&der), &sig.signature_b64, &signer.pubkey)
+        .is_ok()
+    {
+        return Ok(der);
+    }
 
-    let mut signing_input = Vec::with_capacity(FOLDER_LIST_V1_PREFIX.len() + der.len());
-    signing_input.extend_from_slice(FOLDER_LIST_V1_PREFIX);
-    signing_input.extend_from_slice(&der);
-    KeyType::from_str(&signer.key_type)?
-        .verify_bytes(&signing_input, &sig.signature_b64, &signer.pubkey)
-        .map_err(|_| Error::BadRequest("members_list_signature_invalid".to_string()))?;
+    // The signer may have rotated keys after signing — a legacy owner migrating
+    // RSA→Curve25519 strands the roster signature under the old key, and their
+    // own fingerprint in the roster rotated with it. Re-encode with the signer's
+    // pre-migration fingerprint and verify against the superseded key.
+    if let Some(old) = super::key_transition_resolve::resolve_superseded_key(tx, &signer).await? {
+        let old_fp = parse_fingerprint(&old.old_fingerprint)?;
+        let der = encode_roster(
+            folder_id,
+            folder_owner_id,
+            members_after,
+            sig.signed_at,
+            Some((signer.id, old_fp)),
+        )?;
+        if old
+            .key_type
+            .verify_bytes(&roster_input(&der), &sig.signature_b64, &old.pubkey_pem)
+            .is_ok()
+        {
+            return Ok(der);
+        }
+    }
 
-    Ok(der)
+    Err(Error::BadRequest("members_list_signature_invalid".to_string()))
 }
 
 /// Write the verified signature onto the folder's `files` row inside
@@ -136,15 +151,45 @@ pub(crate) struct ProspectiveMember {
 }
 
 impl ProspectiveMember {
-    fn to_list(&self) -> FolderListMember {
+    fn to_list(&self, fingerprint_override: Option<(Uuid, [u8; 32])>) -> FolderListMember {
+        let pubkey_fingerprint = match fingerprint_override {
+            Some((id, fp)) if id == self.user_id => fp,
+            _ => self.pubkey_fingerprint,
+        };
         FolderListMember {
             user_id: self.user_id.into_bytes(),
-            pubkey_fingerprint: self.pubkey_fingerprint,
+            pubkey_fingerprint,
             share_role: self.share_role,
             is_owner: self.is_owner,
             signed_by_user_id: self.signed_by_user_id.into_bytes(),
         }
     }
+}
+
+/// DER-encode the roster canonical, optionally overriding one member's
+/// fingerprint with the one they held before a key rotation (so a signature
+/// made pre-migration re-encodes to the bytes it actually committed to).
+fn encode_roster(
+    folder_id: Uuid,
+    folder_owner_id: Uuid,
+    members: &[ProspectiveMember],
+    signed_at: i64,
+    fingerprint_override: Option<(Uuid, [u8; 32])>,
+) -> AppResult<Vec<u8>> {
+    let payload = FolderMemberListV1 {
+        folder_id: folder_id.into_bytes(),
+        folder_owner_id: folder_owner_id.into_bytes(),
+        members: members.iter().map(|m| m.to_list(fingerprint_override)).collect(),
+        members_signed_at: signed_at,
+    };
+    encode_folder_member_list_v1(&payload).map_err(|e| Error::CryptoError(Box::new(e)))
+}
+
+fn roster_input(der: &[u8]) -> Vec<u8> {
+    let mut input = Vec::with_capacity(FOLDER_LIST_V1_PREFIX.len() + der.len());
+    input.extend_from_slice(FOLDER_LIST_V1_PREFIX);
+    input.extend_from_slice(der);
+    input
 }
 
 /// Reconstruct the prospective list from the live `user_files` rows for

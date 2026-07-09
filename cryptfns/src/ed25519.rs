@@ -76,6 +76,15 @@ pub mod public {
     pub fn from_str(input: &str) -> CryptoResult<VerifyingKey> {
         VerifyingKey::from_public_key_pem(input).map_err(|e| Error::KeyEncoding(e.to_string()))
     }
+
+    /// Rebuild the SPKI PEM from stored SPKI DER so a superseded Ed25519 key
+    /// can be re-loaded for verification (curve → curve rotation).
+    pub fn pem_from_spki_der(der: &[u8]) -> CryptoResult<String> {
+        VerifyingKey::from_public_key_der(der)
+            .map_err(|e| Error::KeyEncoding(e.to_string()))?
+            .to_public_key_pem(LineEnding::LF)
+            .map_err(|e| Error::KeyEncoding(e.to_string()))
+    }
 }
 
 #[cfg(test)]

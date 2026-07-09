@@ -4,6 +4,7 @@ use crate::{
     data::{authenticated::Authenticated, signature::Signature},
 };
 use chrono::Utc;
+use cryptfns::identity::KeyType;
 use error::{AppResult, Error};
 use std::str::FromStr;
 
@@ -52,24 +53,16 @@ impl AuthProvider for SignatureProvider<'_> {
         };
 
         // Choose verification material: current if the presented fp is the live one,
-        // otherwise reconstruct from the transition row for the presented (old) fp.
+        // otherwise reconstruct the superseded key from the transition row for the
+        // presented (old) fp, using the algorithm that key was recorded with.
         let (verify_key_type, verify_pubkey) = if fingerprint == user.fingerprint {
             (user.key_type.clone(), user.pubkey.clone())
         } else if let Some(trans) = self.auth.get_key_transition_by_old_fingerprint(&fingerprint).await? {
-            let b64 = cryptfns::base64::encode(&trans.old_key_spki);
-            // PEM body must be wrapped at 64 chars for the pkcs1 pem decoder used by rsa crate.
-            let mut wrapped = String::new();
-            for (i, ch) in b64.chars().enumerate() {
-                if i > 0 && i % 64 == 0 {
-                    wrapped.push('\n');
-                }
-                wrapped.push(ch);
-            }
-            let pem = format!(
-                "-----BEGIN RSA PUBLIC KEY-----\n{}\n-----END RSA PUBLIC KEY-----",
-                wrapped
-            );
-            ("rsa".to_string(), pem)
+            let old_key_type = KeyType::from_str(&trans.old_key_type)?;
+            let pem = old_key_type
+                .pem_from_member_der(&trans.old_key_spki)
+                .map_err(|_| Error::Unauthorized("invalid_signature".to_string()))?;
+            (trans.old_key_type.clone(), pem)
         } else {
             return Err(Error::Unauthorized("invalid_signature".to_string()));
         };
@@ -86,7 +79,7 @@ impl AuthProvider for SignatureProvider<'_> {
                 .map(|v| v as i64);
         }
 
-        cryptfns::identity::KeyType::from_str(&verify_key_type)?
+        KeyType::from_str(&verify_key_type)?
             .verify(&nonce, &signature, &verify_pubkey)?;
 
         let session = self.auth.generate(&user, user_agent, ip).await?;

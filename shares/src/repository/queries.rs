@@ -6,15 +6,16 @@
 use std::collections::{HashMap, HashSet};
 
 use entity::{
-    files, share_events, user_files, users, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, Expr,
-    FromQueryResult, IntoCondition, JoinType, Order, PaginatorTrait, QueryFilter, QueryOrder,
-    QueryResult, QuerySelect, RelationTrait, Uuid,
+    files, key_transitions, share_events, user_files, users, ColumnTrait, ConnectionTrait, DbErr,
+    EntityTrait, Expr, FromQueryResult, IntoCondition, JoinType, Order, PaginatorTrait, QueryFilter,
+    QueryOrder, QueryResult, QuerySelect, RelationTrait, Uuid,
 };
 use error::AppResult;
 
 use crate::data::{
     app_share::AppShare,
     incoming::IncomingShare,
+    key_transition::KeyTransitionRef,
     share_event::{AppShareEvent, AuditUserRef},
 };
 
@@ -258,6 +259,7 @@ pub(crate) async fn events_for_user<C: ConnectionTrait>(
         }
     }
     let user_map = lookup_users(db, &referenced).await?;
+    let transitions_by_user = lookup_transitions(db, &referenced).await?;
     let users: HashMap<Uuid, AuditUserRef> = user_map
         .into_iter()
         .map(|(id, model)| {
@@ -270,6 +272,7 @@ pub(crate) async fn events_for_user<C: ConnectionTrait>(
                     key_type: model.key_type,
                     wrapping_pubkey: model.wrapping_pubkey,
                     fingerprint: model.fingerprint,
+                    key_transition: transitions_by_user.get(&id).cloned(),
                 },
             )
         })
@@ -325,6 +328,23 @@ async fn lookup_users<C: ConnectionTrait>(
         .all(db)
         .await?;
     Ok(rows.into_iter().map(|u| (u.id, u)).collect())
+}
+
+async fn lookup_transitions<C: ConnectionTrait>(
+    db: &C,
+    ids: &HashSet<Uuid>,
+) -> AppResult<HashMap<Uuid, KeyTransitionRef>> {
+    if ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let rows = key_transitions::Entity::find()
+        .filter(key_transitions::Column::UserId.is_in(ids.iter().copied().collect::<Vec<_>>()))
+        .all(db)
+        .await?;
+    Ok(rows
+        .iter()
+        .filter_map(|row| KeyTransitionRef::from_row(row).map(|t| (row.user_id, t)))
+        .collect())
 }
 
 async fn owner_rows_for_files<C: ConnectionTrait, I: IntoIterator<Item = Uuid>>(

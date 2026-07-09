@@ -8,6 +8,9 @@
 //! requires when an async helper takes the app by reference.
 #![allow(dead_code)]
 
+use actix_web::body::{BoxBody, EitherBody};
+use actix_web::dev::{Service, ServiceResponse};
+use actix_web::test;
 use auth::data::create_user::CreateUser;
 use cryptfns::asn1::{
     encode_audit_event_sig_input_v1, encode_entries_v1, encode_folder_member_list_v1,
@@ -80,6 +83,86 @@ impl TestUser {
     }
 }
 
+pub trait TestApp:
+    Service<
+    actix_http::Request,
+    Response = ServiceResponse<EitherBody<BoxBody>>,
+    Error = actix_web::Error,
+>
+{
+}
+impl<S> TestApp for S where
+    S: Service<
+        actix_http::Request,
+        Response = ServiceResponse<EitherBody<BoxBody>>,
+        Error = actix_web::Error,
+    >
+{
+}
+
+const CURVE_TEST_PASSWORD: &[u8] = b"not-4-weak-password-for-god-sakes!";
+
+/// Register a born-migrated curve25519 account through the real OPAQUE
+/// registration handshake, returning the fixture the shares suites drive.
+pub async fn register_curve25519(app: &impl TestApp, email: &str) -> TestUser {
+    let (private_pem, public_pem, fingerprint, wrapping_private_pem, wrapping_public_pem) =
+        generate_curve25519_keypair();
+
+    let reg_start = cryptfns::opaque::client_registration_start(CURVE_TEST_PASSWORD).unwrap();
+    let req = test::TestRequest::post()
+        .uri("/api/auth/register/pake/start")
+        .set_json(serde_json::json!({ "email": email, "registration_request": reg_start.message }))
+        .to_request();
+    let body: Value = test::read_body_json(test::call_service(app, req).await).await;
+    let reg_response = body["registration_response"].as_str().unwrap();
+    let reg_finish = cryptfns::opaque::client_registration_finish(
+        &reg_start.state,
+        reg_response,
+        CURVE_TEST_PASSWORD,
+    )
+    .unwrap();
+
+    let export_key = cryptfns::base64::decode(&reg_finish.export_key).unwrap();
+    let kek = cryptfns::envelope::derive_kek(&export_key).unwrap();
+    let envelope = cryptfns::envelope::seal(
+        &kek,
+        format!("v1|ed:{private_pem}|x:{wrapping_private_pem}").as_bytes(),
+    )
+    .unwrap();
+
+    let req = test::TestRequest::post()
+        .uri("/api/auth/register")
+        .set_json(serde_json::json!({
+            "email": email,
+            "pubkey": public_pem,
+            "wrapping_pubkey": wrapping_public_pem,
+            "fingerprint": fingerprint,
+            "key_type": "curve25519",
+            "encrypted_private_key": envelope,
+            "opaque_registration_upload": reg_finish.message,
+        }))
+        .to_request();
+    let resp = test::call_service(app, req).await;
+    assert!(resp.status().is_success(), "register {email} failed: {:?}", resp.status());
+    let (jwt, _) = extract_cookies(resp.headers());
+    let jwt = jwt.expect("register response missing JWT cookie");
+    let body = test::read_body(resp).await;
+    let authenticated: auth::data::authenticated::Authenticated =
+        serde_json::from_slice(&body).expect("authenticated json");
+
+    TestUser {
+        email: email.to_string(),
+        user_id: authenticated.user.id,
+        private_pem,
+        public_pem,
+        fingerprint,
+        key_type: KeyType::Curve25519,
+        wrapping_private_pem: Some(wrapping_private_pem),
+        wrapping_public_pem: Some(wrapping_public_pem),
+        jwt,
+    }
+}
+
 pub fn make_create_user(email: &str, public_pem: &str, fingerprint: &str) -> CreateUser {
     CreateUser {
         email: Some(email.to_string()),
@@ -91,6 +174,7 @@ pub fn make_create_user(email: &str, public_pem: &str, fingerprint: &str) -> Cre
         encrypted_private_key: Some("encrypted-private-key-blob".to_string()),
         key_type: None,
         wrapping_pubkey: None,
+        opaque_registration_upload: None,
         invitation_id: None,
     }
 }
@@ -295,6 +379,7 @@ pub fn build_role_change_envelope(
 /// caller passes the projected post-share roster (owner + sender's
 /// existing position + recipient added/upgraded) and the signer (folder
 /// owner on initial share, Co-owner on re-share).
+#[allow(clippy::too_many_arguments)]
 pub fn build_folder_share_envelope(
     sender: &TestUser,
     recipient: &TestUser,
@@ -371,6 +456,7 @@ pub fn build_folder_role_change_envelope(
     inject_list_signature(envelope, folder_id, folder_owner_id, members_after, list_signer, timestamp)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn build_co_owner_folder_share_envelope(
     sender: &TestUser,
     recipient: &TestUser,
@@ -606,6 +692,7 @@ pub fn build_revoke_body(
 /// projected post-revoke roster (current set minus the revoked
 /// recipient, and minus any cascade-affected Co-owner grants when the
 /// revoked recipient is a Co-owner).
+#[allow(clippy::too_many_arguments)]
 pub fn build_folder_revoke_body(
     caller: &TestUser,
     target: &TestUser,
@@ -939,48 +1026,15 @@ macro_rules! register_user {
     };
 }
 
-/// Curve25519 sibling of `register_user!` — registers via the real route
-/// with `key_type = "curve25519"`, an Ed25519 identity key, and an X25519
-/// wrapping key.
+/// Curve25519 sibling of `register_user!` — registers a born-migrated v2
+/// account through the real OPAQUE registration handshake: unauthenticated
+/// `register/pake/start`, then `register` with the resulting upload. Mirrors
+/// the client's ceremony so the fixture matches a real curve25519 signup.
 #[macro_export]
 macro_rules! register_curve25519_user {
     ($app:expr, $user:ident, $email:expr) => {
-        let $user = {
-            let (private_pem, public_pem, fingerprint, wrapping_private_pem, wrapping_public_pem) =
-                $crate::shares_common::generate_curve25519_keypair();
-            let req = actix_web::test::TestRequest::post()
-                .uri("/api/auth/register")
-                .set_json(&$crate::shares_common::make_create_curve25519_user(
-                    $email,
-                    &public_pem,
-                    &fingerprint,
-                    &wrapping_public_pem,
-                ))
-                .to_request();
-            let resp = actix_web::test::call_service(&$app, req).await;
-            assert!(
-                resp.status().is_success(),
-                "register {} failed: {:?}",
-                $email,
-                resp.status()
-            );
-            let (jwt, _) = $crate::shares_common::extract_cookies(resp.headers());
-            let jwt = jwt.expect("register response missing JWT cookie");
-            let body = actix_web::test::read_body(resp).await;
-            let authenticated: auth::data::authenticated::Authenticated =
-                serde_json::from_slice(&body).expect("authenticated json");
-            $crate::shares_common::TestUser {
-                email: $email.to_string(),
-                user_id: authenticated.user.id,
-                private_pem,
-                public_pem,
-                fingerprint,
-                key_type: cryptfns::identity::KeyType::Curve25519,
-                wrapping_private_pem: Some(wrapping_private_pem),
-                wrapping_public_pem: Some(wrapping_public_pem),
-                jwt,
-            }
-        };
+        let $user =
+            $crate::shares_common::register_curve25519(&$app, $email).await;
     };
 }
 

@@ -6,5 +6,6 @@ pub mod folder_members;
 pub mod fork;
 pub mod group;
 pub mod incoming;
+pub mod key_transition;
 pub mod multikey_upload;
 pub mod share_event;

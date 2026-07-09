@@ -27,6 +27,7 @@ pub(crate) mod m20260601_000010_alter_share_group_members_role;
 pub(crate) mod m20260705_000001_alter_users_key_type;
 pub(crate) mod m20260705_000002_create_key_transitions;
 pub(crate) mod m20260705_000003_create_opaque_tables;
+pub(crate) mod m20260705_000004_alter_key_transitions_old_key_type;
 
 pub struct Migrator;
 
@@ -61,6 +62,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260705_000001_alter_users_key_type::Migration),
             Box::new(m20260705_000002_create_key_transitions::Migration),
             Box::new(m20260705_000003_create_opaque_tables::Migration),
+            Box::new(m20260705_000004_alter_key_transitions_old_key_type::Migration),
         ]
     }
 }

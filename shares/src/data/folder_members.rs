@@ -1,6 +1,8 @@
 use entity::Uuid;
 use serde::{Deserialize, Serialize};
 
+use crate::data::key_transition::KeyTransitionRef;
+
 /// Response for `GET /api/shares/folder/{F}/members`.
 ///
 /// `signature_algorithm` is hard-coded to `"rsa-pss-sha256"` for v1; the
@@ -35,4 +37,8 @@ pub struct FolderMember {
     pub added_at: Option<i64>,
     pub signed_by_user_id: Option<Uuid>,
     pub member_signature: Option<String>,
+    /// Present when this member rotated keys, so a client verifying the
+    /// roster or per-member signature can fall back to their old key.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key_transition: Option<KeyTransitionRef>,
 }

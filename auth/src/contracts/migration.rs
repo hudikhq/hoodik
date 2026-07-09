@@ -161,6 +161,7 @@ where
             user_id: ActiveValue::Set(user.id),
             old_fingerprint: ActiveValue::Set(user.fingerprint.clone()),
             old_key_spki: ActiveValue::Set(old_key_spki),
+            old_key_type: ActiveValue::Set(old_key_type.as_str().to_string()),
             new_fingerprint: ActiveValue::Set(data.new_fingerprint.clone()),
             old_signature: ActiveValue::Set(old_signature),
             new_signature: ActiveValue::Set(new_signature),

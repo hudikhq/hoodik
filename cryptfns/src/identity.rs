@@ -55,6 +55,16 @@ impl KeyType {
         }
     }
 
+    /// Inverse of [`member_pubkey_der`]: rebuild the PEM a superseded key was
+    /// stored as (in `key_transitions.old_key_spki`) so it can be re-loaded to
+    /// verify a signature the account produced before rotating keys.
+    pub fn pem_from_member_der(&self, der: &[u8]) -> CryptoResult<String> {
+        match self {
+            Self::Rsa => crate::rsa::public::pem_from_pkcs1_der(der),
+            Self::Curve25519 => crate::ed25519::public::pem_from_spki_der(der),
+        }
+    }
+
     /// The `MemberSigPayloadV1.pubkey_der` canonical for a recipient of this
     /// key type: the DER body of their stored public-key PEM — PKCS#1 for
     /// RSA (what every existing signature committed to), SPKI otherwise.
@@ -134,6 +144,28 @@ mod tests {
             KeyType::Rsa.member_pubkey_der(&rsa_public_pem).unwrap(),
             crate::rsa::public::to_pkcs1_der(&rsa_public_pem).unwrap()
         );
+    }
+
+    #[test]
+    fn pem_from_member_der_round_trips_and_verifies() {
+        // Ed25519: a signature made with the key, verified after the key has
+        // been reduced to member-DER and rebuilt — the chain-resolution path.
+        let ed_private = crate::ed25519::private::generate().unwrap();
+        let ed_public = crate::ed25519::public::from_private(&ed_private).unwrap();
+        let der = KeyType::Curve25519.member_pubkey_der(&ed_public).unwrap();
+        let rebuilt = KeyType::Curve25519.pem_from_member_der(&der).unwrap();
+        let sig = crate::ed25519::private::sign("rotated", &ed_private).unwrap();
+        KeyType::Curve25519.verify("rotated", &sig, &rebuilt).unwrap();
+
+        // RSA: the current real transition — old RSA key superseded by curve.
+        let rsa_private = crate::rsa::private::generate().unwrap();
+        let rsa_private_pem = crate::rsa::private::to_string(&rsa_private).unwrap();
+        let rsa_public = crate::rsa::public::from_private(&rsa_private).unwrap();
+        let rsa_public_pem = crate::rsa::public::to_string(&rsa_public).unwrap();
+        let der = KeyType::Rsa.member_pubkey_der(&rsa_public_pem).unwrap();
+        let rebuilt = KeyType::Rsa.pem_from_member_der(&der).unwrap();
+        let sig = crate::rsa::private::sign("rotated", &rsa_private_pem).unwrap();
+        KeyType::Rsa.verify("rotated", &sig, &rebuilt).unwrap();
     }
 
     #[test]

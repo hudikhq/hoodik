@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use entity::{
-    files,
+    files, key_transitions,
     permission::{permission, SharePermission},
     user_files, users, ColumnTrait, EntityTrait, QueryFilter, Uuid,
 };
@@ -12,6 +12,7 @@ use error::{AppResult, Error};
 
 use crate::{
     data::folder_members::{FolderMember, FolderMembersResponse},
+    data::key_transition::KeyTransitionRef,
     repository::Repository,
 };
 
@@ -44,11 +45,19 @@ impl Repository<'_> {
 
         let user_ids: Vec<Uuid> = rows.iter().map(|r| r.user_id).collect();
         let users_by_id: HashMap<Uuid, users::Model> = users::Entity::find()
-            .filter(users::Column::Id.is_in(user_ids))
+            .filter(users::Column::Id.is_in(user_ids.clone()))
             .all(&self.context.db)
             .await?
             .into_iter()
             .map(|u| (u.id, u))
+            .collect();
+
+        let transitions_by_user: HashMap<Uuid, KeyTransitionRef> = key_transitions::Entity::find()
+            .filter(key_transitions::Column::UserId.is_in(user_ids))
+            .all(&self.context.db)
+            .await?
+            .iter()
+            .filter_map(|row| KeyTransitionRef::from_row(row).map(|t| (row.user_id, t)))
             .collect();
 
         let owner_id = rows
@@ -83,6 +92,7 @@ impl Repository<'_> {
                         .member_signature
                         .as_deref()
                         .map(cryptfns::base64::encode),
+                    key_transition: transitions_by_user.get(&row.user_id).cloned(),
                 }
             })
             .collect();

@@ -56,6 +56,7 @@ async fn register_legacy(app: &impl TestApp) -> LegacyUser {
             fingerprint: Some(rsa_fingerprint.clone()),
             key_type: None,
             wrapping_pubkey: None,
+            opaque_registration_upload: None,
             encrypted_private_key: Some("legacy-encrypted-key".to_string()),
             invitation_id: None,
         })

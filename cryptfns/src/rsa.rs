@@ -164,6 +164,15 @@ pub mod public {
         Ok(doc.as_bytes().to_vec())
     }
 
+    /// Inverse of [`to_pkcs1_der`]: rebuild the armored PEM from the stored
+    /// PKCS#1 DER so a superseded RSA key can be re-loaded for verification.
+    pub fn pem_from_pkcs1_der(der: &[u8]) -> CryptoResult<String> {
+        RsaPublicKey::from_pkcs1_der(der)
+            .map_err(Error::from)?
+            .to_pkcs1_pem(LineEnding::LF)
+            .map_err(Error::from)
+    }
+
     /// Verify a signature over raw bytes with a public key. The sharing
     /// protocol signs DER bytes prefixed with a domain separator, so the
     /// server verifies against the exact bytes-as-received (sign-what-you-send).

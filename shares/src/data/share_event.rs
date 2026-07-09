@@ -71,6 +71,10 @@ pub struct AuditUserRef {
     pub key_type: String,
     pub wrapping_pubkey: Option<String>,
     pub fingerprint: String,
+    /// Present when this account rotated keys, so a client verifying a
+    /// pre-rotation audit-event signature can fall back to their old key.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key_transition: Option<crate::data::key_transition::KeyTransitionRef>,
 }
 
 /// Paginated envelope returned by `GET /api/shares/events`. The

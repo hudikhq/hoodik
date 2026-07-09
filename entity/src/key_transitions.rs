@@ -10,6 +10,7 @@ pub struct Model {
     #[sea_orm(unique)]
     pub old_fingerprint: String,
     pub old_key_spki: Vec<u8>,
+    pub old_key_type: String,
     pub new_fingerprint: String,
     pub old_signature: Vec<u8>,
     pub new_signature: Vec<u8>,
