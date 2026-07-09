@@ -27,6 +27,8 @@ pub struct FolderMember {
     pub user_id: Uuid,
     pub email: Option<String>,
     pub pubkey: String,
+    pub key_type: String,
+    pub wrapping_pubkey: Option<String>,
     pub pubkey_fingerprint: String,
     pub share_role: String,
     pub is_owner: bool,

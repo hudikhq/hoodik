@@ -169,7 +169,7 @@ const download = (file: AppFile) => {
  */
 const fork = async (file: AppFile) => {
   actionFile.value = undefined
-  const userId = props.authenticated.user.id
+  const user = props.authenticated.user
   if (!Crypto.keypair?.input || !Crypto.keypair?.publicKey) {
     errorNotification('Cannot save without an active session.')
     return
@@ -180,7 +180,16 @@ const fork = async (file: AppFile) => {
     forkProgress.value = { bytesProcessed: 0, totalBytes: 0, phase: 'preparing' }
     const source = await meta.get(Crypto.keypair, file.id)
     const result = await forkPipeline.forkFile(
-      { source, keypair: Crypto.keypair, callerUserId: userId },
+      {
+        source,
+        keypair: Crypto.keypair,
+        callerUserId: user.id,
+        callerRecipient: {
+          pubkey: user.pubkey,
+          key_type: user.key_type,
+          wrapping_pubkey: user.wrapping_pubkey
+        }
+      },
       {
         signal: forkController.signal,
         onProgress: (progress) => {

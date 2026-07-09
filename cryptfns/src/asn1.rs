@@ -39,6 +39,10 @@ pub const AUDIT_EVENT_V1_PREFIX: &[u8] = b"hoodik-audit-v1\0";
 /// encode_audit_event_sig_input_v1(payload)`.
 pub const AUDIT_EVENT_SIG_V1_PREFIX: &[u8] = b"hoodik-audit-sig-v1\0";
 
+/// Domain-separation prefix for the key-transition certificate. Both the old
+/// and new keys sign `KEY_TRANSITION_V1_PREFIX || encode_key_transition_v1`.
+pub const KEY_TRANSITION_V1_PREFIX: &[u8] = b"hoodik-key-transition-v1\0";
+
 const UUID_LEN: usize = 16;
 const SHA256_LEN: usize = 32;
 const NONCE_LEN: usize = 16;
@@ -149,6 +153,72 @@ struct MemberSigPayloadV1Der {
     share_role: ShareRoleEnum,
     signed_at: i64,
     extensions: Option<OctetString>,
+}
+
+/// The re-key endorsement. The user's old key signs this to vouch that the new
+/// keys are theirs, and the new identity key counter-signs to prove it holds
+/// the matching private key. Verifiers walk a chain of these so identity,
+/// fingerprint continuity, existing share signatures, and TOFU trust all
+/// survive a migration off RSA.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct KeyTransitionV1 {
+    pub user_id: [u8; UUID_LEN],
+    pub old_key_spki: Vec<u8>,
+    pub old_fingerprint: [u8; SHA256_LEN],
+    pub new_identity_key_spki: Vec<u8>,
+    pub new_wrapping_key_spki: Vec<u8>,
+    pub new_fingerprint: [u8; SHA256_LEN],
+    pub issued_at: i64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Sequence)]
+struct KeyTransitionV1Der {
+    version: u8,
+    user_id: OctetString,
+    old_key_spki: OctetString,
+    old_fingerprint: OctetString,
+    new_identity_key_spki: OctetString,
+    new_wrapping_key_spki: OctetString,
+    new_fingerprint: OctetString,
+    issued_at: i64,
+    extensions: Option<OctetString>,
+}
+
+impl KeyTransitionV1Der {
+    fn from_native(p: &KeyTransitionV1) -> CryptoResult<Self> {
+        Ok(Self {
+            version: 1,
+            user_id: OctetString::new(Vec::from(p.user_id))?,
+            old_key_spki: OctetString::new(p.old_key_spki.clone())?,
+            old_fingerprint: OctetString::new(Vec::from(p.old_fingerprint))?,
+            new_identity_key_spki: OctetString::new(p.new_identity_key_spki.clone())?,
+            new_wrapping_key_spki: OctetString::new(p.new_wrapping_key_spki.clone())?,
+            new_fingerprint: OctetString::new(Vec::from(p.new_fingerprint))?,
+            issued_at: p.issued_at,
+            extensions: None,
+        })
+    }
+
+    fn into_native(self) -> CryptoResult<KeyTransitionV1> {
+        if self.version != 1 {
+            return Err(Error::InvalidLength("key_transition_v1: version != 1"));
+        }
+        Ok(KeyTransitionV1 {
+            user_id: bytes_to_array::<UUID_LEN>(self.user_id.as_bytes(), "user_id")?,
+            old_key_spki: self.old_key_spki.as_bytes().to_owned(),
+            old_fingerprint: bytes_to_array::<SHA256_LEN>(
+                self.old_fingerprint.as_bytes(),
+                "old_fingerprint",
+            )?,
+            new_identity_key_spki: self.new_identity_key_spki.as_bytes().to_owned(),
+            new_wrapping_key_spki: self.new_wrapping_key_spki.as_bytes().to_owned(),
+            new_fingerprint: bytes_to_array::<SHA256_LEN>(
+                self.new_fingerprint.as_bytes(),
+                "new_fingerprint",
+            )?,
+            issued_at: self.issued_at,
+        })
+    }
 }
 
 /// Row contents folded into the per-sender audit-chain hash. The chain
@@ -308,6 +378,17 @@ pub fn decode_share_request_v1(bytes: &[u8]) -> CryptoResult<ShareRequestPayload
 /// DER-encode a member signature payload.
 pub fn encode_member_sig_v1(payload: &MemberSigPayloadV1) -> CryptoResult<Vec<u8>> {
     Ok(MemberSigPayloadV1Der::from_native(payload)?.to_vec()?)
+}
+
+/// DER-encode a key-transition certificate body — the bytes both the old and
+/// new keys sign.
+pub fn encode_key_transition_v1(payload: &KeyTransitionV1) -> CryptoResult<Vec<u8>> {
+    Ok(KeyTransitionV1Der::from_native(payload)?.to_vec()?)
+}
+
+/// DER-decode a key-transition certificate body.
+pub fn decode_key_transition_v1(bytes: &[u8]) -> CryptoResult<KeyTransitionV1> {
+    KeyTransitionV1Der::from_der(bytes)?.into_native()
 }
 
 /// DER-decode a member signature payload.
@@ -649,7 +730,7 @@ mod tests {
         let back = decode_entries_v1(&bytes).unwrap();
 
         let mut expected = entries.clone();
-        expected.sort_by(|a, b| a.file_id.cmp(&b.file_id));
+        expected.sort_by_key(|a| a.file_id);
         assert_eq!(expected, back);
     }
 
@@ -905,6 +986,54 @@ mod tests {
 
         let back = decode_folder_member_list_v1(&bytes)
             .expect("v1 decoder must accept v1.x list bytes with extensions");
+        assert_eq!(back, p);
+    }
+
+    fn key_transition_fixture() -> KeyTransitionV1 {
+        KeyTransitionV1 {
+            user_id: [3u8; UUID_LEN],
+            old_key_spki: Vec::from(&b"old-rsa-spki-der"[..]),
+            old_fingerprint: [4u8; SHA256_LEN],
+            new_identity_key_spki: Vec::from(&b"new-ed25519-spki-der"[..]),
+            new_wrapping_key_spki: Vec::from(&b"new-x25519-spki-der"[..]),
+            new_fingerprint: [5u8; SHA256_LEN],
+            issued_at: 1_783_000_000,
+        }
+    }
+
+    #[test]
+    fn key_transition_v1_round_trips() {
+        let p = key_transition_fixture();
+        let bytes = encode_key_transition_v1(&p).unwrap();
+        assert_eq!(decode_key_transition_v1(&bytes).unwrap(), p);
+    }
+
+    #[test]
+    fn key_transition_v1_encoding_is_deterministic() {
+        let p = key_transition_fixture();
+        assert_eq!(
+            encode_key_transition_v1(&p).unwrap(),
+            encode_key_transition_v1(&p).unwrap()
+        );
+    }
+
+    #[test]
+    fn key_transition_v1_version_check_rejects_unknown() {
+        let mut wire = KeyTransitionV1Der::from_native(&key_transition_fixture()).unwrap();
+        wire.version = 2;
+        let bytes = wire.to_vec().unwrap();
+        assert!(decode_key_transition_v1(&bytes).is_err());
+    }
+
+    #[test]
+    fn key_transition_v1_decoder_accepts_future_extensions() {
+        let p = key_transition_fixture();
+        let mut wire = KeyTransitionV1Der::from_native(&p).unwrap();
+        wire.extensions = Some(OctetString::new(opaque_extension_blob()).unwrap());
+        let bytes = wire.to_vec().unwrap();
+
+        let back = decode_key_transition_v1(&bytes)
+            .expect("v1 decoder must accept v1.x cert bytes with extensions");
         assert_eq!(back, p);
     }
 }

@@ -27,6 +27,12 @@ export interface DiscoveredUser {
   email: string
   pubkey: string
   fingerprint: string
+  /** `"rsa"` (assumed when absent) or `"curve25519"`. Curve25519 accounts
+   *  carry an Ed25519 identity `pubkey` and receive key wraps under
+   *  `wrapping_pubkey` instead of `pubkey`. */
+  key_type?: string
+  /** X25519 SPKI PEM for curve25519 accounts; `null` for RSA accounts. */
+  wrapping_pubkey?: string | null
 }
 
 export interface ShareEntryInput {
@@ -180,6 +186,9 @@ export interface AuditUserRef {
   email: string
   pubkey: string
   fingerprint: string
+  /** `"rsa"` (assumed when absent) or `"curve25519"` — see {@link DiscoveredUser}. */
+  key_type?: string
+  wrapping_pubkey?: string | null
 }
 
 export interface ShareEventPage {
@@ -201,6 +210,7 @@ export interface Capabilities {
   share_groups: boolean
   audit_log: boolean
   fork: boolean
+  default_cipher?: string
   server_version?: string
 }
 
@@ -209,6 +219,9 @@ export interface FolderMember {
   email: string | null
   pubkey: string
   pubkey_fingerprint: string
+  /** `"rsa"` (assumed when absent) or `"curve25519"` — see {@link DiscoveredUser}. */
+  key_type?: string
+  wrapping_pubkey?: string | null
   share_role: ShareRole
   is_owner: boolean
   added_at: number | null
@@ -310,9 +323,11 @@ export interface TrustedFingerprintEntry {
   lastVerifiedAt: number
   /** `silent` means the entry was recorded after a successful share
    *  without the user having to manually acknowledge the fingerprint.
+   *  `key-transition` is used after a successful automatic post-migration
+   *  fingerprint continuity via the append-only key_transitions chain.
    *  Kept as a separate value so an audit of past trust decisions can
    *  distinguish ceremony-backed entries from passive ones. */
-  verificationMethod: 'qr' | 'voice' | 'in-person' | 'silent' | 'other'
+  verificationMethod: 'qr' | 'voice' | 'in-person' | 'silent' | 'other' | 'key-transition'
 }
 
 export interface AppShareGroup {
@@ -357,6 +372,9 @@ export interface GroupMemberWithKey {
   email: string
   pubkey: string
   fingerprint: string
+  /** `"rsa"` (assumed when absent) or `"curve25519"` — see {@link DiscoveredUser}. */
+  key_type?: string
+  wrapping_pubkey?: string | null
   group_role: GroupRole | 'owner'
 }
 

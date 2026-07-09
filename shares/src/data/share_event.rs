@@ -61,14 +61,15 @@ impl AppShareEvent {
 
 /// Compact identity record returned alongside the audit page so the
 /// client can label rows and verify per-row signatures without an
-/// extra round-trip per sender. Only `id`, `email`, and `pubkey` are
-/// surfaced; nothing here that isn't already public on
-/// `/api/users/discover`.
+/// extra round-trip per sender. Surfaces nothing that isn't already
+/// public on `/api/users/discover`.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AuditUserRef {
     pub id: Uuid,
     pub email: String,
     pub pubkey: String,
+    pub key_type: String,
+    pub wrapping_pubkey: Option<String>,
     pub fingerprint: String,
 }
 

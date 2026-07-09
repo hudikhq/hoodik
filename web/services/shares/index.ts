@@ -15,6 +15,7 @@ import type {
   TrustedFingerprintEntry
 } from 'types'
 
+import { setDefaultCipher } from '!/cryptfns/cipher'
 import { store as storageStore } from '!/storage'
 
 import * as api from './api'
@@ -382,6 +383,7 @@ export const capabilitiesStore = defineStore('capabilities', () => {
     fetchError.value = null
     try {
       caps.value = await api.getCapabilities()
+      setDefaultCipher(caps.value.default_cipher ?? 'aegis128l')
       lastFetchedAt.value = Math.floor(Date.now() / 1000)
     } catch (e) {
       caps.value = FAIL_CLOSED_CAPABILITIES

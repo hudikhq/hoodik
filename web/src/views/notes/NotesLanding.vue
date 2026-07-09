@@ -35,7 +35,7 @@ async function loadRecent() {
     order_by: 'modified_at'
   })
 
-  const privateKey = props.keypair.input as string
+  const privateKey = props.keypair.wrappingPrivate || (props.keypair.input as string)
 
   const items = await Promise.all(
     response.children.map(async (item) => {

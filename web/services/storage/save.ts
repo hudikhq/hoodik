@@ -208,7 +208,7 @@ export async function createNote(
     chunks: 1,
     search_tokens_hashed: tokens,
     file_id: parentFile?.id ?? (typeof parent === 'string' ? parent : undefined),
-    cipher: cryptfns.cipher.DEFAULT_CIPHER
+    cipher: cryptfns.cipher.defaultCipher()
   }
 
   const file = await meta.create(keypair, createData)
@@ -239,7 +239,7 @@ async function createNoteInSharedFolder(args: {
   contentBytes: Uint8Array
   tokens: string[]
 }): Promise<AppFile> {
-  const cipher = cryptfns.cipher.DEFAULT_CIPHER
+  const cipher = cryptfns.cipher.defaultCipher()
   const fileKey = await cryptfns.cipher.generateKey(cipher)
   const fileKeyHex = cryptfns.uint8.toHex(fileKey)
   const encryptedName = await cryptfns.cipher.encryptString(cipher, args.fileName, fileKey)

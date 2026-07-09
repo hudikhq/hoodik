@@ -224,6 +224,7 @@ describe('move folder cascade into shared folder', () => {
       {
         callerUserId: CALLER_ID,
         callerPrivateKey: callerKp.input as string,
+        callerWrappingPrivateKey: callerKp.input as string,
         root: root.node,
         destinationFolderId: FOLDER_ID,
         trustedFingerprints: trusted
@@ -275,6 +276,7 @@ describe('move folder cascade into shared folder', () => {
       {
         callerUserId: CALLER_ID,
         callerPrivateKey: callerKp.input as string,
+        callerWrappingPrivateKey: callerKp.input as string,
         root: root.node,
         destinationFolderId: FOLDER_ID,
         trustedFingerprints: trusted
@@ -298,11 +300,9 @@ describe('move folder cascade into shared folder', () => {
       timestamp: BigInt(body.timestamp)
     })
     expect(body.timestamp).toBeGreaterThanOrEqual(before)
-    const ok = await shareCrypto.verifyAuditEvent(
-      input,
-      body.event_signature,
-      callerKp.publicKey as string
-    )
+    const ok = await shareCrypto.verifyAuditEvent(input, body.event_signature, {
+      pubkey: callerKp.publicKey as string
+    })
     expect(ok).toBe(true)
   })
 
@@ -334,6 +334,7 @@ describe('move folder cascade into shared folder', () => {
       {
         callerUserId: CALLER_ID,
         callerPrivateKey: callerKp.input as string,
+        callerWrappingPrivateKey: callerKp.input as string,
         root: root.node,
         destinationFolderId: FOLDER_ID,
         trustedFingerprints: trusted
@@ -377,6 +378,7 @@ describe('move folder cascade into shared folder', () => {
         {
           callerUserId: CALLER_ID,
           callerPrivateKey: callerKp.input as string,
+          callerWrappingPrivateKey: callerKp.input as string,
           root: root.node,
           destinationFolderId: FOLDER_ID,
           trustedFingerprints: trusted
@@ -411,6 +413,7 @@ describe('move single owned file into shared folder', () => {
       {
         callerUserId: CALLER_ID,
         callerPrivateKey: callerKp.input as string,
+        callerWrappingPrivateKey: callerKp.input as string,
         file: file.node,
         destinationFolderId: FOLDER_ID,
         trustedFingerprints: trusted
@@ -442,6 +445,7 @@ describe('move out of shared folder', () => {
       {
         callerUserId: CALLER_ID,
         callerPrivateKey: callerKp.input as string,
+        callerWrappingPrivateKey: callerKp.input as string,
         fileId: ROOT_ID,
         destinationFolderId: null
       },
@@ -465,11 +469,9 @@ describe('move out of shared folder', () => {
       shareRoleAfter: null,
       timestamp: BigInt(body.timestamp)
     })
-    const ok = await shareCrypto.verifyAuditEvent(
-      input,
-      body.event_signature,
-      callerKp.publicKey as string
-    )
+    const ok = await shareCrypto.verifyAuditEvent(input, body.event_signature, {
+      pubkey: callerKp.publicKey as string
+    })
     expect(ok).toBe(true)
   })
 
@@ -481,6 +483,7 @@ describe('move out of shared folder', () => {
       {
         callerUserId: CALLER_ID,
         callerPrivateKey: callerKp.input as string,
+        callerWrappingPrivateKey: callerKp.input as string,
         fileId: ROOT_ID,
         destinationFolderId: PRIVATE_DEST
       },

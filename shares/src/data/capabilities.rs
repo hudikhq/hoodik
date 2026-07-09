@@ -10,6 +10,7 @@ pub struct Capabilities {
     pub share_groups: bool,
     pub audit_log: bool,
     pub fork: bool,
+    pub default_cipher: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -19,7 +20,7 @@ pub struct SharingCapabilities {
 }
 
 impl Capabilities {
-    pub fn for_enabled(enabled: bool) -> Self {
+    pub fn for_enabled(enabled: bool, default_cipher: String) -> Self {
         Self {
             sharing: SharingCapabilities {
                 enabled,
@@ -33,6 +34,7 @@ impl Capabilities {
             share_groups: true,
             audit_log: true,
             fork: true,
+            default_cipher,
         }
     }
 }

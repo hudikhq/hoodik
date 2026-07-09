@@ -23,8 +23,18 @@ where
     async fn register(&self, data: CreateUser) -> AppResult<users::Model> {
         let email = data.email.clone().unwrap();
         let invitation_id = data.invitation_id;
+        let opaque_upload = data.opaque_registration_upload.clone();
 
         let mut active_model = data.into_active_model()?;
+
+        // A v2 signup carries an OPAQUE registration upload instead of a
+        // password. Finish it into the password file that login start/finish
+        // verifies against; validation already guaranteed the curve key material.
+        if let Some(upload) = &opaque_upload {
+            let password_file = cryptfns::opaque::server_registration_finish(upload)
+                .map_err(|_| Error::as_validation("opaque_registration_upload", "invalid"))?;
+            active_model.opaque_password_file = ActiveValue::Set(Some(password_file));
+        }
 
         // We can unwrap here because it would fail validation before this
         if self.get_by_email(&email).await.is_ok() {

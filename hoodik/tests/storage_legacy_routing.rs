@@ -34,6 +34,8 @@ fn make_register(email: &str) -> CreateUser {
         pubkey: Some(public_string),
         fingerprint: Some(fingerprint),
         encrypted_private_key: Some("encrypted-secret".to_string()),
+        key_type: None,
+        wrapping_pubkey: None,
         invitation_id: None,
     }
 }

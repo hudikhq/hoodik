@@ -12,11 +12,13 @@
 //! deterministically.
 
 use std::collections::HashMap;
+use std::str::FromStr;
 
 use cryptfns::asn1::{
     encode_folder_member_list_v1, FolderListMember, FolderMemberListV1, ShareRoleEnum,
     FOLDER_LIST_V1_PREFIX,
 };
+use cryptfns::identity::KeyType;
 use entity::{
     user_files, users, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, Uuid,
 };
@@ -39,7 +41,7 @@ pub(crate) struct MembersListSig {
 /// post-mutation member set the transaction is about to commit. Caller
 /// passes the prospective member set (so reconstruction can run before
 /// or during the mutation transaction); we sort, DER-encode, and
-/// RSA-PSS-verify against the named signer's pubkey. Returns the
+/// verify against the named signer's pubkey. Returns the
 /// canonical DER bytes on success so the route can immediately stamp
 /// the file row without re-encoding.
 pub(crate) async fn verify_post_mutation_signature<C: ConnectionTrait>(
@@ -90,7 +92,8 @@ pub(crate) async fn verify_post_mutation_signature<C: ConnectionTrait>(
     let mut signing_input = Vec::with_capacity(FOLDER_LIST_V1_PREFIX.len() + der.len());
     signing_input.extend_from_slice(FOLDER_LIST_V1_PREFIX);
     signing_input.extend_from_slice(&der);
-    cryptfns::rsa::public::verify_bytes(&signing_input, &sig.signature_b64, &signer.pubkey)
+    KeyType::from_str(&signer.key_type)?
+        .verify_bytes(&signing_input, &sig.signature_b64, &signer.pubkey)
         .map_err(|_| Error::BadRequest("members_list_signature_invalid".to_string()))?;
 
     Ok(der)

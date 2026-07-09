@@ -30,6 +30,8 @@ fn register_body(email: &str) -> CreateUser {
         pubkey: Some(cryptfns::rsa::public::to_string(&public).unwrap()),
         fingerprint: Some(cryptfns::rsa::fingerprint(public).unwrap()),
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
+        key_type: None,
+        wrapping_pubkey: None,
         invitation_id: None,
     }
 }

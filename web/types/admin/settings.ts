@@ -20,6 +20,8 @@ export interface Users {
  */
 export interface Sharing {
   enabled: boolean
+  /** Cipher new uploads are encrypted with, advertised to clients via `/api/capabilities`. */
+  default_cipher: string
 }
 
 export interface WhitelistOrBlacklist {

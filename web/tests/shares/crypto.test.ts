@@ -43,10 +43,47 @@ describe('share crypto helpers', () => {
     const fileKey = await cryptfns.aes.generateKey()
     const fileKeyHex = cryptfns.uint8.toHex(fileKey)
 
-    const wrapped = await shareCrypto.wrapForRecipient(fileKeyHex, kp.publicKey as string)
+    const wrapped = await shareCrypto.wrapForRecipient(fileKeyHex, {
+      pubkey: kp.publicKey as string
+    })
     const decrypted = await cryptfns.rsa.decryptMessage(kp, wrapped)
 
     expect(decrypted).toEqual(fileKeyHex)
+  })
+
+  it('wrap_for_recipient_x25519_roundtrips_raw_key_bytes', async () => {
+    const identityPem = await cryptfns.ed25519.publicFromPrivate(
+      await cryptfns.ed25519.generatePrivateKey()
+    )
+    const wrappingPrivate = await cryptfns.x25519.generatePrivateKey()
+    const wrappingPublic = await cryptfns.x25519.publicFromPrivate(wrappingPrivate)
+    const fileKey = await cryptfns.aes.generateKey()
+    const fileKeyHex = cryptfns.uint8.toHex(fileKey)
+
+    const blob = await shareCrypto.wrapForRecipient(fileKeyHex, {
+      pubkey: identityPem,
+      key_type: 'curve25519',
+      wrapping_pubkey: wrappingPublic
+    })
+    // X25519 wraps carry the RAW key bytes (not the hex string RSA wraps
+    // encrypt), so unwrapping must recover the hex-decoded key exactly.
+    const recovered = await cryptfns.x25519.unwrap(blob, wrappingPrivate)
+
+    expect(recovered).toEqual(fileKey)
+  })
+
+  it('wrap_for_recipient_curve25519_without_wrapping_pubkey_throws', async () => {
+    const identityPem = await cryptfns.ed25519.publicFromPrivate(
+      await cryptfns.ed25519.generatePrivateKey()
+    )
+    const fileKey = await cryptfns.aes.generateKey()
+
+    await expect(
+      shareCrypto.wrapForRecipient(cryptfns.uint8.toHex(fileKey), {
+        pubkey: identityPem,
+        key_type: 'curve25519'
+      })
+    ).rejects.toThrow('curve25519 recipient has no wrapping pubkey')
   })
 
   it('compute_entries_hash_deterministic', async () => {
@@ -171,7 +208,9 @@ describe('share crypto helpers', () => {
       timestamp: 1_735_689_900n
     }
     const signature = await shareCrypto.signAuditEvent(input, kp.input as string)
-    expect(await shareCrypto.verifyAuditEvent(input, signature, kp.publicKey as string)).toBe(true)
+    expect(
+      await shareCrypto.verifyAuditEvent(input, signature, { pubkey: kp.publicKey as string })
+    ).toBe(true)
   })
 
   it('sign_audit_event_role_change_includes_before_and_after_roles', async () => {
@@ -192,20 +231,15 @@ describe('share crypto helpers', () => {
       timestamp: 1_735_689_900n
     })
     const signature = await shareCrypto.signAuditEvent(input, kp.input as string)
-    expect(await shareCrypto.verifyAuditEvent(input, signature, kp.publicKey as string)).toBe(true)
+    const sender = { pubkey: kp.publicKey as string }
+    expect(await shareCrypto.verifyAuditEvent(input, signature, sender)).toBe(true)
 
     const wrongBefore: AuditEventSigInputV1 = { ...input, shareRoleBefore: 'reader' }
-    expect(
-      await shareCrypto.verifyAuditEvent(wrongBefore, signature, kp.publicKey as string)
-    ).toBe(false)
+    expect(await shareCrypto.verifyAuditEvent(wrongBefore, signature, sender)).toBe(false)
     const wrongAfter: AuditEventSigInputV1 = { ...input, shareRoleAfter: 'editor' }
-    expect(
-      await shareCrypto.verifyAuditEvent(wrongAfter, signature, kp.publicKey as string)
-    ).toBe(false)
+    expect(await shareCrypto.verifyAuditEvent(wrongAfter, signature, sender)).toBe(false)
     const wrongAction: AuditEventSigInputV1 = { ...input, action: 'grant' }
-    expect(
-      await shareCrypto.verifyAuditEvent(wrongAction, signature, kp.publicKey as string)
-    ).toBe(false)
+    expect(await shareCrypto.verifyAuditEvent(wrongAction, signature, sender)).toBe(false)
   })
 
   it('sign_audit_event_against_rust_fixture', async () => {
@@ -230,6 +264,24 @@ describe('share crypto helpers', () => {
     )
   })
 
+  it('fingerprint_for_user_dispatches_on_key_type', async () => {
+    const wasm = await import('../../services/cryptfns/wasm')
+
+    const rsaKp = await cryptfns.rsa.generateKeyPair()
+    expect(shareCrypto.fingerprintForUser({ pubkey: rsaKp.publicKey as string })).toEqual(
+      wasm.rsa_fingerprint_public(rsaKp.publicKey as string)
+    )
+
+    // Registration stores `spki_fingerprint(pubkey)` for curve25519
+    // accounts — the client-side re-derivation must land on the same value.
+    const edPubkey = await cryptfns.ed25519.publicFromPrivate(
+      await cryptfns.ed25519.generatePrivateKey()
+    )
+    expect(
+      shareCrypto.fingerprintForUser({ pubkey: edPubkey, key_type: 'curve25519' })
+    ).toEqual(wasm.spki_fingerprint(edPubkey))
+  })
+
   it('format_fingerprint_chunks_to_quad_groups', () => {
     expect(shareCrypto.formatFingerprint('aabbccdd11223344')).toEqual('AABB-CCDD-1122-3344')
     expect(shareCrypto.formatFingerprint('abcdef'.repeat(4))).toEqual(
@@ -250,7 +302,9 @@ describe('share crypto helpers', () => {
     }
     const signature = await shareCrypto.signAuditEvent(input, kp.input as string)
     const tampered: AuditEventSigInputV1 = { ...input, timestamp: 1_735_689_901n }
-    expect(await shareCrypto.verifyAuditEvent(tampered, signature, kp.publicKey as string)).toBe(false)
+    expect(
+      await shareCrypto.verifyAuditEvent(tampered, signature, { pubkey: kp.publicKey as string })
+    ).toBe(false)
   })
 
   it('entries_hash_only_uses_file_id_and_encrypted_key', async () => {

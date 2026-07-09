@@ -15,6 +15,9 @@ export interface User {
   email_verified_at?: number
   secret: boolean
   share_notifications_enabled?: boolean
+  security_version?: number
+  key_type?: string
+  wrapping_pubkey?: string | null
 }
 
 export interface Session {

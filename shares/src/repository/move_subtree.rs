@@ -338,7 +338,7 @@ impl Repository<'_> {
             share_role_after: None,
             timestamp: signed_timestamp,
         };
-        verify_event_signature(&sig_input, &event_signature, &caller.pubkey)?;
+        verify_event_signature(&sig_input, &event_signature, caller)?;
 
         let tx = self.context.db.begin().await?;
 

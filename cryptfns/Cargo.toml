@@ -35,6 +35,13 @@ ascon-aead = "^0.4"
 crc = "^3"
 chacha20poly1305 = "0.10.1"
 aegis = { version = "0.9" }
+ed25519-dalek = { version = "^2", features = ["rand_core", "pkcs8", "pem"] }
+x25519-dalek = { version = "^2", features = ["static_secrets"] }
+pkcs8 = { version = "^0.10", features = ["pem", "alloc"] }
+hkdf = "^0.12"
+sha2 = "^0.10"
+opaque-ke = { version = "^4", features = ["ristretto255", "argon2"] }
+argon2 = "^0.5"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires

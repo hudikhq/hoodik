@@ -32,6 +32,8 @@ async fn test_replace_content_rejects_non_editable_file() {
             pubkey: Some(public_string),
             fingerprint: Some(fingerprint),
             encrypted_private_key: Some("encrypted-secret".to_string()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -104,6 +106,8 @@ async fn test_replace_content_rejects_directory() {
             pubkey: Some(public_string),
             fingerprint: Some(fingerprint),
             encrypted_private_key: Some("encrypted-secret".to_string()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -178,6 +182,8 @@ async fn test_replace_content_validates_size_and_chunks() {
             pubkey: Some(public_string),
             fingerprint: Some(fingerprint),
             encrypted_private_key: Some("encrypted-secret".to_string()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();

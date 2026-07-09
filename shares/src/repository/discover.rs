@@ -51,6 +51,8 @@ impl Repository<'_> {
             user_id: user.id,
             email: user.email,
             pubkey: user.pubkey,
+            key_type: user.key_type,
+            wrapping_pubkey: user.wrapping_pubkey,
             fingerprint: user.fingerprint,
         })
     }

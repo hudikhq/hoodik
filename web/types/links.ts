@@ -42,6 +42,12 @@ export interface AppLink extends EncryptedAppLink {
   thumbnail?: string
   link_key: Uint8Array
   link_key_hex: string
+
+  /**
+   * File content key, unwrapped from `encrypted_file_key` with the link key.
+   * Used with `file_cipher` to decrypt the ciphertext chunks client-side.
+   */
+  key?: Uint8Array
 }
 
 export interface EncryptedAppLink {
@@ -50,15 +56,20 @@ export interface EncryptedAppLink {
   owner_id: string
   owner_email: string
   owner_pubkey: string
+  owner_key_type?: string
   file_size: number
   file_mime: string
   signature: string
   downloads: number
   encrypted_name: string
   encrypted_link_key: string
+  encrypted_file_key?: string
   encrypted_thumbnail?: string
   created_at: number
   file_modified_at: number
+
+  /** Cipher the file chunks were encrypted with (e.g. "aegis128l"). */
+  file_cipher: string
   expires_at?: number
 }
 

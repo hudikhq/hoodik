@@ -6,7 +6,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import { AppField } from '@/components/form'
 import { mdiLink, mdiClose } from '@mdi/js'
 import { computed, ref, watch } from 'vue'
-import * as cryptfns from '!/cryptfns'
+import { verifyOwnerSignature } from '!/links/crypto'
 import type { AppLink } from 'types'
 
 const props = defineProps<{
@@ -36,11 +36,7 @@ watch(
 
     loading.value = true
 
-    signatureValid.value = await cryptfns.rsa.verify(
-      link.value.signature,
-      link.value.file_id,
-      link.value.owner_pubkey
-    )
+    signatureValid.value = await verifyOwnerSignature(link.value)
 
     setTimeout(() => {
       loading.value = false

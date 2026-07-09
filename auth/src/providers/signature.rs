@@ -5,6 +5,7 @@ use crate::{
 };
 use chrono::Utc;
 use error::{AppResult, Error};
+use std::str::FromStr;
 
 /// Authentication provider for authentication with private key
 pub(crate) struct SignatureProvider<'ctx> {
@@ -31,15 +32,46 @@ impl AuthProvider for SignatureProvider<'_> {
     async fn authenticate(&self, user_agent: &str, ip: &str) -> AppResult<Authenticated> {
         let (fingerprint, signature) = self.data.into_tuple()?;
 
-        let mut user = match self.auth.get_by_fingerprint(&fingerprint).await {
-            Ok(v) => v,
-            Err(e) => {
-                if e.is_not_found() {
-                    return Err(Error::Unauthorized("invalid_signature".to_string()));
-                }
+        // Build nonce from the *presented* fingerprint (client may send an old one
+        // from a pre-migration backup key).
+        let nonce = Self::generate_fingerprint_nonce(&fingerprint);
 
-                return Err(e);
+        // Resolve user by current fp, or fall back to old fp in key_transitions.
+        // Turn any error (incl !Send) into None here so nothing !Send lives across later awaits.
+        let fp_lookup = self.auth.get_by_fingerprint(&fingerprint).await.ok();
+        let mut user = if let Some(u) = fp_lookup {
+            u
+        } else {
+            // Direct gave no user; try via old fingerprint transition.
+            let trans_opt = self.auth.get_key_transition_by_old_fingerprint(&fingerprint).await?;
+            if let Some(trans) = trans_opt {
+                self.auth.get_by_id(trans.user_id).await?
+            } else {
+                return Err(Error::Unauthorized("invalid_signature".to_string()));
             }
+        };
+
+        // Choose verification material: current if the presented fp is the live one,
+        // otherwise reconstruct from the transition row for the presented (old) fp.
+        let (verify_key_type, verify_pubkey) = if fingerprint == user.fingerprint {
+            (user.key_type.clone(), user.pubkey.clone())
+        } else if let Some(trans) = self.auth.get_key_transition_by_old_fingerprint(&fingerprint).await? {
+            let b64 = cryptfns::base64::encode(&trans.old_key_spki);
+            // PEM body must be wrapped at 64 chars for the pkcs1 pem decoder used by rsa crate.
+            let mut wrapped = String::new();
+            for (i, ch) in b64.chars().enumerate() {
+                if i > 0 && i % 64 == 0 {
+                    wrapped.push('\n');
+                }
+                wrapped.push(ch);
+            }
+            let pem = format!(
+                "-----BEGIN RSA PUBLIC KEY-----\n{}\n-----END RSA PUBLIC KEY-----",
+                wrapped
+            );
+            ("rsa".to_string(), pem)
+        } else {
+            return Err(Error::Unauthorized("invalid_signature".to_string()));
         };
 
         if user.quota.is_none() {
@@ -54,9 +86,8 @@ impl AuthProvider for SignatureProvider<'_> {
                 .map(|v| v as i64);
         }
 
-        let nonce = Self::generate_fingerprint_nonce(&user.fingerprint);
-
-        cryptfns::rsa::public::verify(&nonce, &signature, &user.pubkey)?;
+        cryptfns::identity::KeyType::from_str(&verify_key_type)?
+            .verify(&nonce, &signature, &verify_pubkey)?;
 
         let session = self.auth.generate(&user, user_agent, ip).await?;
 

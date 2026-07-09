@@ -94,6 +94,12 @@ test-rust-integration:
     cargo test --test shares_search -- --nocapture
     cargo test --test shares_audit -- --nocapture
     cargo test --test shares_admin_kill_switch -- --nocapture
+    cargo test --test shares_default_cipher -- --nocapture
+    cargo test --test shares_dual_key -- --nocapture
+    cargo test --test key_transitions -- --nocapture
+    cargo test --test opaque_login -- --nocapture
+    cargo test --test migration -- --nocapture
+    cargo test --test register_v2 -- --nocapture
     cargo test --test shares_groups -- --nocapture
     cargo test --test shares_fork -- --nocapture
     cargo test --test shares_quota -- --nocapture

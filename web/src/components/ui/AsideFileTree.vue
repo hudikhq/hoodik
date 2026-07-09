@@ -63,7 +63,7 @@ async function fetchChildren(dirId?: string): Promise<AppFile[]> {
   const response = await meta.find(params)
 
   const items: AppFile[] = []
-  const privateKey = props.keypair.input as string
+  const privateKey = props.keypair.wrappingPrivate || (props.keypair.input as string)
 
   for (const item of response.children) {
     const decrypted = await meta.decrypt(item, privateKey)
@@ -136,7 +136,7 @@ async function loadSharedRoots(): Promise<void> {
   node.loading = true
   try {
     const page = await sharesApi.getSharesMine()
-    const privateKey = props.keypair.input as string
+    const privateKey = props.keypair.wrappingPrivate || (props.keypair.input as string)
     const children: AppFile[] = []
     for (const row of page.items) {
       const base: AppFile = {
@@ -218,7 +218,7 @@ async function expandToFolder(folderId: string) {
     return
   }
   const response = await meta.find({ dir_id: folderId })
-  const privateKey = props.keypair.input as string
+  const privateKey = props.keypair.wrappingPrivate || (props.keypair.input as string)
 
   const parents: AppFile[] = []
   for (const item of response.parents || []) {

@@ -25,7 +25,7 @@ vi.mock('../services/api', () => {
   const put = vi.fn()
   return {
     default: class {
-      constructor(_?: unknown) {}
+      constructor() {}
       toJson() {
         return {}
       }
@@ -68,7 +68,7 @@ vi.mock('../services/cryptfns', () => ({
   stringToHashedTokens: vi.fn(() => ['tok-a', 'tok-b']),
   sha256: { digest: vi.fn(() => 'name-hash') },
   cipher: {
-    DEFAULT_CIPHER: 'aegis-128l',
+    defaultCipher: vi.fn(() => 'aegis-128l'),
     generateKey: vi.fn(() => Promise.resolve(new Uint8Array(32))),
     encryptString: vi.fn(() => Promise.resolve('cipher-blob'))
   },

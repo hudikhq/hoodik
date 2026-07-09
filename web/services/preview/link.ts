@@ -1,6 +1,7 @@
 import type { AppLink } from 'types'
 import { Preview } from '.'
 import { store as LinkStore } from '!/links'
+
 const store = LinkStore()
 
 export class LinkPreview extends Preview {
@@ -16,23 +17,14 @@ export class LinkPreview extends Preview {
   }
 
   /**
-   * Load the file data
+   * Load the file data (client-side decrypt of raw ciphertext from server).
    */
   public async load(): Promise<Uint8Array> {
     if (this.data) {
       return this.data
     }
 
-    const response = await store.download(this.link.id, this.link.link_key_hex)
-
-    if (!response.ok) {
-      throw new Error('Could not get file data')
-    }
-
-    const data = await response.arrayBuffer()
-
-    this.data = new Uint8Array(data)
-
+    this.data = await store.download(this.link.id, this.link.link_key_hex || '')
     return this.data
   }
 }

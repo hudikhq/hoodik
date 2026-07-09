@@ -38,6 +38,8 @@ async fn test_allow_register_false() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -84,6 +86,8 @@ async fn test_whitelist_pass_and_fail() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -102,6 +106,8 @@ async fn test_whitelist_pass_and_fail() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -148,6 +154,8 @@ async fn test_registration_allowed_fails_blacklist_cannot_register() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -166,6 +174,8 @@ async fn test_registration_allowed_fails_blacklist_cannot_register() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -248,6 +258,8 @@ async fn test_registration_not_allowed_fails_blacklist_cannot_register() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -266,6 +278,8 @@ async fn test_registration_not_allowed_fails_blacklist_cannot_register() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();

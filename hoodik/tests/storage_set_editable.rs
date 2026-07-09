@@ -32,6 +32,8 @@ async fn test_set_editable_converts_file_to_note() {
             pubkey: Some(public_string),
             fingerprint: Some(fingerprint),
             encrypted_private_key: Some("encrypted-secret".to_string()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -123,6 +125,8 @@ async fn test_set_editable_can_revert_note_to_regular_file() {
             pubkey: Some(public_string),
             fingerprint: Some(fingerprint),
             encrypted_private_key: Some("encrypted-secret".to_string()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -203,6 +207,8 @@ async fn test_set_editable_rejects_directory() {
             pubkey: Some(public_string),
             fingerprint: Some(fingerprint),
             encrypted_private_key: Some("encrypted-secret".to_string()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -278,6 +284,8 @@ async fn test_set_editable_requires_editable_field() {
             pubkey: Some(public_string),
             fingerprint: Some(fingerprint),
             encrypted_private_key: Some("encrypted-secret".to_string()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();

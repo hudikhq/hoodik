@@ -306,14 +306,18 @@ describe('audit log view', () => {
   it('audit_signature_verification_passes_on_valid_sig', async () => {
     const kp = await cryptfns.rsa.generateKeyPair()
     const row = await buildRow(0, kp.input as string, null)
-    expect(await shareCrypto.verifyEventSignature(row, kp.publicKey as string)).toBe(true)
+    expect(
+      await shareCrypto.verifyEventSignature(row, { pubkey: kp.publicKey as string })
+    ).toBe(true)
   })
 
   it('audit_signature_verification_fails_on_tampered_payload', async () => {
     const kp = await cryptfns.rsa.generateKeyPair()
     const row = await buildRow(0, kp.input as string, null)
     const tampered: ShareEvent = { ...row, share_role_after: 'reader' }
-    expect(await shareCrypto.verifyEventSignature(tampered, kp.publicKey as string)).toBe(false)
+    expect(
+      await shareCrypto.verifyEventSignature(tampered, { pubkey: kp.publicKey as string })
+    ).toBe(false)
   })
 
   it('audit_null_signature_rows_show_system_badge', async () => {

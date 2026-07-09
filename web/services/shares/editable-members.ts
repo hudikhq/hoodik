@@ -1,5 +1,3 @@
-import * as cryptfns from '!/cryptfns'
-
 import * as api from './api'
 import * as shareCrypto from './crypto'
 import {
@@ -17,75 +15,35 @@ import type {
   UploadMultiKeyMember
 } from 'types'
 
-const MEMBER_SIG_V1_PREFIX = new TextEncoder().encode('hoodik-folder-mem-v1\0')
-
-const ROLE_TO_WIRE: Record<FolderMember['share_role'], number> = {
-  reader: 0,
-  editor: 1,
-  'co-owner': 2
-}
-
 export function ensureNotAborted(signal?: AbortSignal): void {
   if (signal?.aborted) {
     throw new UploadIntoSharedFolderAborted()
   }
 }
 
-function uuidStringToBytes(uuid: string): Uint8Array {
-  const hex = uuid.replace(/-/g, '')
-  if (hex.length !== 32) {
-    throw new Error(`Invalid UUID: ${uuid}`)
-  }
-  return cryptfns.uint8.fromHex(hex)
-}
-
-function concatPrefixed(prefix: Uint8Array, payload: Uint8Array): Uint8Array {
-  const out = new Uint8Array(prefix.length + payload.length)
-  out.set(prefix, 0)
-  out.set(payload, prefix.length)
-  return out
-}
-
 /**
- * Server response carries `pubkey` as a PEM string; the v1 member-sig
- * encoder wants the raw DER bytes. We decode the PEM body here so the
- * client recomputes the exact bytes the original signer covered.
- */
-function pemToDerBytes(pem: string): Uint8Array {
-  const trimmed = pem
-    .replace(/-----BEGIN [A-Z ]+-----/g, '')
-    .replace(/-----END [A-Z ]+-----/g, '')
-    .replace(/\s+/g, '')
-  return cryptfns.uint8.fromBase64(trimmed)
-}
-
-/**
- * Verify the per-member σ for one row using the supplied signer pubkey.
+ * Verify the per-member σ for one row using the supplied signer's key.
  * Returns `false` (rather than throwing) so the caller can decide whether
  * a missing/invalid signature is fatal in the current context.
  */
 async function verifySingleMember(
   member: FolderMember,
-  signerPubkey: string
+  signer: FolderMember
 ): Promise<boolean> {
   if (!member.member_signature || member.added_at === null) {
     return false
   }
-  const { member_sig_encode_v1, rsa_verify_bytes } = await import('!/cryptfns/wasm')
-  const userIdBytes = uuidStringToBytes(member.user_id)
-  const pubkeyDer = pemToDerBytes(member.pubkey)
-  const fingerprintBytes = cryptfns.uint8.fromHex(member.pubkey_fingerprint)
-  const roleByte = ROLE_TO_WIRE[member.share_role]
-  const der = member_sig_encode_v1(
-    userIdBytes,
-    pubkeyDer,
-    fingerprintBytes,
-    roleByte,
-    BigInt(member.added_at)
+  return shareCrypto.verifyMemberSignature(
+    {
+      userId: member.user_id,
+      pubkeyPem: member.pubkey,
+      pubkeyFingerprintHex: member.pubkey_fingerprint,
+      shareRole: member.share_role,
+      signedAt: BigInt(member.added_at)
+    },
+    member.member_signature,
+    signer
   )
-  if (!der) return false
-  const signingInput = concatPrefixed(MEMBER_SIG_V1_PREFIX, der)
-  return rsa_verify_bytes(signingInput, member.member_signature, signerPubkey)
 }
 
 /**
@@ -122,7 +80,7 @@ export async function verifyFolderMemberList(
   // The owner's fingerprint is self-signed by construction; verify the
   // server-returned fingerprint matches the pubkey before trusting it as
   // the signer-set root.
-  const ownerLocalFp = shareCrypto.computeFingerprint(ownerEntry.pubkey)
+  const ownerLocalFp = shareCrypto.fingerprintForUser(ownerEntry)
   if (ownerLocalFp !== ownerEntry.pubkey_fingerprint) {
     throw new FolderMemberListInvalid(
       'fingerprint_mismatch',
@@ -131,8 +89,8 @@ export async function verifyFolderMemberList(
     )
   }
 
-  const signers = new Map<string, string>()
-  signers.set(response.folder_owner_id, ownerEntry.pubkey)
+  const signers = new Map<string, FolderMember>()
+  signers.set(response.folder_owner_id, ownerEntry)
 
   // Pass 1: promote Co-owners to signers if their σ_member verifies
   // against the owner. We do this in a separate pass so subsequent
@@ -142,7 +100,7 @@ export async function verifyFolderMemberList(
     if (m.share_role !== 'co-owner') continue
     if (m.signed_by_user_id !== response.folder_owner_id) continue
     if (!m.pubkey) continue
-    const localFp = shareCrypto.computeFingerprint(m.pubkey)
+    const localFp = shareCrypto.fingerprintForUser(m)
     if (localFp !== m.pubkey_fingerprint) {
       throw new FolderMemberListInvalid(
         'fingerprint_mismatch',
@@ -150,9 +108,9 @@ export async function verifyFolderMemberList(
         m.user_id
       )
     }
-    const ok = await verifySingleMember(m, ownerEntry.pubkey)
+    const ok = await verifySingleMember(m, ownerEntry)
     if (ok) {
-      signers.set(m.user_id, m.pubkey)
+      signers.set(m.user_id, m)
     }
     // If a co-owner's σ is missing, they're not promoted to signer; we
     // still consider them a member, just not a delegated signer.
@@ -172,8 +130,8 @@ export async function verifyFolderMemberList(
     )
   }
 
-  const listSignerPubkey = signers.get(response.members_list_signed_by_user_id)
-  if (!listSignerPubkey) {
+  const listSigner = signers.get(response.members_list_signed_by_user_id)
+  if (!listSigner) {
     throw new FolderMemberListInvalid(
       'list_signature_unauthorized_signer',
       `Member list signed by ${response.members_list_signed_by_user_id}, who is not the owner or a verified Co-owner.`,
@@ -185,7 +143,7 @@ export async function verifyFolderMemberList(
   const listOk = await shareCrypto.verifyFolderMemberListSignature(
     listInput,
     response.members_list_signature,
-    listSignerPubkey
+    listSigner
   )
   if (!listOk) {
     throw new FolderMemberListInvalid(
@@ -207,7 +165,7 @@ export async function verifyFolderMemberList(
         m.user_id
       )
     }
-    const localFp = shareCrypto.computeFingerprint(m.pubkey)
+    const localFp = shareCrypto.fingerprintForUser(m)
     if (localFp !== m.pubkey_fingerprint) {
       throw new FolderMemberListInvalid(
         'fingerprint_mismatch',
@@ -223,15 +181,15 @@ export async function verifyFolderMemberList(
         m.user_id
       )
     }
-    const signerPubkey = signers.get(m.signed_by_user_id)
-    if (!signerPubkey) {
+    const signer = signers.get(m.signed_by_user_id)
+    if (!signer) {
       throw new FolderMemberListInvalid(
         'unknown_signer',
         `Member ${m.user_id} signed by an unknown actor.`,
         m.user_id
       )
     }
-    const ok = await verifySingleMember(m, signerPubkey)
+    const ok = await verifySingleMember(m, signer)
     if (!ok) {
       throw new FolderMemberListInvalid(
         'member_signature_invalid',
@@ -281,6 +239,25 @@ export async function reconcileFingerprints(
     const cached = trusted.lookup(m.user_id)
     if (cached) {
       if (cached.pubkeyFingerprint !== m.pubkey_fingerprint) {
+        // Check for a valid key transition chain that links the previously
+        // trusted fingerprint for this user to the one now reported.
+        // If present, silently update trust (post-migration continuity).
+        let transitioned = false
+        try {
+          const chain = await api.getKeyTransitions(m.user_id)
+          const fpsInChain = new Set<string>()
+          for (const t of chain) {
+            if (t.old_fingerprint) fpsInChain.add(t.old_fingerprint)
+            if (t.new_fingerprint) fpsInChain.add(t.new_fingerprint)
+          }
+          transitioned = fpsInChain.has(cached.pubkeyFingerprint)
+        } catch {
+          // best effort; fall through to hard fail
+        }
+        if (transitioned) {
+          trusted.trustFingerprint(m.user_id, m.pubkey_fingerprint, 'key-transition')
+          continue
+        }
         throw new FolderMemberFingerprintChanged(
           m.user_id,
           cached.pubkeyFingerprint,
@@ -320,7 +297,7 @@ export async function wrapForEveryMember(
   const out: UploadMultiKeyMember[] = []
   for (const m of members) {
     ensureNotAborted(signal)
-    const encryptedKey = await shareCrypto.wrapForRecipient(fileKeyHex, m.pubkey)
+    const encryptedKey = await shareCrypto.wrapForRecipient(fileKeyHex, m)
     out.push({
       user_id: m.user_id,
       encrypted_key: encryptedKey,

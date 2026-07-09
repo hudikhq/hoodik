@@ -72,6 +72,8 @@ impl Repository<'_> {
                     user_id: row.user_id,
                     email: user.map(|u| u.email.clone()),
                     pubkey: user.map(|u| u.pubkey.clone()).unwrap_or_default(),
+                    key_type: user.map(|u| u.key_type.clone()).unwrap_or_default(),
+                    wrapping_pubkey: user.and_then(|u| u.wrapping_pubkey.clone()),
                     pubkey_fingerprint: user.map(|u| u.fingerprint.clone()).unwrap_or_default(),
                     share_role: row.share_role.clone(),
                     is_owner: row.is_owner,

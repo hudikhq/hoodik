@@ -38,6 +38,8 @@ async fn test_registration_and_login() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -158,6 +160,8 @@ async fn test_register_and_verify_user_email() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -214,6 +218,8 @@ async fn test_claims_can_expire() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -259,6 +265,8 @@ async fn test_expired_session_can_be_refreshed() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -327,6 +335,8 @@ async fn cannot_refresh_logged_out_session() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();

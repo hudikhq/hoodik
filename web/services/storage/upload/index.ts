@@ -336,7 +336,7 @@ export const store = defineStore('upload', () => {
       file.type === 'text/markdown' ||
       file.type === 'text/x-markdown'
     const mime = file.type || (isMarkdown ? 'text/markdown' : 'application/octet-stream')
-    const cipher = cryptfns.cipher.DEFAULT_CIPHER
+    const cipher = cryptfns.cipher.defaultCipher()
     const fileKey = await cryptfns.cipher.generateKey(cipher)
     const fileKeyHex = cryptfns.uint8.toHex(fileKey)
     const encryptedName = await cryptfns.cipher.encryptString(cipher, file.name, fileKey)
@@ -437,7 +437,7 @@ export const store = defineStore('upload', () => {
       file_modified_at: utcStringFromLocal(modified),
       search_tokens_hashed,
       thumbnail,
-      cipher: cryptfns.cipher.DEFAULT_CIPHER,
+      cipher: cryptfns.cipher.defaultCipher(),
       editable: isMarkdown || undefined
     }
 

@@ -85,11 +85,10 @@ const load = async () => {
 }
 
 /**
- * Start the download of a link through the
- * regular download process.
+ * Client-side download + decrypt for public link (server sends only ciphertext).
  */
 const download = async () => {
-  if (!link.value) return
+  if (!link.value?.link_key_hex) return
 
   await props.Links.formDownload(link.value.id, link.value.link_key_hex)
 }

@@ -3,7 +3,10 @@ pub mod file_versions;
 pub mod files;
 pub mod group_permission;
 pub mod invitations;
+pub mod key_transitions;
 pub mod links;
+pub mod opaque_config;
+pub mod opaque_login_sessions;
 pub mod paginated;
 pub mod permission;
 pub mod prelude;
@@ -28,8 +31,8 @@ pub use sea_orm::{
     entity::prelude::Uuid,
     entity::{ActiveModelTrait, ColumnTrait, EntityTrait, RelationTrait},
     sea_query::{
-        Alias, Expr, Func, IntoCondition, NullOrdering, Query, SelectStatement, SimpleExpr,
-        SubQueryOper, SubQueryStatement, UnionType,
+        Alias, Expr, Func, IntoCondition, NullOrdering, OnConflict, Query, SelectStatement,
+        SimpleExpr, SubQueryOper, SubQueryStatement, UnionType,
     },
     ActiveValue, Condition, ConnectionTrait, DbBackend, DbConn, DbErr, EntityOrSelect,
     FromQueryResult, Identity, JoinType, JsonValue, ModelTrait, Order, PaginatorTrait, QueryFilter,

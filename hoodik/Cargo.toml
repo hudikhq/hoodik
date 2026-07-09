@@ -1,6 +1,6 @@
 [package]
 name = "hoodik"
-version = "1.16.1"
+version = "2.0.0"
 edition = "2021"
 rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
@@ -37,6 +37,7 @@ shares = { path = "../shares" }
 storage = { path = "../storage" }
 
 [dev-dependencies]
+actix-http = "3"
 chrono = { workspace = true }
 rand = "^0.8"
 sha2 = "0.10"

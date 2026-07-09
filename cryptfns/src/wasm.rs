@@ -119,6 +119,213 @@ pub fn rsa_fingerprint_private(private_key: String) -> Option<String> {
 }
 
 #[wasm_bindgen]
+pub fn x25519_generate_private() -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    crate::ecdh::private::generate().ok()
+}
+
+#[wasm_bindgen]
+pub fn x25519_public_from_private(private_key: String) -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    crate::ecdh::public::from_private(&private_key).ok()
+}
+
+/// Wrap a file key for an X25519 recipient; returns the base64 ECIES blob.
+#[wasm_bindgen]
+pub fn x25519_wrap(file_key: Vec<u8>, recipient_public_key: String) -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    crate::ecdh::wrap(&file_key, &recipient_public_key).ok()
+}
+
+/// Unwrap a base64 ECIES blob with the recipient's X25519 private key.
+#[wasm_bindgen]
+pub fn x25519_unwrap(blob: String, private_key: String) -> Option<Vec<u8>> {
+    crate::utils::set_panic_hook();
+
+    crate::ecdh::unwrap(&blob, &private_key).ok()
+}
+
+#[wasm_bindgen]
+pub fn ed25519_generate_private() -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    crate::ed25519::private::generate().ok()
+}
+
+#[wasm_bindgen]
+pub fn ed25519_public_from_private(private_key: String) -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    crate::ed25519::public::from_private(&private_key).ok()
+}
+
+#[wasm_bindgen]
+pub fn ed25519_sign(message: String, private_key: String) -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    crate::ed25519::private::sign(&message, &private_key).ok()
+}
+
+#[wasm_bindgen]
+pub fn ed25519_verify(message: String, signature: String, public_key: String) -> bool {
+    crate::utils::set_panic_hook();
+
+    crate::ed25519::public::verify(&message, &signature, &public_key).is_ok()
+}
+
+/// Sign raw bytes — signed payloads are DER blobs that are not valid UTF-8.
+#[wasm_bindgen]
+pub fn ed25519_sign_bytes(message: Vec<u8>, private_key: String) -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    crate::ed25519::private::sign_bytes(&message, &private_key).ok()
+}
+
+/// Verify an Ed25519 signature over raw bytes.
+#[wasm_bindgen]
+pub fn ed25519_verify_bytes(message: Vec<u8>, signature: String, public_key: String) -> bool {
+    crate::utils::set_panic_hook();
+
+    crate::ed25519::public::verify_bytes(&message, &signature, &public_key).is_ok()
+}
+
+/// Key-type-agnostic fingerprint of any SPKI PEM public key.
+#[wasm_bindgen]
+pub fn spki_fingerprint(public_key: String) -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    crate::spki::fingerprint(&public_key).ok()
+}
+
+/// OPAQUE client registration step 1. Returns JSON `{state, message}`.
+#[wasm_bindgen]
+pub fn opaque_client_registration_start(password: String) -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    let result = crate::opaque::client_registration_start(password.as_bytes()).ok()?;
+    serde_json::to_string(&result).ok()
+}
+
+/// OPAQUE client registration step 2. Returns JSON `{message, export_key}`.
+#[wasm_bindgen]
+pub fn opaque_client_registration_finish(
+    registration_state: String,
+    registration_response: String,
+    password: String,
+) -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    let result = crate::opaque::client_registration_finish(
+        &registration_state,
+        &registration_response,
+        password.as_bytes(),
+    )
+    .ok()?;
+    serde_json::to_string(&result).ok()
+}
+
+/// OPAQUE client login step 1. Returns JSON `{state, message}`.
+#[wasm_bindgen]
+pub fn opaque_client_login_start(password: String) -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    let result = crate::opaque::client_login_start(password.as_bytes()).ok()?;
+    serde_json::to_string(&result).ok()
+}
+
+/// OPAQUE client login step 2. Returns JSON `{finalization, session_key, export_key}`.
+#[wasm_bindgen]
+pub fn opaque_client_login_finish(
+    login_state: String,
+    credential_response: String,
+    password: String,
+) -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    let result = crate::opaque::client_login_finish(
+        &login_state,
+        &credential_response,
+        password.as_bytes(),
+    )
+    .ok()?;
+    serde_json::to_string(&result).ok()
+}
+
+/// Derive the private-key envelope KEK from an OPAQUE `export_key`.
+#[wasm_bindgen]
+pub fn envelope_derive_kek(export_key: Vec<u8>) -> Option<Vec<u8>> {
+    crate::utils::set_panic_hook();
+
+    crate::envelope::derive_kek(&export_key).ok().map(|k| k.to_vec())
+}
+
+/// Seal a private-key bundle under `kek`; returns the base64 envelope.
+#[wasm_bindgen]
+pub fn envelope_seal(kek: Vec<u8>, bundle: Vec<u8>) -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    crate::envelope::seal(&to_kek(&kek)?, &bundle).ok()
+}
+
+/// Open a base64 envelope with `kek`.
+#[wasm_bindgen]
+pub fn envelope_open(kek: Vec<u8>, envelope: String) -> Option<Vec<u8>> {
+    crate::utils::set_panic_hook();
+
+    crate::envelope::open(&to_kek(&kek)?, &envelope).ok()
+}
+
+/// Re-wrap an envelope's data key from `old_kek` to `new_kek` — the cheap
+/// half of a password change.
+#[wasm_bindgen]
+pub fn envelope_rewrap(old_kek: Vec<u8>, new_kek: Vec<u8>, envelope: String) -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    crate::envelope::rewrap(&to_kek(&old_kek)?, &to_kek(&new_kek)?, &envelope).ok()
+}
+
+fn to_kek(bytes: &[u8]) -> Option<[u8; 32]> {
+    bytes.try_into().ok()
+}
+
+/// Sign a key-transition certificate with the old and new identity keys.
+/// Returns JSON `{old_signature, new_signature}`.
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn transition_sign(
+    user_id: Vec<u8>,
+    old_key_type: String,
+    old_key_pem: String,
+    old_fingerprint: String,
+    new_identity_key_pem: String,
+    new_wrapping_key_pem: String,
+    new_fingerprint: String,
+    issued_at: i64,
+    old_private_key: String,
+    new_identity_private_key: String,
+) -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    let signatures = crate::transition::sign_certificate(
+        &user_id,
+        &old_key_type,
+        &old_key_pem,
+        &old_fingerprint,
+        &new_identity_key_pem,
+        &new_wrapping_key_pem,
+        &new_fingerprint,
+        issued_at,
+        &old_private_key,
+        &new_identity_private_key,
+    )
+    .ok()?;
+    serde_json::to_string(&signatures).ok()
+}
+
+#[wasm_bindgen]
 pub fn aes_generate_key() -> Option<Vec<u8>> {
     aes::generate_key().ok()
 }

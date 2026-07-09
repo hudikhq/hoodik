@@ -34,6 +34,8 @@ async fn test_creating_file_and_uploading_chunks() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -52,6 +54,8 @@ async fn test_creating_file_and_uploading_chunks() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some(encrypted_secret.clone()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -213,6 +217,8 @@ async fn test_transfer_token_upload_and_download() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some("encrypted-secret".to_string()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -419,6 +425,8 @@ async fn test_download_tar_archive() {
             pubkey: Some(public_string.clone()),
             fingerprint: Some(fingerprint.clone()),
             encrypted_private_key: Some("encrypted-secret".to_string()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -604,6 +612,8 @@ async fn test_replace_content_atomic_edit() {
             pubkey: Some(public_string),
             fingerprint: Some(fingerprint),
             encrypted_private_key: Some("encrypted-secret".to_string()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -755,6 +765,8 @@ async fn test_replace_content_concurrent_returns_409() {
             pubkey: Some(public_string),
             fingerprint: Some(fingerprint),
             encrypted_private_key: Some("encrypted-secret".to_string()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -874,6 +886,8 @@ async fn test_versions_list_and_restore() {
             pubkey: Some(public_string),
             fingerprint: Some(fingerprint),
             encrypted_private_key: Some("encrypted-secret".to_string()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();
@@ -1013,6 +1027,8 @@ async fn test_fork_creates_independent_copy() {
             pubkey: Some(public_string),
             fingerprint: Some(fingerprint),
             encrypted_private_key: Some("encrypted-secret".to_string()),
+            key_type: None,
+            wrapping_pubkey: None,
             invitation_id: None,
         })
         .to_request();

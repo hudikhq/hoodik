@@ -87,7 +87,7 @@ async function discover(): Promise<void> {
   try {
     const user = await sharesApi.discoverUser(trimmed)
     recipient.value = user
-    fingerprintHex.value = shareCrypto.computeFingerprint(user.pubkey)
+    fingerprintHex.value = shareCrypto.fingerprintForUser(user)
     formattedFingerprint.value = shareCrypto.formatFingerprint(fingerprintHex.value)
     const cached = trusted.lookup(user.user_id)
     if (cached) {

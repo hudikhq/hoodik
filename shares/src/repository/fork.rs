@@ -5,10 +5,7 @@
 //! `permission().can_fork()` plus a quota check.
 
 use chrono::Utc;
-use cryptfns::asn1::{
-    encode_audit_event_sig_input_v1, AuditEventActionEnum, AuditEventSigInputV1,
-    AUDIT_EVENT_SIG_V1_PREFIX,
-};
+use cryptfns::asn1::{AuditEventActionEnum, AuditEventSigInputV1};
 use entity::{
     files,
     permission::{permission, SharePermission},
@@ -113,14 +110,7 @@ impl Repository<'_> {
             share_role_after: None,
             timestamp: signed_timestamp,
         };
-        let sig_der = encode_audit_event_sig_input_v1(&sig_input)
-            .map_err(|e| Error::CryptoError(Box::new(e)))?;
-        let mut signing_input =
-            Vec::with_capacity(AUDIT_EVENT_SIG_V1_PREFIX.len() + sig_der.len());
-        signing_input.extend_from_slice(AUDIT_EVENT_SIG_V1_PREFIX);
-        signing_input.extend_from_slice(&sig_der);
-        cryptfns::rsa::public::verify_bytes(&signing_input, &event_signature_b64, &caller.pubkey)
-            .map_err(|_| Error::BadRequest("event_signature_invalid".to_string()))?;
+        super::multikey_upload::verify_event_signature(&sig_input, &event_signature_b64, caller)?;
 
         let tx = self.context.db.begin().await?;
 

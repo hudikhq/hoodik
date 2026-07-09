@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use context::Context;
 use entity::{
     files,
@@ -29,7 +31,11 @@ impl<'ctx> Repository<'ctx> {
     ) -> AppResult<AppLink> {
         let (data, signature, file_id) = create_link.into_active_model(user.id)?;
 
-        cryptfns::rsa::public::verify(file_id.to_string().as_str(), &signature, &user.pubkey)?;
+        cryptfns::identity::KeyType::from_str(&user.key_type)?.verify(
+            file_id.to_string().as_str(),
+            &signature,
+            &user.pubkey,
+        )?;
 
         let (_file, user_file) = self.get_file_with_owner(file_id).await?;
 

@@ -40,6 +40,8 @@ async fn auth_create_user() {
         fingerprint,
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
         token: None,
+        key_type: None,
+        wrapping_pubkey: None,
         invitation_id: None,
     };
 
@@ -76,6 +78,8 @@ async fn test_credentials_valid() {
         fingerprint,
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
         token: None,
+        key_type: None,
+        wrapping_pubkey: None,
         invitation_id: None,
     };
 
@@ -121,6 +125,8 @@ async fn test_credentials_invalid() {
         fingerprint,
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
         token: None,
+        key_type: None,
+        wrapping_pubkey: None,
         invitation_id: None,
     };
 
@@ -168,6 +174,8 @@ async fn test_retrieve_authenticated_session_by_token_and_csrf() {
         fingerprint,
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
         token: None,
+        key_type: None,
+        wrapping_pubkey: None,
         invitation_id: None,
     };
 
@@ -219,6 +227,8 @@ async fn test_jwt_generate_and_claim() {
         fingerprint,
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
         token: None,
+        key_type: None,
+        wrapping_pubkey: None,
         invitation_id: None,
     };
 
@@ -269,6 +279,8 @@ async fn test_register_and_send_email() {
         fingerprint,
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
         token: None,
+        key_type: None,
+        wrapping_pubkey: None,
         invitation_id: None,
     };
 
@@ -304,6 +316,8 @@ async fn test_activate_user() {
         fingerprint,
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
         token: None,
+        key_type: None,
+        wrapping_pubkey: None,
         invitation_id: None,
     };
 
@@ -345,6 +359,8 @@ async fn test_set_cookie_for_both() {
         fingerprint,
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
         token: None,
+        key_type: None,
+        wrapping_pubkey: None,
         invitation_id: None,
     };
 

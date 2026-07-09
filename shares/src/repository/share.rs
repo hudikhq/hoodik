@@ -4,11 +4,13 @@
 //! work.
 
 use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 
 use cryptfns::asn1::{
     decode_share_request_v1, encode_audit_event_sig_input_v1, encode_entries_v1,
     AuditEventActionEnum, AuditEventSigInputV1, ShareEntry, ShareRoleEnum, SHARE_REQUEST_V1_PREFIX,
 };
+use cryptfns::identity::KeyType;
 use entity::{
     files,
     permission::{permission, SharePermission},
@@ -175,10 +177,12 @@ impl<'ctx> Repository<'ctx> {
             return Err(Error::BadRequest("entries_hash_mismatch".to_string()));
         }
 
+        let sender_key_type = KeyType::from_str(&sender.key_type)?;
         let mut signing_input = Vec::with_capacity(SHARE_REQUEST_V1_PREFIX.len() + payload_der.len());
         signing_input.extend_from_slice(SHARE_REQUEST_V1_PREFIX);
         signing_input.extend_from_slice(&payload_der);
-        cryptfns::rsa::public::verify_bytes(&signing_input, &signature_b64, &sender.pubkey)
+        sender_key_type
+            .verify_bytes(&signing_input, &signature_b64, &sender.pubkey)
             .map_err(|_| Error::BadRequest("invalid_signature".to_string()))?;
 
         // Per-recipient `MemberSigPayloadV1` signature, when supplied.
@@ -186,8 +190,8 @@ impl<'ctx> Repository<'ctx> {
         // at issue time with the granter's privkey, so any later viewer
         // of the member list can chain trust from owner → Co-owner.
         // Verification re-encodes the payload from the recipient's row
-        // and `member_signed_at`, then RSA-PSS-verifies the supplied
-        // signature against the granter's pubkey.
+        // and `member_signed_at`, then verifies the supplied signature
+        // against the granter's pubkey.
         // The signature lands verbatim in every produced `user_files`
         // row's `member_signature` column.
         // Schema persists `user_files.member_signature` as raw bytes.
@@ -207,11 +211,9 @@ impl<'ctx> Repository<'ctx> {
                     ));
                 }
                 Some(verify_member_signature(
-                    &sender.pubkey,
+                    sender,
                     sig_b64,
-                    recipient.id,
-                    &recipient.pubkey,
-                    recipient_fingerprint_bytes,
+                    &recipient,
                     requested_role,
                     signed_at,
                 )?)
@@ -272,12 +274,9 @@ impl<'ctx> Repository<'ctx> {
             Vec::with_capacity(cryptfns::asn1::AUDIT_EVENT_SIG_V1_PREFIX.len() + sig_input_der.len());
         audit_signing_input.extend_from_slice(cryptfns::asn1::AUDIT_EVENT_SIG_V1_PREFIX);
         audit_signing_input.extend_from_slice(&sig_input_der);
-        cryptfns::rsa::public::verify_bytes(
-            &audit_signing_input,
-            &event_signature_b64,
-            &sender.pubkey,
-        )
-        .map_err(|_| Error::BadRequest("event_signature_invalid".to_string()))?;
+        sender_key_type
+            .verify_bytes(&audit_signing_input, &event_signature_b64, &sender.pubkey)
+            .map_err(|_| Error::BadRequest("event_signature_invalid".to_string()))?;
 
         if rate_limit::over_per_pair_cap(
             &self.context.db,
@@ -517,12 +516,9 @@ impl<'ctx> Repository<'ctx> {
             Vec::with_capacity(cryptfns::asn1::AUDIT_EVENT_SIG_V1_PREFIX.len() + sig_input_der.len());
         audit_signing_input.extend_from_slice(cryptfns::asn1::AUDIT_EVENT_SIG_V1_PREFIX);
         audit_signing_input.extend_from_slice(&sig_input_der);
-        cryptfns::rsa::public::verify_bytes(
-            &audit_signing_input,
-            &event_signature_b64,
-            &caller.pubkey,
-        )
-        .map_err(|_| Error::BadRequest("event_signature_invalid".to_string()))?;
+        KeyType::from_str(&caller.key_type)?
+            .verify_bytes(&audit_signing_input, &event_signature_b64, &caller.pubkey)
+            .map_err(|_| Error::BadRequest("event_signature_invalid".to_string()))?;
 
         let revoked_role_before = target.share_role.clone();
         let revoked_was_co_owner = revoked_role_before == "co-owner";

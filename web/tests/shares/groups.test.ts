@@ -227,6 +227,7 @@ describe('share-to-group fan-out', () => {
       shareRole: 'editor',
       senderId: OWNER_ID,
       privateKey: kpOwner.input as string,
+      wrappingPrivateKey: kpOwner.input as string,
       trusted: trustedFingerprintsStore()
     })
 
@@ -284,6 +285,7 @@ describe('share-to-group fan-out', () => {
       shareRole: 'reader',
       senderId: MEMBER_A,
       privateKey: kpEditor.input as string,
+      wrappingPrivateKey: kpEditor.input as string,
       trusted: trustedFingerprintsStore()
     })
 
@@ -342,6 +344,7 @@ describe('share-to-group fan-out', () => {
         shareRole: 'reader',
         senderId: MEMBER_A,
         privateKey: kpEditor.input as string,
+        wrappingPrivateKey: kpEditor.input as string,
         trusted: trustedFingerprintsStore()
       })
     ).resolves.toBeUndefined()
@@ -398,6 +401,7 @@ describe('share-to-group fan-out', () => {
       shareRole: 'editor',
       senderId: OWNER_ID,
       privateKey: kpOwner.input as string,
+      wrappingPrivateKey: kpOwner.input as string,
       trusted: trustedFingerprintsStore()
     })
 
@@ -427,11 +431,9 @@ describe('share-to-group fan-out', () => {
       timestamp: BigInt(bobEnvelope.member_signed_at as number)
     })
     expect(
-      await shareCrypto.verifyAuditEvent(
-        roleChangeInput,
-        bobEnvelope.event_signature,
-        kpOwner.publicKey as string
-      )
+      await shareCrypto.verifyAuditEvent(roleChangeInput, bobEnvelope.event_signature, {
+        pubkey: kpOwner.publicKey as string
+      })
     ).toBe(true)
 
     const grantInput = shareCrypto.buildAuditEventSigInput({
@@ -444,11 +446,9 @@ describe('share-to-group fan-out', () => {
       timestamp: BigInt(bobEnvelope.member_signed_at as number)
     })
     expect(
-      await shareCrypto.verifyAuditEvent(
-        grantInput,
-        bobEnvelope.event_signature,
-        kpOwner.publicKey as string
-      )
+      await shareCrypto.verifyAuditEvent(grantInput, bobEnvelope.event_signature, {
+        pubkey: kpOwner.publicKey as string
+      })
     ).toBe(false)
   })
 
@@ -502,6 +502,7 @@ describe('share-to-group fan-out', () => {
       shareRole: 'editor',
       senderId: OWNER_ID,
       privateKey: kpOwner.input as string,
+      wrappingPrivateKey: kpOwner.input as string,
       trusted: trustedFingerprintsStore(),
       onProgress: (done, total) => {
         lastProgress = [done, total]
@@ -565,6 +566,7 @@ describe('share-to-group fan-out', () => {
       shareRole: 'reader',
       senderId: OWNER_ID,
       privateKey: kpOwner.input as string,
+      wrappingPrivateKey: kpOwner.input as string,
       trusted: trustedFingerprintsStore()
     })
 
@@ -597,11 +599,9 @@ describe('share-to-group fan-out', () => {
       timestamp: BigInt(bobEnvelope.member_signed_at as number)
     })
     expect(
-      await shareCrypto.verifyAuditEvent(
-        grantInput,
-        bobEnvelope.event_signature,
-        kpOwner.publicKey as string
-      )
+      await shareCrypto.verifyAuditEvent(grantInput, bobEnvelope.event_signature, {
+        pubkey: kpOwner.publicKey as string
+      })
     ).toBe(true)
 
     const roleChangeInput = shareCrypto.buildAuditEventSigInput({
@@ -614,11 +614,9 @@ describe('share-to-group fan-out', () => {
       timestamp: BigInt(bobEnvelope.member_signed_at as number)
     })
     expect(
-      await shareCrypto.verifyAuditEvent(
-        roleChangeInput,
-        bobEnvelope.event_signature,
-        kpOwner.publicKey as string
-      )
+      await shareCrypto.verifyAuditEvent(roleChangeInput, bobEnvelope.event_signature, {
+        pubkey: kpOwner.publicKey as string
+      })
     ).toBe(false)
   })
 
@@ -677,6 +675,7 @@ describe('share-to-group fan-out', () => {
       shareRole: 'reader',
       senderId: OWNER_ID,
       privateKey: kpOwner.input as string,
+      wrappingPrivateKey: kpOwner.input as string,
       trusted: trustedFingerprintsStore()
     })
 
@@ -699,7 +698,7 @@ describe('share-to-group fan-out', () => {
     const rosterOk = await shareCrypto.verifyFolderMemberListSignature(
       rosterInput,
       sig!.signature,
-      kpOwner.publicKey as string
+      { pubkey: kpOwner.publicKey as string }
     )
     expect(rosterOk).toBe(true)
 
@@ -714,7 +713,7 @@ describe('share-to-group fan-out', () => {
     const droppedOk = await shareCrypto.verifyFolderMemberListSignature(
       droppedBob,
       sig!.signature,
-      kpOwner.publicKey as string
+      { pubkey: kpOwner.publicKey as string }
     )
     expect(droppedOk).toBe(false)
   })
@@ -734,6 +733,7 @@ describe('share-to-group fan-out', () => {
         shareRole: 'reader',
         senderId: OWNER_ID,
         privateKey: kp.input as string,
+        wrappingPrivateKey: kp.input as string,
         trusted: trustedFingerprintsStore()
       })
     ).rejects.toThrow(/no one else/i)
@@ -776,6 +776,7 @@ describe('share-to-group fan-out', () => {
         shareRole: 'editor',
         senderId: OWNER_ID,
         privateKey: kpOwner.input as string,
+        wrappingPrivateKey: kpOwner.input as string,
         trusted: trustedFingerprintsStore()
       })
     ).rejects.toBeInstanceOf(GroupMemberFingerprintMismatch)
@@ -816,6 +817,7 @@ describe('share-to-group fan-out', () => {
         shareRole: 'editor',
         senderId: OWNER_ID,
         privateKey: kpOwner.input as string,
+        wrappingPrivateKey: kpOwner.input as string,
         trusted
       })
     ).rejects.toBeInstanceOf(GroupMemberFingerprintMismatch)
@@ -846,6 +848,7 @@ describe('share-to-group fan-out', () => {
       shareRole: 'editor',
       senderId: OWNER_ID,
       privateKey: kpOwner.input as string,
+      wrappingPrivateKey: kpOwner.input as string,
       trusted
     })
 

@@ -16,6 +16,7 @@ use chrono::Utc;
 use cryptfns::asn1::{
     encode_audit_event_sig_input_v1, AuditEventActionEnum, AuditEventSigInputV1,
 };
+use cryptfns::identity::KeyType;
 use entity::{
     file_tokens, files,
     permission::{permission, SharePermission},
@@ -136,7 +137,7 @@ impl Repository<'_> {
             share_role_after: None,
             timestamp: signed_timestamp,
         };
-        verify_event_signature(&sig_input, &event_signature, &caller.pubkey)?;
+        verify_event_signature(&sig_input, &event_signature, caller)?;
 
         // Quota check uses owner-only storage.
         let claimed_size = body.size.unwrap_or(0);
@@ -284,7 +285,7 @@ impl Repository<'_> {
             share_role_after: None,
             timestamp: signed_timestamp,
         };
-        verify_event_signature(&sig_input, &event_signature, &caller.pubkey)?;
+        verify_event_signature(&sig_input, &event_signature, caller)?;
 
         let tx = self.context.db.begin().await?;
 
@@ -424,7 +425,7 @@ impl Repository<'_> {
             share_role_after: None,
             timestamp: signed_timestamp,
         };
-        verify_event_signature(&sig_input, &event_signature, &caller.pubkey)?;
+        verify_event_signature(&sig_input, &event_signature, caller)?;
 
         match body.entries.clone() {
             Some(raw_entries) => {
@@ -541,7 +542,7 @@ pub(super) fn replay_window(timestamp: i64) -> AppResult<()> {
 pub(super) fn verify_event_signature(
     sig_input: &AuditEventSigInputV1,
     signature_b64: &str,
-    pubkey: &str,
+    signer: &users::Model,
 ) -> AppResult<()> {
     let der = encode_audit_event_sig_input_v1(sig_input)
         .map_err(|e| Error::CryptoError(Box::new(e)))?;
@@ -549,7 +550,8 @@ pub(super) fn verify_event_signature(
         Vec::with_capacity(cryptfns::asn1::AUDIT_EVENT_SIG_V1_PREFIX.len() + der.len());
     signing_input.extend_from_slice(cryptfns::asn1::AUDIT_EVENT_SIG_V1_PREFIX);
     signing_input.extend_from_slice(&der);
-    cryptfns::rsa::public::verify_bytes(&signing_input, signature_b64, pubkey)
+    KeyType::from_str(&signer.key_type)?
+        .verify_bytes(&signing_input, signature_b64, &signer.pubkey)
         .map_err(|_| Error::BadRequest("event_signature_invalid".to_string()))?;
     Ok(())
 }

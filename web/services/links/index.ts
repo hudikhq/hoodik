@@ -126,7 +126,7 @@ export const store = defineStore('links', () => {
       throw new Error('Failed to create link')
     }
 
-    return crypto.decryptLinkRsa(response.body, kp)
+    return crypto.decryptOwnLink(response.body, kp)
   }
 
   /**
@@ -190,7 +190,7 @@ export const store = defineStore('links', () => {
     const encryptedLinks = await meta.all()
 
     const links = await Promise.all(
-      encryptedLinks.map((link) => crypto.decryptLinkRsa(link, kp))
+      encryptedLinks.map((link) => crypto.decryptOwnLink(link, kp))
     )
 
     for (const link of links) {
@@ -218,21 +218,22 @@ export const store = defineStore('links', () => {
   }
 
   /**
-   * Download the link data for viewing in the browser.
+   * Fetch and decrypt the link content client-side, per chunk. The link key
+   * comes from the URL fragment and never leaves the browser; the server only
+   * ever streams ciphertext.
    */
-  async function download(id: string, key: string): Promise<Response> {
+  async function download(id: string, key: string): Promise<Uint8Array> {
     const link = await get(id, key)
-
-    return await meta.download(link.id, key)
+    return await meta.downloadAndDecrypt(link)
   }
 
   /**
-   * Pass on the request to form download
+   * Decrypt the link content client-side and save it under the real filename
+   * from the decrypted link metadata.
    */
   async function formDownload(id: string, key: string): Promise<void> {
     const link = await get(id, key)
-
-    await meta.formDownload(link.id, key)
+    await meta.saveDecrypted(link)
   }
 
   return {

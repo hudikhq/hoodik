@@ -8,7 +8,8 @@ import {
   rsa_fingerprint_public,
   rsa_sign_bytes,
   rsa_verify_bytes,
-  share_payload_encode_v1
+  share_payload_encode_v1,
+  spki_fingerprint
 } from '!/cryptfns/wasm'
 
 import type {
@@ -76,9 +77,11 @@ function uuidStringToBytes(uuid: string): Uint8Array {
 
 /**
  * Strip PEM armor and decode the base64-encoded DER body. The WASM
- * encoders take raw DER bytes, but Hoodik stores RSA public keys as
- * PKCS#1 PEM (matching `cryptfns/src/rsa.rs` line 46) — so the SPA
- * crosses the PEM↔DER boundary before any structured signing call.
+ * encoders take raw DER bytes, and the server's member-signature
+ * canonical defines `pubkey_der` as exactly the body of the stored PEM —
+ * the PKCS#1 body for RSA accounts, the SPKI body for curve25519
+ * accounts — so decoding the armor generically produces the right
+ * canonical bytes for both key types.
  */
 function pemToDerBytes(pem: string): Uint8Array {
   const trimmed = pem
@@ -86,6 +89,40 @@ function pemToDerBytes(pem: string): Uint8Array {
     .replace(/-----END [A-Z ]+-----/g, '')
     .replace(/\s+/g, '')
   return cryptfns.uint8.fromBase64(trimmed)
+}
+
+/**
+ * The key material the SPA holds about another user, as the server
+ * serialises it on member, audit, and discovery records. `key_type`
+ * absent means an RSA account; `"curve25519"` accounts sign with their
+ * Ed25519 identity `pubkey` and receive key wraps under their X25519
+ * `wrapping_pubkey`.
+ */
+export interface SignerKey {
+  pubkey: string
+  key_type?: string
+}
+
+export interface RecipientKey extends SignerKey {
+  wrapping_pubkey?: string | null
+}
+
+async function verifyBytesForSigner(
+  signingInput: Uint8Array,
+  signature: string,
+  signer: SignerKey
+): Promise<boolean> {
+  if (signer.key_type === 'curve25519') {
+    return cryptfns.ed25519.verifyBytes(signingInput, signature, signer.pubkey)
+  }
+  return rsa_verify_bytes(signingInput, signature, signer.pubkey)
+}
+
+function isCurvePrivate(pem: string): boolean {
+  if (!pem) return false
+  const u = pem.toUpperCase()
+  // Ed25519 PKCS#8 PEMs from our generators do not contain "RSA"
+  return u.includes('ED25519') || (u.includes('BEGIN PRIVATE KEY') && !u.includes('RSA'))
 }
 
 /**
@@ -109,26 +146,40 @@ export function toBase64Nonce(nonce: Uint8Array): string {
 }
 
 /**
- * RSA-decrypt the caller's own wrap of a file key, returning the hex-encoded
- * AES key bytes.
+ * Decrypt the caller's own wrap of a file key.
+ * For legacy RSA accounts this is an RSA private-key operation (hex inside).
+ * For curve25519 accounts the stored value is an X25519 ECIES blob; we unwrap
+ * with the X private and return hex so callers are unchanged.
  */
 export async function decryptOwnFileKey(
   encryptedKey: string,
   privateKey: string
 ): Promise<string> {
+  if (isCurvePrivate(privateKey)) {
+    const keyBytes = await cryptfns.x25519.unwrap(encryptedKey, privateKey)
+    return cryptfns.uint8.toHex(keyBytes)
+  }
   return cryptfns.rsa.decryptMessage(privateKey, encryptedKey)
 }
 
 /**
- * Wrap a file key (hex string) under the recipient's RSA public key.
- * Returns base64 ciphertext — the same encoding the server stores in
- * `user_files.encrypted_key`.
+ * Wrap a file key for a recipient. RSA accounts (the default when
+ * `key_type` is absent) encrypt the key's HEX STRING — the format every
+ * stored wrap has used since v1; curve25519 accounts seal the RAW key
+ * BYTES in an X25519 ECIES blob under `wrapping_pubkey`. Both come back
+ * base64 — the encoding the server stores in `user_files.encrypted_key`.
  */
 export async function wrapForRecipient(
   fileKeyHex: string,
-  recipientPubkey: string
+  recipient: RecipientKey
 ): Promise<string> {
-  return cryptfns.rsa.encryptMessage(fileKeyHex, recipientPubkey)
+  if (recipient.key_type === 'curve25519') {
+    if (!recipient.wrapping_pubkey) {
+      throw new Error('curve25519 recipient has no wrapping pubkey')
+    }
+    return cryptfns.x25519.wrap(cryptfns.uint8.fromHex(fileKeyHex), recipient.wrapping_pubkey)
+  }
+  return cryptfns.rsa.encryptMessage(fileKeyHex, recipient.pubkey)
 }
 
 /**
@@ -196,7 +247,9 @@ export async function signSharePayload(
   }
 
   const signingInput = concatPrefixed(SHARE_REQUEST_V1_PREFIX, payloadDer)
-  const signature = rsa_sign_bytes(signingInput, privateKey)
+  const signature = isCurvePrivate(privateKey)
+    ? await cryptfns.ed25519.signBytes(signingInput, privateKey)
+    : rsa_sign_bytes(signingInput, privateKey)
   if (!signature) {
     throw new Error('Failed to sign ShareRequestPayloadV1')
   }
@@ -229,7 +282,9 @@ export async function signAuditEvent(
   }
 
   const signingInput = concatPrefixed(AUDIT_EVENT_SIG_V1_PREFIX, der)
-  const signature = rsa_sign_bytes(signingInput, privateKey)
+  const signature = isCurvePrivate(privateKey)
+    ? await cryptfns.ed25519.signBytes(signingInput, privateKey)
+    : rsa_sign_bytes(signingInput, privateKey)
   if (!signature) {
     throw new Error('Failed to sign AuditEventSigInputV1')
   }
@@ -237,13 +292,13 @@ export async function signAuditEvent(
 }
 
 /**
- * Verify an `AuditEventSigInputV1` signature against a known sender pubkey.
+ * Verify an `AuditEventSigInputV1` signature against a known sender key.
  * Used by the audit-log chain verifier to confirm rows weren't forged.
  */
 export async function verifyAuditEvent(
   input: AuditEventSigInputV1,
   signature: string,
-  senderPubkey: string
+  sender: SignerKey
 ): Promise<boolean> {
   const der = audit_event_sig_input_encode_v1(
     input.senderId,
@@ -258,7 +313,7 @@ export async function verifyAuditEvent(
     return false
   }
   const signingInput = concatPrefixed(AUDIT_EVENT_SIG_V1_PREFIX, der)
-  return rsa_verify_bytes(signingInput, signature, senderPubkey)
+  return verifyBytesForSigner(signingInput, signature, sender)
 }
 
 /**
@@ -293,7 +348,9 @@ export async function signMember(
     throw new Error('Failed to DER-encode MemberSigPayloadV1')
   }
   const signingInput = concatPrefixed(MEMBER_SIG_V1_PREFIX, der)
-  const signature = rsa_sign_bytes(signingInput, signerPrivateKey)
+  const signature = isCurvePrivate(signerPrivateKey)
+    ? await cryptfns.ed25519.signBytes(signingInput, signerPrivateKey)
+    : rsa_sign_bytes(signingInput, signerPrivateKey)
   if (!signature) {
     throw new Error('Failed to sign MemberSigPayloadV1')
   }
@@ -315,7 +372,7 @@ export async function verifyMemberSignature(
     signedAt: bigint
   },
   signature: string,
-  signerPubkey: string
+  signer: SignerKey
 ): Promise<boolean> {
   const der = member_sig_encode_v1(
     uuidStringToBytes(args.userId),
@@ -326,7 +383,7 @@ export async function verifyMemberSignature(
   )
   if (!der) return false
   const signingInput = concatPrefixed(MEMBER_SIG_V1_PREFIX, der)
-  return rsa_verify_bytes(signingInput, signature, signerPubkey)
+  return verifyBytesForSigner(signingInput, signature, signer)
 }
 
 /**
@@ -340,6 +397,23 @@ export function computeFingerprint(pubkey: string): string {
     throw new Error('Failed to compute pubkey fingerprint')
   }
   return fingerprint
+}
+
+/**
+ * Fingerprint dispatch across account key types — mirrors the server's
+ * `identity::KeyType::fingerprint`. RSA accounts hash the key modulus
+ * (`computeFingerprint`); curve25519 accounts hash the Ed25519 SPKI body,
+ * exactly what registration stored in `users.fingerprint`.
+ */
+export function fingerprintForUser(user: SignerKey): string {
+  if (user.key_type === 'curve25519') {
+    const fingerprint = spki_fingerprint(user.pubkey)
+    if (!fingerprint) {
+      throw new Error('Failed to compute pubkey fingerprint')
+    }
+    return fingerprint
+  }
+  return computeFingerprint(user.pubkey)
 }
 
 /**
@@ -642,7 +716,9 @@ export async function signFolderMemberList(
 ): Promise<{ payloadDer: Uint8Array; signature: string }> {
   const payloadDer = encodeFolderMemberList(input)
   const signingInput = concatPrefixed(FOLDER_LIST_V1_PREFIX, payloadDer)
-  const signature = rsa_sign_bytes(signingInput, signerPrivateKey)
+  const signature = isCurvePrivate(signerPrivateKey)
+    ? await cryptfns.ed25519.signBytes(signingInput, signerPrivateKey)
+    : rsa_sign_bytes(signingInput, signerPrivateKey)
   if (!signature) {
     throw new Error('Failed to sign FolderMemberListV1')
   }
@@ -658,12 +734,12 @@ export async function signFolderMemberList(
 export async function verifyFolderMemberListSignature(
   input: FolderMemberListV1,
   signatureB64: string,
-  signerPubkey: string
+  signer: SignerKey
 ): Promise<boolean> {
   try {
     const payloadDer = encodeFolderMemberList(input)
     const signingInput = concatPrefixed(FOLDER_LIST_V1_PREFIX, payloadDer)
-    return rsa_verify_bytes(signingInput, signatureB64, signerPubkey)
+    return verifyBytesForSigner(signingInput, signatureB64, signer)
   } catch {
     return false
   }
@@ -677,7 +753,7 @@ export async function verifyFolderMemberListSignature(
  */
 export async function verifyEventSignature(
   row: ShareEvent,
-  senderPubkey: string
+  sender: SignerKey
 ): Promise<boolean> {
   if (!row.sender_signature || !row.sender_id) return false
   const input = buildAuditEventSigInput({
@@ -689,5 +765,5 @@ export async function verifyEventSignature(
     shareRoleAfter: row.share_role_after,
     timestamp: BigInt(row.created_at)
   })
-  return verifyAuditEvent(input, row.sender_signature, senderPubkey)
+  return verifyAuditEvent(input, row.sender_signature, sender)
 }

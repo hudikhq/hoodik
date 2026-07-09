@@ -24,6 +24,9 @@ pub(crate) mod m20260601_000007_create_share_group_members;
 pub(crate) mod m20260601_000008_alter_settings_sharing_kill_switch;
 pub(crate) mod m20260601_000009_alter_files_folder_member_list;
 pub(crate) mod m20260601_000010_alter_share_group_members_role;
+pub(crate) mod m20260705_000001_alter_users_key_type;
+pub(crate) mod m20260705_000002_create_key_transitions;
+pub(crate) mod m20260705_000003_create_opaque_tables;
 
 pub struct Migrator;
 
@@ -55,6 +58,9 @@ impl MigratorTrait for Migrator {
             Box::new(m20260601_000008_alter_settings_sharing_kill_switch::Migration),
             Box::new(m20260601_000009_alter_files_folder_member_list::Migration),
             Box::new(m20260601_000010_alter_share_group_members_role::Migration),
+            Box::new(m20260705_000001_alter_users_key_type::Migration),
+            Box::new(m20260705_000002_create_key_transitions::Migration),
+            Box::new(m20260705_000003_create_opaque_tables::Migration),
         ]
     }
 }

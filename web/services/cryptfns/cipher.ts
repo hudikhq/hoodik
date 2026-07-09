@@ -2,12 +2,21 @@ import type { Key } from 'types'
 import { uint8 } from '.'
 import { init, cipher_generate_key, cipher_encrypt, cipher_decrypt } from './wasm'
 
+let currentDefaultCipher = 'aegis128l'
+
 /**
- * Default cipher identifier — matches the Rust `cryptfns::cipher::DEFAULT` constant.
- * Change this single value to experiment with a different cipher for new file uploads.
+ * Cipher identifier used for new file uploads. The value comes from the
+ * server's `GET /api/capabilities` advertisement; until that response
+ * arrives it matches the Rust `cryptfns::cipher::DEFAULT` constant.
  * Existing files always use whatever cipher is stored in their `cipher` DB field.
  */
-export const DEFAULT_CIPHER = 'aegis128l'
+export function defaultCipher(): string {
+  return currentDefaultCipher
+}
+
+export function setDefaultCipher(cipher: string): void {
+  currentDefaultCipher = cipher
+}
 
 /**
  * Generate a random key suitable for the given cipher.
@@ -15,8 +24,9 @@ export const DEFAULT_CIPHER = 'aegis128l'
  * - `"ascon128a"`:        returns 32 bytes (16-byte key + 16-byte nonce)
  * - `"chacha20poly1305"`: returns 44 bytes (32-byte key + 12-byte nonce)
  * - `"aegis128l"`:        returns 32 bytes (16-byte key + 16-byte nonce)
+ * - `"aegis256"`:         returns 64 bytes (32-byte key + 32-byte nonce)
  */
-export async function generateKey(cipher = DEFAULT_CIPHER): Promise<Key> {
+export async function generateKey(cipher = defaultCipher()): Promise<Key> {
   await init()
   const key = cipher_generate_key(cipher)
 

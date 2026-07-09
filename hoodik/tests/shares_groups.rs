@@ -185,7 +185,7 @@ async fn test_non_member_cannot_touch_group() {
     let req = test::TestRequest::post()
         .uri(&format!("/api/shares/groups/{}/members", group.id))
         .cookie(bob.jwt.clone())
-        .set_json(&add_member_body(&alice, "reader"))
+        .set_json(add_member_body(&alice, "reader"))
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
@@ -204,7 +204,7 @@ async fn test_non_member_cannot_touch_group() {
     let req = test::TestRequest::patch()
         .uri(&format!("/api/shares/groups/{}", group.id))
         .cookie(bob.jwt.clone())
-        .set_json(&json!({ "name": "Hijacked" }))
+        .set_json(json!({ "name": "Hijacked" }))
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
@@ -228,7 +228,7 @@ async fn test_add_member_is_plain_roster_insert_with_no_file_grants() {
     let req = test::TestRequest::post()
         .uri(&format!("/api/shares/groups/{}/members", group.id))
         .cookie(alice.jwt.clone())
-        .set_json(&add_member_body(&bob, "editor"))
+        .set_json(add_member_body(&bob, "editor"))
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::NO_CONTENT);
@@ -448,7 +448,7 @@ async fn test_add_unverified_user_to_group_succeeds() {
     let req = test::TestRequest::post()
         .uri(&format!("/api/shares/groups/{}/members", group.id))
         .cookie(alice.jwt.clone())
-        .set_json(&add_member_body(&ghost, "reader"))
+        .set_json(add_member_body(&ghost, "reader"))
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::NO_CONTENT);
@@ -481,7 +481,7 @@ async fn test_co_owner_manages_roster_but_cannot_delete_or_grant_co_owner() {
     let req = test::TestRequest::post()
         .uri(&format!("/api/shares/groups/{}/members", group.id))
         .cookie(bob.jwt.clone())
-        .set_json(&add_member_body(&dan, "reader"))
+        .set_json(add_member_body(&dan, "reader"))
         .to_request();
     assert_eq!(
         test::call_service(&app, req).await.status(),
@@ -493,7 +493,7 @@ async fn test_co_owner_manages_roster_but_cannot_delete_or_grant_co_owner() {
     let req = test::TestRequest::patch()
         .uri(&format!("/api/shares/groups/{}", group.id))
         .cookie(bob.jwt.clone())
-        .set_json(&json!({ "name": "Renamed By Co-owner" }))
+        .set_json(json!({ "name": "Renamed By Co-owner" }))
         .to_request();
     assert_eq!(
         test::call_service(&app, req).await.status(),
@@ -508,7 +508,7 @@ async fn test_co_owner_manages_roster_but_cannot_delete_or_grant_co_owner() {
             group.id, carol.user_id
         ))
         .cookie(bob.jwt.clone())
-        .set_json(&json!({ "group_role": "editor" }))
+        .set_json(json!({ "group_role": "editor" }))
         .to_request();
     assert_eq!(
         test::call_service(&app, req).await.status(),
@@ -530,7 +530,7 @@ async fn test_co_owner_manages_roster_but_cannot_delete_or_grant_co_owner() {
             group.id, carol.user_id
         ))
         .cookie(bob.jwt.clone())
-        .set_json(&json!({ "group_role": "co-owner" }))
+        .set_json(json!({ "group_role": "co-owner" }))
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
@@ -541,7 +541,7 @@ async fn test_co_owner_manages_roster_but_cannot_delete_or_grant_co_owner() {
     let req = test::TestRequest::post()
         .uri(&format!("/api/shares/groups/{}/members", group.id))
         .cookie(bob.jwt.clone())
-        .set_json(&add_member_body(&carol, "co-owner"))
+        .set_json(add_member_body(&carol, "co-owner"))
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
@@ -552,7 +552,7 @@ async fn test_co_owner_manages_roster_but_cannot_delete_or_grant_co_owner() {
     let req = test::TestRequest::post()
         .uri(&format!("/api/shares/groups/{}/members", group.id))
         .cookie(carol.jwt.clone())
-        .set_json(&add_member_body(&dan, "reader"))
+        .set_json(add_member_body(&dan, "reader"))
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);

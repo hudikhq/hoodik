@@ -160,6 +160,8 @@ pub(crate) async fn incoming_for_recipient<C: ConnectionTrait>(
                 owner_id: owner.map(|u| u.id).unwrap_or(Uuid::nil()),
                 owner_email: owner.map(|u| u.email.clone()).unwrap_or_default(),
                 owner_pubkey: owner.map(|u| u.pubkey.clone()).unwrap_or_default(),
+                owner_key_type: owner.map(|u| u.key_type.clone()).unwrap_or_default(),
+                owner_wrapping_pubkey: owner.and_then(|u| u.wrapping_pubkey.clone()),
                 owner_pubkey_fingerprint: owner
                     .map(|u| u.fingerprint.clone())
                     .unwrap_or_default(),
@@ -174,7 +176,7 @@ pub(crate) async fn incoming_for_recipient<C: ConnectionTrait>(
 /// User-visible slice of `share_events`. The caller sees rows they
 /// authored, rows that target them, OR rows on files they own. Optional
 /// `file_id` and `action` filters narrow further. The returned `users`
-/// map carries the minimal identity record (id, email, pubkey,
+/// map carries the minimal identity record (id, email, key material,
 /// fingerprint) for every sender and recipient referenced in the page —
 /// enough for the client to label rows and verify per-row signatures.
 pub(crate) async fn events_for_user<C: ConnectionTrait>(
@@ -265,6 +267,8 @@ pub(crate) async fn events_for_user<C: ConnectionTrait>(
                     id: model.id,
                     email: model.email,
                     pubkey: model.pubkey,
+                    key_type: model.key_type,
+                    wrapping_pubkey: model.wrapping_pubkey,
                     fingerprint: model.fingerprint,
                 },
             )

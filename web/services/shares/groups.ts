@@ -51,20 +51,40 @@ export class GroupMemberFingerprintMismatch extends Error {
  * server-supplied `member.fingerprint` — is what the wrap and signatures bind
  * to, so a server that lies about a member's key is caught here before any key
  * is wrapped. First sight records the recomputed fingerprint; a disagreement
- * with a trusted entry hard-stops. Returns the verified fingerprint.
+ * with a trusted entry hard-stops (unless a key-transition chain connects them).
+ * Returns the verified fingerprint.
  */
-function verifyMemberFingerprint(
+async function verifyMemberFingerprint(
   member: GroupMemberWithKey,
   trusted: TrustedFingerprintsStore
-): string {
-  const localFingerprint = shareCrypto.computeFingerprint(member.pubkey)
+): Promise<string> {
+  const localFingerprint = shareCrypto.fingerprintForUser(member)
   if (localFingerprint !== member.fingerprint) {
     throw new GroupMemberFingerprintMismatch('pubkey_mismatch', member.user_id, member.email)
   }
   const cached = trusted.lookup(member.user_id)
-  if (cached && cached.pubkeyFingerprint !== localFingerprint) {
-    throw new GroupMemberFingerprintMismatch('trust_changed', member.user_id, member.email)
-  }
+    if (cached && cached.pubkeyFingerprint !== localFingerprint) {
+      // Post-migration: if any fingerprint in the key transition history for
+      // this user matches a previously trusted one, the current fp is a valid
+      // successor — silently update trust.
+      let transitioned = false
+      try {
+        const chain = await api.getKeyTransitions(member.user_id)
+        const fpsInChain = new Set<string>()
+        for (const t of chain) {
+          if (t.old_fingerprint) fpsInChain.add(t.old_fingerprint)
+          if (t.new_fingerprint) fpsInChain.add(t.new_fingerprint)
+        }
+        transitioned = fpsInChain.has(cached.pubkeyFingerprint)
+      } catch {
+        /* best effort; if chain fetch fails we fall through to hard mismatch */
+      }
+      if (transitioned) {
+        trusted.trustFingerprint(member.user_id, localFingerprint, 'key-transition')
+        return localFingerprint
+      }
+      throw new GroupMemberFingerprintMismatch('trust_changed', member.user_id, member.email)
+    }
   if (!cached) {
     trusted.trustFingerprint(member.user_id, localFingerprint, 'silent')
   }
@@ -132,9 +152,13 @@ export interface ShareToGroupArgs {
   shareRole: ShareRole
   /** Caller's id (the sender of every grant). */
   senderId: string
-  /** Caller's private key — unwraps each node's file key before re-wrapping it
-   *  for each recipient. */
+  /** Caller's signing (identity) private key — signs each recipient's share
+   *  envelope. On a curve25519 account this is the Ed25519 key. */
   privateKey: string
+  /** Caller's wrapping private key — unwraps each node's file key before
+   *  re-wrapping it for each recipient. Equal to `privateKey` on legacy RSA
+   *  accounts; the X25519 key on curve25519 accounts. */
+  wrappingPrivateKey: string
   /** TOFU trust store. Each recipient's recomputed fingerprint is reconciled
    *  against it before any key is wrapped; first sight records, a known
    *  mismatch hard-stops that recipient. */
@@ -196,17 +220,19 @@ export async function shareToGroup(args: ShareToGroupArgs): Promise<void> {
       args.onProgress?.(i + 1, total)
       continue
     }
-    const verifiedFingerprint = verifyMemberFingerprint(member, args.trusted)
+    const verifiedFingerprint = await verifyMemberFingerprint(member, args.trusted)
     const target: DiscoveredUser = {
       user_id: member.user_id,
       email: member.email,
       pubkey: member.pubkey,
-      fingerprint: verifiedFingerprint
+      fingerprint: verifiedFingerprint,
+      key_type: member.key_type,
+      wrapping_pubkey: member.wrapping_pubkey
     }
     const entries = await subtree.buildEntriesForSubtree(
       args.subtree,
-      target.pubkey,
-      args.privateKey
+      target,
+      args.wrappingPrivateKey
     )
     const envelope = await subtree.buildShareEnvelopeForRecipient({
       root: args.root,

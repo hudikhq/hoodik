@@ -114,7 +114,7 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
         continue
       }
       try {
-        checks[row.id] = await shareCrypto.verifyEventSignature(row, senderRecord.pubkey)
+        checks[row.id] = await shareCrypto.verifyEventSignature(row, senderRecord)
       } catch {
         checks[row.id] = false
       }
@@ -193,7 +193,7 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
   const decryptedNamesVersion = ref(0)
 
   async function hydrateDecryptedNames(events: ShareEvent[]): Promise<void> {
-    const privateKey = keypair.value?.input
+    const privateKey = keypair.value?.wrappingPrivate || keypair.value?.input
     if (!privateKey) return
     // A file_id we already decrypted in a previous batch stays — the
     // ciphertext is immutable for the lifetime of the file row.
