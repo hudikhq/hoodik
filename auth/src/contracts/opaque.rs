@@ -96,16 +96,34 @@ where
         Ok(OpaqueRegisterStartResponse { registration_response })
     }
 
+    /// Finish an authenticated OPAQUE re-registration — the server half of a
+    /// password change for a v2 account. The new password file and the private
+    /// key re-sealed under the new password's `export_key` land in one UPDATE,
+    /// so the account can never end up with a password file whose `export_key`
+    /// no longer opens its key envelope. `security_version` is untouched (the
+    /// account is already on OPAQUE).
     async fn opaque_register_finish(
         &self,
         user_id: Uuid,
         registration_upload: &str,
+        encrypted_private_key: &str,
     ) -> AppResult<()> {
+        // The envelope is opaque to the server, but an empty one would replace
+        // the user's only copy of their private key with nothing — a one-way
+        // brick. Same guard as migration/complete.
+        if encrypted_private_key.trim().is_empty() {
+            return Err(Error::BadRequest("encrypted_private_key_required".to_string()));
+        }
+
         let password_file = cryptfns::opaque::server_registration_finish(registration_upload)
             .map_err(|_| Error::BadRequest("opaque_registration_upload_invalid".to_string()))?;
 
         users::Entity::update_many()
             .col_expr(users::Column::OpaquePasswordFile, Expr::value(password_file))
+            .col_expr(
+                users::Column::EncryptedPrivateKey,
+                Expr::value(encrypted_private_key.to_string()),
+            )
             .filter(users::Column::Id.eq(user_id))
             .exec(self.connection())
             .await?;

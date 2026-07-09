@@ -98,6 +98,7 @@ test-rust-integration:
     cargo test --test shares_dual_key -- --nocapture
     cargo test --test key_transitions -- --nocapture
     cargo test --test opaque_login -- --nocapture
+    cargo test --test opaque_password_change -- --nocapture
     cargo test --test migration -- --nocapture
     cargo test --test register_v2 -- --nocapture
     cargo test --test shares_groups -- --nocapture

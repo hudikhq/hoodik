@@ -21,11 +21,16 @@ pub struct OpaqueRegisterStartResponse {
     pub registration_response: String,
 }
 
-/// Client's registration upload (`ClientRegistration::finish` output). Folded
-/// into the stored password file.
+/// A password change for an OPAQUE account: the client's registration upload
+/// (`ClientRegistration::finish` output) for the new password, plus the
+/// private-key envelope re-sealed under the KEK derived from that new
+/// password's `export_key`. Both are committed together — writing the password
+/// file without the matching envelope would strand the account's keys on the
+/// next login.
 #[derive(Clone, Deserialize)]
 pub struct OpaqueRegisterFinish {
     pub registration_upload: String,
+    pub encrypted_private_key: String,
 }
 
 /// Client's login request (`ClientLogin::start` output) plus the account it is

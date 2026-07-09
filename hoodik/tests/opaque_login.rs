@@ -69,7 +69,10 @@ async fn opaque_register(app: &impl TestApp, jwt: &actix_web::cookie::Cookie<'st
     let req = test::TestRequest::post()
         .uri("/api/auth/pake/register/finish")
         .cookie(jwt.clone())
-        .set_json(json!({ "registration_upload": finish.message }))
+        .set_json(json!({
+            "registration_upload": finish.message,
+            "encrypted_private_key": "envelope-stand-in",
+        }))
         .to_request();
     let resp = test::call_service(app, req).await;
     assert_eq!(resp.status(), StatusCode::NO_CONTENT);

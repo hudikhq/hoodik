@@ -35,8 +35,11 @@ pub(crate) async fn register_start(
     Ok(HttpResponse::Ok().json(response))
 }
 
-/// Store the OPAQUE password file produced by the client, enabling OPAQUE
-/// login for the authenticated user.
+/// Change the password of an OPAQUE (v2) account: store the new password file
+/// and the private-key envelope re-sealed under the new password's `export_key`
+/// in one transaction. The account is authenticated by the current session and
+/// re-proves the new password by having just run OPAQUE registration
+/// client-side.
 ///
 /// Request: [crate::data::opaque::OpaqueRegisterFinish]
 #[route("/api/auth/pake/register/finish", method = "POST")]
@@ -46,8 +49,12 @@ pub(crate) async fn register_finish(
     data: web::Json<OpaqueRegisterFinish>,
 ) -> AppResult<HttpResponse> {
     let auth = Auth::new(&context);
-    auth.opaque_register_finish(claims.sub, &data.registration_upload)
-        .await?;
+    auth.opaque_register_finish(
+        claims.sub,
+        &data.registration_upload,
+        &data.encrypted_private_key,
+    )
+    .await?;
 
     Ok(HttpResponse::NoContent().finish())
 }

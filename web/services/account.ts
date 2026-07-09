@@ -1,12 +1,64 @@
 import type {
   ActivityQuery,
   ChangePassword,
+  KeyPair,
   Paginated,
   Session,
   UnsecureChangePassword
 } from 'types'
 import Api from '!/api'
 import * as cryptfns from '!/cryptfns'
+import * as opaque from '!/cryptfns/opaque'
+import * as envelope from '!/cryptfns/envelope'
+import { encodeBundle } from '!/auth/bundle'
+
+interface OpaqueRegisterStartResponse {
+  registration_response: string
+}
+
+/**
+ * Change the password of a v2 (Curve25519 + OPAQUE) account.
+ *
+ * The account is authenticated by its current session; the new password is
+ * proven by re-running OPAQUE registration client-side. Its `export_key` seals
+ * the private-key bundle re-derived from the in-memory keys, and the server
+ * commits the new password file and the new envelope together — the old
+ * password stops working, the new one opens the same keys.
+ * @throws
+ */
+export async function changePasswordV2(keypair: KeyPair, newPassword: string): Promise<void> {
+  if (!keypair.input || !keypair.wrappingPrivate) {
+    throw new Error('Missing in-memory keys for password change')
+  }
+
+  const regStart = await opaque.clientRegistrationStart(newPassword)
+  const startResp = await Api.post<{ registration_request: string }, OpaqueRegisterStartResponse>(
+    '/api/auth/pake/register/start',
+    undefined,
+    { registration_request: regStart.message }
+  )
+  if (!startResp.body) {
+    throw new Error('No response from pake/register/start')
+  }
+
+  const regFinish = await opaque.clientRegistrationFinish(
+    regStart.state,
+    startResp.body.registration_response,
+    newPassword
+  )
+
+  const kek = await envelope.deriveKek(cryptfns.uint8.fromBase64(regFinish.exportKey))
+  const bundle = new TextEncoder().encode(
+    encodeBundle({ identity: keypair.input, wrapping: keypair.wrappingPrivate })
+  )
+  const encrypted_private_key = await envelope.seal(kek, bundle)
+
+  await Api.post<{ registration_upload: string; encrypted_private_key: string }, void>(
+    '/api/auth/pake/register/finish',
+    undefined,
+    { registration_upload: regFinish.message, encrypted_private_key }
+  )
+}
 
 /**
  * Change the current users password
