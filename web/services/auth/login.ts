@@ -10,7 +10,7 @@ import * as pk from './pk'
 import * as pkBundle from './bundle'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Authenticated, Credentials, CryptoStore, KeyPair, PrivateKeyLogin } from 'types'
+import type { Authenticated, Credentials, CryptoStore, KeyPair, PrivateKeyLogin, User } from 'types'
 import { useRouter } from 'vue-router'
 import * as logger from '!/logger'
 
@@ -90,25 +90,36 @@ export const store = defineStore('login', () => {
    * if the user choose to be remembered. This way the session can stay alive
    * even if the user closes the browser.
    *
-   * The private key is encrypted with a known device id, so it can be decrypted
-   * when the session is refreshed.
+   * The private material is encrypted with a known device id, so it can be
+   * decrypted when the session is refreshed. A legacy account persists its RSA
+   * PEM; a curve25519 account persists the whole `v1|ed:|x:` bundle so both the
+   * identity and wrapping private keys survive a reload — persisting only
+   * `input` would drop the X25519 wrapping key and leave file keys unreadable.
    *
    * The downside of this approach is that if someone steals users JWT and refresh
-   * token he will be able to decrypt the private key and use it to login.
+   * token he will be able to decrypt the private material and use it to login.
    *
    * But that requires the attacker to gain access to HTTP only JWT and refresh cookies
-   * + to gain access to localStorage where the encrypted private key is stored.
+   * + to gain access to localStorage where the encrypted private material is stored.
    *
    * This will only be delete out of the browser when user logs out.
    */
   async function setupAndRemember(
     authenticated: Authenticated,
-    privateKey: string,
+    keypair: KeyPair,
     crypto: CryptoStore
   ) {
-    await pk.setRememberMe(privateKey, authenticated.session.device_id as string)
+    const material =
+      keypair.keyType === 'curve25519'
+        ? pkBundle.encodeBundle({
+            identity: keypair.input as string,
+            wrapping: keypair.wrappingPrivate as string
+          })
+        : (keypair.input as string)
 
-    return setupAuthenticated(authenticated, privateKey, crypto)
+    await pk.setRememberMe(material, authenticated.session.device_id as string)
+
+    return setupAuthenticated(authenticated, keypair, crypto)
   }
 
   /**
@@ -148,18 +159,11 @@ export const store = defineStore('login', () => {
     const response = await Api.post<undefined, Authenticated>('/api/auth/self')
     const authenticated = response.body as Authenticated
 
-    const privateKey = await pk.getRememberMe(
-      authenticated.session.device_id as string,
-      authenticated.user.fingerprint
-    )
+    const material = await pk.getRememberMe(authenticated.session.device_id as string)
+    const keypair = material && (await keyPairFromRememberMe(material, authenticated.user))
 
-    if (privateKey) {
-      const fingerprint = await cryptfns.rsa.getFingerprint(privateKey)
-      if (fingerprint === authenticated.user.fingerprint) {
-        const keypair = await cryptfns.rsa.inputToKeyPair(privateKey)
-
-        return _withPrivateKey(store, keypair, false)
-      }
+    if (keypair) {
+      return _withPrivateKey(store, keypair, false)
     }
 
     throw new Error(`No private key found for user ${authenticated.user.email}`)
@@ -215,22 +219,25 @@ export const store = defineStore('login', () => {
       throw new Error("No authenticated object found after refresh, can't refresh session")
     }
 
-    let privateKey = await pk.getRememberMe(
-      response.body.session?.device_id as string,
-      response.body.user.fingerprint
-    )
+    const material = await pk.getRememberMe(response.body.session?.device_id as string)
 
-    if (!privateKey) {
-      privateKey = crypto.keypair.input
-    }
+    // Remember-me material rebuilds the keypair from scratch (fingerprint
+    // verified against the authenticated user); without it we reuse the
+    // in-memory keypair, which already carries a curve account's wrapping keys
+    // that a bare `input` string would drop.
+    const keypair = material
+      ? await keyPairFromRememberMe(material, response.body.user)
+      : crypto.keypair.input
+        ? crypto.keypair
+        : null
 
-    if (!privateKey) {
+    if (!keypair) {
       throw new Error(
         'No private key found, please provide your private key when authenticating again'
       )
     }
 
-    await setupAuthenticated(response.body as Authenticated, privateKey, crypto)
+    await setupAuthenticated(response.body as Authenticated, keypair, crypto)
 
     return response.body as Authenticated
   }
@@ -300,7 +307,7 @@ export const store = defineStore('login', () => {
     const keypair = await cryptfns.rsa.inputToKeyPair(credentials.privateKey)
 
     if (credentials.remember) {
-      await setupAndRemember(authenticated, keypair.input as string, crypto)
+      await setupAndRemember(authenticated, keypair, crypto)
     } else {
       await setupAuthenticated(authenticated, keypair.input as string, crypto)
     }
@@ -384,9 +391,13 @@ export const store = defineStore('login', () => {
 
     // Record the session and start the refresher, same as the legacy and
     // private-key paths — without this the app never treats an OPAQUE login as
-    // authenticated. Remember-me is not persisted for curve accounts: the
-    // reload path re-derives an RSA fingerprint and can't round-trip the bundle.
-    await setupAuthenticated(authenticated, kp, crypto)
+    // authenticated. With Remember Me the curve bundle is persisted so both the
+    // identity and wrapping keys survive a reload.
+    if (credentials.remember) {
+      await setupAndRemember(authenticated, kp, crypto)
+    } else {
+      await setupAuthenticated(authenticated, kp, crypto)
+    }
 
     logger.info(`[auth] logged in as ${authenticated.user.email} (opaque)`)
     return authenticated as Authenticated
@@ -444,20 +455,13 @@ export const store = defineStore('login', () => {
       ? await ed25519.sign(nonce, keypair.input as string)
       : await cryptfns.rsa.sign(keypair, nonce)
 
-    // Remember-me persists a single RSA PEM and the reload path re-derives its
-    // fingerprint via RSA; a curve bundle carries two keys and can't round-trip
-    // through it. Curve accounts log in fresh each session.
-    // ponytail: curve remember-me needs the whole self/refresh path taught the
-    // bundle format — do it when reload-survival is asked for, not here.
-    const persist = remember && !curve
-
     const response = await Api.post<PrivateKeyRequest, Authenticated>(
       '/api/auth/signature',
       {},
       {
         fingerprint,
         signature,
-        remember: persist
+        remember
       }
     )
 
@@ -467,8 +471,8 @@ export const store = defineStore('login', () => {
 
     const authenticated = response.body
 
-    if (persist) {
-      await setupAndRemember(authenticated, keypair.input as string, crypto)
+    if (remember) {
+      await setupAndRemember(authenticated, keypair, crypto)
     } else {
       await setupAuthenticated(authenticated, curve ? keypair : (keypair.input as string), crypto)
     }
@@ -496,6 +500,22 @@ export const store = defineStore('login', () => {
       wrappingPrivate: wrapping,
       wrappingPublic: await x25519.publicFromPrivate(wrapping)
     }
+  }
+
+  /**
+   * Rebuild a keypair from stored remember-me material and verify it belongs to
+   * the authenticated user. A curve bundle rebuilds both the Ed25519 identity
+   * and X25519 wrapping keys; an RSA PEM the legacy keypair. The fingerprint
+   * check mirrors the login paths: a mismatch means the stored material is stale
+   * or tampered, so we reject it rather than decrypt file metadata with a wrong
+   * key.
+   */
+  async function keyPairFromRememberMe(material: string, user: User): Promise<KeyPair | null> {
+    const keypair = isCurveBundle(material)
+      ? await curveKeyPairFromBundle(material)
+      : await cryptfns.rsa.inputToKeyPair(material)
+
+    return keypair.fingerprint === user.fingerprint ? keypair : null
   }
 
   /**

@@ -22,30 +22,26 @@ export function hasRememberMe() {
 }
 
 /**
- * Get the private key stored for remember me and decrypt it
+ * Decrypt the stored remember-me material. Returns the raw private material —
+ * an RSA PEM for legacy accounts, a `v1|ed:|x:` bundle for curve25519 accounts.
+ * The caller verifies it against the authenticated user's fingerprint, since
+ * that derivation differs per key type.
  */
-export async function getRememberMe(deviceId: string, fingerprint: string): Promise<string | null> {
+export async function getRememberMe(deviceId: string): Promise<string | null> {
   const encrypted = lscache.get(REMEMBER_ME_PRIVATE_KEY) || null
 
   if (!encrypted) {
     return null
   }
 
-  const privateKey = await cryptfns.aes.decryptString(encrypted, deviceId)
+  const material = await cryptfns.aes.decryptString(encrypted, deviceId)
 
-  if (!privateKey) {
+  if (!material) {
     clearRememberMe()
     return null
   }
 
-  const fp = await cryptfns.rsa.getFingerprint(privateKey)
-
-  if (fp !== fingerprint) {
-    clearRememberMe()
-    return null
-  }
-
-  return privateKey
+  return material
 }
 
 /**
