@@ -181,6 +181,20 @@ export interface ShareEvent {
   encrypted_key: string | null
 }
 
+/**
+ * A signer's single key rotation, attached to any response carrying a
+ * signature they may have produced before rotating. Absent means the signer
+ * never rotated — verify against the current key only. Public certificate
+ * material only. Mirrors the server's `KeyTransitionRef`.
+ */
+export interface KeyTransitionRef {
+  old_key_pem: string
+  old_key_type: string
+  old_signature: string
+  new_signature: string
+  issued_at: number
+}
+
 export interface AuditUserRef {
   id: string
   email: string
@@ -189,6 +203,7 @@ export interface AuditUserRef {
   /** `"rsa"` (assumed when absent) or `"curve25519"` — see {@link DiscoveredUser}. */
   key_type?: string
   wrapping_pubkey?: string | null
+  key_transition?: KeyTransitionRef
 }
 
 export interface ShareEventPage {
@@ -227,6 +242,7 @@ export interface FolderMember {
   added_at: number | null
   signed_by_user_id: string | null
   member_signature: string | null
+  key_transition?: KeyTransitionRef
 }
 
 export interface FolderMembersResponse {

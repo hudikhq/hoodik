@@ -17,6 +17,7 @@ import type {
   AuditEventSigInputV1,
   FolderMemberListV1,
   FolderMemberListMemberInput,
+  KeyTransitionRef,
   ShareEntryInput,
   ShareEvent,
   ShareRequestPayloadV1,
@@ -101,21 +102,56 @@ function pemToDerBytes(pem: string): Uint8Array {
 export interface SignerKey {
   pubkey: string
   key_type?: string
+  /**
+   * The signer's single key rotation, when the response carries it. A
+   * signature made before the signer rotated verifies under the old key, not
+   * the current one — the verifiers here fall back through it. Mirrors the
+   * server's read-path chain resolution.
+   */
+  key_transition?: KeyTransitionRef
 }
 
 export interface RecipientKey extends SignerKey {
   wrapping_pubkey?: string | null
 }
 
+async function verifyAgainstKey(
+  signingInput: Uint8Array,
+  signature: string,
+  pubkey: string,
+  keyType: string | undefined
+): Promise<boolean> {
+  if (keyType === 'curve25519') {
+    return cryptfns.ed25519.verifyBytes(signingInput, signature, pubkey)
+  }
+  return rsa_verify_bytes(signingInput, signature, pubkey)
+}
+
+/**
+ * Verify against the signer's current key, falling back to their pre-rotation
+ * key when the response carries a `key_transition`. The fallback runs the
+ * caller-supplied `oldKeyInput` builder so a canonical that embeds the signer's
+ * own fingerprint (the folder roster) can re-encode it under the old key; audit
+ * canonicals embed no fingerprint and pass `signingInput` unchanged.
+ *
+ * A supplied-but-failing transition returns `false` — it never falls through to
+ * accept. Absent transition is current-key-only.
+ */
 async function verifyBytesForSigner(
   signingInput: Uint8Array,
   signature: string,
-  signer: SignerKey
+  signer: SignerKey,
+  oldKeyInput?: (transition: KeyTransitionRef) => Uint8Array
 ): Promise<boolean> {
-  if (signer.key_type === 'curve25519') {
-    return cryptfns.ed25519.verifyBytes(signingInput, signature, signer.pubkey)
+  if (await verifyAgainstKey(signingInput, signature, signer.pubkey, signer.key_type)) {
+    return true
   }
-  return rsa_verify_bytes(signingInput, signature, signer.pubkey)
+  const transition = signer.key_transition
+  if (!transition) {
+    return false
+  }
+  const oldInput = oldKeyInput ? oldKeyInput(transition) : signingInput
+  return verifyAgainstKey(oldInput, signature, transition.old_key_pem, transition.old_key_type)
 }
 
 function isCurvePrivate(pem: string): boolean {
@@ -730,19 +766,52 @@ export async function signFolderMemberList(
  * supplied `FolderMemberListV1`. Returns `false` on encoding failure
  * so the caller can treat it as a verification failure rather than
  * propagating a low-level encoder error.
+ *
+ * When the signer carries a `key_transition`, the fallback re-encodes the
+ * roster with the signer's *pre-migration* fingerprint in their own member
+ * row — the roster commits to the signer's fingerprint, which rotated with the
+ * key — then verifies against the old key. Mirrors the server's
+ * `members_list_sig` fallback. `signerUserId` identifies which member row to
+ * rewrite; without it the fallback can't run and only the current key is tried.
  */
 export async function verifyFolderMemberListSignature(
   input: FolderMemberListV1,
   signatureB64: string,
-  signer: SignerKey
+  signer: SignerKey,
+  signerUserId?: string
 ): Promise<boolean> {
   try {
     const payloadDer = encodeFolderMemberList(input)
     const signingInput = concatPrefixed(FOLDER_LIST_V1_PREFIX, payloadDer)
-    return verifyBytesForSigner(signingInput, signatureB64, signer)
+    return verifyBytesForSigner(signingInput, signatureB64, signer, (transition) => {
+      if (!signerUserId) {
+        // No way to locate the signer's own row to rewrite; re-encoding
+        // unchanged would just retry the current-fingerprint bytes. Return
+        // them so the fallback verify against the old key fails deterministically
+        // rather than accepting a mismatched canonical.
+        return signingInput
+      }
+      const oldFingerprintHex = fingerprintForUser({
+        pubkey: transition.old_key_pem,
+        key_type: transition.old_key_type
+      })
+      const signerIdBytes = uuidStringToBytes(signerUserId)
+      const oldFingerprint = cryptfns.uint8.fromHex(oldFingerprintHex)
+      const rewritten: FolderMemberListV1 = {
+        ...input,
+        members: input.members.map((m) =>
+          bytesEqual(m.userId, signerIdBytes) ? { ...m, pubkeyFingerprint: oldFingerprint } : m
+        )
+      }
+      return concatPrefixed(FOLDER_LIST_V1_PREFIX, encodeFolderMemberList(rewritten))
+    })
   } catch {
     return false
   }
+}
+
+function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  return a.length === b.length && a.every((byte, i) => byte === b[i])
 }
 
 /**

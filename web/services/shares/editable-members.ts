@@ -143,7 +143,8 @@ export async function verifyFolderMemberList(
   const listOk = await shareCrypto.verifyFolderMemberListSignature(
     listInput,
     response.members_list_signature,
-    listSigner
+    listSigner,
+    listSigner.user_id
   )
   if (!listOk) {
     throw new FolderMemberListInvalid(
