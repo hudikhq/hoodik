@@ -5,10 +5,7 @@ use std::{str::FromStr, time::Duration};
 
 use actix_web::{cookie::Expiration, http::StatusCode, test};
 use auth::{
-    data::{
-        authenticated::Authenticated, create_user::CreateUser, credentials::Credentials,
-        signature::Signature,
-    },
+    data::{authenticated::Authenticated, credentials::Credentials, signature::Signature},
     mock::generate_fingerprint_nonce,
 };
 use context::SenderContract;
@@ -18,41 +15,19 @@ use hoodik::server;
 async fn test_registration_and_login() {
     let context = context::Context::mock_sqlite().await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let private_string = cryptfns::rsa::private::to_string(&private).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
-    let encrypted_secret = "some-random-encrypted-secret".to_string();
-
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("john@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
-        .to_request();
-
-    let resp = test::call_service(&app, req).await;
-
-    assert_eq!(resp.status(), StatusCode::CREATED);
+    // Password + RSA-signature login are the pre-migration paths, so this drives
+    // a seeded legacy account through both.
+    let owner = helpers::seed_legacy_user(&context.db, "john@doe.com").await;
+    let fingerprint = owner.rsa_fingerprint.clone();
+    let private_string = owner.rsa_private.clone();
 
     let req = test::TestRequest::post()
         .uri("/api/auth/login")
         .set_json(&Credentials {
             email: Some("john@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
+            password: Some(helpers::LEGACY_PASSWORD.to_string()),
             token: None,
         })
         .to_request();
@@ -141,29 +116,12 @@ async fn test_registration_and_login() {
 async fn test_register_and_verify_user_email() {
     let context = context::Context::add_mock_sender(context::Context::mock_sqlite().await);
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
-    let encrypted_secret = "some-random-encrypted-secret".to_string();
-
     let app = test::init_service(server::app(context.clone())).await;
 
+    let body = helpers::build_curve25519_register_body(&app, "john@doe.com").await;
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("john@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
+        .set_json(&body)
         .to_request();
 
     let resp = test::call_service(&app, req).await;
@@ -199,29 +157,12 @@ async fn test_claims_can_expire() {
     let mut context = context::Context::mock_sqlite().await;
     context.config.auth.short_term_session_duration_seconds = 1;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
-    let encrypted_secret = "some-random-encrypted-secret".to_string();
-
     let app = test::init_service(server::app(context.clone())).await;
 
+    let body = helpers::build_curve25519_register_body(&app, "john@doe.com").await;
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("john@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
+        .set_json(&body)
         .to_request();
 
     let resp = test::call_service(&app, req).await;
@@ -246,29 +187,12 @@ async fn test_expired_session_can_be_refreshed() {
     let mut context = context::Context::mock_sqlite().await;
     context.config.auth.short_term_session_duration_seconds = 1;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
-    let encrypted_secret = "some-random-encrypted-secret".to_string();
-
     let app = test::init_service(server::app(context.clone())).await;
 
+    let body = helpers::build_curve25519_register_body(&app, "john@doe.com").await;
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("john@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
+        .set_json(&body)
         .to_request();
 
     let resp = test::call_service(&app, req).await;
@@ -316,29 +240,12 @@ async fn test_expired_session_can_be_refreshed() {
 async fn cannot_refresh_logged_out_session() {
     let context = context::Context::mock_sqlite().await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
-    let encrypted_secret = "some-random-encrypted-secret".to_string();
-
     let app = test::init_service(server::app(context.clone())).await;
 
+    let body = helpers::build_curve25519_register_body(&app, "john@doe.com").await;
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("john@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
+        .set_json(&body)
         .to_request();
 
     let resp = test::call_service(&app, req).await;

@@ -48,8 +48,8 @@ async fn test_editor_uploads_into_shared_folder_via_multikey_endpoint() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "editor-upload");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(
@@ -126,8 +126,8 @@ async fn test_owner_multikey_upload_fans_out_to_existing_members() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "owner-fan-out");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(
@@ -207,8 +207,8 @@ async fn test_multikey_upload_then_chunk_upload_finalizes() {
         context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "multikey-finalize");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(
@@ -285,8 +285,8 @@ async fn test_co_owner_uploads_into_shared_folder() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "co-owner-upload");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::CoOwner);
     let envelope = build_folder_share_envelope(
@@ -338,8 +338,8 @@ async fn test_reader_upload_into_shared_folder_returns_403() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "reader-upload");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Reader);
     let envelope = build_folder_share_envelope(
@@ -393,8 +393,8 @@ async fn test_upload_multikey_missing_member_key_returns_409_share_membership_ch
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "missing-mk");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(
@@ -448,9 +448,9 @@ async fn test_upload_multikey_extra_member_key_returns_409_share_membership_chan
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let folder = create_folder!(app, alice, "extra-mk");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(
@@ -504,8 +504,8 @@ async fn test_upload_multikey_stale_snapshot_returns_409() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "stale-snap");
     let now_share = now_secs();
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
@@ -560,8 +560,8 @@ async fn test_upload_multikey_uploader_is_owner_of_new_file() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "owner-claim");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(
@@ -622,8 +622,8 @@ async fn test_upload_multikey_event_signature_invalid_returns_400() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "bad-sig");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(
@@ -678,9 +678,9 @@ async fn test_co_owner_adds_member_to_folder_with_own_signature() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, yvonne, "yvonne@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, yvonne, "yvonne@example.com");
     let folder = create_folder!(app, alice, "co-owner-adds");
 
     // Alice grants Bob Co-owner. Bob re-shares to Yvonne as Reader.
@@ -732,9 +732,9 @@ async fn test_co_owner_revoke_cascades_their_grants_under_folder() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, yvonne, "yvonne@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, yvonne, "yvonne@example.com");
     let folder = create_folder!(app, alice, "cascade-folder");
 
     let owner_plus_bob = owner_plus_recipient(&alice, &bob, ShareRoleEnum::CoOwner);
@@ -809,8 +809,8 @@ async fn test_member_list_endpoint_returns_signed_response() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "member-list");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(
@@ -851,8 +851,8 @@ async fn test_move_into_shared_folder_re_wraps_for_all_members() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "move-target");
 
     // Alice shares the folder with Bob as Editor.
@@ -919,8 +919,8 @@ async fn test_move_folder_into_shared_cascade_rewraps_all_descendants() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "cascade-dest");
 
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
@@ -1038,8 +1038,8 @@ async fn test_move_folder_into_shared_rejects_incomplete_subtree() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "incomplete-dest");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(
@@ -1097,8 +1097,8 @@ async fn test_move_folder_into_shared_flat_shape_rejected() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "flat-dest");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(
@@ -1151,8 +1151,8 @@ async fn test_move_into_shared_non_owner_rejected() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "non-owner-dest");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(
@@ -1208,7 +1208,7 @@ async fn test_move_into_shared_rejects_own_subtree() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
+    register_user!(app, context, alice, "alice@example.com");
     let parent = create_folder!(app, alice, "cycle-parent");
     let child = create_folder!(app, alice, "cycle-child", parent.id);
 
@@ -1255,8 +1255,8 @@ async fn test_move_out_of_shared_drops_member_rows() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "moveout-dest");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(
@@ -1370,8 +1370,8 @@ async fn test_move_out_non_owner_blocked() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "moveout-block-dest");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(
@@ -1454,8 +1454,8 @@ async fn test_folder_share_requires_list_signature_on_create_400_if_missing() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "list-sig-missing");
     // build_share_envelope skips the list signature — server must 400.
     let envelope = build_share_envelope(
@@ -1479,8 +1479,8 @@ async fn test_folder_share_stores_list_signature_on_create() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "list-sig-store");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(
@@ -1515,9 +1515,9 @@ async fn test_folder_share_tampered_list_signature_rejected_400() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, eve, "eve@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, eve, "eve@example.com");
     let folder = create_folder!(app, alice, "tampered-list");
     // Build the envelope for bob but sign the list as if eve were also
     // in it — the server reconstructs the post-mutation list from its
@@ -1551,9 +1551,9 @@ async fn test_folder_share_signer_not_authorized_returns_400() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, eve, "eve@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, eve, "eve@example.com");
     let folder = create_folder!(app, alice, "unauthorized-signer");
     // Eve isn't on the folder share at all; her sig must be rejected.
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
@@ -1580,8 +1580,8 @@ async fn test_folder_revoke_requires_list_signature_400_if_missing() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "revoke-no-sig");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(
@@ -1611,9 +1611,9 @@ async fn test_co_owner_reshare_signs_list_with_co_owner_key() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let folder = create_folder!(app, alice, "co-owner-resign");
     // Alice grants Bob Co-owner first.
     let alice_plus_bob = owner_plus_recipient(&alice, &bob, ShareRoleEnum::CoOwner);
@@ -1663,8 +1663,8 @@ async fn test_role_change_on_folder_requires_fresh_list_signature() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "role-change");
     // Initial share: bob = editor.
     let members_editor = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
@@ -1709,8 +1709,8 @@ async fn test_folder_share_create_default_exposes_emails_to_every_member() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "default-emails-visible");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(
@@ -1747,8 +1747,8 @@ async fn test_folder_owner_sees_full_member_roster() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "owner-roster");
     let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
     let envelope = build_folder_share_envelope(

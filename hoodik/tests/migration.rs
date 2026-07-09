@@ -9,14 +9,13 @@ mod helpers;
 use actix_web::body::{BoxBody, EitherBody};
 use actix_web::dev::{Service, ServiceResponse};
 use actix_web::{http::StatusCode, test};
-use auth::data::create_user::CreateUser;
 use auth::data::{authenticated::Authenticated, signature::Signature};
 use entity::{ColumnTrait, EntityTrait, QueryFilter};
 use hoodik::server;
 use serde_json::{json, Value};
 
 const EMAIL: &str = "migrate@example.com";
-const PASSWORD: &[u8] = b"not-4-weak-password-for-god-sakes!";
+const PASSWORD: &[u8] = helpers::LEGACY_PASSWORD.as_bytes();
 
 trait TestApp:
     Service<actix_http::Request, Response = ServiceResponse<EitherBody<BoxBody>>, Error = actix_web::Error>
@@ -38,38 +37,25 @@ struct LegacyUser {
     rsa_fingerprint: String,
 }
 
-async fn register_legacy(app: &impl TestApp) -> LegacyUser {
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let rsa_private = cryptfns::rsa::private::to_string(&private).unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let rsa_public = cryptfns::rsa::public::to_string(&public).unwrap();
-    let rsa_fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
+/// Seed a legacy RSA account at the data layer, then log it in through the
+/// credentials endpoint to obtain a session cookie — the register endpoint no
+/// longer creates legacy accounts, but login-time migration still targets them.
+async fn register_legacy(app: &impl TestApp, db: &entity::DbConn) -> LegacyUser {
+    let seeded = helpers::seed_legacy_user(db, EMAIL).await;
 
     let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some(EMAIL.to_string()),
-            password: Some(String::from_utf8(PASSWORD.to_vec()).unwrap()),
-            secret: None,
-            token: None,
-            pubkey: Some(rsa_public.clone()),
-            fingerprint: Some(rsa_fingerprint.clone()),
-            key_type: None,
-            wrapping_pubkey: None,
-            opaque_registration_upload: None,
-            encrypted_private_key: Some("legacy-encrypted-key".to_string()),
-            invitation_id: None,
-        })
+        .uri("/api/auth/login")
+        .set_json(json!({ "email": EMAIL, "password": helpers::LEGACY_PASSWORD }))
         .to_request();
     let resp = test::call_service(app, req).await;
-    assert_eq!(resp.status(), StatusCode::CREATED);
+    assert_eq!(resp.status(), StatusCode::OK);
     let (jwt, _) = helpers::extract_cookies(resp.headers());
 
     LegacyUser {
         jwt: jwt.unwrap(),
-        rsa_private,
-        rsa_public,
-        rsa_fingerprint,
+        rsa_private: seeded.rsa_private,
+        rsa_public: seeded.rsa_public,
+        rsa_fingerprint: seeded.rsa_fingerprint,
     }
 }
 
@@ -208,7 +194,7 @@ async fn test_full_migration_flips_account_and_rewraps_keys() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    let user = register_legacy(&app).await;
+    let user = register_legacy(&app, &context.db).await;
     let file_id = create_file(&app, &user.jwt).await;
 
     let (resp, x_private, file_key) = migrate(&app, &user).await;
@@ -257,7 +243,7 @@ async fn test_second_migration_is_rejected() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    let user = register_legacy(&app).await;
+    let user = register_legacy(&app, &context.db).await;
     create_file(&app, &user.jwt).await;
 
     let (resp, _, _) = migrate(&app, &user).await;
@@ -284,7 +270,7 @@ async fn test_signature_login_with_old_fingerprint_after_migration() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    let user = register_legacy(&app).await;
+    let user = register_legacy(&app, &context.db).await;
     let _file_id = create_file(&app, &user.jwt).await;
 
     let (migrate_resp, _x_private, _file_key) = migrate(&app, &user).await;

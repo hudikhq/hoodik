@@ -2,7 +2,6 @@
 mod helpers;
 
 use actix_web::{http::StatusCode, test};
-use auth::data::create_user::CreateUser;
 use hoodik::server;
 use settings::{data::Users, factory::Factory};
 
@@ -19,29 +18,12 @@ async fn test_allow_register_false() {
 
     context.settings.replace_inner(settings).await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
-    let encrypted_secret = "some-random-encrypted-secret".to_string();
-
     let app = test::init_service(server::app(context.clone())).await;
 
+    let body = helpers::build_curve25519_register_body(&app, "john@doe.com").await;
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("john@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
+        .set_json(&body)
         .to_request();
 
     let resp = test::call_service(&app, req).await;
@@ -67,49 +49,22 @@ async fn test_whitelist_pass_and_fail() {
 
     context.settings.replace_inner(settings).await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
-    let encrypted_secret = "some-random-encrypted-secret".to_string();
-
     let app = test::init_service(server::app(context.clone())).await;
 
+    let body = helpers::build_curve25519_register_body(&app, "john@example.com").await;
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("john@example.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
+        .set_json(&body)
         .to_request();
 
     let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
 
+    let body = helpers::build_curve25519_register_body(&app, "john@doe.com").await;
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("john@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
+        .set_json(&body)
         .to_request();
 
     let resp = test::call_service(&app, req).await;
@@ -135,49 +90,22 @@ async fn test_registration_allowed_fails_blacklist_cannot_register() {
 
     context.settings.replace_inner(settings).await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
-    let encrypted_secret = "some-random-encrypted-secret".to_string();
-
     let app = test::init_service(server::app(context.clone())).await;
 
+    let body = helpers::build_curve25519_register_body(&app, "john@example.com").await;
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("john@example.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
+        .set_json(&body)
         .to_request();
 
     let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), StatusCode::CREATED);
 
+    let body = helpers::build_curve25519_register_body(&app, "john@doe.com").await;
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("john@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
+        .set_json(&body)
         .to_request();
 
     let resp = test::call_service(&app, req).await;
@@ -239,49 +167,22 @@ async fn test_registration_not_allowed_fails_blacklist_cannot_register() {
 
     context.settings.replace_inner(settings).await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
-    let encrypted_secret = "some-random-encrypted-secret".to_string();
-
     let app = test::init_service(server::app(context.clone())).await;
 
+    let body = helpers::build_curve25519_register_body(&app, "terry@example.com").await;
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("terry@example.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
+        .set_json(&body)
         .to_request();
 
     let resp = test::call_service(&app, req).await;
 
     assert_eq!(resp.status(), StatusCode::CREATED);
 
+    let body = helpers::build_curve25519_register_body(&app, "john@doe.com").await;
     let req = test::TestRequest::post()
         .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("john@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
+        .set_json(&body)
         .to_request();
 
     let resp = test::call_service(&app, req).await;

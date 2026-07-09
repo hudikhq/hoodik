@@ -9,32 +9,12 @@
 mod helpers;
 
 use actix_web::{http::StatusCode, test};
-use auth::data::create_user::CreateUser;
 use entity::{files, EntityTrait};
 use fs::tar::{tar_header, tar_padding_len, TAR_END_OF_ARCHIVE_LEN};
 use hoodik::server;
 use serde_json::Value;
 use storage::data::app_file::AppFile;
 use storage::data::create_file::CreateFile;
-
-use crate::helpers::extract_cookies;
-
-fn register_body(email: &str) -> CreateUser {
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    CreateUser {
-        email: Some(email.to_string()),
-        password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-        secret: None,
-        token: None,
-        pubkey: Some(cryptfns::rsa::public::to_string(&public).unwrap()),
-        fingerprint: Some(cryptfns::rsa::fingerprint(public).unwrap()),
-        encrypted_private_key: Some("encrypted-gibberish".to_string()),
-        key_type: None,
-        wrapping_pubkey: None,
-        invitation_id: None,
-    }
-}
 
 /// A `CreateFile` whose declared size is the sum of `chunk_lens`. Quota is
 /// reserved against this declared size at creation, so the chunk shape decides
@@ -81,16 +61,7 @@ fn tar_of(entries: &[(i64, &[u8])]) -> Vec<u8> {
 /// Register `$email` against `$app` and bind the session cookie to `$jwt`.
 macro_rules! register {
     ($app:expr, $jwt:ident, $email:expr) => {
-        let $jwt = {
-            let req = test::TestRequest::post()
-                .uri("/api/auth/register")
-                .set_json(register_body($email))
-                .to_request();
-            let resp = test::call_service(&$app, req).await;
-            assert!(resp.status().is_success(), "register failed: {:?}", resp.status());
-            let (jwt, _) = extract_cookies(resp.headers());
-            jwt.expect("register must set session cookie")
-        };
+        let $jwt = helpers::register_curve25519(&$app, $email).await.jwt;
     };
 }
 

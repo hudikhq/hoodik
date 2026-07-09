@@ -169,4 +169,30 @@ async fn test_curve_signup_requires_opaque_upload_and_forbids_password() {
         StatusCode::UNPROCESSABLE_ENTITY,
         "a v2 account has no bcrypt password"
     );
+
+    // Legacy RSA registration is gone: an `rsa` (or absent) key type is refused
+    // outright, so no new account can be born pre-migration.
+    let rsa_private = cryptfns::rsa::private::generate().unwrap();
+    let rsa_public = cryptfns::rsa::public::to_string(
+        &cryptfns::rsa::public::from_private(&rsa_private).unwrap(),
+    )
+    .unwrap();
+    let rsa_fingerprint =
+        cryptfns::rsa::fingerprint(cryptfns::rsa::public::from_str(&rsa_public).unwrap()).unwrap();
+    let req = test::TestRequest::post()
+        .uri("/api/auth/register")
+        .set_json(json!({
+            "email": "legacy-rsa@example.com",
+            "password": PASSWORD,
+            "pubkey": rsa_public,
+            "fingerprint": rsa_fingerprint,
+            "key_type": "rsa",
+            "encrypted_private_key": "envelope",
+        }))
+        .to_request();
+    assert_eq!(
+        test::call_service(&app, req).await.status(),
+        StatusCode::UNPROCESSABLE_ENTITY,
+        "RSA registration is no longer accepted"
+    );
 }

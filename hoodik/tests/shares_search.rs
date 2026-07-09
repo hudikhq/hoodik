@@ -104,11 +104,11 @@ async fn test_search_finds_shared_file_for_every_recipient_role_but_not_stranger
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, reader, "reader@example.com");
-    register_user!(app, editor, "editor@example.com");
-    register_user!(app, co_owner, "co_owner@example.com");
-    register_user!(app, stranger, "stranger@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, reader, "reader@example.com");
+    register_user!(app, context, editor, "editor@example.com");
+    register_user!(app, context, co_owner, "co_owner@example.com");
+    register_user!(app, context, stranger, "stranger@example.com");
 
     let file = create_searchable_file!(app, alice, "octopus-note");
 
@@ -168,8 +168,8 @@ async fn test_search_stops_returning_shared_file_after_revoke() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let file = create_searchable_file!(app, alice, "octopus-note");
     grant!(app, alice, bob, ShareRoleEnum::Reader, file.id);

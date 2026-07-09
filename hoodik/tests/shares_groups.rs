@@ -78,7 +78,7 @@ async fn test_create_group_returns_201_with_unique_name_constraint() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
+    register_user!(app, context, alice, "alice@example.com");
 
     let req = test::TestRequest::post()
         .uri("/api/shares/groups")
@@ -104,7 +104,7 @@ async fn test_create_group_duplicate_name_returns_409() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
+    register_user!(app, context, alice, "alice@example.com");
 
     let req = test::TestRequest::post()
         .uri("/api/shares/groups")
@@ -131,9 +131,9 @@ async fn test_delete_group_drops_members_via_cascade() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
 
     let group = create_group!(app, alice, "Friends");
     seed_member_directly(&context, group.id, bob.user_id, "reader").await;
@@ -167,8 +167,8 @@ async fn test_non_member_cannot_touch_group() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let group = create_group!(app, alice, "Private");
 
     // Bob has no membership in Alice's group. Every group write resolves
@@ -219,8 +219,8 @@ async fn test_add_member_is_plain_roster_insert_with_no_file_grants() {
     // Alice owns file F and a group. Adding Bob to the group is a pure
     // roster write — Bob receives a membership row and NOTHING else; no
     // user_files row on any of Alice's files materialises from the add.
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let file = create_file!(app, alice, "owner-only-file");
     let group = create_group!(app, alice, "Studio");
@@ -257,9 +257,9 @@ async fn test_add_member_rejects_nonce_reuse() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
 
     let group = create_group!(app, alice, "Studio");
 
@@ -298,8 +298,8 @@ async fn test_remove_member_from_group_does_not_revoke_existing_user_files() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     // Bob has a pre-existing user_files row on F from an unrelated direct
     // share. Removing him from a group must not retroactively strip it —
@@ -343,8 +343,8 @@ async fn test_list_groups_returns_owned_and_member_of_sections() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let alice_group = create_group!(app, alice, "AliceTeam");
     let bob_group = create_group!(app, bob, "BobTeam");
@@ -374,9 +374,9 @@ async fn test_group_members_returns_owner_and_members_with_keys() {
     // The roster the client fans a share out to is the owner plus every
     // member, each carrying the pubkey + fingerprint needed to wrap a file
     // key — the owner is a valid recipient when a member initiates a share.
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
 
     let group = create_group!(app, alice, "Studio");
     seed_member_directly(&context, group.id, bob.user_id, "editor").await;
@@ -413,7 +413,7 @@ async fn test_group_members_returns_owner_and_members_with_keys() {
     assert_eq!(carol_entry["group_role"], "reader");
 
     // A non-member cannot read the roster.
-    register_user!(app, mallory, "mallory@example.com");
+    register_user!(app, context, mallory, "mallory@example.com");
     let req = test::TestRequest::get()
         .uri(&format!("/api/shares/groups/{}/members", group.id))
         .cookie(mallory.jwt.clone())
@@ -432,8 +432,8 @@ async fn test_add_unverified_user_to_group_succeeds() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, ghost, "ghost@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, ghost, "ghost@example.com");
     let group = create_group!(app, alice, "Inner Circle");
 
     users::Entity::update(users::ActiveModel {
@@ -468,10 +468,10 @@ async fn test_co_owner_manages_roster_but_cannot_delete_or_grant_co_owner() {
     // Bob is a group co-owner. He may add members and set a member's role
     // up to editor — but he may NOT rename or delete the group (both
     // owner-only) nor mint another co-owner (privilege-escalation guard).
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
-    register_user!(app, dan, "dan@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
+    register_user!(app, context, dan, "dan@example.com");
 
     let group = create_group!(app, alice, "Studio");
     seed_member_directly(&context, group.id, bob.user_id, "co-owner").await;
@@ -664,8 +664,8 @@ async fn test_revoked_owner_can_move_their_own_file_out_of_folder() {
     // own file X into F, then Alice revokes Bob from F. Bob no longer holds
     // a membership row on F, yet he owns X — he must still be able to pull
     // X back out to his own root.
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let folder = create_folder!(app, alice, "shared-folder");
     share_folder_to!(app, alice, bob, ShareRoleEnum::Editor, folder);
@@ -770,8 +770,8 @@ async fn test_revoking_co_owner_relocates_their_owned_files_to_root() {
     // under a folder Bob can no longer reach: it relocates to Bob's root
     // (parent NULL) with his owner row intact, a system audit row records
     // it, and Alice — the revoker — can no longer read it.
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let folder = create_folder!(app, alice, "shared-folder");
     share_folder_to!(app, alice, bob, ShareRoleEnum::CoOwner, folder);

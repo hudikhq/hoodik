@@ -2,9 +2,9 @@
 mod helpers;
 
 use actix_web::test;
-use auth::data::create_user::CreateUser;
 use hoodik::server;
 use links::data::app_link::AppLink;
+use serde_json::json;
 use storage::data::app_file::AppFile;
 
 use crate::helpers::{create_byte_chunks, CHUNK_SIZE_BYTES};
@@ -13,32 +13,18 @@ use crate::helpers::{create_byte_chunks, CHUNK_SIZE_BYTES};
 async fn test_creating_and_downloading_link() {
     let context = context::Context::mock_with_data_dir(Some("../data-test-links".to_string())).await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let private_string = cryptfns::rsa::private::to_string(&private).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
-    let encrypted_secret = "some-random-encrypted-secret".to_string();
-
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("john@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
-        .to_request();
+    // Public links are signed and their link key is RSA-wrapped against the
+    // owner's account key, so the owner is a legacy RSA account.
+    let owner = helpers::seed_legacy_user(&context.db, "john@doe.com").await;
+    let public_string = owner.rsa_public.clone();
+    let private_string = owner.rsa_private.clone();
 
+    let req = test::TestRequest::post()
+        .uri("/api/auth/login")
+        .set_json(json!({ "email": "john@doe.com", "password": helpers::LEGACY_PASSWORD }))
+        .to_request();
     let resp = test::call_service(&app, req).await;
     let (jwt, _) = helpers::extract_cookies(resp.headers());
     let jwt = jwt.unwrap();
@@ -189,30 +175,16 @@ async fn test_link_download_decrypts_aegis256_file() {
     let context =
         context::Context::mock_with_data_dir(Some("../data-test-links-256".to_string())).await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let private_string = cryptfns::rsa::private::to_string(&private).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("jane@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some("some-random-encrypted-secret".to_string()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
-        .to_request();
+    let owner = helpers::seed_legacy_user(&context.db, "jane@doe.com").await;
+    let public_string = owner.rsa_public.clone();
+    let private_string = owner.rsa_private.clone();
 
+    let req = test::TestRequest::post()
+        .uri("/api/auth/login")
+        .set_json(json!({ "email": "jane@doe.com", "password": helpers::LEGACY_PASSWORD }))
+        .to_request();
     let resp = test::call_service(&app, req).await;
     let (jwt, _) = helpers::extract_cookies(resp.headers());
     let jwt = jwt.unwrap();

@@ -163,6 +163,35 @@ pub async fn register_curve25519(app: &impl TestApp, email: &str) -> TestUser {
     }
 }
 
+/// Seed a legacy RSA `TestUser`: insert the account at the data layer, then log
+/// it in through the credentials endpoint for a session cookie. The RSA private
+/// key is retained so the fixture can sign and wrap exactly as a pre-migration
+/// client would.
+pub async fn seed_legacy_test_user(app: &impl TestApp, db: &entity::DbConn, email: &str) -> TestUser {
+    let seeded = helpers::seed_legacy_user(db, email).await;
+
+    let req = test::TestRequest::post()
+        .uri("/api/auth/login")
+        .set_json(serde_json::json!({ "email": email, "password": helpers::LEGACY_PASSWORD }))
+        .to_request();
+    let resp = test::call_service(app, req).await;
+    assert!(resp.status().is_success(), "login {email} failed: {:?}", resp.status());
+    let (jwt, _) = extract_cookies(resp.headers());
+    let jwt = jwt.expect("login response missing JWT cookie");
+
+    TestUser {
+        email: email.to_string(),
+        user_id: seeded.user_id,
+        private_pem: seeded.rsa_private,
+        public_pem: seeded.rsa_public,
+        fingerprint: seeded.rsa_fingerprint,
+        key_type: KeyType::Rsa,
+        wrapping_private_pem: None,
+        wrapping_public_pem: None,
+        jwt,
+    }
+}
+
 pub fn make_create_user(email: &str, public_pem: &str, fingerprint: &str) -> CreateUser {
     CreateUser {
         email: Some(email.to_string()),
@@ -983,46 +1012,15 @@ pub fn generate_curve25519_keypair() -> (String, String, String, String, String)
     (private_pem, public_pem, fingerprint, wrapping_private_pem, wrapping_public_pem)
 }
 
-/// Register a user via the real `/api/auth/register` route. Expands to a
-/// `let $user = TestUser { ... };` binding.
+/// Seed a legacy RSA account at the data layer and log it in. Registration no
+/// longer creates RSA accounts, but the sharing routes must keep working for
+/// the pre-migration accounts real deployments still hold — and the RSA↔curve
+/// interop and chain-resolution suites need genuine RSA participants. Expands
+/// to a `let $user = TestUser { ... };` binding.
 #[macro_export]
 macro_rules! register_user {
-    ($app:expr, $user:ident, $email:expr) => {
-        let $user = {
-            let (private_pem, public_pem, fingerprint) =
-                $crate::shares_common::generate_keypair();
-            let req = actix_web::test::TestRequest::post()
-                .uri("/api/auth/register")
-                .set_json(&$crate::shares_common::make_create_user(
-                    $email,
-                    &public_pem,
-                    &fingerprint,
-                ))
-                .to_request();
-            let resp = actix_web::test::call_service(&$app, req).await;
-            assert!(
-                resp.status().is_success(),
-                "register {} failed: {:?}",
-                $email,
-                resp.status()
-            );
-            let (jwt, _) = $crate::shares_common::extract_cookies(resp.headers());
-            let jwt = jwt.expect("register response missing JWT cookie");
-            let body = actix_web::test::read_body(resp).await;
-            let authenticated: auth::data::authenticated::Authenticated =
-                serde_json::from_slice(&body).expect("authenticated json");
-            $crate::shares_common::TestUser {
-                email: $email.to_string(),
-                user_id: authenticated.user.id,
-                private_pem,
-                public_pem,
-                fingerprint,
-                key_type: cryptfns::identity::KeyType::Rsa,
-                wrapping_private_pem: None,
-                wrapping_public_pem: None,
-                jwt,
-            }
-        };
+    ($app:expr, $context:expr, $user:ident, $email:expr) => {
+        let $user = $crate::shares_common::seed_legacy_test_user(&$app, &$context.db, $email).await;
     };
 }
 

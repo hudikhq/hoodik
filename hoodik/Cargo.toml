@@ -50,6 +50,7 @@ shares = { path = "../shares", features = ["mock", "test-support"] }
 storage = { path = "../storage", features = ["mock"] }
 settings = { path = "../settings", features = ["mock"] }
 transfer = { path = "../transfer" }
+util = { path = "../util" }
 
 # Configuration for metadata of the deb package
 [package.metadata.deb]

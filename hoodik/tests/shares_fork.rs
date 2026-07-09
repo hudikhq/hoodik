@@ -59,8 +59,8 @@ async fn test_co_owner_can_fork_shared_file_into_own_drive() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let source = create_file!(app, alice, "source-of-fork");
     grant!(app, alice, bob, ShareRoleEnum::CoOwner, source.id);
 
@@ -156,8 +156,8 @@ async fn test_editor_cannot_fork_403() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let source = create_file!(app, alice, "fork-editor-403");
     grant!(app, alice, bob, ShareRoleEnum::Editor, source.id);
 
@@ -182,8 +182,8 @@ async fn test_reader_cannot_fork_403() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let source = create_file!(app, alice, "fork-reader-403");
     grant!(app, alice, bob, ShareRoleEnum::Reader, source.id);
 
@@ -199,8 +199,8 @@ async fn test_fork_persists_after_source_revoke() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let source = create_file!(app, alice, "fork-survives-revoke");
     grant!(app, alice, bob, ShareRoleEnum::CoOwner, source.id);
 

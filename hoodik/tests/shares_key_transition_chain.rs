@@ -102,9 +102,9 @@ async fn test_roster_signature_verifies_after_owner_migration() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, carol, "carol@example.com");
-    register_user!(app, dave, "dave@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, carol, "carol@example.com");
+    register_user!(app, context, dave, "dave@example.com");
     let folder = create_folder!(app, alice, "chain-folder");
 
     // alice makes carol a Co-owner. Roster signed by alice (RSA), pre-migration.
@@ -154,8 +154,8 @@ async fn test_folder_members_response_exposes_owner_transition() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "expose-folder");
     let members_after = vec![
         FolderListMemberSpec { user: &alice, share_role: ShareRoleEnum::CoOwner, is_owner: true, signed_by: &alice },
@@ -212,8 +212,8 @@ async fn test_audit_events_response_exposes_signer_transition() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "audit-chain");
 
     // alice grants to bob; the audit row stores alice's RSA-signed event sig.

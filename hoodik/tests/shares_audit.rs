@@ -25,8 +25,8 @@ async fn test_audit_row_inserted_on_grant() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "audit-grant");
 
     grant!(app, alice, bob, ShareRoleEnum::Reader, file.id);
@@ -56,8 +56,8 @@ async fn test_audit_row_sender_signature_verifies() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "audit-sig-verify");
     grant!(app, alice, bob, ShareRoleEnum::Editor, file.id);
 
@@ -91,8 +91,8 @@ async fn test_event_signature_mismatch_rejected_400() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "audit-sig-mismatch");
 
     let envelope = build_share_envelope(
@@ -139,10 +139,10 @@ async fn test_per_sender_chain_continuous_across_multiple_events() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
-    register_user!(app, dave, "dave@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
+    register_user!(app, context, dave, "dave@example.com");
     let file_a = create_file!(app, alice, "chain-a");
     let file_b = create_file!(app, alice, "chain-b");
     let file_c = create_file!(app, alice, "chain-c");
@@ -218,9 +218,9 @@ async fn test_chain_break_detectable_by_walking() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let file_a = create_file!(app, alice, "break-a");
     let file_b = create_file!(app, alice, "break-b");
 
@@ -293,8 +293,8 @@ async fn test_role_change_persists_sender_signature_and_verifies() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "role-change-audit");
 
     grant!(app, alice, bob, ShareRoleEnum::Editor, file.id);
@@ -364,8 +364,8 @@ async fn test_role_change_with_wrong_signature_rejected_400() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "role-change-tamper");
 
     grant!(app, alice, bob, ShareRoleEnum::Reader, file.id);
@@ -426,9 +426,9 @@ async fn test_cascade_revoke_audit_rows_have_null_sender_signature() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let file = create_file!(app, alice, "cascade-audit");
 
     grant!(app, alice, bob, ShareRoleEnum::CoOwner, file.id);
@@ -481,9 +481,9 @@ async fn test_chain_walk_over_events_route_matches_client_verifier() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let file = create_file!(app, alice, "chain-walk-events");
 
     grant!(app, alice, bob, ShareRoleEnum::CoOwner, file.id);
@@ -551,7 +551,7 @@ async fn test_chain_walk_over_events_route_matches_client_verifier() {
     }
 
     let mut total_walked = 0usize;
-    for (_bucket, rows) in &buckets {
+    for rows in buckets.values() {
         let mut prev_hash: Option<Vec<u8>> = None;
         for row in rows {
             let row_input = cryptfns::asn1::AuditEventRowV1 {
@@ -600,8 +600,8 @@ async fn test_events_carry_encrypted_name_and_key_for_authorized_caller() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "events-name-grant");
 
     grant!(app, alice, bob, ShareRoleEnum::Reader, file.id);
@@ -649,8 +649,8 @@ async fn test_revoked_recipient_loses_encrypted_key_but_keeps_encrypted_name() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "events-name-revoke");
 
     grant!(app, alice, bob, ShareRoleEnum::Editor, file.id);
@@ -718,8 +718,8 @@ async fn test_bystander_without_user_files_row_sees_null_encrypted_key() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "events-name-bystander");
 
     grant!(app, alice, bob, ShareRoleEnum::Reader, file.id);

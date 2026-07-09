@@ -133,8 +133,8 @@ async fn test_share_matrix_all_four_combos() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     register_curve25519_user!(app, carol, "carol@example.com");
     register_curve25519_user!(app, dave, "dave@example.com");
 
@@ -245,7 +245,7 @@ async fn test_curve25519_member_signature_verifies() {
     let app = test::init_service(server::app(context.clone())).await;
 
     register_curve25519_user!(app, carol, "carol@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, carol, "member-sig-ed25519");
 
     let timestamp = now_secs();
@@ -275,7 +275,7 @@ async fn test_member_signature_binds_curve25519_recipient() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
+    register_user!(app, context, alice, "alice@example.com");
     register_curve25519_user!(app, dave, "dave@example.com");
     let file = create_file!(app, alice, "member-sig-x25519-recipient");
 

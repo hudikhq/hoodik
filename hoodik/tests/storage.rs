@@ -2,67 +2,20 @@
 mod helpers;
 
 use actix_web::{http::StatusCode, test};
-use auth::data::create_user::CreateUser;
 use auth::data::transfer_token::TransferTokenResponse;
-use fs::IntoFilename;
 use hoodik::server;
 use storage::data::app_file::AppFile;
 
-use crate::helpers::{calculate_checksum, create_byte_chunks, CHUNK_SIZE_BYTES, CHUNKS};
+use crate::helpers::{calculate_checksum, create_byte_chunks, CHUNK_SIZE_BYTES};
 
 #[actix_web::test]
 async fn test_creating_file_and_uploading_chunks() {
     let context = context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let _private_string = cryptfns::rsa::private::to_string(&private).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
-    let encrypted_secret = "some-random-encrypted-secret".to_string();
-
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("john@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
-        .to_request();
-
-    let resp = test::call_service(&app, req).await;
-    let (jwt, _) = helpers::extract_cookies(resp.headers());
-    let jwt = jwt.unwrap();
-
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("john2@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
-        .to_request();
-
-    let resp = test::call_service(&app, req).await;
-    let (second_jwt, _) = helpers::extract_cookies(resp.headers());
-    let second_jwt = second_jwt.unwrap();
+    let jwt = helpers::register_curve25519(&app, "john@doe.com").await.jwt;
+    let second_jwt = helpers::register_curve25519(&app, "john2@doe.com").await.jwt;
 
     let (mut data, mut size, _) = create_byte_chunks();
     assert_eq!(data.len(), size as usize / CHUNK_SIZE_BYTES as usize);
@@ -199,33 +152,9 @@ async fn test_transfer_token_upload_and_download() {
     let context =
         context::Context::mock_with_data_dir(Some("../data-test-transfer".to_string())).await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
     let app = test::init_service(server::app(context.clone())).await;
 
-    // Register a user.
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("transfer@test.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some("encrypted-secret".to_string()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
-        .to_request();
-
-    let resp = test::call_service(&app, req).await;
-    let (jwt, _) = helpers::extract_cookies(resp.headers());
-    let jwt = jwt.unwrap();
+    let jwt = helpers::register_curve25519(&app, "transfer@test.com").await.jwt;
 
     // Create a file.
     let (data, size, _) = create_byte_chunks();
@@ -263,7 +192,7 @@ async fn test_transfer_token_upload_and_download() {
     let req = test::TestRequest::post()
         .uri("/api/auth/transfer-token")
         .cookie(jwt.clone())
-        .set_json(&serde_json::json!({
+        .set_json(serde_json::json!({
             "file_id": file.id.to_string(),
             "action": "upload"
         }))
@@ -332,7 +261,7 @@ async fn test_transfer_token_upload_and_download() {
     let req = test::TestRequest::post()
         .uri("/api/auth/transfer-token")
         .cookie(jwt.clone())
-        .set_json(&serde_json::json!({
+        .set_json(serde_json::json!({
             "file_id": file.id.to_string(),
             "action": "download"
         }))
@@ -359,7 +288,7 @@ async fn test_transfer_token_upload_and_download() {
     let req = test::TestRequest::put()
         .uri(format!("/api/storage/{}/hashes", &file.id).as_str())
         .insert_header(("Authorization", format!("Bearer {}", upload_token)))
-        .set_json(&serde_json::json!({ "sha256": checksum }))
+        .set_json(serde_json::json!({ "sha256": checksum }))
         .to_request();
 
     let resp = test::call_service(&app, req).await;
@@ -386,7 +315,7 @@ async fn test_transfer_token_upload_and_download() {
     let req = test::TestRequest::post()
         .uri("/api/auth/transfer-token")
         .cookie(jwt.clone())
-        .set_json(&serde_json::json!({
+        .set_json(serde_json::json!({
             "file_id": file.id.to_string(),
             "action": "delete"
         }))
@@ -407,33 +336,9 @@ async fn test_download_tar_archive() {
     let context =
         context::Context::mock_with_data_dir(Some("../data-test-tar".to_string())).await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
     let app = test::init_service(server::app(context.clone())).await;
 
-    // Register user.
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("tar@test.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some("encrypted-secret".to_string()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
-        .to_request();
-
-    let resp = test::call_service(&app, req).await;
-    let (jwt, _) = helpers::extract_cookies(resp.headers());
-    let jwt = jwt.unwrap();
+    let jwt = helpers::register_curve25519(&app, "tar@test.com").await.jwt;
 
     // Create a multi-chunk file (5 × 1 MiB + 0.5 MiB = 5.5 MiB, 6 chunks).
     let (mut data, mut size, _) = create_byte_chunks();
@@ -595,32 +500,9 @@ async fn test_replace_content_atomic_edit() {
     let context =
         context::Context::mock_with_data_dir(Some("../data-test-versioning".to_string())).await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("editor@test.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string),
-            fingerprint: Some(fingerprint),
-            encrypted_private_key: Some("encrypted-secret".to_string()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
-        .to_request();
-
-    let resp = test::call_service(&app, req).await;
-    let (jwt, _) = helpers::extract_cookies(resp.headers());
-    let jwt = jwt.unwrap();
+    let jwt = helpers::register_curve25519(&app, "editor@test.com").await.jwt;
 
     // ── Create the editable file with v1 content ────────────────
     let v1_data = vec![b"version-one-content".to_vec()];
@@ -673,7 +555,7 @@ async fn test_replace_content_atomic_edit() {
     assert!(file.pending_version.is_none(), "first commit leaves no pending");
 
     // ── Edit: replaceContent with v2 metadata ────────────────────
-    let v2_data = vec![b"version-two-totally-different-content!".to_vec()];
+    let v2_data = [b"version-two-totally-different-content!".to_vec()];
     let v2_size = v2_data[0].len() as i64;
 
     let replace = serde_json::json!({
@@ -748,32 +630,9 @@ async fn test_replace_content_concurrent_returns_409() {
     let context =
         context::Context::mock_with_data_dir(Some("../data-test-409".to_string())).await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("conflict@test.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string),
-            fingerprint: Some(fingerprint),
-            encrypted_private_key: Some("encrypted-secret".to_string()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
-        .to_request();
-
-    let resp = test::call_service(&app, req).await;
-    let (jwt, _) = helpers::extract_cookies(resp.headers());
-    let jwt = jwt.unwrap();
+    let jwt = helpers::register_curve25519(&app, "conflict@test.com").await.jwt;
 
     let data = b"initial-content".to_vec();
     let create = storage::data::create_file::CreateFile {
@@ -869,30 +728,9 @@ async fn test_versions_list_and_restore() {
     let context =
         context::Context::mock_with_data_dir(Some("../data-test-versions-restore".to_string())).await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("history@test.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string),
-            fingerprint: Some(fingerprint),
-            encrypted_private_key: Some("encrypted-secret".to_string()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
-        .to_request();
-    let (jwt, _) = helpers::extract_cookies(test::call_service(&app, req).await.headers());
-    let jwt = jwt.unwrap();
+    let jwt = helpers::register_curve25519(&app, "history@test.com").await.jwt;
 
     let create = storage::data::create_file::CreateFile {
         encrypted_key: Some("encrypted-key".to_string()),
@@ -946,7 +784,7 @@ async fn test_versions_list_and_restore() {
         let req = test::TestRequest::put()
             .uri(format!("/api/storage/{}/content", file.id).as_str())
             .cookie(jwt.clone())
-            .set_json(&serde_json::json!({ "size": content.len(), "chunks": 1 }))
+            .set_json(serde_json::json!({ "size": content.len(), "chunks": 1 }))
             .to_request();
         let _ = test::call_and_read_body(&app, req).await;
         let _ = upload_chunk(jwt.clone(), file.id, content.clone()).await;
@@ -1010,30 +848,9 @@ async fn test_fork_creates_independent_copy() {
     let context =
         context::Context::mock_with_data_dir(Some("../data-test-fork".to_string())).await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("fork@test.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string),
-            fingerprint: Some(fingerprint),
-            encrypted_private_key: Some("encrypted-secret".to_string()),
-            key_type: None,
-            wrapping_pubkey: None,
-            invitation_id: None,
-        })
-        .to_request();
-    let (jwt, _) = helpers::extract_cookies(test::call_service(&app, req).await.headers());
-    let jwt = jwt.unwrap();
+    let jwt = helpers::register_curve25519(&app, "fork@test.com").await.jwt;
 
     // Source: a 1-chunk editable file with v1 content, then edited to v2.
     let v1_bytes = b"original-snapshot".to_vec();
@@ -1080,7 +897,7 @@ async fn test_fork_creates_independent_copy() {
     let req = test::TestRequest::put()
         .uri(format!("/api/storage/{}/content", source.id).as_str())
         .cookie(jwt.clone())
-        .set_json(&serde_json::json!({ "size": v2_bytes.len(), "chunks": 1 }))
+        .set_json(serde_json::json!({ "size": v2_bytes.len(), "chunks": 1 }))
         .to_request();
     let _ = test::call_and_read_body(&app, req).await;
 

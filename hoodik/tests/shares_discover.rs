@@ -17,8 +17,8 @@ async fn test_discover_returns_user_pubkey_fingerprint() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     shares::test_support::reset_discover_rate_limit();
 
     let req = test::TestRequest::get()
@@ -40,7 +40,7 @@ async fn test_discover_self_returns_400_cannot_discover_self() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
+    register_user!(app, context, alice, "alice@example.com");
     shares::test_support::reset_discover_rate_limit();
 
     let req = test::TestRequest::get()
@@ -59,7 +59,7 @@ async fn test_discover_unknown_email_returns_404() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
+    register_user!(app, context, alice, "alice@example.com");
     shares::test_support::reset_discover_rate_limit();
 
     let req = test::TestRequest::get()
@@ -84,8 +84,8 @@ async fn test_discover_unverified_user_is_discoverable() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, ghost, "ghost@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, ghost, "ghost@example.com");
     shares::test_support::reset_discover_rate_limit();
 
     // Strip the ghost's verification stamp to model the unverified-but-
@@ -115,8 +115,8 @@ async fn test_discover_rate_limit_21st_request_returns_429() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, _bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, _bob, "bob@example.com");
     shares::test_support::reset_discover_rate_limit();
 
     for _ in 0..20 {
@@ -143,8 +143,8 @@ async fn test_discover_rate_limit_increments_on_both_hit_and_miss() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, _bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, _bob, "bob@example.com");
     shares::test_support::reset_discover_rate_limit();
 
     // Twenty 404 misses: each one increments the bucket.

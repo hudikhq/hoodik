@@ -24,8 +24,8 @@ async fn test_owner_grants_reader_to_recipient_then_revokes() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "alice-file-1");
 
     let envelope = build_share_envelope(
@@ -64,8 +64,8 @@ async fn test_owner_grants_editor_to_recipient() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "editor-file");
 
     let envelope = build_share_envelope(
@@ -89,8 +89,8 @@ async fn test_owner_grants_co_owner_to_recipient() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "co-owner-file");
 
     let envelope = build_share_envelope(
@@ -118,8 +118,8 @@ async fn test_owner_can_share_with_unverified_recipient() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "alice-shares-with-unverified");
 
     users::Entity::update(users::ActiveModel {
@@ -157,9 +157,9 @@ async fn test_co_owner_can_reshare_at_reader_role() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let file = create_file!(app, alice, "ladder-reader");
 
     grant!(app, alice, bob, ShareRoleEnum::CoOwner, file.id);
@@ -191,9 +191,9 @@ async fn test_co_owner_can_reshare_at_editor_role() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let file = create_file!(app, alice, "ladder-editor");
 
     grant!(app, alice, bob, ShareRoleEnum::CoOwner, file.id);
@@ -219,9 +219,9 @@ async fn test_co_owner_cannot_reshare_at_co_owner_role_returns_403() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let file = create_file!(app, alice, "ladder-coowner-deny");
 
     grant!(app, alice, bob, ShareRoleEnum::CoOwner, file.id);
@@ -247,9 +247,9 @@ async fn test_owner_revoke_co_owner_cascades_their_grants() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let file = create_file!(app, alice, "cascade-target");
 
     grant!(app, alice, bob, ShareRoleEnum::CoOwner, file.id);
@@ -304,9 +304,9 @@ async fn test_links_index_is_owner_only() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let file = create_file!(app, alice, "owner-only-link");
 
     grant!(app, alice, bob, ShareRoleEnum::Reader, file.id);
@@ -375,8 +375,8 @@ async fn test_recipient_cannot_revoke_owner_link() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "recipient-cannot-revoke");
     grant!(app, alice, bob, ShareRoleEnum::Reader, file.id);
 
@@ -416,8 +416,8 @@ async fn test_create_share_persists_supplied_member_signature() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "member-sig-roundtrip");
 
     let timestamp = now_secs();
@@ -465,9 +465,9 @@ async fn test_create_share_rejects_member_signature_signed_by_stranger() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, eve, "eve@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, eve, "eve@example.com");
     let file = create_file!(app, alice, "member-sig-stranger");
 
     let timestamp = now_secs();
@@ -502,9 +502,9 @@ async fn test_co_owner_reshare_persists_co_owner_signed_member_signature() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let file = create_file!(app, alice, "co-owner-resharer-member-sig");
 
     grant!(app, alice, bob, ShareRoleEnum::CoOwner, file.id);
@@ -552,8 +552,8 @@ async fn test_create_share_accepts_legacy_envelope_without_member_signature() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "legacy-member-sig-fallback");
 
     let envelope = build_share_envelope(
@@ -587,9 +587,9 @@ async fn test_co_owner_can_revoke_recipient_granted_by_owner() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let file = create_file!(app, alice, "co-owner-revokes-others");
 
     grant!(app, alice, bob, ShareRoleEnum::CoOwner, file.id);
@@ -616,9 +616,9 @@ async fn test_editor_still_cannot_revoke_peer_returns_403() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let file = create_file!(app, alice, "editor-cannot-revoke");
 
     grant!(app, alice, bob, ShareRoleEnum::Editor, file.id);
@@ -641,9 +641,9 @@ async fn test_co_owner_change_role_via_create_share_accepted() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let file = create_file!(app, alice, "co-owner-changes-role");
 
     grant!(app, alice, bob, ShareRoleEnum::CoOwner, file.id);
@@ -681,8 +681,8 @@ async fn test_get_mine_returns_only_incoming_shares() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "mine-file");
     grant!(app, alice, bob, ShareRoleEnum::Editor, file.id);
 
@@ -722,8 +722,8 @@ async fn test_get_mine_carries_file_size_and_upload_progress() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "metadata-file");
 
     // The file row gets `finished_upload_at` + `chunks_stored` only
@@ -776,8 +776,8 @@ async fn test_get_mine_returns_only_roots_not_descendants() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let folder = create_folder!(app, alice, "root-folder");
     let child_one = create_child_file!(app, alice, "child-one", folder.id);
@@ -850,9 +850,9 @@ async fn test_get_mine_by_user_filters_by_sender() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
 
     let file_a = create_file!(app, alice, "filter-a");
     let file_b = create_file!(app, bob, "filter-b");
@@ -878,10 +878,10 @@ async fn test_get_recipient_list_visible_to_every_member_blocked_for_strangers()
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
-    register_user!(app, dave, "dave@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
+    register_user!(app, context, dave, "dave@example.com");
     let file = create_file!(app, alice, "shared-roster");
     grant!(app, alice, bob, ShareRoleEnum::Editor, file.id);
     grant!(app, alice, carol, ShareRoleEnum::Reader, file.id);
@@ -930,8 +930,8 @@ async fn test_recipient_self_removes_from_shared_file() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "self-remove-target");
     grant!(app, alice, bob, ShareRoleEnum::Reader, file.id);
 
@@ -973,9 +973,9 @@ async fn test_co_owner_self_remove_cascades_their_grants() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let file = create_file!(app, alice, "self-remove-cascade");
 
     grant!(app, alice, bob, ShareRoleEnum::CoOwner, file.id);
@@ -1018,8 +1018,8 @@ async fn test_recipient_self_removes_from_shared_folder_without_list_signature()
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let folder = create_folder!(app, alice, "self-remove-folder");
     let child = create_child_file!(app, alice, "self-remove-child", folder.id);
 
@@ -1092,7 +1092,7 @@ async fn test_storage_index_rejects_synthetic_shared_with_me_id() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
+    register_user!(app, context, alice, "alice@example.com");
 
     let req = test::TestRequest::get()
         .uri("/api/storage?dir_id=__shared_with_me__")

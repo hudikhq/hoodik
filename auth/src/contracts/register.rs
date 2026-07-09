@@ -27,14 +27,15 @@ where
 
         let mut active_model = data.into_active_model()?;
 
-        // A v2 signup carries an OPAQUE registration upload instead of a
-        // password. Finish it into the password file that login start/finish
-        // verifies against; validation already guaranteed the curve key material.
-        if let Some(upload) = &opaque_upload {
-            let password_file = cryptfns::opaque::server_registration_finish(upload)
-                .map_err(|_| Error::as_validation("opaque_registration_upload", "invalid"))?;
-            active_model.opaque_password_file = ActiveValue::Set(Some(password_file));
-        }
+        // Validation guarantees the OPAQUE registration upload; finish it into
+        // the password file that login start/finish verifies against, so the
+        // account authenticates without a password ever reaching the server.
+        let upload = opaque_upload.ok_or_else(|| {
+            Error::as_validation("opaque_registration_upload", "required")
+        })?;
+        let password_file = cryptfns::opaque::server_registration_finish(&upload)
+            .map_err(|_| Error::as_validation("opaque_registration_upload", "invalid"))?;
+        active_model.opaque_password_file = ActiveValue::Set(Some(password_file));
 
         // We can unwrap here because it would fail validation before this
         if self.get_by_email(&email).await.is_ok() {

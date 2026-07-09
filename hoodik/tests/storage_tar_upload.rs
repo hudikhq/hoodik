@@ -9,13 +9,12 @@
 mod helpers;
 
 use actix_web::{http::StatusCode, test};
-use auth::data::create_user::CreateUser;
 use fs::tar::{tar_header, tar_padding_len, TAR_END_OF_ARCHIVE_LEN};
 use fs::MAX_CHUNK_SIZE_BYTES;
 use hoodik::server;
 use storage::data::app_file::AppFile;
 
-use crate::helpers::{calculate_checksum, extract_cookies};
+use crate::helpers::calculate_checksum;
 
 /// Build a ustar archive directly from `(chunk_index, data)` pairs.
 fn tar_of(entries: &[(i64, &[u8])]) -> Vec<u8> {
@@ -56,23 +55,6 @@ fn create_file_json(chunks: &[Vec<u8>], name: &str) -> storage::data::create_fil
     }
 }
 
-fn register_body(email: &str) -> CreateUser {
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    CreateUser {
-        email: Some(email.to_string()),
-        password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-        secret: None,
-        token: None,
-        pubkey: Some(cryptfns::rsa::public::to_string(&public).unwrap()),
-        fingerprint: Some(cryptfns::rsa::fingerprint(public).unwrap()),
-        encrypted_private_key: Some("encrypted-gibberish".to_string()),
-        key_type: None,
-        wrapping_pubkey: None,
-        invitation_id: None,
-    }
-}
-
 /// Bootstrap macro: spin up the mock app, register `$email`, and bind the
 /// triple `($ctx, $app, $jwt)` into the calling scope. Every test opens
 /// with this so the per-test body stays focused on the scenario.
@@ -82,13 +64,7 @@ macro_rules! setup {
             context::Context::mock_with_data_dir(Some($data_dir.to_string())).await;
         let $app = test::init_service(server::app($ctx.clone())).await;
 
-        let req = test::TestRequest::post()
-            .uri("/api/auth/register")
-            .set_json(register_body($email))
-            .to_request();
-        let resp = test::call_service(&$app, req).await;
-        let (cookie, _) = extract_cookies(resp.headers());
-        let $jwt = cookie.expect("register must set session cookie");
+        let $jwt = helpers::register_curve25519(&$app, $email).await.jwt;
     };
 }
 
@@ -306,13 +282,7 @@ async fn test_upload_tar_unauthenticated() {
 async fn test_upload_tar_not_owned() {
     setup!(context, app, owner_jwt, "../data-test-tar-upload-notowned", "tar-owner@test.com");
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(register_body("tar-stranger@test.com"))
-        .to_request();
-    let resp = test::call_service(&app, req).await;
-    let (stranger_jwt, _) = extract_cookies(resp.headers());
-    let stranger_jwt = stranger_jwt.unwrap();
+    let stranger_jwt = helpers::register_curve25519(&app, "tar-stranger@test.com").await.jwt;
 
     let chunks = mock_chunks(2, 32);
     let file = create_file!(app, owner_jwt, create_file_json(&chunks, "private.enc"));

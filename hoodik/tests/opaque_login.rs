@@ -8,12 +8,11 @@ mod helpers;
 use actix_web::body::{BoxBody, EitherBody};
 use actix_web::dev::{Service, ServiceResponse};
 use actix_web::{http::StatusCode, test};
-use auth::data::create_user::CreateUser;
 use hoodik::server;
 use serde_json::{json, Value};
 
 const EMAIL: &str = "opaque@example.com";
-const PASSWORD: &[u8] = b"not-4-weak-password-for-god-sakes!";
+const PASSWORD: &[u8] = helpers::LEGACY_PASSWORD.as_bytes();
 
 /// The service produced by `test::init_service(server::app(..))`.
 trait TestApp:
@@ -30,29 +29,21 @@ impl<S> TestApp for S where
 {
 }
 
-async fn register_and_login_legacy(app: &impl TestApp) -> actix_web::cookie::Cookie<'static> {
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
+/// Seed a legacy RSA account at the data layer and log it in for a session
+/// cookie. Legacy accounts are no longer created through registration, but the
+/// OPAQUE endpoints must keep serving the pre-migration → migrated transition.
+async fn seed_and_login_legacy(
+    app: &impl TestApp,
+    db: &entity::DbConn,
+) -> actix_web::cookie::Cookie<'static> {
+    helpers::seed_legacy_user(db, EMAIL).await;
 
     let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some(EMAIL.to_string()),
-            password: Some(String::from_utf8(PASSWORD.to_vec()).unwrap()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string),
-            fingerprint: Some(fingerprint),
-            key_type: None,
-            wrapping_pubkey: None,
-            encrypted_private_key: Some("legacy-encrypted-key".to_string()),
-            invitation_id: None,
-        })
+        .uri("/api/auth/login")
+        .set_json(json!({ "email": EMAIL, "password": helpers::LEGACY_PASSWORD }))
         .to_request();
     let resp = test::call_service(app, req).await;
-    assert_eq!(resp.status(), StatusCode::CREATED);
+    assert_eq!(resp.status(), StatusCode::OK);
     let (jwt, _) = helpers::extract_cookies(resp.headers());
     jwt.unwrap()
 }
@@ -123,7 +114,7 @@ async fn test_opaque_register_then_login() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    let jwt = register_and_login_legacy(&app).await;
+    let jwt = seed_and_login_legacy(&app, &context.db).await;
     opaque_register(&app, &jwt).await;
 
     let resp = opaque_login(&app, PASSWORD)
@@ -139,7 +130,7 @@ async fn test_wrong_password_rejected() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    let jwt = register_and_login_legacy(&app).await;
+    let jwt = seed_and_login_legacy(&app, &context.db).await;
     opaque_register(&app, &jwt).await;
 
     // A wrong password fails: either client-side (the KE can't complete, None)
@@ -160,7 +151,7 @@ async fn test_legacy_account_offers_password_method() {
     let app = test::init_service(server::app(context.clone())).await;
 
     // Registered but never OPAQUE-migrated.
-    register_and_login_legacy(&app).await;
+    seed_and_login_legacy(&app, &context.db).await;
 
     let start = cryptfns::opaque::client_login_start(PASSWORD).unwrap();
     let req = test::TestRequest::post()

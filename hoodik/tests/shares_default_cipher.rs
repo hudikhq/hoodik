@@ -11,8 +11,6 @@ use hoodik::server;
 use serde_json::Value;
 use shares::data::capabilities::Capabilities;
 
-use crate::shares_common::*;
-
 #[actix_web::test]
 async fn test_capabilities_advertises_default_cipher() {
     let context = context::Context::mock_sqlite().await;
@@ -32,7 +30,7 @@ async fn test_admin_settings_updates_default_cipher() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
+    register_user!(app, context, alice, "alice@example.com");
 
     let req = test::TestRequest::get()
         .uri("/api/admin/settings")
@@ -67,7 +65,7 @@ async fn test_admin_settings_rejects_unknown_cipher() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
+    register_user!(app, context, alice, "alice@example.com");
 
     let req = test::TestRequest::get()
         .uri("/api/admin/settings")

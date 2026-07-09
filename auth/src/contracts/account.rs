@@ -192,7 +192,7 @@ mod tests {
             role: None,
             quota: None,
             email: "u@example.com".to_string(),
-            password: password.map(|p| util::password::hash(p)),
+            password: password.map(util::password::hash),
             secret: None,
             pubkey: "pubkey".to_string(),
             fingerprint: "fp".to_string(),
@@ -219,14 +219,14 @@ mod tests {
     #[test]
     fn absent_credentials_do_not_prove_ownership() {
         let u = user(Some("correct horse battery staple"));
-        assert_eq!(verify_password(&u, None).unwrap(), false);
-        assert_eq!(verify_signature(&u, "msg", None).unwrap(), false);
+        assert!(!verify_password(&u, None).unwrap());
+        assert!(!verify_signature(&u, "msg", None).unwrap());
     }
 
     #[test]
     fn correct_password_proves_ownership_wrong_password_errors() {
         let u = user(Some("correct horse battery staple"));
-        assert_eq!(verify_password(&u, Some("correct horse battery staple")).unwrap(), true);
+        assert!(verify_password(&u, Some("correct horse battery staple")).unwrap());
         assert!(verify_password(&u, Some("wrong")).is_err());
     }
 }
