@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test'
-import { authenticator } from 'otplib'
 import {
   randomEmail,
   randomPassword,
@@ -23,56 +22,57 @@ async function openChangePasswordViaSidebar(page: import('@playwright/test').Pag
   await page.waitForURL(/\/account\/change-password/)
 }
 
+/**
+ * v2 (Curve25519 + OPAQUE) accounts change their password through the PAKE
+ * flow: the session authenticates the request and the in-memory keys re-seal
+ * the private-key envelope under a KEK derived from the new password's
+ * OPAQUE `export_key`. The legacy proof inputs are hidden, so the form only
+ * needs the new password. All accounts created through registration are v2.
+ */
 test.describe('Change password', () => {
-  test('with no TFA, change password via current password succeeds', async ({ page }) => {
+  test('v2 account changes its password through the PAKE flow', async ({ page }) => {
     const email = randomEmail()
     const password = randomPassword()
     await createUser(page, email, password)
 
     await openChangePasswordViaSidebar(page)
-    await page.locator('#current_password').fill(password)
 
     const newPassword = randomPassword()
     await page.locator('#password').fill(newPassword)
 
-    const response = page.waitForResponse(
+    const finished = page.waitForResponse(
       (res) =>
-        res.url().includes('/api/auth/account/change-password') &&
+        res.url().includes('/api/auth/pake/register/finish') &&
         res.request().method() === 'POST'
     )
     await page.getByRole('button', { name: 'Change password' }).click()
-    expect((await response).status()).toBe(204)
+    expect((await finished).ok()).toBeTruthy()
 
+    // The old password no longer works; the new one does.
     await logout(page)
     await loginAsUser(page, email, newPassword)
     await expect(page).toHaveURL(/\/$/)
   })
 
-  // Regression test for https://github.com/hudikhq/hoodik/issues/164
-  test('with TFA enabled, change password via private key + OTP succeeds', async ({ page }) => {
+  test('a 2FA-enabled v2 account changes its password and logs back in with 2FA', async ({
+    page,
+  }) => {
     const email = randomEmail()
     const password = randomPassword()
-    const { privateKey, secret } = await createUserWithTwoFactor(page, email, password)
+    const { secret } = await createUserWithTwoFactor(page, email, password)
 
     await openChangePasswordViaSidebar(page)
-    await page.locator('#use_private_key').check()
-    await page.locator('#private_key').fill(privateKey)
-    await page.locator('#token').fill(authenticator.generate(secret))
 
     const newPassword = randomPassword()
     await page.locator('#password').fill(newPassword)
 
-    const response = page.waitForResponse(
+    const finished = page.waitForResponse(
       (res) =>
-        res.url().includes('/api/auth/account/change-password') &&
+        res.url().includes('/api/auth/pake/register/finish') &&
         res.request().method() === 'POST'
     )
     await page.getByRole('button', { name: 'Change password' }).click()
-
-    // The bug in #164 manifests as a 401 with body `invalid_otp_token`
-    // because the frontend silently dropped the token before sending.
-    // After the fix the backend returns 204.
-    expect((await response).status()).toBe(204)
+    expect((await finished).ok()).toBeTruthy()
 
     await logout(page)
     await loginWithTwoFactor(page, email, newPassword, secret)
