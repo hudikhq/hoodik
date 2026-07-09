@@ -42,7 +42,7 @@ where
     /// Get a user by email
     async fn get_by_email(&self, email: &str) -> AppResult<users::Model> {
         users::Entity::find()
-            .filter(users::Column::Email.contains(email))
+            .filter(users::Column::Email.eq(email))
             .one(self.connection())
             .await
             .map_err(Error::from)?

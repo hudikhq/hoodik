@@ -27,6 +27,13 @@ import type {
  *                Controls which algorithm is used for the file key generation,
  *                name encryption, thumbnail encryption, and chunk encryption.
  */
+function isRsaKey(pem: string): boolean {
+  // RSA PKCS#1 PEMs carry "RSA" in their header line; curve (Ed25519/X25519)
+  // PKCS#8/SPKI PEMs never do. A base64 body can't contain the header's space,
+  // so matching "BEGIN RSA" is an unambiguous key-type check.
+  return (pem || '').toUpperCase().includes('BEGIN RSA')
+}
+
 export async function encrypt(
   unencrypted: AppFileUnencryptedPart,
   publicKey: string,
@@ -41,15 +48,11 @@ export async function encrypt(
 
   const keyHex = cryptfns.uint8.toHex(key)
 
-  // Dispatch wrap for the owner/recipient based on key material.
-  // Curve accounts (post migration) use X25519 ECIES on raw bytes.
-  let encrypted_key: string
-  const pubU = (publicKey || '').toUpperCase()
-  if (pubU.includes('RSA') || pubU.includes('BEGIN RSA')) {
-    encrypted_key = await cryptfns.rsa.encryptMessage(keyHex, publicKey)
-  } else {
-    encrypted_key = await cryptfns.x25519.wrap(key, publicKey)
-  }
+  // Curve accounts (post migration) wrap with X25519 ECIES on the raw key
+  // bytes; legacy accounts keep RSA on the hex-encoded key.
+  const encrypted_key = isRsaKey(publicKey)
+    ? await cryptfns.rsa.encryptMessage(keyHex, publicKey)
+    : await cryptfns.x25519.wrap(key, publicKey)
 
   return {
     encrypted_key,
@@ -71,15 +74,13 @@ export async function decrypt(
 ): Promise<AppFileUnencryptedPart> {
   const cipher = encrypted.cipher
 
-  let keyHex: string
-  const privU = (privateKey || '').toUpperCase()
-  if (privU.includes('RSA') || privU.includes('BEGIN RSA')) {
-    keyHex = await cryptfns.rsa.decryptMessage(privateKey, encrypted.encrypted_key)
+  let key: Uint8Array
+  if (isRsaKey(privateKey)) {
+    const keyHex = await cryptfns.rsa.decryptMessage(privateKey, encrypted.encrypted_key)
+    key = cryptfns.uint8.fromHex(keyHex)
   } else {
-    const keyBytes = await cryptfns.x25519.unwrap(encrypted.encrypted_key, privateKey)
-    keyHex = cryptfns.uint8.toHex(keyBytes)
+    key = await cryptfns.x25519.unwrap(encrypted.encrypted_key, privateKey)
   }
-  const key = cryptfns.uint8.fromHex(keyHex)
 
   const name = await cryptfns.cipher.decryptString(cipher, encrypted.encrypted_name, key)
   const thumbnail = encrypted.encrypted_thumbnail

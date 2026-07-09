@@ -25,6 +25,18 @@ where
 
         let user = self.get_by_email(&email).await?;
 
+        // OPAQUE accounts derive their private-key envelope KEK from the
+        // password's `export_key`, not from a bcrypt hash. The legacy re-key
+        // below would write a bcrypt password and a password-KDF envelope while
+        // leaving `opaque_password_file` untouched, stranding the account's keys
+        // on the next OPAQUE login. Password changes for these accounts go
+        // through the PAKE flow instead.
+        if user.opaque_password_file.is_some() {
+            return Err(Error::BadRequest(
+                "password_change_requires_opaque".to_string(),
+            ));
+        }
+
         if !user.verify_tfa(token) {
             return Err(Error::Unauthorized("invalid_otp_token".to_string()));
         }

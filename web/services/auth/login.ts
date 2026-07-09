@@ -1,4 +1,4 @@
-import Api from '../api'
+import Api, { ErrorResponse } from '../api'
 import * as cryptfns from '../cryptfns'
 import * as opaque from '../cryptfns/opaque'
 import * as envelope from '../cryptfns/envelope'
@@ -248,7 +248,20 @@ export const store = defineStore('login', () => {
     // the credential_request we must send to /login/start. The server will tell us
     // whether to continue with OPAQUE or fall back to legacy password.
     const clientStart = await opaque.clientLoginStart(credentials.password)
-    const start = await loginStart(credentials.email, clientStart.message)
+
+    let start: LoginStartResponse
+    try {
+      start = await loginStart(credentials.email, clientStart.message)
+    } catch (e) {
+      // Servers predating the OPAQUE endpoints have no /login/start route.
+      // Fall back to the legacy password login so the client keeps working
+      // against self-hosted instances that have not upgraded yet.
+      if (e instanceof ErrorResponse && e.status === 404) {
+        start = { method: 'password' }
+      } else {
+        throw e
+      }
+    }
 
     if (start.method === 'opaque' && start.login_id && start.credential_response) {
       return await _withOpaque(crypto, credentials, start, clientStart.state)
