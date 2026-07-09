@@ -2,9 +2,10 @@
 import { AppForm, AppField, AppButton, AppCheckbox } from '@/components/form'
 import * as yup from 'yup'
 import { store } from '!/auth/register'
+import { encodeBundle } from '!/auth/bundle'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
-import { rsa } from '!/cryptfns'
+import { ed25519, x25519 } from '!/cryptfns'
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
@@ -21,15 +22,30 @@ const init = async () => {
   const initialErrors = register.errors || {}
 
   if (
-    !initialValues.unencrypted_private_key ||
+    !initialValues.identity_private_key ||
     !initialValues.pubkey ||
+    !initialValues.wrapping_private_key ||
     !initialValues.fingerprint
   ) {
-    const kp = await rsa.generateKeyPair()
-    initialValues.unencrypted_private_key = kp.input as string
-    initialValues.pubkey = kp.publicKey as string
-    initialValues.fingerprint = kp.fingerprint as string
+    const edPriv = await ed25519.generatePrivateKey()
+    const edPub = await ed25519.publicFromPrivate(edPriv)
+    const xPriv = await x25519.generatePrivateKey()
+    const xPub = await x25519.publicFromPrivate(xPriv)
+
+    initialValues.identity_private_key = edPriv
+    initialValues.pubkey = edPub
+    initialValues.wrapping_private_key = xPriv
+    initialValues.wrapping_pubkey = xPub
+    initialValues.fingerprint = await ed25519.fingerprint(edPub)
   }
+
+  // The recovery bundle is the exact material sealed into the account's
+  // envelope; a user who backs it up can log in via "private key" and recover
+  // access even without the password.
+  initialValues.recovery_bundle = encodeBundle({
+    identity: initialValues.identity_private_key,
+    wrapping: initialValues.wrapping_private_key
+  })
 
   config.value = {
     initialValues,
@@ -37,13 +53,13 @@ const init = async () => {
     validationSchema: yup.object().shape({
       pubkey: yup.string().required('Public key is required'),
       fingerprint: yup.string().required('Fingerprint is required'),
-      unencrypted_private_key: yup.string(),
+      recovery_bundle: yup.string(),
       store_private_key: yup.bool().default(true),
       i_have_stored_my_private_key: yup
         .bool()
         .default(false)
-        .required('You must confirm that you have stored your private key')
-        .oneOf([true], 'You must confirm that you have stored your private key')
+        .required('You must confirm that you have stored your recovery key')
+        .oneOf([true], 'You must confirm that you have stored your recovery key')
     }),
     onSubmit: (values: Partial<CreateUser>) => {
       logger.debug(values)
@@ -59,7 +75,7 @@ init()
   <LayoutGuest>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass">
-        <h1 class="text-2xl text-white">Your Private Key</h1>
+        <h1 class="text-2xl text-white">Your Recovery Key</h1>
 
         <div class="flex items-start" v-if="!config">
           <div class="flex items-center h-5">
@@ -70,17 +86,18 @@ init()
           <div class="flex items-start">
             <div class="flex items-center h-5">
               <p class="text-sm text-redish-500 dark:text-redish-400">
-                <strong>This is the last time we'll show you your key!</strong> Store it somewhere
-                safe. You will need this to login or recover your account.
+                <strong>This is the last time we'll show you your recovery key!</strong> Store it
+                somewhere safe. You will need this to login or recover your account if you forget
+                your password.
               </p>
             </div>
           </div>
           <AppField
             textarea
-            :rows="28"
+            :rows="12"
             :form="form"
-            label="Your private key"
-            name="unencrypted_private_key"
+            label="Your recovery key"
+            name="recovery_bundle"
             class-add="text-xs"
             :allow-copy="true"
           />

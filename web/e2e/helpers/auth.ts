@@ -11,7 +11,9 @@ export function randomPassword() {
 
 /**
  * Register a new user and skip 2FA.
- * Returns the captured private key along with the credentials used.
+ * Returns the captured recovery key (curve bundle) along with the credentials.
+ * `privateKey` is the recovery bundle — the material accepted by
+ * login-with-private-key, kept under that name so callers stay unchanged.
  */
 export async function createUser(page: Page, email: string, password: string) {
   await page.goto('/auth/register')
@@ -21,7 +23,7 @@ export async function createUser(page: Page, email: string, password: string) {
   await page.getByRole('button', { name: 'Next' }).click()
   await page.waitForURL('**/register/key')
 
-  const privateKey = await page.locator('#unencrypted_private_key').inputValue()
+  const privateKey = await page.locator('#recovery_bundle').inputValue()
   await page.locator('#i_have_stored_my_private_key').check()
   await page.getByRole('button', { name: 'Next' }).click()
   await page.waitForURL('**/register/two-factor')
@@ -54,7 +56,7 @@ export async function createUserWithTwoFactor(page: Page, email: string, passwor
   await page.getByRole('button', { name: 'Next' }).click()
   await page.waitForURL('**/register/key')
 
-  const privateKey = await page.locator('#unencrypted_private_key').inputValue()
+  const privateKey = await page.locator('#recovery_bundle').inputValue()
   await page.locator('#i_have_stored_my_private_key').check()
   await page.getByRole('button', { name: 'Next' }).click()
   await page.waitForURL('**/register/two-factor')

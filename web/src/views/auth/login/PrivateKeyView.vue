@@ -6,6 +6,7 @@ import { AppForm, AppField, AppButton, AppCheckbox } from '@/components/form'
 import * as yup from 'yup'
 import { store } from '!/auth/login'
 import { store as registerStore } from '!/auth/register'
+import { parseBundle } from '!/auth/bundle'
 import { store as cryptoStore } from '!/crypto'
 import { popIntendedRoute } from '!/auth'
 import { useRouter } from 'vue-router'
@@ -37,6 +38,12 @@ const init = () => {
           name: 'privateKey',
           message: 'Invalid private key',
           test: async (value) => {
+            // A v2 account pastes its recovery bundle (`v1|ed:|x:`); a legacy
+            // account pastes its RSA PEM. Accept either shape.
+            if (value && value.includes('ed:') && value.includes('x:')) {
+              const { identity, wrapping } = parseBundle(value)
+              return Boolean(identity && wrapping)
+            }
             try {
               await cryptfns.rsa.inputToKeyPair(value)
               return true

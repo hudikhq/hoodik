@@ -1,9 +1,22 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import * as crypto from '../cryptfns'
+import * as cryptfns from '../cryptfns'
+import * as opaque from '../cryptfns/opaque'
+import * as envelope from '../cryptfns/envelope'
+import * as ed25519 from '../cryptfns/ed25519'
+import { encodeBundle } from './bundle'
 import { default as Api, type InnerValidationErrors } from '../api'
-import type { Authenticated, CreateUser, CryptoStore, LoginStore, User } from 'types'
+import type { Authenticated, CreateUser, CryptoStore, KeyPair, LoginStore, User } from 'types'
 import type { RouteLocation } from 'vue-router'
+
+interface OpaqueSignupStartRequest {
+  email: string
+  registration_request: string
+}
+
+interface OpaqueSignupStartResponse {
+  registration_response: string
+}
 
 export const store = defineStore('register', () => {
   const _createUser = ref<CreateUser>({
@@ -100,33 +113,13 @@ export const store = defineStore('register', () => {
   }
 
   /**
-   * Make post request to create new user
-   * @throws
-   */
-  async function postRegistration(
-    data: CreateUser,
-    privateKey: string,
-    login: LoginStore,
-    store: CryptoStore
-  ): Promise<Authenticated | null> {
-    const response = await Api.post<CreateUser, Authenticated>(
-      '/api/auth/register',
-      undefined,
-      data
-    )
-
-    if (!response.body) {
-      return null
-    }
-
-    login.setupAuthenticated(response.body as Authenticated, privateKey, store)
-    await store.set(privateKey)
-
-    return response.body as Authenticated
-  }
-
-  /**
-   * Generate keypair and register new user
+   * Run the v2 signup ceremony and create the account.
+   *
+   * A fresh account is born migrated: Curve25519 identity + X25519 wrapping
+   * keys, authenticated by OPAQUE. The password never reaches the server —
+   * OPAQUE proves it, and its `export_key` seals the private-key bundle into
+   * `encrypted_private_key`. Mirrors the migration ceremony in `login.ts`
+   * minus the transition certificate (there is no prior key to endorse).
    * @throws
    */
   async function register(
@@ -134,19 +127,82 @@ export const store = defineStore('register', () => {
     login: LoginStore,
     store: CryptoStore
   ): Promise<Authenticated | null> {
-    const privateKey = data.unencrypted_private_key as string
+    const edPriv = data.identity_private_key as string
+    const edPub = data.pubkey
+    const xPriv = data.wrapping_private_key as string
+    const xPub = data.wrapping_pubkey as string
+    const password = data.password as string
 
-    if (data.unencrypted_private_key) {
-      data.encrypted_private_key = await crypto.rsa.protectPrivateKey(
-        data.unencrypted_private_key as string,
-        data.password as string
-      )
+    const regStart = await opaque.clientRegistrationStart(password)
+    const startResp = await Api.post<OpaqueSignupStartRequest, OpaqueSignupStartResponse>(
+      '/api/auth/register/pake/start',
+      undefined,
+      { email: data.email, registration_request: regStart.message }
+    )
+    if (!startResp.body) {
+      throw new Error('No response from register/pake/start')
+    }
+    const regFinish = await opaque.clientRegistrationFinish(
+      regStart.state,
+      startResp.body.registration_response,
+      password
+    )
 
-      // Remove the key from the request payload
-      delete data.unencrypted_private_key
+    const exportKeyBytes = cryptfns.uint8.fromBase64(regFinish.exportKey)
+    const kek = await envelope.deriveKek(exportKeyBytes)
+    const bundle = new TextEncoder().encode(encodeBundle({ identity: edPriv, wrapping: xPriv }))
+    const env = await envelope.seal(kek, bundle)
+
+    // Prove the sealed bundle reopens and the identity key signs before we
+    // commit the account — a broken envelope or key would lock the user out.
+    const reopened = await envelope.open(kek, env)
+    if (!reopened || reopened.length === 0) {
+      throw new Error('self-check: envelope open failed')
+    }
+    const probe = `register-probe-${Date.now()}`
+    const probeSig = await ed25519.sign(probe, edPriv)
+    if (!(await ed25519.verify(probe, probeSig, edPub))) {
+      throw new Error('self-check: ed25519 signature failed')
     }
 
-    return postRegistration(data, privateKey, login, store)
+    const payload: CreateUser = {
+      email: data.email,
+      password: '',
+      pubkey: edPub,
+      wrapping_pubkey: xPub,
+      fingerprint: data.fingerprint,
+      key_type: 'curve25519',
+      encrypted_private_key: env,
+      opaque_registration_upload: regFinish.message,
+      secret: data.secret,
+      token: data.token,
+      invitation_id: data.invitation_id
+    }
+    // The server forbids `password` on a curve account; only OPAQUE proves it.
+    delete (payload as Partial<CreateUser>).password
+
+    const response = await Api.post<CreateUser, Authenticated>(
+      '/api/auth/register',
+      undefined,
+      payload
+    )
+    if (!response.body) {
+      return null
+    }
+
+    const authenticated = response.body as Authenticated
+    const kp: KeyPair = {
+      input: edPriv,
+      publicKey: edPub,
+      fingerprint: data.fingerprint,
+      keySize: 0,
+      keyType: 'curve25519',
+      wrappingPrivate: xPriv,
+      wrappingPublic: xPub
+    }
+    await login.setupAuthenticated(authenticated, kp, store)
+
+    return authenticated
   }
 
   /**

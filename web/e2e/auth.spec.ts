@@ -17,7 +17,10 @@ test.describe('Registration', () => {
     const { privateKey } = await createUser(page, email, password)
 
     await expect(page).toHaveURL(/\/$/)
-    expect(privateKey).toContain('BEGIN RSA PRIVATE KEY')
+    // v2 accounts back up a curve recovery bundle, not an RSA PEM.
+    expect(privateKey).toContain('ed:')
+    expect(privateKey).toContain('x:')
+    expect(privateKey).toContain('BEGIN PRIVATE KEY')
   })
 
   test('can register a new user with 2FA enabled', async ({ page }) => {

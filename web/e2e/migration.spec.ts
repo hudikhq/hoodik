@@ -1,58 +1,38 @@
-import { test, expect } from '@playwright/test'
-import { randomEmail, randomPassword, createUser, loginAsUser, logout } from './helpers/auth'
-import { createNoteFromBrowser } from './helpers/notes'
+import { test } from '@playwright/test'
 
 /**
  * Legacy (RSA + bcrypt) accounts auto-migrate to Curve25519 + OPAQUE on their
- * next login. The instant the re-key commits, every file key the account holds
- * has been re-wrapped from RSA to X25519, so the in-memory keypair's *wrapping*
- * key — not its Ed25519 identity key — is what decrypts file metadata from then
- * on.
+ * next login, re-wrapping every held file key from RSA to X25519 in the
+ * process. This spec used to seed a legacy account through the register API
+ * and then drive the migrating login.
  *
- * This guards the regression where a post-migration metadata decrypt reached
- * for the identity key, threw `x25519_unwrap failed`, and bounced the session
- * back to the login screen with every filename rendered as a raw UUID. Simply
- * landing on the file browser after the migrating login exercises both broken
- * paths at once: the main listing decrypt and the sidebar file-tree root fetch
- * (whose failure was the one that triggered the bounce).
+ * COVERAGE GAP (deliberate, not a fake). Registration is now Curve25519 +
+ * OPAQUE only — the server rejects RSA signups (auth/src/data/create_user.rs) —
+ * so `createUser` no longer produces a migratable account, and there is no API
+ * path to create one. Seeding a legacy account from Playwright would need a
+ * `users` row with a valid bcrypt password hash plus a WASM-decryptable RSA
+ * `encrypted_private_key` and RSA-wrapped file/user_files rows written straight
+ * into `data-e2e/sqlite.db`. bcrypt is available neither in Node here (no
+ * dependency) nor in the client WASM, so that seed cannot be produced in this
+ * suite without a new build dependency.
+ *
+ * What still covers the migration end to end:
+ *   - `hoodik/tests/migration.rs` — server + full client ceremony against a
+ *     `helpers::seed_legacy_user` legacy account: flips the account to
+ *     curve25519/security_version=1, re-wraps keys, proves OPAQUE login and
+ *     old-fingerprint signature login afterward.
+ *   - `web/tests/shares/chain-resolution.test.ts` — the read-path verifiers'
+ *     fallback to a since-migrated signer's pre-migration key.
+ *   - `web/tests/crypto-transition.test.ts` — the client transition-certificate
+ *     signatures the ceremony emits.
+ *
+ * To restore a browser test: add a Playwright global-setup that inserts a
+ * legacy `users` row (bcrypt hash via a bundled helper) + one RSA-wrapped file
+ * before the run, then drive `loginAsUser` and assert the ceremony console line
+ * and that filenames still decrypt.
  */
 test.describe('Legacy → Curve25519 auto-migration', () => {
-  test('migrates on login, files still decrypt, session survives', async ({ page }) => {
-    const email = randomEmail()
-    const password = randomPassword()
-
-    // A legacy account with one encrypted note: gives migration an owner-wrapped
-    // file key to re-wrap and the file browser something to decrypt afterward.
-    await createUser(page, email, password)
-    const noteName = `pre-migration-${Math.floor(Math.random() * 1e9)}.md`
-    await createNoteFromBrowser(page, noteName)
-
-    // Drop the session, then log back in — this login runs the migration
-    // ceremony while the plaintext password and decrypted RSA key are both
-    // still in hand.
-    await logout(page)
-
-    const consoleLines: string[] = []
-    page.on('console', (m) => consoleLines.push(`${m.type()}: ${m.text()}`))
-
-    await loginAsUser(page, email, password)
-
-    // Not bounced back to the login screen.
-    await expect(page).toHaveURL(/\/$/)
-
-    // The note's decrypted name renders — proves the post-migration listing
-    // decrypt used the X25519 wrapping key. A wrong key would show its UUID.
-    await expect(page.getByText(noteName).first()).toBeVisible({ timeout: 15_000 })
-
-    // The ceremony actually ran (guards against a silent no-op making the two
-    // assertions above pass trivially), and it left no unwrap failure behind.
-    expect(
-      consoleLines.some((l) => l.includes('migration ceremony completed successfully')),
-      consoleLines.join('\n')
-    ).toBe(true)
-    expect(
-      consoleLines.filter((l) => l.includes('x25519_unwrap')),
-      consoleLines.join('\n')
-    ).toHaveLength(0)
+  test.skip('migrates on login, files still decrypt, session survives', () => {
+    // Seed path removed with RSA registration — see the block comment above.
   })
 })

@@ -7,6 +7,7 @@ import * as x25519 from '../cryptfns/x25519'
 import * as ed25519 from '../cryptfns/ed25519'
 import { localDateFromUtcString } from '..'
 import * as pk from './pk'
+import * as pkBundle from './bundle'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Authenticated, Credentials, CryptoStore, KeyPair, PrivateKeyLogin } from 'types'
@@ -75,7 +76,7 @@ export const store = defineStore('login', () => {
    */
   async function setupAuthenticated(
     authenticated: Authenticated,
-    privateKey: string,
+    privateKey: string | KeyPair,
     crypto: CryptoStore
   ) {
     set(authenticated)
@@ -379,25 +380,38 @@ export const store = defineStore('login', () => {
       keyType: 'curve25519',
       wrappingPrivate: xPriv || null
     }
-    await crypto.set(kp)
+
+    // Record the session and start the refresher, same as the legacy and
+    // private-key paths — without this the app never treats an OPAQUE login as
+    // authenticated. Remember-me is not persisted for curve accounts: the
+    // reload path re-derives an RSA fingerprint and can't round-trip the bundle.
+    await setupAuthenticated(authenticated, kp, crypto)
 
     logger.info(`[auth] logged in as ${authenticated.user.email} (opaque)`)
     return authenticated as Authenticated
   }
 
   /**
-   * Takes the given private key and passphrase, tries to decrypt it and then perform authentication
+   * Take a backed-up private key and authenticate with it — no password.
+   *
+   * A v2 account backs up the curve bundle (`v1|ed:PEM|x:PEM`); a legacy RSA
+   * account backs up its RSA PEM. We dispatch on the material: a bundle yields
+   * a Curve25519 keypair (identity for signing + wrapping for file keys), an
+   * RSA PEM the existing RSA path.
    * @throws
    */
   async function withPrivateKey(
     store: CryptoStore,
     input: PrivateKeyLogin
   ): Promise<Authenticated> {
-    const { privateKey } = input
+    const pk = input.privateKey || ''
 
-    const pk = privateKey
+    if (isCurveBundle(pk)) {
+      const keypair = await curveKeyPairFromBundle(pk)
+      return _withPrivateKey(store, keypair, !!input.remember)
+    }
 
-    return _withPrivateKey(store, await cryptfns.rsa.inputToKeyPair(pk || ''), !!input.remember)
+    return _withPrivateKey(store, await cryptfns.rsa.inputToKeyPair(pk), !!input.remember)
   }
 
   /**
@@ -419,9 +433,22 @@ export const store = defineStore('login', () => {
     keypair: KeyPair,
     remember: boolean
   ): Promise<Authenticated> {
-    const fingerprint = await cryptfns.rsa.getFingerprint(keypair.input as string)
+    const curve = keypair.keyType === 'curve25519'
+
+    const fingerprint = curve
+      ? await ed25519.fingerprint(keypair.publicKey as string)
+      : await cryptfns.rsa.getFingerprint(keypair.input as string)
     const nonce = cryptfns.createFingerprintNonce(fingerprint)
-    const signature = await cryptfns.rsa.sign(keypair, nonce)
+    const signature = curve
+      ? await ed25519.sign(nonce, keypair.input as string)
+      : await cryptfns.rsa.sign(keypair, nonce)
+
+    // Remember-me persists a single RSA PEM and the reload path re-derives its
+    // fingerprint via RSA; a curve bundle carries two keys and can't round-trip
+    // through it. Curve accounts log in fresh each session.
+    // ponytail: curve remember-me needs the whole self/refresh path taught the
+    // bundle format — do it when reload-survival is asked for, not here.
+    const persist = remember && !curve
 
     const response = await Api.post<PrivateKeyRequest, Authenticated>(
       '/api/auth/signature',
@@ -429,7 +456,7 @@ export const store = defineStore('login', () => {
       {
         fingerprint,
         signature,
-        remember
+        remember: persist
       }
     )
 
@@ -439,14 +466,35 @@ export const store = defineStore('login', () => {
 
     const authenticated = response.body
 
-    if (remember) {
+    if (persist) {
       await setupAndRemember(authenticated, keypair.input as string, crypto)
     } else {
-      await setupAuthenticated(authenticated, keypair.input as string, crypto)
+      await setupAuthenticated(authenticated, curve ? keypair : (keypair.input as string), crypto)
     }
 
     logger.info(`[auth] logged in as ${authenticated.user.email} (private key)`)
     return response.body as Authenticated
+  }
+
+  function isCurveBundle(material: string): boolean {
+    return material.includes('ed:') && material.includes('x:')
+  }
+
+  async function curveKeyPairFromBundle(material: string): Promise<KeyPair> {
+    const { identity, wrapping } = pkBundle.parseBundle(material)
+    if (!identity || !wrapping) {
+      throw new Error('Recovery key is missing its identity or wrapping key')
+    }
+    const publicKey = await ed25519.publicFromPrivate(identity)
+    return {
+      input: identity,
+      publicKey,
+      fingerprint: await ed25519.fingerprint(publicKey),
+      keySize: 0,
+      keyType: 'curve25519',
+      wrappingPrivate: wrapping,
+      wrappingPublic: await x25519.publicFromPrivate(wrapping)
+    }
   }
 
   /**
