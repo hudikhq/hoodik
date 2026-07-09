@@ -36,8 +36,19 @@ impl opaque_ke::CipherSuite for HoodikCipherSuite {
 
 /// The frozen Argon2id KSF. OWASP's m=64 MiB / t=3 / p=1 — p=1 because WASM
 /// computes lanes serially, and these bytes are locked forever by `export_key`.
+#[cfg(not(feature = "fast-test-kdf"))]
 fn ksf() -> CryptoResult<Argon2<'static>> {
     let params = Params::new(64 * 1024, 3, 1, None)
+        .map_err(|e| Error::KeyEncoding(format!("argon2 params: {e}")))?;
+    Ok(Argon2::new(Algorithm::Argon2id, Version::V0x13, params))
+}
+
+/// Cheap Argon2id parameters for the e2e WASM build only. Enabled solely by the
+/// `fast-test-kdf` cargo feature, which the production `wasm`/`build` recipes
+/// never set — those keep the secure m=64 MiB KSF above.
+#[cfg(feature = "fast-test-kdf")]
+fn ksf() -> CryptoResult<Argon2<'static>> {
+    let params = Params::new(8 * 1024, 1, 1, None)
         .map_err(|e| Error::KeyEncoding(format!("argon2 params: {e}")))?;
     Ok(Argon2::new(Algorithm::Argon2id, Version::V0x13, params))
 }

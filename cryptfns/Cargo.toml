@@ -19,6 +19,9 @@ crate-type = ["cdylib", "rlib"]
 default = ["tokenizer"]
 mock = []
 tokenizer = ["dep:tokenizers"]
+# Cheap Argon2id KSF for the e2e WASM build only. Never enabled by production
+# builds — see cryptfns::opaque::ksf.
+fast-test-kdf = []
 
 [dependencies]
 rand = "^0.8"

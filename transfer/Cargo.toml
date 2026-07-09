@@ -24,6 +24,8 @@ wasm = [
 ]
 native = ["reqwest", "tokio"]
 mobile = ["reqwest", "tokio"]
+# Passthrough for the e2e WASM build; forwards to cryptfns' cheap KSF.
+fast-test-kdf = ["cryptfns/fast-test-kdf"]
 
 [dependencies]
 cryptfns = { path = "../cryptfns" }

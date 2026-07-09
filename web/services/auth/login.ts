@@ -378,7 +378,8 @@ export const store = defineStore('login', () => {
       fingerprint: authenticated.user.fingerprint || null,
       keySize: 0,
       keyType: 'curve25519',
-      wrappingPrivate: xPriv || null
+      wrappingPrivate: xPriv || null,
+      wrappingPublic: xPriv ? await x25519.publicFromPrivate(xPriv) : null
     }
 
     // Record the session and start the refresher, same as the legacy and

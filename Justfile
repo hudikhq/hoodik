@@ -52,6 +52,13 @@ wasm:
     mkdir -p web/node_modules/transfer
     cp -R transfer/pkg/. web/node_modules/transfer/
 
+# Same as `wasm`, but with the fast-test-kdf feature so the OPAQUE KSF uses
+# cheap Argon2id params. For the e2e recipe only — never for production builds.
+wasm-e2e:
+    yarn workspace @hoodik/transfer run wasm-pack-e2e
+    mkdir -p web/node_modules/transfer
+    cp -R transfer/pkg/. web/node_modules/transfer/
+
 # ── Editor ────────────────────────────────────────────────────────────────────
 
 # Build the @hoodik/editor workspace. web/ imports the compiled bundle from
@@ -197,7 +204,7 @@ e2e *args:
     # The server bundles `web/dist/` into its binary via hoodik/build.rs,
     # so a stale or missing `dist` makes every Playwright `page.goto` land
     # on an empty 200 OK and every test time out waiting for selectors.
-    just wasm
+    just wasm-e2e
     just build-web
 
     cargo build --bin hoodik --release
