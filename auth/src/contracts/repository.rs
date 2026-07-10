@@ -66,7 +66,7 @@ where
     /// Get a user by fingerprint
     async fn get_by_fingerprint(&self, fingerprint: &str) -> AppResult<users::Model> {
         users::Entity::find()
-            .filter(users::Column::Fingerprint.contains(fingerprint))
+            .filter(users::Column::Fingerprint.eq(fingerprint))
             .one(self.connection())
             .await
             .map_err(Error::from)?

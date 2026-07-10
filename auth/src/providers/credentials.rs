@@ -49,6 +49,11 @@ impl AuthProvider for CredentialsProvider<'_> {
             if !util::password::verify(&password, hashed_password) {
                 return Err(Error::Unauthorized("invalid_credentials".to_string()));
             }
+        } else if user.security_version == 1 || user.opaque_password_file.is_some() {
+            // A migrated account has no bcrypt hash. Tell an old client to
+            // update rather than "wrong password" — `/api/auth/login/start`
+            // already advertises `method: opaque` for it, so this leaks nothing.
+            return Err(Error::Unauthorized("upgrade_required".to_string()));
         } else {
             return Err(Error::Unauthorized("invalid_credentials".to_string()));
         }

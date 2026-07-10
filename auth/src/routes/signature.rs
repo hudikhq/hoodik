@@ -23,9 +23,20 @@ pub(crate) async fn signature(
     let auth = Auth::new(&context);
     let (user_agent, ip) = util::actix::extract_ip_ua(&req);
 
+    let identity = data.fingerprint.as_deref().unwrap_or_default().trim().to_lowercase();
+    let identity = (!identity.is_empty()).then_some(identity.as_str());
+    let now = chrono::Utc::now().timestamp();
+    crate::rate_limit::check(identity, &ip, now)?;
+
     let provider = SignatureProvider::new(&auth, data.into_inner());
 
-    let authenticated = provider.authenticate(&user_agent, &ip).await?;
+    let authenticated = match provider.authenticate(&user_agent, &ip).await {
+        Ok(authenticated) => authenticated,
+        Err(e) => {
+            crate::rate_limit::charge_failure(identity, &ip, now);
+            return Err(e);
+        }
+    };
 
     let mut response = HttpResponse::Ok();
 

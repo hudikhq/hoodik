@@ -8,8 +8,8 @@ use crate::{
     data::{
         claims::Claims,
         opaque::{
-            MigrationComplete, OpaqueLoginFinish, OpaqueLoginStart, OpaqueRegisterFinish,
-            OpaqueRegisterStart, SignupRegisterStart,
+            MigrationComplete, MigrationKeysQuery, OpaqueLoginFinish, OpaqueLoginStart,
+            OpaqueRegisterFinish, OpaqueRegisterStart, RewrapBatch, SignupRegisterStart,
         },
     },
 };
@@ -37,9 +37,10 @@ pub(crate) async fn register_start(
 
 /// Change the password of an OPAQUE (v2) account: store the new password file
 /// and the private-key envelope re-sealed under the new password's `export_key`
-/// in one transaction. The account is authenticated by the current session and
-/// re-proves the new password by having just run OPAQUE registration
-/// client-side.
+/// in one transaction. A session cookie alone is not enough — the request must
+/// carry a signature over the new registration upload, proving possession of
+/// the account's identity private key (which never lives in the session), plus
+/// a TOTP token when 2FA is enabled.
 ///
 /// Request: [crate::data::opaque::OpaqueRegisterFinish]
 #[route("/api/auth/pake/register/finish", method = "POST")]
@@ -49,12 +50,8 @@ pub(crate) async fn register_finish(
     data: web::Json<OpaqueRegisterFinish>,
 ) -> AppResult<HttpResponse> {
     let auth = Auth::new(&context);
-    auth.opaque_register_finish(
-        claims.sub,
-        &data.registration_upload,
-        &data.encrypted_private_key,
-    )
-    .await?;
+    auth.opaque_register_finish(claims.sub, &data.into_inner())
+        .await?;
 
     Ok(HttpResponse::NoContent().finish())
 }
@@ -90,6 +87,10 @@ pub(crate) async fn login_start(
     context: web::Data<Context>,
     data: web::Json<OpaqueLoginStart>,
 ) -> AppResult<HttpResponse> {
+    // Deliberately unthrottled: start carries no secret to guess and always
+    // "succeeds" (unknown emails get a decoy), so a failures-only limiter has
+    // nothing to count. The password-guess signal is the failed `login/finish`,
+    // which is where the throttle lives.
     let auth = Auth::new(&context);
     let response = auth
         .opaque_login_start(&data.email, &data.credential_request)
@@ -113,9 +114,22 @@ pub(crate) async fn login_finish(
     let (user_agent, ip) = util::actix::extract_ip_ua(&req);
     let data = data.into_inner();
 
-    let authenticated = auth
+    // A wrong password fails here, so this is where OPAQUE guessing is throttled.
+    // The wire carries only a fresh `login_id`, never the email, so the identity
+    // window is unavailable — a failed finish is charged to the source IP alone.
+    let now = chrono::Utc::now().timestamp();
+    crate::rate_limit::check(None, &ip, now)?;
+
+    let authenticated = match auth
         .opaque_login_finish(data.login_id, &data.credential_finalization, data.token, &user_agent, &ip)
-        .await?;
+        .await
+    {
+        Ok(authenticated) => authenticated,
+        Err(e) => {
+            crate::rate_limit::charge_failure(None, &ip, now);
+            return Err(e);
+        }
+    };
 
     let mut response = HttpResponse::Ok();
     let (jwt, refresh) = auth.manage_cookies(&authenticated, module_path!())?;
@@ -131,19 +145,43 @@ pub(crate) async fn login_finish(
     Ok(response.json(authenticated))
 }
 
-/// Every `{file_id, encrypted_key}` the authenticated user holds, so the
-/// client can re-wrap each key during migration.
+/// One page of the file keys the authenticated user holds and the public link
+/// keys they own, so the client can re-wrap each one during migration. Paged
+/// (`?offset=&limit=`) so a large account's key set is never held whole in
+/// memory; the response's `next_offset` is the cursor for the next page.
 ///
-/// Response: `Vec<`[crate::data::opaque::MigrationKey]`>`
+/// Response: [crate::data::opaque::MigrationKeys]
 #[route("/api/auth/migration/keys", method = "GET")]
 pub(crate) async fn migration_keys(
     context: web::Data<Context>,
     claims: Claims,
+    q: web::Query<MigrationKeysQuery>,
 ) -> AppResult<HttpResponse> {
     let auth = Auth::new(&context);
-    let keys = auth.migration_keys(claims.sub).await?;
+    let keys = auth.migration_keys(claims.sub, q.offset, q.limit).await?;
 
     Ok(HttpResponse::Ok().json(keys))
+}
+
+/// Stage one batch of re-wrapped file and link keys for the authenticated
+/// legacy account. The client submits its whole re-wrap across several of these
+/// before calling `migration/complete`, which applies the accumulated set
+/// atomically. Idempotent per key, so a retried batch replaces rather than
+/// duplicates.
+///
+/// Request: [crate::data::opaque::RewrapBatch]
+///
+/// Registered with an explicit `JsonConfig` in [`crate::routes::configure`], so
+/// the route path lives there rather than in a `#[route]` attribute here.
+pub(crate) async fn migration_rewrap(
+    context: web::Data<Context>,
+    claims: Claims,
+    data: web::Json<RewrapBatch>,
+) -> AppResult<HttpResponse> {
+    let auth = Auth::new(&context);
+    auth.stage_rewrap(claims.sub, data.into_inner()).await?;
+
+    Ok(HttpResponse::NoContent().finish())
 }
 
 /// Complete the one-shot migration onto Curve25519 + OPAQUE in a single
@@ -152,7 +190,9 @@ pub(crate) async fn migration_keys(
 /// Request: [crate::data::opaque::MigrationComplete]
 ///
 /// Response: the migrated [entity::users::Model]
-#[route("/api/auth/migration/complete", method = "POST")]
+///
+/// Registered with an explicit `JsonConfig` in [`crate::routes::configure`], so
+/// the route path lives there rather than in a `#[route]` attribute here.
 pub(crate) async fn migration_complete(
     context: web::Data<Context>,
     claims: Claims,

@@ -1,20 +1,53 @@
 use chrono::{Duration, Utc};
+use cryptfns::identity::KeyType;
 use entity::{
-    opaque_config, opaque_login_sessions, users, ActiveValue, ColumnTrait, EntityTrait, Expr,
-    OnConflict, QueryFilter, Uuid,
+    opaque_config, opaque_ksf, opaque_login_sessions, users, ActiveValue, ColumnTrait, EntityTrait,
+    Expr, OnConflict, QueryFilter, Uuid,
 };
 use error::{AppResult, Error};
+use std::str::FromStr;
 
 use crate::data::{
     authenticated::Authenticated,
-    opaque::{OpaqueLoginStartResponse, OpaqueRegisterStartResponse},
+    opaque::{
+        KsfParamsResponse, OpaqueLoginStartResponse, OpaqueRegisterFinish,
+        OpaqueRegisterStartResponse,
+    },
 };
+
+/// The OPAQUE protocol version new registrations and migrations record. Bumped
+/// only on a breaking protocol change, which forces lazy re-registration.
+pub(crate) const CURRENT_OPAQUE_PROTOCOL_VERSION: i32 = 1;
+
+/// The KSF parameters a client without a stored record should use: today's
+/// compile-time defaults. Returned for legacy and unknown accounts so the two
+/// are indistinguishable at `login/start`.
+fn default_ksf_response() -> KsfParamsResponse {
+    let params = cryptfns::opaque::current_ksf_params();
+    KsfParamsResponse {
+        algorithm: params.algorithm,
+        m_cost: params.m_cost,
+        t_cost: params.t_cost,
+        p_cost: params.p_cost,
+        protocol_version: CURRENT_OPAQUE_PROTOCOL_VERSION,
+    }
+}
 
 use super::{repository::Repository, sessions::Sessions};
 
 /// How long a login-start server state stays valid before the client must
 /// restart the login.
 const LOGIN_STATE_TTL_SECONDS: i64 = 60;
+
+/// Domain-separation tag the password-change signature commits to. The client
+/// signs `PREFIX\0registration_upload\0issued_at`; the server re-encodes that
+/// canonical from the request's own fields and verifies it against the
+/// account's stored identity key — a wire-supplied canonical is never trusted.
+const PAKE_REGISTER_CANONICAL_PREFIX: &str = "hoodik-pake-register-v1";
+
+/// A password-change signature older than this (server clock) is rejected, so a
+/// captured request cannot be replayed. Matches the migration replay window.
+const PASSWORD_CHANGE_REPLAY_WINDOW_SECONDS: i64 = 300;
 
 /// Server side of the OPAQUE handshake. Registration is driven from inside an
 /// authenticated session (migration, password change, or new-account setup);
@@ -97,32 +130,64 @@ where
     }
 
     /// Finish an authenticated OPAQUE re-registration — the server half of a
-    /// password change for a v2 account. The new password file and the private
-    /// key re-sealed under the new password's `export_key` land in one UPDATE,
-    /// so the account can never end up with a password file whose `export_key`
-    /// no longer opens its key envelope. `security_version` is untouched (the
-    /// account is already on OPAQUE).
+    /// password change for a v2 account. A valid session is not sufficient
+    /// authorization: it is bearer state a stolen cookie can replay, and the
+    /// change overwrites the private-key envelope — after migration the only
+    /// copy of the account's identity key. Authorization therefore requires an
+    /// affirmative ownership proof: a signature by that identity key (which
+    /// never lives in the session), plus TOTP and a replay window — the same
+    /// standard the legacy password change enforces. Only a v2 account may
+    /// reach here; running it on a legacy one would leave both a bcrypt hash and
+    /// an OPAQUE password file live, the hybrid state migration forbids. The new
+    /// password file and re-sealed envelope commit in one UPDATE so the account
+    /// can never hold a password file whose `export_key` no longer opens its
+    /// envelope.
     async fn opaque_register_finish(
         &self,
         user_id: Uuid,
-        registration_upload: &str,
-        encrypted_private_key: &str,
+        data: &OpaqueRegisterFinish,
     ) -> AppResult<()> {
+        let user = self.get_by_id(user_id).await?;
+
+        if user.security_version != 1 {
+            return Err(Error::BadRequest(
+                "password_change_requires_migration".to_string(),
+            ));
+        }
+
+        let now = Utc::now().timestamp();
+        if (now - data.issued_at).abs() > PASSWORD_CHANGE_REPLAY_WINDOW_SECONDS {
+            return Err(Error::BadRequest("signature_timestamp_skew".to_string()));
+        }
+
+        if !user.verify_tfa(data.token.clone()) {
+            return Err(Error::Unauthorized("invalid_otp_token".to_string()));
+        }
+
+        let canonical = format!(
+            "{PAKE_REGISTER_CANONICAL_PREFIX}\0{}\0{}",
+            data.registration_upload, data.issued_at
+        );
+        KeyType::from_str(&user.key_type)?
+            .verify(&canonical, &data.signature, &user.pubkey)
+            .map_err(|_| Error::Unauthorized("ownership_proof_required".to_string()))?;
+
         // The envelope is opaque to the server, but an empty one would replace
         // the user's only copy of their private key with nothing — a one-way
         // brick. Same guard as migration/complete.
-        if encrypted_private_key.trim().is_empty() {
+        if data.encrypted_private_key.trim().is_empty() {
             return Err(Error::BadRequest("encrypted_private_key_required".to_string()));
         }
 
-        let password_file = cryptfns::opaque::server_registration_finish(registration_upload)
-            .map_err(|_| Error::BadRequest("opaque_registration_upload_invalid".to_string()))?;
+        let password_file =
+            cryptfns::opaque::server_registration_finish(&data.registration_upload)
+                .map_err(|_| Error::BadRequest("opaque_registration_upload_invalid".to_string()))?;
 
         users::Entity::update_many()
             .col_expr(users::Column::OpaquePasswordFile, Expr::value(password_file))
             .col_expr(
                 users::Column::EncryptedPrivateKey,
-                Expr::value(encrypted_private_key.to_string()),
+                Expr::value(data.encrypted_private_key.clone()),
             )
             .filter(users::Column::Id.eq(user_id))
             .exec(self.connection())
@@ -148,12 +213,28 @@ where
         // and the password fallback is removed.
         let user = match self.get_by_email(email).await {
             Ok(user) => user,
-            Err(e) if e.is_not_found() => return Ok(OpaqueLoginStartResponse::Password),
+            Err(e) if e.is_not_found() => {
+                return Ok(OpaqueLoginStartResponse::Password { ksf: default_ksf_response() })
+            }
             Err(e) => return Err(e),
         };
 
         let Some(password_file) = user.opaque_password_file.clone() else {
-            return Ok(OpaqueLoginStartResponse::Password);
+            return Ok(OpaqueLoginStartResponse::Password { ksf: default_ksf_response() });
+        };
+
+        let ksf = match opaque_ksf::Entity::find_by_id(user.id)
+            .one(self.connection())
+            .await?
+        {
+            Some(row) => KsfParamsResponse {
+                algorithm: row.ksf_algorithm,
+                m_cost: row.ksf_m_cost as u32,
+                t_cost: row.ksf_t_cost as u32,
+                p_cost: row.ksf_p_cost as u32,
+                protocol_version: row.opaque_protocol_version,
+            },
+            None => default_ksf_response(),
         };
 
         let setup = self.opaque_server_setup().await?;
@@ -187,6 +268,7 @@ where
         Ok(OpaqueLoginStartResponse::Opaque {
             login_id,
             credential_response: started.response,
+            ksf,
         })
     }
 
