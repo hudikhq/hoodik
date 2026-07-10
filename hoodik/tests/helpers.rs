@@ -79,6 +79,92 @@ pub(crate) async fn seed_legacy_user<C: entity::ConnectionTrait>(
     }
 }
 
+/// Bulk-seed `count` owned files for `user_id` directly at the data layer,
+/// returning their ids. The migration regression tests need more files than the
+/// pre-fix single-POST body could carry (~9.6k); creating them through the
+/// storage route would take far too long, and migration only ever reads
+/// `user_files.encrypted_key`, so realistic file rows are unnecessary.
+#[allow(dead_code)]
+pub(crate) async fn seed_owned_files<C: entity::ConnectionTrait>(
+    db: &C,
+    user_id: entity::Uuid,
+    count: usize,
+) -> Vec<entity::Uuid> {
+    use entity::{files, user_files, ActiveValue, EntityTrait};
+
+    let now = chrono::Utc::now().timestamp();
+    let mut file_ids = Vec::with_capacity(count);
+    let mut file_rows = Vec::with_capacity(count);
+    let mut user_file_rows = Vec::with_capacity(count);
+
+    for _ in 0..count {
+        let file_id = entity::Uuid::new_v4();
+        file_ids.push(file_id);
+
+        file_rows.push(files::ActiveModel {
+            id: ActiveValue::Set(file_id),
+            name_hash: ActiveValue::Set("hash".to_string()),
+            encrypted_name: ActiveValue::Set("name".to_string()),
+            encrypted_thumbnail: ActiveValue::Set(None),
+            mime: ActiveValue::Set("text/plain".to_string()),
+            size: ActiveValue::Set(Some(1)),
+            chunks: ActiveValue::Set(Some(1)),
+            chunks_stored: ActiveValue::Set(Some(1)),
+            file_id: ActiveValue::Set(None),
+            md5: ActiveValue::Set(None),
+            sha1: ActiveValue::Set(None),
+            sha256: ActiveValue::Set(None),
+            blake2b: ActiveValue::Set(None),
+            cipher: ActiveValue::Set("aegis256".to_string()),
+            editable: ActiveValue::Set(false),
+            file_modified_at: ActiveValue::Set(now),
+            created_at: ActiveValue::Set(now),
+            finished_upload_at: ActiveValue::Set(Some(now)),
+            active_version: ActiveValue::Set(1),
+            pending_version: ActiveValue::Set(None),
+            pending_chunks: ActiveValue::Set(None),
+            pending_size: ActiveValue::Set(None),
+            last_membership_change_at: ActiveValue::Set(None),
+            members_list_signature: ActiveValue::Set(None),
+            members_list_signed_at: ActiveValue::Set(None),
+            members_list_signed_by_user_id: ActiveValue::Set(None),
+        });
+
+        user_file_rows.push(user_files::ActiveModel {
+            id: ActiveValue::Set(entity::Uuid::new_v4()),
+            file_id: ActiveValue::Set(file_id),
+            user_id: ActiveValue::Set(user_id),
+            encrypted_key: ActiveValue::Set("old-rsa-wrapped-key".to_string()),
+            is_owner: ActiveValue::Set(true),
+            created_at: ActiveValue::Set(now),
+            expires_at: ActiveValue::Set(None),
+            // Owner rows carry the highest non-owner tier; `permission()` returns
+            // Owner from `is_owner` regardless, so the value is moot but must
+            // satisfy the column's CHECK constraint.
+            share_role: ActiveValue::Set("co-owner".to_string()),
+            shared_at: ActiveValue::Set(None),
+            shared_by_user_id: ActiveValue::Set(None),
+            member_signature: ActiveValue::Set(None),
+        });
+    }
+
+    // Chunked so the parameter count stays well under SQLite's bind limit.
+    for chunk in file_rows.chunks(100) {
+        files::Entity::insert_many(chunk.to_vec())
+            .exec_without_returning(db)
+            .await
+            .unwrap();
+    }
+    for chunk in user_file_rows.chunks(100) {
+        user_files::Entity::insert_many(chunk.to_vec())
+            .exec_without_returning(db)
+            .await
+            .unwrap();
+    }
+
+    file_ids
+}
+
 /// The service produced by `test::init_service(server::app(..))`, so helpers
 /// that drive the routes can take the app by reference.
 #[allow(dead_code)]

@@ -36,6 +36,23 @@ migration = { path = "../migration" }
 shares = { path = "../shares" }
 storage = { path = "../storage" }
 
+# Only compiled for the `e2e-seed` legacy-account seeder (see [[bin]] below);
+# a normal build pulls in neither.
+sea-orm = { workspace = true, optional = true }
+util = { path = "../util", optional = true }
+
+[features]
+# Builds the dev-only `seed_legacy` binary. Never enabled by a release build.
+e2e-seed = ["dep:sea-orm", "dep:util"]
+
+# Legacy-account seeder for the browser migration test. Feature-gated so
+# `cargo build --release` never emits it — a public repo must not ship a tool
+# that mints RSA + bcrypt accounts.
+[[bin]]
+name = "seed_legacy"
+path = "src/seed_legacy.rs"
+required-features = ["e2e-seed"]
+
 [dev-dependencies]
 actix-http = "3"
 chrono = { workspace = true }

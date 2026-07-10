@@ -72,17 +72,15 @@ async fn test_creating_and_downloading_link() {
     for (i, chunk) in data.into_iter().enumerate() {
         println!("chunk: {}", i);
         // println!("chunk: {}", i);
-        let checksum = cryptfns::sha256::digest(chunk.as_slice());
-        let uri = format!(
-            "/api/storage/{}?checksum={}&chunk={}&key_hex={}",
-            &file.id, checksum, i, &file_key_hex
-        );
+        let encrypted = cryptfns::aes::encrypt(file_key.clone(), chunk).unwrap();
+        let checksum = cryptfns::sha256::digest(encrypted.as_slice());
+        let uri = format!("/api/storage/{}?checksum={}&chunk={}", &file.id, checksum, i);
 
         let req = test::TestRequest::post()
             .uri(uri.as_str())
             .cookie(jwt.clone())
             .append_header(("Content-Type", "application/octet-stream"))
-            .set_payload(chunk)
+            .set_payload(encrypted)
             .to_request();
 
         let body = test::call_and_read_body(&app, req).await;
@@ -131,15 +129,13 @@ async fn test_creating_and_downloading_link() {
     let body = test::call_and_read_body(&app, req).await;
     let link: AppLink = serde_json::from_slice(&body).unwrap();
 
-    // New behavior (E2EE closure): do not send link_key for content; server streams raw ciphertext.
-    // Client (here the test) uses the link_key + encrypted_file_key (or the provided) to unwrap
-    // and then decrypts locally. We prove server no longer decrypts by checking the body
-    // checksum does not match the known plaintext checksum.
-    let download_linked_file = links::data::download::Download { link_key: None };
+    // E2EE closure: the server streams raw ciphertext and never reads a request
+    // body. A stray `link_key` from an old client is ignored, and the returned
+    // bytes are ciphertext (checksum differs from the known plaintext checksum).
     let uri = format!("/api/links/{}", link.id);
     let req = test::TestRequest::post()
         .uri(&uri)
-        .set_json(download_linked_file)
+        .set_json(json!({ "link_key": "deadbeef" }))
         // .cookie(jwt.clone()) - no need for jwt, this should be public
         .to_request();
 
@@ -220,8 +216,7 @@ async fn test_link_download_decrypts_aegis256_file() {
     let mut file: AppFile = serde_json::from_slice(&body).unwrap();
 
     // The client encrypts chunks before upload — the server only ever sees
-    // AEGIS-256 ciphertext. The `key_hex` server-side convenience is not used
-    // here because it would bypass the cipher under test.
+    // AEGIS-256 ciphertext.
     let file_key = cryptfns::aegis256::generate_key().unwrap();
     let file_key_hex = cryptfns::hex::encode(file_key.clone());
 
@@ -277,11 +272,9 @@ async fn test_link_download_decrypts_aegis256_file() {
     let body = test::call_and_read_body(&app, req).await;
     let link: AppLink = serde_json::from_slice(&body).unwrap();
 
-    // New behavior (E2EE): server returns ciphertext for public link content body.
-    let download_linked_file = links::data::download::Download { link_key: None };
+    // E2EE: server returns ciphertext for public link content.
     let req = test::TestRequest::post()
         .uri(&format!("/api/links/{}", link.id))
-        .set_json(download_linked_file)
         .to_request();
 
     let contents = test::call_and_read_body(&app, req).await.to_vec();
@@ -298,7 +291,6 @@ async fn test_link_download_decrypts_aegis256_file() {
     for i in 0..data.len() {
         let req = test::TestRequest::post()
             .uri(&format!("/api/links/{}?chunk={}", link.id, i))
-            .set_json(links::data::download::Download { link_key: None })
             .to_request();
         per_chunk.extend(test::call_and_read_body(&app, req).await.to_vec());
     }

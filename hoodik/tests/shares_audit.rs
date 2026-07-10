@@ -40,7 +40,7 @@ async fn test_audit_row_inserted_on_grant() {
     let row = &rows[0];
     assert_eq!(row.sender_id, Some(alice.user_id));
     assert_eq!(row.recipient_id, Some(bob.user_id));
-    assert_eq!(row.file_id, file.id);
+    assert_eq!(row.file_id, Some(file.id));
     assert_eq!(row.action, "grant");
     assert_eq!(row.share_role_before, None);
     assert_eq!(row.share_role_after.as_deref(), Some("reader"));
@@ -185,7 +185,7 @@ async fn test_per_sender_chain_continuous_across_multiple_events() {
         let row_input = cryptfns::asn1::AuditEventRowV1 {
             sender_id: row.sender_id.unwrap_or(entity::Uuid::nil()).into_bytes(),
             recipient_id: row.recipient_id.unwrap_or(entity::Uuid::nil()).into_bytes(),
-            file_id: row.file_id.into_bytes(),
+            file_id: row.file_id.unwrap_or(entity::Uuid::nil()).into_bytes(),
             action: row.action.clone(),
             share_role: row
                 .share_role_after

@@ -68,6 +68,8 @@ async fn migrate_user_to_curve<C: ConnectionTrait>(db: &C, user: &TestUser) -> M
         old_key_spki: ActiveValue::Set(KeyType::Rsa.member_pubkey_der(&user.public_pem).unwrap()),
         old_key_type: ActiveValue::Set("rsa".to_string()),
         new_fingerprint: ActiveValue::Set(ed_fingerprint.clone()),
+        new_identity_key_pem: ActiveValue::Set(ed_public.clone()),
+        new_wrapping_key_pem: ActiveValue::Set(x_public.clone()),
         old_signature: ActiveValue::Set(cryptfns::base64::decode(&signatures.old_signature).unwrap()),
         new_signature: ActiveValue::Set(cryptfns::base64::decode(&signatures.new_signature).unwrap()),
         issued_at: ActiveValue::Set(issued_at),
@@ -91,6 +93,113 @@ async fn migrate_user_to_curve<C: ConnectionTrait>(db: &C, user: &TestUser) -> M
     .unwrap();
 
     MigratedTo { ed_public, ed_fingerprint }
+}
+
+/// Rotate `user` through two hops: RSA→Curve25519, then Curve25519→Curve25519,
+/// inserting a genuine transition row for each and leaving the account on the
+/// second curve identity. This is the future ML-DSA-rotation shape — a chain the
+/// old schema could not verify past its most recent hop. `user.key_type` stays
+/// RSA in the fixture so a roster the owner signed before ever rotating is still
+/// endorsed by the original RSA key.
+async fn migrate_user_twice<C: ConnectionTrait>(db: &C, user: &TestUser) {
+    // Hop 1: RSA (F0) → curve (F1).
+    let ed1_private = cryptfns::ed25519::private::generate().unwrap();
+    let ed1_public = cryptfns::ed25519::public::from_private(&ed1_private).unwrap();
+    let f1_fingerprint = cryptfns::spki::fingerprint(&ed1_public).unwrap();
+    let x1_public = cryptfns::ecdh::public::from_private(&cryptfns::ecdh::private::generate().unwrap()).unwrap();
+    insert_chain_hop(
+        db,
+        user.user_id,
+        KeyType::Rsa,
+        &user.private_pem,
+        &user.public_pem,
+        &user.fingerprint,
+        &ed1_private,
+        &ed1_public,
+        &f1_fingerprint,
+        &x1_public,
+    )
+    .await;
+
+    // Hop 2: curve (F1) → curve (F2).
+    let ed2_private = cryptfns::ed25519::private::generate().unwrap();
+    let ed2_public = cryptfns::ed25519::public::from_private(&ed2_private).unwrap();
+    let f2_fingerprint = cryptfns::spki::fingerprint(&ed2_public).unwrap();
+    let x2_public = cryptfns::ecdh::public::from_private(&cryptfns::ecdh::private::generate().unwrap()).unwrap();
+    insert_chain_hop(
+        db,
+        user.user_id,
+        KeyType::Curve25519,
+        &ed1_private,
+        &ed1_public,
+        &f1_fingerprint,
+        &ed2_private,
+        &ed2_public,
+        &f2_fingerprint,
+        &x2_public,
+    )
+    .await;
+
+    users::Entity::update(users::ActiveModel {
+        id: ActiveValue::Unchanged(user.user_id),
+        pubkey: ActiveValue::Set(ed2_public),
+        fingerprint: ActiveValue::Set(f2_fingerprint),
+        key_type: ActiveValue::Set("curve25519".to_string()),
+        wrapping_pubkey: ActiveValue::Set(Some(x2_public)),
+        security_version: ActiveValue::Set(1),
+        ..Default::default()
+    })
+    .exec(db)
+    .await
+    .unwrap();
+}
+
+/// Build, sign, and persist one genuine transition row endorsing a new curve
+/// identity with an old key, exactly as `migration_complete` would.
+#[allow(clippy::too_many_arguments)]
+async fn insert_chain_hop<C: ConnectionTrait>(
+    db: &C,
+    user_id: Uuid,
+    old_key_type: KeyType,
+    old_private: &str,
+    old_public: &str,
+    old_fingerprint: &str,
+    new_ed_private: &str,
+    new_ed_public: &str,
+    new_fingerprint: &str,
+    new_wrapping_public: &str,
+) {
+    let issued_at = Utc::now().timestamp();
+    let cert = Certificate {
+        user_id: user_id.into_bytes(),
+        old_key_type,
+        old_key_pem: old_public,
+        old_fingerprint,
+        new_identity_key_pem: new_ed_public,
+        new_wrapping_key_pem: new_wrapping_public,
+        new_fingerprint,
+        issued_at,
+    };
+    let signatures = cert.sign(old_private, new_ed_private).unwrap();
+    cert.verify(&signatures).unwrap();
+
+    key_transitions::Entity::insert(key_transitions::ActiveModel {
+        id: ActiveValue::Set(Uuid::new_v4()),
+        user_id: ActiveValue::Set(user_id),
+        old_fingerprint: ActiveValue::Set(old_fingerprint.to_string()),
+        old_key_spki: ActiveValue::Set(old_key_type.member_pubkey_der(old_public).unwrap()),
+        old_key_type: ActiveValue::Set(old_key_type.as_str().to_string()),
+        new_fingerprint: ActiveValue::Set(new_fingerprint.to_string()),
+        new_identity_key_pem: ActiveValue::Set(new_ed_public.to_string()),
+        new_wrapping_key_pem: ActiveValue::Set(new_wrapping_public.to_string()),
+        old_signature: ActiveValue::Set(cryptfns::base64::decode(&signatures.old_signature).unwrap()),
+        new_signature: ActiveValue::Set(cryptfns::base64::decode(&signatures.new_signature).unwrap()),
+        issued_at: ActiveValue::Set(issued_at),
+        created_at: ActiveValue::Set(Utc::now().timestamp()),
+    })
+    .exec_without_returning(db)
+    .await
+    .unwrap();
 }
 
 /// Owner alice signs the folder roster with her RSA key; she then migrates to
@@ -143,6 +252,58 @@ async fn test_roster_signature_verifies_after_owner_migration() {
         status,
         StatusCode::CREATED,
         "an RSA-signed roster must still verify after the owner migrates, via chain resolution; body={body:?}",
+    );
+}
+
+/// The multi-hop case the old schema could not verify: alice signs the roster
+/// with her RSA key, then rotates TWICE (RSA→curve→curve). A co-owner re-shares,
+/// and the server verifies the original RSA-signed roster only by walking the
+/// whole chain from alice's current identity back to the original key. The
+/// single-hop resolver would return the *intermediate* key (F1) and reject the
+/// share; resolving to the genuine original (F0) is what makes this pass.
+#[actix_web::test]
+async fn test_roster_signature_verifies_after_two_owner_migrations() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, carol, "carol@example.com");
+    register_user!(app, context, dave, "dave@example.com");
+    let folder = create_folder!(app, alice, "chain2-folder");
+
+    let after_carol = vec![
+        FolderListMemberSpec { user: &alice, share_role: ShareRoleEnum::CoOwner, is_owner: true, signed_by: &alice },
+        FolderListMemberSpec { user: &carol, share_role: ShareRoleEnum::CoOwner, is_owner: false, signed_by: &alice },
+    ];
+    grant_folder!(app, alice, carol, ShareRoleEnum::CoOwner, folder.id, alice, &after_carol, alice);
+
+    // alice rotates twice: RSA → curve → curve. Her stored roster signature is
+    // now two hops behind her current identity.
+    migrate_user_twice(&context.db, &alice).await;
+
+    let after_dave = vec![
+        FolderListMemberSpec { user: &alice, share_role: ShareRoleEnum::CoOwner, is_owner: true, signed_by: &alice },
+        FolderListMemberSpec { user: &carol, share_role: ShareRoleEnum::CoOwner, is_owner: false, signed_by: &alice },
+        FolderListMemberSpec { user: &dave, share_role: ShareRoleEnum::Editor, is_owner: false, signed_by: &carol },
+    ];
+    let envelope = build_co_owner_folder_share_envelope(
+        &carol,
+        &dave,
+        ShareRoleEnum::Editor,
+        folder.id,
+        alice.user_id,
+        random_nonce(),
+        now_secs(),
+        &after_dave,
+        &alice,
+    );
+    let resp = post_share!(app, carol, envelope);
+    let status = resp.status();
+    let body: Value = test::read_body_json(resp).await;
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "an RSA-signed roster must verify after two owner migrations, via full-chain resolution; body={body:?}",
     );
 }
 

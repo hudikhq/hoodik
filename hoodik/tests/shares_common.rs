@@ -68,7 +68,7 @@ impl TestUser {
     }
 
     /// Wrap a file key under the account's own key material: RSA encrypt
-    /// for legacy accounts, X25519 ECDH wrap for curve25519 accounts.
+    /// for legacy accounts, hybrid X25519 + ML-KEM wrap for curve25519 accounts.
     pub fn wrap_key(&self, key: &str) -> String {
         match self.key_type {
             KeyType::Rsa => cryptfns::rsa::public::encrypt(key, &self.public_pem),
@@ -1000,9 +1000,9 @@ pub fn generate_keypair() -> (String, String, String) {
     (private_pem, public_pem, fingerprint)
 }
 
-/// Key material for a curve25519 account: Ed25519 identity keypair plus
-/// X25519 wrapping keypair. Returns `(private_pem, public_pem, fingerprint,
-/// wrapping_private_pem, wrapping_public_pem)`.
+/// Key material for a curve25519 account: Ed25519 identity keypair plus hybrid
+/// X25519 + ML-KEM wrapping keypair. Returns `(private_pem, public_pem,
+/// fingerprint, wrapping_private_pem, wrapping_public_pem)`.
 pub fn generate_curve25519_keypair() -> (String, String, String, String, String) {
     let private_pem = cryptfns::ed25519::private::generate().unwrap();
     let public_pem = cryptfns::ed25519::public::from_private(&private_pem).unwrap();

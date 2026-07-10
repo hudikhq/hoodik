@@ -80,6 +80,8 @@ async fn test_key_transition_certificate_persists() {
         old_key_spki: ActiveValue::Set(KeyType::Rsa.member_pubkey_der(&rsa_public).unwrap()),
         old_key_type: ActiveValue::Set("rsa".to_string()),
         new_fingerprint: ActiveValue::Set(ed_fingerprint.clone()),
+        new_identity_key_pem: ActiveValue::Set(ed_public.clone()),
+        new_wrapping_key_pem: ActiveValue::Set(x_public.clone()),
         old_signature: ActiveValue::Set(cryptfns::base64::decode(&signatures.old_signature).unwrap()),
         new_signature: ActiveValue::Set(cryptfns::base64::decode(&signatures.new_signature).unwrap()),
         issued_at: ActiveValue::Set(issued_at),
@@ -97,6 +99,30 @@ async fn test_key_transition_certificate_persists() {
         .expect("transition row persists and is retrievable by old fingerprint");
     assert_eq!(row.new_fingerprint, ed_fingerprint);
     assert_eq!(row.user_id, user_id);
+    assert_eq!(row.new_identity_key_pem, ed_public);
+    assert_eq!(row.new_wrapping_key_pem, x_public);
+
+    // A certificate rebuilt from the row's stored components alone — no
+    // dependence on the account's live keys — verifies under both signatures.
+    // This is the property that keeps an intermediate hop verifiable after the
+    // account has rotated past it.
+    let old_pem = KeyType::Rsa.pem_from_member_der(&row.old_key_spki).unwrap();
+    let rebuilt = Certificate {
+        user_id: user_id.into_bytes(),
+        old_key_type: KeyType::Rsa,
+        old_key_pem: &old_pem,
+        old_fingerprint: &row.old_fingerprint,
+        new_identity_key_pem: &row.new_identity_key_pem,
+        new_wrapping_key_pem: &row.new_wrapping_key_pem,
+        new_fingerprint: &row.new_fingerprint,
+        issued_at: row.issued_at,
+    };
+    rebuilt
+        .verify(&cryptfns::transition::Signatures {
+            old_signature: cryptfns::base64::encode(&row.old_signature),
+            new_signature: cryptfns::base64::encode(&row.new_signature),
+        })
+        .expect("the persisted row self-verifies from its stored components");
 }
 
 #[actix_web::test]
@@ -135,6 +161,8 @@ async fn test_old_fingerprint_is_unique() {
         old_key_spki: ActiveValue::Set(vec![1, 2, 3]),
         old_key_type: ActiveValue::Set("rsa".to_string()),
         new_fingerprint: ActiveValue::Set("new".to_string()),
+        new_identity_key_pem: ActiveValue::Set("new-identity-pem".to_string()),
+        new_wrapping_key_pem: ActiveValue::Set("new-wrapping-pem".to_string()),
         old_signature: ActiveValue::Set(vec![4, 5]),
         new_signature: ActiveValue::Set(vec![6, 7]),
         issued_at: ActiveValue::Set(0),

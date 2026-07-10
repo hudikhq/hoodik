@@ -2,8 +2,8 @@
 //! signature login, and the four sender/recipient share combinations.
 //!
 //! Curve25519 accounts sign with their Ed25519 identity key and receive
-//! file keys as X25519 ECDH wraps; RSA accounts keep the legacy behaviour.
-//! Every test drives the real HTTP routes end-to-end.
+//! file keys as hybrid X25519 + ML-KEM-768 wraps; RSA accounts keep the legacy
+//! behaviour. Every test drives the real HTTP routes end-to-end.
 
 #[macro_use]
 #[path = "./shares_common.rs"]
@@ -97,7 +97,7 @@ async fn test_registration_rejects_bad_curve25519_input() {
         )
     );
 
-    // A curve25519 account without an X25519 wrapping key can never
+    // A curve25519 account without a hybrid wrapping key can never
     // receive a file key.
     let mut missing_wrapping = make_create_curve25519_user(
         "missing-wrapping@example.com",
@@ -107,6 +107,21 @@ async fn test_registration_rejects_bad_curve25519_input() {
     );
     missing_wrapping.wrapping_pubkey = None;
     register_expecting_422!(app, missing_wrapping);
+
+    // A bare X25519 SPKI key is the never-shipped wrapping format; only the
+    // hybrid X25519 + ML-KEM container is accepted.
+    const X25519_SPKI: &str = "-----BEGIN PUBLIC KEY-----\n\
+        MCowBQYDK2VuAyEAMj7hOamJF96N+WAmBu691xekmKrEAA5XBhHjQAWgi24=\n\
+        -----END PUBLIC KEY-----\n";
+    register_expecting_422!(
+        app,
+        make_create_curve25519_user(
+            "bare-x25519-wrapping@example.com",
+            &public_pem,
+            &fingerprint,
+            X25519_SPKI,
+        )
+    );
 
     // The RSA key wraps and signs; a second key is a client bug.
     let (_, rsa_public_pem, rsa_fingerprint) = generate_keypair();
@@ -160,7 +175,7 @@ async fn test_share_matrix_all_four_combos() {
         "deadbeef"
     );
 
-    // rsa -> curve25519: RSA owner wraps the file key for an X25519 recipient.
+    // rsa -> curve25519: RSA owner wraps the file key for a hybrid recipient.
     let carol_wrap =
         cryptfns::ecdh::wrap(file_key, carol.wrapping_public_pem.as_ref().unwrap()).unwrap();
     let envelope = build_share_envelope(
@@ -216,7 +231,7 @@ async fn test_share_matrix_all_four_combos() {
         "deadbeef"
     );
 
-    // curve25519 -> curve25519: Ed25519-signed envelope, X25519 wrap.
+    // curve25519 -> curve25519: Ed25519-signed envelope, hybrid wrap.
     let dave_wrap =
         cryptfns::ecdh::wrap(file_key, dave.wrapping_public_pem.as_ref().unwrap()).unwrap();
     let envelope = build_share_envelope(

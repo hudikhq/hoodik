@@ -104,9 +104,11 @@ test-rust-integration:
     cargo test --test shares_default_cipher -- --nocapture
     cargo test --test shares_dual_key -- --nocapture
     cargo test --test key_transitions -- --nocapture
+    cargo test --test shares_key_transition_chain -- --nocapture
     cargo test --test opaque_login -- --nocapture
     cargo test --test opaque_password_change -- --nocapture
     cargo test --test migration -- --nocapture
+    cargo test --test auth_rate_limit -- --nocapture
     cargo test --test register_v2 -- --nocapture
     cargo test --test shares_groups -- --nocapture
     cargo test --test shares_fork -- --nocapture
@@ -208,6 +210,7 @@ e2e *args:
     just build-web
 
     cargo build --bin hoodik --release
+    cargo build -p hoodik --bin seed_legacy --release --features e2e-seed
 
     RUST_LOG=error $PWD/target/release/hoodik &
     SERVER_PID=$!
@@ -216,6 +219,13 @@ e2e *args:
     trap cleanup EXIT
 
     node_modules/.bin/wait-on -t 600000 http://127.0.0.1:5443/api/liveness
+
+    # Seed one legacy (RSA + bcrypt) account with a file and a public link.
+    # Registration is Curve25519 + OPAQUE only, so migration.spec.ts has no
+    # other way to obtain a migratable account. Runs after liveness (schema is
+    # migrated at boot) and before Playwright. The email, password and file
+    # name here must match the constants in web/e2e/migration.spec.ts.
+    $PWD/target/release/seed_legacy "$DATA_DIR/sqlite.db" "legacy-migrate@e2e.test" "legacy-password-1234" "$PWD/web/e2e/fixtures/test-image.png"
 
     export ENV_FILE="../.env.e2e"
     yarn workspace @hoodik/web test:e2e -- {{args}}
