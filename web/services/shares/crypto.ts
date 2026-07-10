@@ -96,7 +96,7 @@ function pemToDerBytes(pem: string): Uint8Array {
  * The key material the SPA holds about another user, as the server
  * serialises it on member, audit, and discovery records. `key_type`
  * absent means an RSA account; `"curve25519"` accounts sign with their
- * Ed25519 identity `pubkey` and receive key wraps under their X25519
+ * Ed25519 identity `pubkey` and receive key wraps under their hybrid
  * `wrapping_pubkey`.
  */
 export interface SignerKey {
@@ -155,10 +155,11 @@ async function verifyBytesForSigner(
 }
 
 function isCurvePrivate(pem: string): boolean {
-  if (!pem) return false
-  const u = pem.toUpperCase()
-  // Ed25519 PKCS#8 PEMs from our generators do not contain "RSA"
-  return u.includes('ED25519') || (u.includes('BEGIN PRIVATE KEY') && !u.includes('RSA'))
+  // Only RSA keys carry "RSA" in their PEM armor; the Ed25519 identity key and
+  // the hybrid wrapping key do not. Testing for the absence of "RSA" — the same
+  // discriminator `isCurveKey` uses — avoids depending on the exact label, which
+  // is what broke this when the wrapping key gained its own HOODIK WRAPPING armor.
+  return !!pem && !pem.toUpperCase().includes('RSA')
 }
 
 /**
@@ -184,15 +185,15 @@ export function toBase64Nonce(nonce: Uint8Array): string {
 /**
  * Decrypt the caller's own wrap of a file key.
  * For legacy RSA accounts this is an RSA private-key operation (hex inside).
- * For curve25519 accounts the stored value is an X25519 ECIES blob; we unwrap
- * with the X private and return hex so callers are unchanged.
+ * For curve25519 accounts the stored value is a hybrid wrap blob; we unwrap
+ * with the wrapping private and return hex so callers are unchanged.
  */
 export async function decryptOwnFileKey(
   encryptedKey: string,
   privateKey: string
 ): Promise<string> {
   if (isCurvePrivate(privateKey)) {
-    const keyBytes = await cryptfns.x25519.unwrap(encryptedKey, privateKey)
+    const keyBytes = await cryptfns.wrapping.unwrap(encryptedKey, privateKey)
     return cryptfns.uint8.toHex(keyBytes)
   }
   return cryptfns.rsa.decryptMessage(privateKey, encryptedKey)
@@ -202,7 +203,7 @@ export async function decryptOwnFileKey(
  * Wrap a file key for a recipient. RSA accounts (the default when
  * `key_type` is absent) encrypt the key's HEX STRING — the format every
  * stored wrap has used since v1; curve25519 accounts seal the RAW key
- * BYTES in an X25519 ECIES blob under `wrapping_pubkey`. Both come back
+ * BYTES in a hybrid wrap blob under `wrapping_pubkey`. Both come back
  * base64 — the encoding the server stores in `user_files.encrypted_key`.
  */
 export async function wrapForRecipient(
@@ -213,7 +214,7 @@ export async function wrapForRecipient(
     if (!recipient.wrapping_pubkey) {
       throw new Error('curve25519 recipient has no wrapping pubkey')
     }
-    return cryptfns.x25519.wrap(cryptfns.uint8.fromHex(fileKeyHex), recipient.wrapping_pubkey)
+    return cryptfns.wrapping.wrap(cryptfns.uint8.fromHex(fileKeyHex), recipient.wrapping_pubkey)
   }
   return cryptfns.rsa.encryptMessage(fileKeyHex, recipient.pubkey)
 }

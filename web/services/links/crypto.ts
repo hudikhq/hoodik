@@ -3,7 +3,7 @@ import type { AppLink, EncryptedAppLink, KeyPair } from 'types'
 
 /**
  * True for a curve25519 key PEM. RSA PEMs carry "RSA" in their armor; the
- * Ed25519/X25519 PEMs our generators emit do not, so the absence of "RSA"
+ * Ed25519 and hybrid wrapping PEMs our generators emit do not, so the absence of "RSA"
  * is the discriminator — the same test `storage/meta.ts` uses on file keys.
  */
 export function isCurveKey(pem: string): boolean {
@@ -26,12 +26,15 @@ export async function verifyOwnerSignature(link: EncryptedAppLink): Promise<bool
  * Unwrap the link key from the owner's own wrap of it, returning it as hex.
  *
  * RSA accounts stored it as an RSA encryption of the hex string; curve25519
- * accounts stored it as an X25519 ECIES blob under the owner's wrapping key.
+ * accounts stored it as a hybrid wrap blob under the owner's wrapping key.
  */
 export async function unwrapOwnLinkKey(encryptedLinkKey: string, kp: KeyPair): Promise<string> {
-  const wrapPriv = (kp as any).wrappingPrivate || kp.input
+  const wrapPriv = kp.wrappingPrivate || kp.input
+  if (!wrapPriv) {
+    throw new Error('Cannot unwrap link key without a private key')
+  }
   if (isCurveKey(wrapPriv)) {
-    const keyBytes = await cryptfns.x25519.unwrap(encryptedLinkKey, wrapPriv)
+    const keyBytes = await cryptfns.wrapping.unwrap(encryptedLinkKey, wrapPriv)
     return cryptfns.uint8.toHex(keyBytes)
   }
   return cryptfns.rsa.decryptMessage(kp, encryptedLinkKey)

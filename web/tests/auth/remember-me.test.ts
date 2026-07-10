@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { encodeBundle } from '../../services/auth/bundle'
 import * as pk from '../../services/auth/pk'
 import * as ed25519 from '../../services/cryptfns/ed25519'
-import * as x25519 from '../../services/cryptfns/x25519'
+import * as wrapping from '../../services/cryptfns/wrapping'
 
 import type { Authenticated } from '../../types'
 
@@ -27,8 +27,8 @@ vi.mock('../../services/api', () => ({
 async function makeCurveAccount() {
   const edPriv = await ed25519.generatePrivateKey()
   const edPub = await ed25519.publicFromPrivate(edPriv)
-  const xPriv = await x25519.generatePrivateKey()
-  const xPub = await x25519.publicFromPrivate(xPriv)
+  const xPriv = await wrapping.generatePrivateKey()
+  const xPub = await wrapping.publicFromPrivate(xPriv)
   const fingerprint = await ed25519.fingerprint(edPub)
   return { edPriv, edPub, xPriv, xPub, fingerprint }
 }
@@ -87,6 +87,30 @@ describe('Remember-me — curve25519 restore', () => {
     expect(crypto.keypair.wrappingPrivate).toBe(acct.xPriv)
     expect(crypto.keypair.wrappingPublic).toBe(acct.xPub)
     expect(crypto.keypair.fingerprint).toBe(acct.fingerprint)
+  })
+
+  it('UNIT: a persisted bundle carrying the rsa segment restores the retained RSA key', async () => {
+    const acct = await makeCurveAccount()
+    const RSA_PEM = '-----BEGIN RSA PRIVATE KEY-----\nRETAINED\n-----END RSA PRIVATE KEY-----'
+
+    await pk.setRememberMe(
+      encodeBundle({ identity: acct.edPriv, wrapping: acct.xPriv, rsa: RSA_PEM }),
+      DEVICE_ID
+    )
+
+    const { store: loginStore } = await import('../../services/auth/login')
+    const { store: cryptoStore } = await import('../../services/crypto')
+    const login = loginStore()
+    const crypto = cryptoStore()
+
+    refreshBody = authenticatedFor(acct.fingerprint)
+    await login.refresh(crypto)
+
+    // A migrated account's old RSA key rides inside the bundle so pre-migration
+    // ciphertext stays readable after a browser reload.
+    expect(crypto.keypair.legacyPrivate).toBe(RSA_PEM)
+    expect(crypto.keypair.input).toBe(acct.edPriv)
+    expect(crypto.keypair.wrappingPrivate).toBe(acct.xPriv)
   })
 
   it('UNIT: a bundle whose fingerprint does not match the authenticated user is rejected', async () => {

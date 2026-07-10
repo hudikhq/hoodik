@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 import * as cryptfns from '../../services/cryptfns'
 import * as ed25519 from '../../services/cryptfns/ed25519'
-import * as x25519 from '../../services/cryptfns/x25519'
+import * as wrapping from '../../services/cryptfns/wrapping'
 import * as envelope from '../../services/cryptfns/envelope'
 import { parseBundle } from '../../services/auth/bundle'
 
@@ -43,7 +43,7 @@ describe('v2 change-password ceremony', () => {
     const { changePasswordV2 } = await import('../../services/account')
 
     const edPriv = await ed25519.generatePrivateKey()
-    const xPriv = await x25519.generatePrivateKey()
+    const xPriv = await wrapping.generatePrivateKey()
 
     const keypair: KeyPair = {
       input: edPriv,
@@ -52,7 +52,7 @@ describe('v2 change-password ceremony', () => {
       keySize: 0,
       keyType: 'curve25519',
       wrappingPrivate: xPriv,
-      wrappingPublic: await x25519.publicFromPrivate(xPriv)
+      wrappingPublic: await wrapping.publicFromPrivate(xPriv)
     }
 
     await changePasswordV2(keypair, 'a-brand-new-passphrase')
@@ -64,15 +64,87 @@ describe('v2 change-password ceremony', () => {
     const finishPost = posts.find((p) => p.path === '/api/auth/pake/register/finish')
     expect(finishPost).toBeDefined()
     const body = finishPost!.body as Record<string, unknown>
-    expect(Object.keys(body).sort()).toEqual(['encrypted_private_key', 'registration_upload'])
+    expect(Object.keys(body).sort()).toEqual([
+      'encrypted_private_key',
+      'issued_at',
+      'registration_upload',
+      'signature',
+      'token'
+    ])
     expect(body.registration_upload).toBe('client-upload')
     expect(typeof body.encrypted_private_key).toBe('string')
+    expect(typeof body.issued_at).toBe('number')
+    expect(body.token).toBe(null)
+
+    // The ownership proof is an Ed25519 signature over the byte-exact canonical
+    // the server re-derives from its own state; pin the string so a drift on
+    // either side surfaces here rather than as a silent 401.
+    const canonical = `hoodik-pake-register-v1\0client-upload\0${body.issued_at}`
+    expect(
+      await ed25519.verify(canonical, body.signature as string, keypair.publicKey as string)
+    ).toBe(true)
 
     // The stored envelope opens under the KEK derived from the new export_key
     // and recovers the exact in-memory keys — the account is not stranded.
     const kek = await envelope.deriveKek(cryptfns.uint8.fromBase64(EXPORT_KEY))
     const reopened = await envelope.open(kek, body.encrypted_private_key as string)
     const parsed = parseBundle(new TextDecoder().decode(reopened))
+    expect(parsed.identity).toBe(edPriv)
+    expect(parsed.wrapping).toBe(xPriv)
+  })
+
+  it('UNIT: forwards the TOTP token on the v2 path', async () => {
+    const { changePasswordV2 } = await import('../../services/account')
+
+    const edPriv = await ed25519.generatePrivateKey()
+    const xPriv = await wrapping.generatePrivateKey()
+    const keypair: KeyPair = {
+      input: edPriv,
+      publicKey: await ed25519.publicFromPrivate(edPriv),
+      fingerprint: 'fp',
+      keySize: 0,
+      keyType: 'curve25519',
+      wrappingPrivate: xPriv,
+      wrappingPublic: await wrapping.publicFromPrivate(xPriv)
+    }
+
+    await changePasswordV2(keypair, 'a-brand-new-passphrase', '123456')
+
+    const body = posts.find((p) => p.path === '/api/auth/pake/register/finish')!.body as Record<
+      string,
+      unknown
+    >
+    expect(body.token).toBe('123456')
+  })
+
+  it('UNIT: re-seals the retained RSA key when the keypair carries one', async () => {
+    const { changePasswordV2 } = await import('../../services/account')
+
+    const edPriv = await ed25519.generatePrivateKey()
+    const xPriv = await wrapping.generatePrivateKey()
+    const RSA_PEM = '-----BEGIN RSA PRIVATE KEY-----\nRETAINED\n-----END RSA PRIVATE KEY-----'
+    const keypair: KeyPair = {
+      input: edPriv,
+      publicKey: await ed25519.publicFromPrivate(edPriv),
+      fingerprint: 'fp',
+      keySize: 0,
+      keyType: 'curve25519',
+      wrappingPrivate: xPriv,
+      wrappingPublic: await wrapping.publicFromPrivate(xPriv),
+      legacyPrivate: RSA_PEM
+    }
+
+    await changePasswordV2(keypair, 'a-brand-new-passphrase')
+
+    const body = posts.find((p) => p.path === '/api/auth/pake/register/finish')!.body as Record<
+      string,
+      unknown
+    >
+    const kek = await envelope.deriveKek(cryptfns.uint8.fromBase64(EXPORT_KEY))
+    const parsed = parseBundle(
+      new TextDecoder().decode(await envelope.open(kek, body.encrypted_private_key as string))
+    )
+    expect(parsed.rsa).toBe(RSA_PEM)
     expect(parsed.identity).toBe(edPriv)
     expect(parsed.wrapping).toBe(xPriv)
   })

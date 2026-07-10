@@ -5,7 +5,7 @@ import { store } from '!/auth/register'
 import { encodeBundle } from '!/auth/bundle'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
-import { ed25519, x25519 } from '!/cryptfns'
+import { ed25519, wrapping } from '!/cryptfns'
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
@@ -29,8 +29,8 @@ const init = async () => {
   ) {
     const edPriv = await ed25519.generatePrivateKey()
     const edPub = await ed25519.publicFromPrivate(edPriv)
-    const xPriv = await x25519.generatePrivateKey()
-    const xPub = await x25519.publicFromPrivate(xPriv)
+    const xPriv = await wrapping.generatePrivateKey()
+    const xPub = await wrapping.publicFromPrivate(xPriv)
 
     initialValues.identity_private_key = edPriv
     initialValues.pubkey = edPub

@@ -639,7 +639,7 @@ describe('share-to-group fan-out', () => {
       folder_id: FOLDER_ID,
       folder_owner_id: OWNER_ID,
       folder_owner_pubkey_fingerprint: 'cc'.repeat(32),
-      signature_algorithm: 'RSA-PSS',
+      signature_algorithm: 'rsa-pss-sha256',
       members: [
         {
           user_id: OWNER_ID,

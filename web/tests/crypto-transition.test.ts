@@ -10,8 +10,8 @@ describe('Transition test', () => {
     const oldPrivateKey = await crypto.rsa.generateKeyPair()
     const identityPrivateKey = await crypto.ed25519.generatePrivateKey()
     const identityPublicKey = await crypto.ed25519.publicFromPrivate(identityPrivateKey)
-    const wrappingPrivateKey = await crypto.x25519.generatePrivateKey()
-    const wrappingPublicKey = await crypto.x25519.publicFromPrivate(wrappingPrivateKey)
+    const wrappingPrivateKey = await crypto.wrapping.generatePrivateKey()
+    const wrappingPublicKey = await crypto.wrapping.publicFromPrivate(wrappingPrivateKey)
 
     const userId = new Uint8Array(16)
     globalThis.crypto.getRandomValues(userId)

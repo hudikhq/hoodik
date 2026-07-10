@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import Api from '!/api'
+import * as logger from '!/logger'
 import * as meta from './meta'
 import * as crypto from './crypto'
 import type { AppLink, CreateLink, EncryptedAppLink, KeyPair, AppFile } from 'types'
@@ -189,12 +190,22 @@ export const store = defineStore('links', () => {
 
     const encryptedLinks = await meta.all()
 
+    // Decrypt per link and drop the ones that fail rather than rejecting the
+    // whole list: a single link the current key can't unwrap (e.g. wrapped
+    // under a superseded key) must not blank the page for every other link.
     const links = await Promise.all(
-      encryptedLinks.map((link) => crypto.decryptOwnLink(link, kp))
+      encryptedLinks.map(async (link) => {
+        try {
+          return await crypto.decryptOwnLink(link, kp)
+        } catch (err) {
+          logger.warn(`[links] omitting undecryptable link ${link.id}`, err)
+          return null
+        }
+      })
     )
 
     for (const link of links) {
-      upsertItem(link)
+      if (link) upsertItem(link)
     }
 
     loading.value = false

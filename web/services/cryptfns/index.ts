@@ -2,7 +2,7 @@ import * as rsa from './rsa'
 import * as aes from './aes'
 import * as chacha from './chacha'
 import * as cipher from './cipher'
-import * as x25519 from './x25519'
+import * as wrapping from './wrapping'
 import * as ed25519 from './ed25519'
 import * as opaque from './opaque'
 import * as envelope from './envelope'
@@ -20,7 +20,7 @@ export {
   wasm,
   chacha,
   cipher,
-  x25519,
+  wrapping,
   ed25519,
   opaque,
   envelope,

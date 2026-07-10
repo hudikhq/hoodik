@@ -7,6 +7,25 @@ import {
 } from './wasm'
 
 /**
+ * Argon2id parameters that shape OPAQUE's `export_key`. `login/start` returns
+ * the account's stored values; a registration has none yet, so it seals under
+ * these current defaults.
+ */
+export interface KsfParams {
+  m_cost: number
+  t_cost: number
+  p_cost: number
+}
+
+/**
+ * The KSF a fresh registration seals under. Must stay byte-identical to the
+ * server's `current_ksf_params()` (OWASP Argon2id: 64 MiB / t=3 / p=1) — the
+ * server records those same values, and login later re-derives `export_key`
+ * from them. Raising the work factor is a coordinated bump on both sides.
+ */
+export const CURRENT_KSF: KsfParams = { m_cost: 64 * 1024, t_cost: 3, p_cost: 1 }
+
+/**
  * Begin OPAQUE registration; returns the client state to keep and the
  * message to send to the server.
  */
@@ -33,7 +52,14 @@ export async function clientRegistrationFinish(
   password: string
 ): Promise<{ message: string; exportKey: string }> {
   await init()
-  const json = opaque_client_registration_finish(state, response, password)
+  const json = opaque_client_registration_finish(
+    state,
+    response,
+    password,
+    CURRENT_KSF.m_cost,
+    CURRENT_KSF.t_cost,
+    CURRENT_KSF.p_cost
+  )
 
   if (!json) {
     throw new Error('opaque_client_registration_finish failed')
@@ -63,15 +89,25 @@ export async function clientLoginStart(
 /**
  * Finish OPAQUE login against the server's credential response; returns the
  * finalization message, the session key, and the export key used to open
- * the envelope.
+ * the envelope. `ksf` is the account's stored KSF from `login/start` — the
+ * `export_key` only matches what registration produced if it is stretched with
+ * the same parameters.
  */
 export async function clientLoginFinish(
   state: string,
   response: string,
-  password: string
+  password: string,
+  ksf: KsfParams
 ): Promise<{ finalization: string; sessionKey: string; exportKey: string }> {
   await init()
-  const json = opaque_client_login_finish(state, response, password)
+  const json = opaque_client_login_finish(
+    state,
+    response,
+    password,
+    ksf.m_cost,
+    ksf.t_cost,
+    ksf.p_cost
+  )
 
   if (!json) {
     throw new Error('opaque_client_login_finish failed')

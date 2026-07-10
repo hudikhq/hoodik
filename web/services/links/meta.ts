@@ -113,7 +113,7 @@ export async function createLinkFromFile(file: AppFile, kp: KeyPair): Promise<Cr
     : await cryptfns.rsa.sign(kp, file.id)
 
   const encrypted_link_key = crypto.isCurveKey(wrapPub)
-    ? await cryptfns.x25519.wrap(key, wrapPub)
+    ? await cryptfns.wrapping.wrap(key, wrapPub)
     : await cryptfns.rsa.encryptMessage(cryptfns.uint8.toHex(key), wrapPub)
 
   const encrypted_name = await cryptfns.aes.encryptToHex(file.name || 'no-name', key)

@@ -53,8 +53,8 @@ describe('Testing links', () => {
   it('UNIT: curve25519 owners create and decrypt their own link', async () => {
     const edPriv = await cryptfns.ed25519.generatePrivateKey()
     const edPub = await cryptfns.ed25519.publicFromPrivate(edPriv)
-    const xPriv = await cryptfns.x25519.generatePrivateKey()
-    const xPub = await cryptfns.x25519.publicFromPrivate(xPriv)
+    const xPriv = await cryptfns.wrapping.generatePrivateKey()
+    const xPub = await cryptfns.wrapping.publicFromPrivate(xPriv)
     const file_key = await cryptfns.aes.generateKey()
 
     const kp = {
@@ -98,8 +98,8 @@ describe('Testing links', () => {
 
     const edPriv = await cryptfns.ed25519.generatePrivateKey()
     const edPub = await cryptfns.ed25519.publicFromPrivate(edPriv)
-    const xPriv = await cryptfns.x25519.generatePrivateKey()
-    const xPub = await cryptfns.x25519.publicFromPrivate(xPriv)
+    const xPriv = await cryptfns.wrapping.generatePrivateKey()
+    const xPub = await cryptfns.wrapping.publicFromPrivate(xPriv)
 
     const curveKp = {
       input: edPriv,

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { authenticator } from 'otplib'
 import {
   randomEmail,
   randomPassword,
@@ -65,6 +66,7 @@ test.describe('Change password', () => {
 
     const newPassword = randomPassword()
     await page.locator('#password').fill(newPassword)
+    await page.locator('#token').fill(authenticator.generate(secret))
 
     const finished = page.waitForResponse(
       (res) =>
@@ -76,6 +78,27 @@ test.describe('Change password', () => {
 
     await logout(page)
     await loginWithTwoFactor(page, email, newPassword, secret)
+    await expect(page).toHaveURL(/\/$/)
+  })
+
+  test('a 2FA-enabled v2 account cannot change its password without a token', async ({ page }) => {
+    const email = randomEmail()
+    const password = randomPassword()
+    const { secret } = await createUserWithTwoFactor(page, email, password)
+
+    await openChangePasswordViaSidebar(page)
+    await page.locator('#password').fill(randomPassword())
+
+    const finished = page.waitForResponse(
+      (res) =>
+        res.url().includes('/api/auth/pake/register/finish') &&
+        res.request().method() === 'POST'
+    )
+    await page.getByRole('button', { name: 'Change password' }).click()
+    expect((await finished).status()).toBe(401)
+
+    await logout(page)
+    await loginWithTwoFactor(page, email, password, secret)
     await expect(page).toHaveURL(/\/$/)
   })
 })

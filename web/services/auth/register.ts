@@ -115,7 +115,7 @@ export const store = defineStore('register', () => {
   /**
    * Run the v2 signup ceremony and create the account.
    *
-   * A fresh account is born migrated: Curve25519 identity + X25519 wrapping
+   * A fresh account is born migrated: Curve25519 identity + hybrid wrapping
    * keys, authenticated by OPAQUE. The password never reaches the server —
    * OPAQUE proves it, and its `export_key` seals the private-key bundle into
    * `encrypted_private_key`. Mirrors the migration ceremony in `login.ts`

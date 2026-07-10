@@ -41,7 +41,7 @@ const init = () => {
         .test(
           'weak-password',
           'New password used is too weak',
-          (value: string) => zxcvbn(value).score > 3
+          (value: string) => zxcvbn(value).score >= 3
         )
     }),
     onSubmit: async (values: UnsecureChangePassword, ctx: any) => {
@@ -67,7 +67,7 @@ const init = () => {
 
       try {
         if (isCurve.value) {
-          await changePasswordV2(props.keypair as KeyPair, values.password)
+          await changePasswordV2(props.keypair as KeyPair, values.password, values.token)
         } else {
           await changePassword(values)
         }

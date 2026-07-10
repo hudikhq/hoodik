@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { encodeBundle, parseBundle } from '../../services/auth/bundle'
 import * as cryptfns from '../../services/cryptfns'
 import * as ed25519 from '../../services/cryptfns/ed25519'
-import * as x25519 from '../../services/cryptfns/x25519'
+import * as wrapping from '../../services/cryptfns/wrapping'
 import * as envelope from '../../services/cryptfns/envelope'
 
 import type { CreateUser } from '../../types'
@@ -64,7 +64,7 @@ describe('Register ceremony self-check crypto', () => {
   it('UNIT: sealed bundle reopens and the identity key signs', async () => {
     const edPriv = await ed25519.generatePrivateKey()
     const edPub = await ed25519.publicFromPrivate(edPriv)
-    const xPriv = await x25519.generatePrivateKey()
+    const xPriv = await wrapping.generatePrivateKey()
 
     const kek = await envelope.deriveKek(cryptfns.uint8.fromBase64(EXPORT_KEY))
     const sealed = await envelope.seal(
@@ -100,8 +100,8 @@ describe('Register store — request body', () => {
 
     const edPriv = await ed25519.generatePrivateKey()
     const edPub = await ed25519.publicFromPrivate(edPriv)
-    const xPriv = await x25519.generatePrivateKey()
-    const xPub = await x25519.publicFromPrivate(xPriv)
+    const xPriv = await wrapping.generatePrivateKey()
+    const xPub = await wrapping.publicFromPrivate(xPriv)
 
     const data: CreateUser = {
       email: 'ceremony@test.com',

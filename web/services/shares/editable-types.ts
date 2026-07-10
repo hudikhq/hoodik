@@ -143,7 +143,7 @@ export interface MoveIntoSharedFolderArgs {
   callerPrivateKey: string
   /** Unwraps each moved node's file key before re-wrapping it for the
    *  destination members. Equal to `callerPrivateKey` on legacy RSA accounts;
-   *  the X25519 wrapping key on curve25519 accounts. */
+   *  the hybrid wrapping key on curve25519 accounts. */
   callerWrappingPrivateKey: string
   /** The moved folder root. Its full subtree is enumerated and re-wrapped. */
   root: AppFile

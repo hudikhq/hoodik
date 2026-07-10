@@ -34,6 +34,14 @@ export interface KeyPair {
    * X25519 public key used to wrap file keys on curve25519 accounts.
    */
   wrappingPublic?: string | null
+
+  /**
+   * RSA private key retained on an account migrated away from RSA. Pre-migration
+   * links and files were wrapped under the old key, so it stays sealed inside the
+   * account bundle and must ride along through every session restore and password
+   * change; dropping it makes that older ciphertext permanently unreadable.
+   */
+  legacyPrivate?: string | null
 }
 
 /**

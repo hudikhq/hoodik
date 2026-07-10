@@ -1,4 +1,4 @@
-import { init, transition_sign } from './wasm'
+import { init, transition_sign, key_rotation_audit_sign } from './wasm'
 
 /**
  * Sign a transition certificate binding a user's old key to their new
@@ -38,4 +38,35 @@ export async function sign(args: {
 
   const parsed = JSON.parse(json)
   return { oldSignature: parsed.old_signature, newSignature: parsed.new_signature }
+}
+
+/**
+ * Sign the key-rotation audit event with the new identity key — the first act
+ * of the rotated identity, appended to the owner's audit chain so a later
+ * reader sees why the signing key changed. The base64 signature is submitted as
+ * `audit_event_signature`; the server re-encodes the same canonical from its
+ * own record (user id, old fingerprint, new fingerprint, `rotatedAt`) and
+ * verifies it before committing the migration.
+ */
+export async function keyRotationAuditSign(args: {
+  userId: Uint8Array
+  oldFingerprint: string
+  newFingerprint: string
+  rotatedAt: bigint
+  newIdentityPrivateKey: string
+}): Promise<string> {
+  await init()
+  const signature = key_rotation_audit_sign(
+    args.userId,
+    args.oldFingerprint,
+    args.newFingerprint,
+    args.rotatedAt,
+    args.newIdentityPrivateKey
+  )
+
+  if (!signature) {
+    throw new Error('key_rotation_audit_sign failed')
+  }
+
+  return signature
 }

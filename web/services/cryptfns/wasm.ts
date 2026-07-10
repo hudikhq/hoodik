@@ -14,10 +14,10 @@ import {
   rsa_verify_bytes,
   rsa_public_key_size,
   rsa_private_key_size,
-  x25519_generate_private,
-  x25519_public_from_private,
-  x25519_wrap,
-  x25519_unwrap,
+  wrapping_generate_private,
+  wrapping_public_from_private,
+  wrapping_wrap,
+  wrapping_unwrap,
   ed25519_generate_private,
   ed25519_public_from_private,
   ed25519_sign,
@@ -49,7 +49,8 @@ import {
   envelope_seal,
   envelope_open,
   envelope_rewrap,
-  transition_sign
+  transition_sign,
+  key_rotation_audit_sign
 } from '../../node_modules/transfer/transfer.js'
 
 /**
@@ -81,10 +82,10 @@ export {
   rsa_verify_bytes,
   rsa_public_key_size,
   rsa_private_key_size,
-  x25519_generate_private,
-  x25519_public_from_private,
-  x25519_wrap,
-  x25519_unwrap,
+  wrapping_generate_private,
+  wrapping_public_from_private,
+  wrapping_wrap,
+  wrapping_unwrap,
   ed25519_generate_private,
   ed25519_public_from_private,
   ed25519_sign,
@@ -116,5 +117,6 @@ export {
   envelope_seal,
   envelope_open,
   envelope_rewrap,
-  transition_sign
+  transition_sign,
+  key_rotation_audit_sign
 }

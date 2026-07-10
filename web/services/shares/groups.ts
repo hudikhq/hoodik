@@ -157,7 +157,7 @@ export interface ShareToGroupArgs {
   privateKey: string
   /** Caller's wrapping private key — unwraps each node's file key before
    *  re-wrapping it for each recipient. Equal to `privateKey` on legacy RSA
-   *  accounts; the X25519 key on curve25519 accounts. */
+   *  accounts; the hybrid wrapping key on curve25519 accounts. */
   wrappingPrivateKey: string
   /** TOFU trust store. Each recipient's recomputed fingerprint is reconciled
    *  against it before any key is wrapped; first sight records, a known

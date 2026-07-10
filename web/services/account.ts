@@ -26,7 +26,11 @@ interface OpaqueRegisterStartResponse {
  * password stops working, the new one opens the same keys.
  * @throws
  */
-export async function changePasswordV2(keypair: KeyPair, newPassword: string): Promise<void> {
+export async function changePasswordV2(
+  keypair: KeyPair,
+  newPassword: string,
+  token?: string
+): Promise<void> {
   if (!keypair.input || !keypair.wrappingPrivate) {
     throw new Error('Missing in-memory keys for password change')
   }
@@ -49,15 +53,41 @@ export async function changePasswordV2(keypair: KeyPair, newPassword: string): P
 
   const kek = await envelope.deriveKek(cryptfns.uint8.fromBase64(regFinish.exportKey))
   const bundle = new TextEncoder().encode(
-    encodeBundle({ identity: keypair.input, wrapping: keypair.wrappingPrivate })
+    encodeBundle({
+      identity: keypair.input,
+      wrapping: keypair.wrappingPrivate,
+      rsa: keypair.legacyPrivate ?? undefined
+    })
   )
   const encrypted_private_key = await envelope.seal(kek, bundle)
 
-  await Api.post<{ registration_upload: string; encrypted_private_key: string }, void>(
-    '/api/auth/pake/register/finish',
-    undefined,
-    { registration_upload: regFinish.message, encrypted_private_key }
-  )
+  // Prove ownership of the account's identity key. Without this a stolen session
+  // cookie alone could repoint the password: the server re-encodes this exact
+  // canonical from its own state and verifies the signature against the stored
+  // pubkey, and `issued_at` bounds replay to the server's clock-skew window.
+  const issued_at = Math.floor(Date.now() / 1000)
+  const canonical = `hoodik-pake-register-v1\0${regFinish.message}\0${issued_at}`
+  const signature =
+    keypair.keyType === 'curve25519'
+      ? await cryptfns.ed25519.sign(canonical, keypair.input)
+      : await cryptfns.rsa.sign(keypair, canonical)
+
+  await Api.post<
+    {
+      registration_upload: string
+      encrypted_private_key: string
+      signature: string
+      issued_at: number
+      token: string | null
+    },
+    void
+  >('/api/auth/pake/register/finish', undefined, {
+    registration_upload: regFinish.message,
+    encrypted_private_key,
+    signature,
+    issued_at,
+    token: token || null
+  })
 }
 
 /**

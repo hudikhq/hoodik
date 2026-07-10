@@ -38,6 +38,22 @@ describe('share crypto helpers', () => {
     expect(recovered).toEqual(fileKeyHex)
   })
 
+  it('decrypt_own_file_key_roundtrips_for_a_curve_account', async () => {
+    // A curve account unwraps its own file keys with the hybrid wrapping key,
+    // whose PEM armor is neither RSA nor a bare PKCS#8 label. Guards against the
+    // regression where `decryptOwnFileKey` fell through to the RSA path for it,
+    // breaking share fan-out, move-into-shared, and fork for every v2 account.
+    const wrappingPrivate = await cryptfns.wrapping.generatePrivateKey()
+    const wrappingPublic = await cryptfns.wrapping.publicFromPrivate(wrappingPrivate)
+    const fileKey = await cryptfns.aes.generateKey()
+    const fileKeyHex = cryptfns.uint8.toHex(fileKey)
+
+    const wrapped = await cryptfns.wrapping.wrap(fileKey, wrappingPublic)
+    const recovered = await shareCrypto.decryptOwnFileKey(wrapped, wrappingPrivate)
+
+    expect(recovered).toEqual(fileKeyHex)
+  })
+
   it('wrap_for_recipient_produces_valid_ciphertext', async () => {
     const kp = await cryptfns.rsa.generateKeyPair()
     const fileKey = await cryptfns.aes.generateKey()
@@ -51,12 +67,12 @@ describe('share crypto helpers', () => {
     expect(decrypted).toEqual(fileKeyHex)
   })
 
-  it('wrap_for_recipient_x25519_roundtrips_raw_key_bytes', async () => {
+  it('wrap_for_recipient_curve_roundtrips_raw_key_bytes', async () => {
     const identityPem = await cryptfns.ed25519.publicFromPrivate(
       await cryptfns.ed25519.generatePrivateKey()
     )
-    const wrappingPrivate = await cryptfns.x25519.generatePrivateKey()
-    const wrappingPublic = await cryptfns.x25519.publicFromPrivate(wrappingPrivate)
+    const wrappingPrivate = await cryptfns.wrapping.generatePrivateKey()
+    const wrappingPublic = await cryptfns.wrapping.publicFromPrivate(wrappingPrivate)
     const fileKey = await cryptfns.aes.generateKey()
     const fileKeyHex = cryptfns.uint8.toHex(fileKey)
 
@@ -65,9 +81,9 @@ describe('share crypto helpers', () => {
       key_type: 'curve25519',
       wrapping_pubkey: wrappingPublic
     })
-    // X25519 wraps carry the RAW key bytes (not the hex string RSA wraps
+    // Hybrid wraps carry the RAW key bytes (not the hex string RSA wraps
     // encrypt), so unwrapping must recover the hex-decoded key exactly.
-    const recovered = await cryptfns.x25519.unwrap(blob, wrappingPrivate)
+    const recovered = await cryptfns.wrapping.unwrap(blob, wrappingPrivate)
 
     expect(recovered).toEqual(fileKey)
   })

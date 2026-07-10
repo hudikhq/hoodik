@@ -28,9 +28,9 @@ import type {
  *                name encryption, thumbnail encryption, and chunk encryption.
  */
 function isRsaKey(pem: string): boolean {
-  // RSA PKCS#1 PEMs carry "RSA" in their header line; curve (Ed25519/X25519)
-  // PKCS#8/SPKI PEMs never do. A base64 body can't contain the header's space,
-  // so matching "BEGIN RSA" is an unambiguous key-type check.
+  // RSA PKCS#1 PEMs carry "RSA" in their header line; the Ed25519 identity and
+  // hybrid wrapping PEMs never do. A base64 body can't contain the header's
+  // space, so matching "BEGIN RSA" is an unambiguous key-type check.
   return (pem || '').toUpperCase().includes('BEGIN RSA')
 }
 
@@ -48,11 +48,11 @@ export async function encrypt(
 
   const keyHex = cryptfns.uint8.toHex(key)
 
-  // Curve accounts (post migration) wrap with X25519 ECIES on the raw key
-  // bytes; legacy accounts keep RSA on the hex-encoded key.
+  // Curve accounts (post migration) wrap the raw key bytes with the hybrid
+  // construction; legacy accounts keep RSA on the hex-encoded key.
   const encrypted_key = isRsaKey(publicKey)
     ? await cryptfns.rsa.encryptMessage(keyHex, publicKey)
-    : await cryptfns.x25519.wrap(key, publicKey)
+    : await cryptfns.wrapping.wrap(key, publicKey)
 
   return {
     encrypted_key,
@@ -79,7 +79,7 @@ export async function decrypt(
     const keyHex = await cryptfns.rsa.decryptMessage(privateKey, encrypted.encrypted_key)
     key = cryptfns.uint8.fromHex(keyHex)
   } else {
-    key = await cryptfns.x25519.unwrap(encrypted.encrypted_key, privateKey)
+    key = await cryptfns.wrapping.unwrap(encrypted.encrypted_key, privateKey)
   }
 
   const name = await cryptfns.cipher.decryptString(cipher, encrypted.encrypted_name, key)
@@ -106,7 +106,7 @@ export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise
     throw new Error('Cannot create file without private key')
   }
 
-  const wrapPub = (keypair as any).wrappingPublic || keypair.publicKey
+  const wrapPub = keypair.wrappingPublic || keypair.publicKey
   const encryptedParts = await encrypt(unencrypted, wrapPub, unencrypted.cipher)
 
   const createFile: EncryptedCreateFile = {
@@ -136,7 +136,7 @@ export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise
   }
 
   const file = response.body
-  const unencryptedPart = await decrypt(file, (keypair as any).wrappingPrivate || keypair.input)
+  const unencryptedPart = await decrypt(file, keypair.wrappingPrivate || keypair.input)
 
   return {
     ...file,
@@ -160,7 +160,7 @@ export async function rename(
     throw new Error('Cannot rename file without private key')
   }
 
-  const wrapPub = (keypair as any).wrappingPublic || keypair.publicKey
+  const wrapPub = keypair.wrappingPublic || keypair.publicKey
   const encryptedParts = await encrypt({ key: file.key, name: unencrypted.name }, wrapPub)
 
   const rename: EncryptedRename = {
@@ -203,7 +203,7 @@ export async function get(keypair: KeyPair, file_id: string): Promise<AppFile> {
   }
 
   const file = response.body
-  const unencryptedPart = await decrypt(file, (keypair as any).wrappingPrivate || keypair.input)
+  const unencryptedPart = await decrypt(file, keypair.wrappingPrivate || keypair.input)
 
   return { ...file, ...unencryptedPart }
 }
@@ -233,7 +233,7 @@ export async function getByName(
   }
 
   const file = response.body
-  const unencryptedPart = await decrypt(file, (keypair as any).wrappingPrivate || keypair.input)
+  const unencryptedPart = await decrypt(file, keypair.wrappingPrivate || keypair.input)
 
   return { ...file, ...unencryptedPart }
 }
@@ -342,7 +342,7 @@ export async function setEditable(
   }
 
   const file = response.body
-  const unencryptedPart = await decrypt(file, (keypair as any).wrappingPrivate || keypair.input)
+  const unencryptedPart = await decrypt(file, keypair.wrappingPrivate || keypair.input)
 
   return { ...file, ...unencryptedPart }
 }
