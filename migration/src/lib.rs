@@ -28,6 +28,13 @@ pub(crate) mod m20260705_000001_alter_users_key_type;
 pub(crate) mod m20260705_000002_create_key_transitions;
 pub(crate) mod m20260705_000003_create_opaque_tables;
 pub(crate) mod m20260705_000004_alter_key_transitions_old_key_type;
+pub(crate) mod m20260705_000005_alter_share_events_file_id_nullable;
+pub(crate) mod m20260705_000006_alter_users_ksf_params;
+pub(crate) mod m20260710_000001_create_migration_rewrap_staging;
+pub(crate) mod m20260710_000002_alter_key_transitions_new_keys;
+
+#[cfg(test)]
+mod share_events_rebuild_test;
 
 pub struct Migrator;
 
@@ -63,6 +70,10 @@ impl MigratorTrait for Migrator {
             Box::new(m20260705_000002_create_key_transitions::Migration),
             Box::new(m20260705_000003_create_opaque_tables::Migration),
             Box::new(m20260705_000004_alter_key_transitions_old_key_type::Migration),
+            Box::new(m20260705_000005_alter_share_events_file_id_nullable::Migration),
+            Box::new(m20260705_000006_alter_users_ksf_params::Migration),
+            Box::new(m20260710_000001_create_migration_rewrap_staging::Migration),
+            Box::new(m20260710_000002_alter_key_transitions_new_keys::Migration),
         ]
     }
 }

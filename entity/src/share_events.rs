@@ -8,7 +8,9 @@ pub struct Model {
     pub id: Uuid,
     pub sender_id: Option<Uuid>,
     pub recipient_id: Option<Uuid>,
-    pub file_id: Uuid,
+    /// NULL for account-level events (a `key_rotation` belongs to no file);
+    /// file-scoped events set it and still cascade on file delete.
+    pub file_id: Option<Uuid>,
     pub action: String,
     pub share_role_before: Option<String>,
     pub share_role_after: Option<String>,
