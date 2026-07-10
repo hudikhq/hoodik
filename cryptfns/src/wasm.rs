@@ -119,30 +119,31 @@ pub fn rsa_fingerprint_private(private_key: String) -> Option<String> {
 }
 
 #[wasm_bindgen]
-pub fn x25519_generate_private() -> Option<String> {
+pub fn wrapping_generate_private() -> Option<String> {
     crate::utils::set_panic_hook();
 
     crate::ecdh::private::generate().ok()
 }
 
 #[wasm_bindgen]
-pub fn x25519_public_from_private(private_key: String) -> Option<String> {
+pub fn wrapping_public_from_private(private_key: String) -> Option<String> {
     crate::utils::set_panic_hook();
 
     crate::ecdh::public::from_private(&private_key).ok()
 }
 
-/// Wrap a file key for an X25519 recipient; returns the base64 ECIES blob.
+/// Wrap a file key to a recipient's hybrid wrapping public key; returns the
+/// base64 X25519 + ML-KEM-768 blob.
 #[wasm_bindgen]
-pub fn x25519_wrap(file_key: Vec<u8>, recipient_public_key: String) -> Option<String> {
+pub fn wrapping_wrap(file_key: Vec<u8>, recipient_public_key: String) -> Option<String> {
     crate::utils::set_panic_hook();
 
     crate::ecdh::wrap(&file_key, &recipient_public_key).ok()
 }
 
-/// Unwrap a base64 ECIES blob with the recipient's X25519 private key.
+/// Unwrap a base64 hybrid wrap blob with the recipient's wrapping private key.
 #[wasm_bindgen]
-pub fn x25519_unwrap(blob: String, private_key: String) -> Option<Vec<u8>> {
+pub fn wrapping_unwrap(blob: String, private_key: String) -> Option<Vec<u8>> {
     crate::utils::set_panic_hook();
 
     crate::ecdh::unwrap(&blob, &private_key).ok()
@@ -209,19 +210,26 @@ pub fn opaque_client_registration_start(password: String) -> Option<String> {
     serde_json::to_string(&result).ok()
 }
 
-/// OPAQUE client registration step 2. Returns JSON `{message, export_key}`.
+/// OPAQUE client registration step 2, stretching the password with the given
+/// per-user KSF parameters. Returns JSON `{message, export_key}`.
 #[wasm_bindgen]
 pub fn opaque_client_registration_finish(
     registration_state: String,
     registration_response: String,
     password: String,
+    m_cost: u32,
+    t_cost: u32,
+    p_cost: u32,
 ) -> Option<String> {
     crate::utils::set_panic_hook();
 
-    let result = crate::opaque::client_registration_finish(
+    let result = crate::opaque::client_registration_finish_with_params(
         &registration_state,
         &registration_response,
         password.as_bytes(),
+        m_cost,
+        t_cost,
+        p_cost,
     )
     .ok()?;
     serde_json::to_string(&result).ok()
@@ -236,19 +244,27 @@ pub fn opaque_client_login_start(password: String) -> Option<String> {
     serde_json::to_string(&result).ok()
 }
 
-/// OPAQUE client login step 2. Returns JSON `{finalization, session_key, export_key}`.
+/// OPAQUE client login step 2, stretching the password with the per-user KSF
+/// parameters `login/start` returned. Returns JSON
+/// `{finalization, session_key, export_key}`.
 #[wasm_bindgen]
 pub fn opaque_client_login_finish(
     login_state: String,
     credential_response: String,
     password: String,
+    m_cost: u32,
+    t_cost: u32,
+    p_cost: u32,
 ) -> Option<String> {
     crate::utils::set_panic_hook();
 
-    let result = crate::opaque::client_login_finish(
+    let result = crate::opaque::client_login_finish_with_params(
         &login_state,
         &credential_response,
         password.as_bytes(),
+        m_cost,
+        t_cost,
+        p_cost,
     )
     .ok()?;
     serde_json::to_string(&result).ok()
@@ -323,6 +339,28 @@ pub fn transition_sign(
     )
     .ok()?;
     serde_json::to_string(&signatures).ok()
+}
+
+/// Sign the key-rotation audit event with the new identity key. Returns the
+/// base64 signature the client submits as `audit_event_signature`.
+#[wasm_bindgen]
+pub fn key_rotation_audit_sign(
+    user_id: Vec<u8>,
+    old_fingerprint: String,
+    new_fingerprint: String,
+    rotated_at: i64,
+    new_identity_private_key: String,
+) -> Option<String> {
+    crate::utils::set_panic_hook();
+
+    crate::transition::sign_key_rotation_audit(
+        &user_id,
+        &old_fingerprint,
+        &new_fingerprint,
+        rotated_at,
+        &new_identity_private_key,
+    )
+    .ok()
 }
 
 #[wasm_bindgen]

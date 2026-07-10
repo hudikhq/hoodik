@@ -4,7 +4,10 @@
 //! the canonical from authoritative state and check both signatures against
 //! that — the wire's own bytes are never trusted.
 
-use crate::asn1::{encode_key_transition_v1, KeyTransitionV1, KEY_TRANSITION_V1_PREFIX};
+use crate::asn1::{
+    encode_key_rotation_audit_v1, encode_key_transition_v1, KeyRotationAuditV1, KeyTransitionV1,
+    KEY_ROTATION_AUDIT_V1_PREFIX, KEY_TRANSITION_V1_PREFIX,
+};
 use crate::error::{CryptoResult, Error};
 use crate::identity::KeyType;
 
@@ -29,7 +32,7 @@ impl Certificate<'_> {
             old_key_spki: self.old_key_type.member_pubkey_der(self.old_key_pem)?,
             old_fingerprint: hex32(self.old_fingerprint)?,
             new_identity_key_spki: KeyType::Curve25519.member_pubkey_der(self.new_identity_key_pem)?,
-            new_wrapping_key_spki: spki_der(self.new_wrapping_key_pem)?,
+            new_wrapping_key_spki: crate::ecdh::public::from_str(self.new_wrapping_key_pem)?,
             new_fingerprint: hex32(self.new_fingerprint)?,
             issued_at: self.issued_at,
         };
@@ -114,21 +117,64 @@ pub fn sign_certificate(
     .sign(old_private_key, new_identity_private_key)
 }
 
+/// Sign the key-rotation audit event with the new identity key — the first act
+/// of the new identity, appended to the owner's audit chain so a later reader
+/// sees why the signing key changed. `user_id` is the 16 UUID bytes; the
+/// fingerprints are the hex strings held in `users.fingerprint`.
+pub fn sign_key_rotation_audit(
+    user_id: &[u8],
+    old_fingerprint: &str,
+    new_fingerprint: &str,
+    rotated_at: i64,
+    new_identity_private_key: &str,
+) -> CryptoResult<String> {
+    let input = key_rotation_audit_input(user_id, old_fingerprint, new_fingerprint, rotated_at)?;
+    crate::ed25519::private::sign_bytes(&input, new_identity_private_key)
+}
+
+/// Verify a key-rotation audit signature against the new identity key. The
+/// caller reconstructs the canonical from authoritative state — never the wire.
+pub fn verify_key_rotation_audit(
+    user_id: &[u8],
+    old_fingerprint: &str,
+    new_fingerprint: &str,
+    rotated_at: i64,
+    signature: &str,
+    new_identity_public_key: &str,
+) -> CryptoResult<()> {
+    let input = key_rotation_audit_input(user_id, old_fingerprint, new_fingerprint, rotated_at)?;
+    KeyType::Curve25519
+        .verify_bytes(&input, signature, new_identity_public_key)
+        .map_err(|_| Error::KeyEncoding("key_rotation_audit_signature_invalid".into()))
+}
+
+fn key_rotation_audit_input(
+    user_id: &[u8],
+    old_fingerprint: &str,
+    new_fingerprint: &str,
+    rotated_at: i64,
+) -> CryptoResult<Vec<u8>> {
+    let payload = KeyRotationAuditV1 {
+        user_id: user_id
+            .try_into()
+            .map_err(|_| Error::InvalidLength("user_id must be 16 bytes"))?,
+        old_fingerprint: hex32(old_fingerprint)?,
+        new_fingerprint: hex32(new_fingerprint)?,
+        rotated_at,
+    };
+    let der = encode_key_rotation_audit_v1(&payload)?;
+    let mut input = Vec::with_capacity(KEY_ROTATION_AUDIT_V1_PREFIX.len() + der.len());
+    input.extend_from_slice(KEY_ROTATION_AUDIT_V1_PREFIX);
+    input.extend_from_slice(&der);
+    Ok(input)
+}
+
 fn hex32(fingerprint: &str) -> CryptoResult<[u8; 32]> {
     let bytes = crate::hex::decode(fingerprint)?;
     bytes
         .as_slice()
         .try_into()
         .map_err(|_| Error::InvalidLength("fingerprint must be 32 bytes"))
-}
-
-fn spki_der(public_key_pem: &str) -> CryptoResult<Vec<u8>> {
-    let (label, document) =
-        pkcs8::Document::from_pem(public_key_pem).map_err(|e| Error::KeyEncoding(e.to_string()))?;
-    if label != "PUBLIC KEY" {
-        return Err(Error::KeyEncoding(format!("expected PUBLIC KEY pem, got {label}")));
-    }
-    Ok(document.as_bytes().to_vec())
 }
 
 #[cfg(test)]
@@ -220,6 +266,63 @@ mod tests {
         let mut tampered = cert(&k);
         tampered.new_fingerprint = &k.rsa_fingerprint;
         assert!(tampered.verify(&signatures).is_err());
+    }
+
+    #[test]
+    fn key_rotation_audit_signs_and_verifies_under_new_key() {
+        let k = keys();
+        let user_id = [9u8; 16];
+        let sig = sign_key_rotation_audit(
+            &user_id,
+            &k.rsa_fingerprint,
+            &k.ed_fingerprint,
+            1_783_000_000,
+            &k.ed_private,
+        )
+        .unwrap();
+        verify_key_rotation_audit(
+            &user_id,
+            &k.rsa_fingerprint,
+            &k.ed_fingerprint,
+            1_783_000_000,
+            &sig,
+            &k.ed_public,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn key_rotation_audit_rejects_tampered_state() {
+        let k = keys();
+        let user_id = [9u8; 16];
+        let sig = sign_key_rotation_audit(
+            &user_id,
+            &k.rsa_fingerprint,
+            &k.ed_fingerprint,
+            1_783_000_000,
+            &k.ed_private,
+        )
+        .unwrap();
+        // A verifier that reconstructs a different timestamp must reject it.
+        assert!(verify_key_rotation_audit(
+            &user_id,
+            &k.rsa_fingerprint,
+            &k.ed_fingerprint,
+            1_783_000_001,
+            &sig,
+            &k.ed_public,
+        )
+        .is_err());
+        // ...and the old RSA key must not verify the new identity's signature.
+        assert!(verify_key_rotation_audit(
+            &user_id,
+            &k.rsa_fingerprint,
+            &k.ed_fingerprint,
+            1_783_000_000,
+            &sig,
+            &k.rsa_public,
+        )
+        .is_err());
     }
 
     #[test]

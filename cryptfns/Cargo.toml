@@ -45,6 +45,15 @@ hkdf = "^0.12"
 sha2 = "^0.10"
 opaque-ke = { version = "^4", features = ["ristretto255", "argon2"] }
 argon2 = "^0.5"
+# Post-quantum half of the hybrid file-key wrap. Pinned exactly and stripped to
+# the verified portable path: default-features off keeps `libcrux-traits` from
+# dragging `rand ^0.10` into the wasm graph, and `mlkem768` is the only set we
+# instantiate. The app FFI additionally disables the unverified NEON path via
+# LIBCRUX_DISABLE_SIMD128 (see hoodik-app/rust/.cargo/config.toml).
+libcrux-ml-kem = { version = "=0.0.9", default-features = false, features = ["mlkem768"] }
+# libcrux does not zeroize its key or shared-secret types; we hold the decaps
+# key and every shared secret in Zeroizing ourselves.
+zeroize = { version = "^1", features = ["alloc"] }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires

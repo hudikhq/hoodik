@@ -34,23 +34,59 @@ impl opaque_ke::CipherSuite for HoodikCipherSuite {
     type Ksf = Argon2<'static>;
 }
 
-/// The frozen Argon2id KSF. OWASP's m=64 MiB / t=3 / p=1 — p=1 because WASM
-/// computes lanes serially, and these bytes are locked forever by `export_key`.
+/// The KSF parameters that shape OPAQUE's `export_key`. Recorded per user at
+/// registration so the work factor can be raised later without a mass lockout:
+/// a raised registration stores the new values while existing accounts keep
+/// logging in with the ones their envelope was sealed under.
+pub struct KsfParams {
+    pub algorithm: String,
+    pub m_cost: u32,
+    pub t_cost: u32,
+    pub p_cost: u32,
+}
+
+/// The current default KSF: OWASP's m=64 MiB / t=3 / p=1 — p=1 because WASM
+/// computes lanes serially. New registrations and migrations record these, and
+/// `login/start` returns them for accounts that hold no record of their own.
 #[cfg(not(feature = "fast-test-kdf"))]
-fn ksf() -> CryptoResult<Argon2<'static>> {
-    let params = Params::new(64 * 1024, 3, 1, None)
+pub fn current_ksf_params() -> KsfParams {
+    KsfParams { algorithm: "argon2id".to_string(), m_cost: 64 * 1024, t_cost: 3, p_cost: 1 }
+}
+
+/// Cheap defaults for the e2e WASM build only, enabled solely by the
+/// `fast-test-kdf` cargo feature that the production `wasm`/`build` recipes
+/// never set.
+#[cfg(feature = "fast-test-kdf")]
+pub fn current_ksf_params() -> KsfParams {
+    KsfParams { algorithm: "argon2id".to_string(), m_cost: 8 * 1024, t_cost: 1, p_cost: 1 }
+}
+
+fn build_argon2(m_cost: u32, t_cost: u32, p_cost: u32) -> CryptoResult<Argon2<'static>> {
+    let params = Params::new(m_cost, t_cost, p_cost, None)
         .map_err(|e| Error::KeyEncoding(format!("argon2 params: {e}")))?;
     Ok(Argon2::new(Algorithm::Argon2id, Version::V0x13, params))
 }
 
-/// Cheap Argon2id parameters for the e2e WASM build only. Enabled solely by the
-/// `fast-test-kdf` cargo feature, which the production `wasm`/`build` recipes
-/// never set — those keep the secure m=64 MiB KSF above.
-#[cfg(feature = "fast-test-kdf")]
+/// The current-default KSF as an `Argon2`, for callers that carry no per-user
+/// parameters (new-account registration, and the legacy test call paths).
 fn ksf() -> CryptoResult<Argon2<'static>> {
-    let params = Params::new(8 * 1024, 1, 1, None)
-        .map_err(|e| Error::KeyEncoding(format!("argon2 params: {e}")))?;
-    Ok(Argon2::new(Algorithm::Argon2id, Version::V0x13, params))
+    let p = current_ksf_params();
+    build_argon2(p.m_cost, p.t_cost, p.p_cost)
+}
+
+/// Build the KSF for a user's stored parameters. The `fast-test-kdf` build
+/// ignores them and always uses the cheap current KSF, so the e2e client stays
+/// cheap regardless of what a server returned; only real builds honour them.
+fn ksf_for_params(m_cost: u32, t_cost: u32, p_cost: u32) -> CryptoResult<Argon2<'static>> {
+    #[cfg(feature = "fast-test-kdf")]
+    {
+        let _ = (m_cost, t_cost, p_cost);
+        ksf()
+    }
+    #[cfg(not(feature = "fast-test-kdf"))]
+    {
+        build_argon2(m_cost, t_cost, p_cost)
+    }
 }
 
 fn b64(input: &str) -> CryptoResult<Vec<u8>> {
@@ -173,6 +209,33 @@ pub fn client_registration_finish(
     registration_response: &str,
     password: &[u8],
 ) -> CryptoResult<ClientExportResult> {
+    registration_finish(registration_state, registration_response, password, &ksf()?)
+}
+
+/// As [`client_registration_finish`], stretching the password with an explicit
+/// per-user KSF instead of the current default.
+pub fn client_registration_finish_with_params(
+    registration_state: &str,
+    registration_response: &str,
+    password: &[u8],
+    m_cost: u32,
+    t_cost: u32,
+    p_cost: u32,
+) -> CryptoResult<ClientExportResult> {
+    registration_finish(
+        registration_state,
+        registration_response,
+        password,
+        &ksf_for_params(m_cost, t_cost, p_cost)?,
+    )
+}
+
+fn registration_finish(
+    registration_state: &str,
+    registration_response: &str,
+    password: &[u8],
+    ksf: &Argon2<'static>,
+) -> CryptoResult<ClientExportResult> {
     let state = de(
         ClientRegistration::<HoodikCipherSuite>::deserialize(&b64(registration_state)?),
         "client reg state",
@@ -181,13 +244,12 @@ pub fn client_registration_finish(
         RegistrationResponse::<HoodikCipherSuite>::deserialize(&b64(registration_response)?),
         "reg response",
     )?;
-    let ksf = ksf()?;
     let result = state
         .finish(
             &mut OsRng,
             password,
             response,
-            ClientRegistrationFinishParameters::new(Identifiers::default(), Some(&ksf)),
+            ClientRegistrationFinishParameters::new(Identifiers::default(), Some(ksf)),
         )
         .map_err(|_| Error::KeyEncoding("opaque client reg finish".into()))?;
 
@@ -216,6 +278,33 @@ pub fn client_login_finish(
     credential_response: &str,
     password: &[u8],
 ) -> CryptoResult<ClientLoginResult> {
+    login_finish(login_state, credential_response, password, &ksf()?)
+}
+
+/// As [`client_login_finish`], stretching the password with an explicit
+/// per-user KSF (the values `login/start` returned) instead of the default.
+pub fn client_login_finish_with_params(
+    login_state: &str,
+    credential_response: &str,
+    password: &[u8],
+    m_cost: u32,
+    t_cost: u32,
+    p_cost: u32,
+) -> CryptoResult<ClientLoginResult> {
+    login_finish(
+        login_state,
+        credential_response,
+        password,
+        &ksf_for_params(m_cost, t_cost, p_cost)?,
+    )
+}
+
+fn login_finish(
+    login_state: &str,
+    credential_response: &str,
+    password: &[u8],
+    ksf: &Argon2<'static>,
+) -> CryptoResult<ClientLoginResult> {
     let state = de(
         ClientLogin::<HoodikCipherSuite>::deserialize(&b64(login_state)?),
         "client login state",
@@ -224,13 +313,12 @@ pub fn client_login_finish(
         CredentialResponse::<HoodikCipherSuite>::deserialize(&b64(credential_response)?),
         "cred response",
     )?;
-    let ksf = ksf()?;
     let result = state
         .finish(
             &mut OsRng,
             password,
             response,
-            ClientLoginFinishParameters::new(None, Identifiers::default(), Some(&ksf)),
+            ClientLoginFinishParameters::new(None, Identifiers::default(), Some(ksf)),
         )
         .map_err(|_| Error::KeyEncoding("opaque client login finish".into()))?;
 
@@ -331,5 +419,42 @@ mod tests {
                 "password bytes must never appear on the wire"
             );
         }
+    }
+
+    /// These Argon2id parameters feed every account's OPAQUE `export_key`, which
+    /// unwraps the private-key envelope. Change any of them and no existing
+    /// account can open its keys again; this test freezes them.
+    #[cfg(not(feature = "fast-test-kdf"))]
+    #[test]
+    fn production_ksf_parameters_are_frozen() {
+        let ksf = super::ksf().unwrap();
+        let params = ksf.params();
+        assert_eq!(params.m_cost(), 65536);
+        assert_eq!(params.t_cost(), 3);
+        assert_eq!(params.p_cost(), 1);
+
+        // Argon2 exposes neither its algorithm nor its version, so a
+        // known-answer vector pins them (Argon2id, 0x13) alongside the costs:
+        // any drift in the KSF config changes these bytes.
+        let mut derived = [0u8; 32];
+        ksf.hash_password_into(b"hoodik", b"opaque-ksf-vector", &mut derived)
+            .unwrap();
+        assert_eq!(
+            derived,
+            [
+                205, 0, 205, 154, 129, 227, 22, 118, 38, 116, 158, 172, 124, 237, 168, 106, 255,
+                232, 44, 143, 62, 19, 80, 182, 219, 103, 108, 252, 3, 135, 152, 24,
+            ]
+        );
+    }
+
+    #[cfg(feature = "fast-test-kdf")]
+    #[test]
+    fn fast_test_ksf_parameters_are_reduced() {
+        let ksf = super::ksf().unwrap();
+        let params = ksf.params();
+        assert_eq!(params.m_cost(), 8192);
+        assert_eq!(params.t_cost(), 1);
+        assert_eq!(params.p_cost(), 1);
     }
 }
