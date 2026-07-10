@@ -5,15 +5,12 @@
 //! `sender_id` (or 32 zero bytes if first). System-cascade rows
 //! (`sender_id = NULL`) form their own NULL-sender chain.
 
-use cryptfns::asn1::{
-    encode_audit_event_v1, AuditEventRowV1, ShareRoleEnum, AUDIT_EVENT_V1_PREFIX,
-};
+use cryptfns::asn1::{AuditEventRowV1, ShareRoleEnum};
 use entity::{
     share_events, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, Order, QueryFilter,
     QueryOrder, Uuid,
 };
 use error::{AppResult, Error};
-use sha2::{Digest, Sha256};
 
 use crate::contracts::audit::NewAuditEvent;
 
@@ -37,7 +34,7 @@ pub(crate) async fn append_event<C: ConnectionTrait>(
         id: ActiveValue::Set(id),
         sender_id: ActiveValue::Set(event.sender_id),
         recipient_id: ActiveValue::Set(event.recipient_id),
-        file_id: ActiveValue::Set(event.file_id),
+        file_id: ActiveValue::Set(Some(event.file_id)),
         action: ActiveValue::Set(event.action_str.to_string()),
         share_role_before: ActiveValue::Set(event.share_role_before.map(str::to_string)),
         share_role_after: ActiveValue::Set(event.share_role_after.map(str::to_string)),
@@ -121,17 +118,8 @@ fn chain_hash(
         share_role: event.share_role_after.and_then(role_str_to_enum),
         created_at: event.created_at,
     };
-    let der = encode_audit_event_v1(&row).map_err(|e| Error::CryptoError(Box::new(e)))?;
-
-    let mut hasher = Sha256::new();
-    hasher.update(AUDIT_EVENT_V1_PREFIX);
-    hasher.update(prev_hash);
-    hasher.update(&der);
-    let digest = hasher.finalize();
-
-    let mut out = [0u8; PREV_HASH_LEN];
-    out.copy_from_slice(&digest);
-    Ok(out)
+    cryptfns::asn1::audit_event_chain_hash(prev_hash, &row)
+        .map_err(|e| Error::CryptoError(Box::new(e)))
 }
 
 fn uuid_to_bytes(id: Option<Uuid>) -> [u8; 16] {

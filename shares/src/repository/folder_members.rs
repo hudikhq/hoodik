@@ -2,7 +2,9 @@
 //! member list for an editable-folder share.
 
 use std::collections::HashMap;
+use std::str::FromStr;
 
+use cryptfns::identity::KeyType;
 use entity::{
     files, key_transitions,
     permission::{permission, SharePermission},
@@ -105,15 +107,43 @@ impl Repository<'_> {
             .as_deref()
             .map(cryptfns::base64::encode);
 
+        let signer_id = folder.members_list_signed_by_user_id.unwrap_or(owner_id);
+        let signature_algorithm = signature_algorithm_for(
+            users_by_id.get(&signer_id),
+            transitions_by_user.get(&signer_id),
+            folder.members_list_signed_at,
+        );
+
         Ok(FolderMembersResponse {
             folder_id,
             folder_owner_id: owner_id,
             folder_owner_pubkey_fingerprint: owner_fingerprint,
-            signature_algorithm: "rsa-pss-sha256",
+            signature_algorithm,
             members,
             members_signed_at: folder.members_list_signed_at,
             members_list_signature,
             members_list_signed_by_user_id: folder.members_list_signed_by_user_id,
         })
+    }
+}
+
+/// The algorithm `members_list_signature` was actually produced with — the key
+/// the signer held when they signed, so a rotated account still reports the
+/// truth the way `files.cipher` records the cipher a file was encrypted with. A
+/// roster signed before the signer migrated is under their old key, so the
+/// signer's *current* key type would misreport it.
+fn signature_algorithm_for(
+    signer: Option<&users::Model>,
+    transition: Option<&KeyTransitionRef>,
+    signed_at: Option<i64>,
+) -> &'static str {
+    let key_type = match (transition, signed_at) {
+        (Some(t), Some(at)) if at < t.issued_at => KeyType::from_str(&t.old_key_type).ok(),
+        _ => signer.and_then(|u| KeyType::from_str(&u.key_type).ok()),
+    }
+    .unwrap_or(KeyType::Rsa);
+    match key_type {
+        KeyType::Rsa => "rsa-pss-sha256",
+        KeyType::Curve25519 => "ed25519",
     }
 }

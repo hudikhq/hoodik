@@ -5,9 +5,11 @@ use crate::data::key_transition::KeyTransitionRef;
 
 /// Response for `GET /api/shares/folder/{F}/members`.
 ///
-/// `signature_algorithm` is hard-coded to `"rsa-pss-sha256"` for v1; the
-/// field exists so future protocol versions can swap primitives without a
-/// new endpoint.
+/// `signature_algorithm` names the algorithm `members_list_signature` was
+/// produced with — `"rsa-pss-sha256"` or `"ed25519"` — derived from the signer's
+/// key at signing time. Clients dispatch verification on each member's
+/// `key_type`; this records what actually signed, the way `files.cipher` records
+/// a file's cipher.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct FolderMembersResponse {
     pub folder_id: Uuid,

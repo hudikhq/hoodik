@@ -20,7 +20,8 @@ pub struct AppShareEvent {
     pub id: Uuid,
     pub sender_id: Option<Uuid>,
     pub recipient_id: Option<Uuid>,
-    pub file_id: Uuid,
+    /// NULL on account-level rows such as `key_rotation`.
+    pub file_id: Option<Uuid>,
     pub action: String,
     pub share_role_before: Option<String>,
     pub share_role_after: Option<String>,
