@@ -8,7 +8,7 @@ use entity::Uuid;
 use error::{AppResult, Error};
 use fs::prelude::*;
 
-use crate::{data::download::Download, repository::Repository};
+use crate::repository::Repository;
 
 /// Download file from a shareable link (raw ciphertext only).
 ///
@@ -19,14 +19,12 @@ use crate::{data::download::Download, repository::Repository};
 ///
 /// Request:
 ///  - Query: chunk: i64 - if omitted, every chunk is streamed back to back
-///  - Body: [crate::data::download::Download] (link_key accepted for back-compat, never used)
 ///
 /// Response: raw ciphertext bytes (Content-Type and generic disposition)
 #[route("/api/links/{link_id}", method = "POST")]
 pub(crate) async fn download(
     req: HttpRequest,
     context: web::Data<Context>,
-    _data: Option<web::Either<web::Json<Download>, web::Form<Download>>>,
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let link_id: Uuid = util::actix::path_var(&req, "link_id")?;
