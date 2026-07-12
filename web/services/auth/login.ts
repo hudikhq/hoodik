@@ -8,6 +8,7 @@ import * as ed25519 from '../cryptfns/ed25519'
 import { localDateFromUtcString } from '..'
 import * as pk from './pk'
 import * as pkBundle from './bundle'
+import * as migrationNotice from './migration-notice'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Authenticated, Credentials, CryptoStore, KeyPair, PrivateKeyLogin, User } from 'types'
@@ -812,6 +813,7 @@ export const store = defineStore('login', () => {
     }
     await cryptoStore.set(migratedKp)
 
+    migrationNotice.markPending(authenticated.user.id)
     logger.info('[auth] migration ceremony completed successfully')
   }
 
