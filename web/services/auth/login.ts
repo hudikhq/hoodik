@@ -139,14 +139,7 @@ export const store = defineStore('login', () => {
     keypair: KeyPair,
     crypto: CryptoStore
   ) {
-    const material =
-      keypair.keyType === 'curve25519'
-        ? pkBundle.encodeBundle({
-            identity: keypair.input as string,
-            wrapping: keypair.wrappingPrivate as string,
-            rsa: keypair.legacyPrivate ?? undefined
-          })
-        : (keypair.input as string)
+    const material = pkBundle.recoveryKeyFor(keypair)
 
     await pk.setRememberMe(material, authenticated.session.device_id as string)
 
@@ -449,14 +442,9 @@ export const store = defineStore('login', () => {
     store: CryptoStore,
     input: PrivateKeyLogin
   ): Promise<Authenticated> {
-    const pk = input.privateKey || ''
+    const material = input.privateKey || ''
 
-    if (isCurveBundle(pk)) {
-      const keypair = await curveKeyPairFromBundle(pk)
-      return _withPrivateKey(store, keypair, !!input.remember)
-    }
-
-    return _withPrivateKey(store, await cryptfns.rsa.inputToKeyPair(pk), !!input.remember)
+    return _withPrivateKey(store, await keyPairFromMaterial(material), !!input.remember)
   }
 
   /**
@@ -464,9 +452,9 @@ export const store = defineStore('login', () => {
    * @throws
    */
   async function withPin(store: CryptoStore, pin: string): Promise<Authenticated> {
-    const privateKey = await pk.getPinAndDecrypt(pin)
+    const material = await pk.getPinAndDecrypt(pin)
 
-    return _withPrivateKey(store, await cryptfns.rsa.inputToKeyPair(privateKey), false)
+    return _withPrivateKey(store, await keyPairFromMaterial(material), false)
   }
 
   /**
@@ -545,11 +533,21 @@ export const store = defineStore('login', () => {
    * key.
    */
   async function keyPairFromRememberMe(material: string, user: User): Promise<KeyPair | null> {
-    const keypair = isCurveBundle(material)
-      ? await curveKeyPairFromBundle(material)
-      : await cryptfns.rsa.inputToKeyPair(material)
+    const keypair = await keyPairFromMaterial(material)
 
     return keypair.fingerprint === user.fingerprint ? keypair : null
+  }
+
+  /**
+   * Rebuild a KeyPair from backed-up private material — a curve bundle
+   * (`v1|ed:|x:`) for a v2 account, an RSA PEM for a legacy one. Every
+   * password-less entry point (backup key, PIN unlock, remember-me) routes
+   * through here so the curve/RSA dispatch cannot drift between them.
+   */
+  async function keyPairFromMaterial(material: string): Promise<KeyPair> {
+    return isCurveBundle(material)
+      ? curveKeyPairFromBundle(material)
+      : cryptfns.rsa.inputToKeyPair(material)
   }
 
   /**

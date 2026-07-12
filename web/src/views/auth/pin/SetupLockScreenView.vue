@@ -5,6 +5,7 @@ import CardBox from '@/components/ui/CardBox.vue'
 import { AppForm, AppField, AppButton } from '@/components/form'
 import * as yup from 'yup'
 import { pk } from '!/auth'
+import { recoveryKeyFor } from '!/auth/bundle'
 import { store as loginStore } from '!/auth/login'
 import { store as cryptoStore } from '!/crypto'
 import { useRouter } from 'vue-router'
@@ -35,14 +36,14 @@ config.value = {
   onSubmit: async (values: { password: string; logout: boolean }) => {
     logger.debug(values)
 
-    const privateKey = crypto.keypair?.input
+    const material = crypto.keypair ? recoveryKeyFor(crypto.keypair) : ''
 
-    if (!privateKey) {
+    if (!material) {
       return router.push({ name: 'login' })
     }
 
     await pk.pinEncryptAndStore(
-      privateKey,
+      material,
       values.password,
       login.authenticated?.user?.email as string
     )
