@@ -196,9 +196,10 @@ impl<'ctx> Repository<'ctx> {
         // decoded form. Downstream readers (`folder_members` route,
         // `verify_post_mutation_signature`) base64-encode again before
         // serialising to clients.
+        let member_sig_signed_at = supplied_member_signed_at;
         let persisted_member_sig: Option<Vec<u8>> = match supplied_member_sig.as_ref() {
             Some(sig_b64) => {
-                let signed_at = supplied_member_signed_at.ok_or_else(|| {
+                let signed_at = member_sig_signed_at.ok_or_else(|| {
                     Error::BadRequest("member_signature_missing_signed_at".to_string())
                 })?;
                 if (now - signed_at).abs() > REPLAY_WINDOW_SECONDS {
@@ -217,6 +218,11 @@ impl<'ctx> Repository<'ctx> {
                 )?)
             }
             None => None,
+        };
+        let member_row_shared_at = if persisted_member_sig.is_some() {
+            member_sig_signed_at.unwrap_or(payload.timestamp)
+        } else {
+            payload.timestamp
         };
 
         let requested_role_str = role_enum_to_str(requested_role);
@@ -321,7 +327,7 @@ impl<'ctx> Repository<'ctx> {
                     id: ActiveValue::Unchanged(prev.id),
                     encrypted_key: ActiveValue::Set(encrypted_key.clone()),
                     share_role: ActiveValue::Set(requested_role_str.to_string()),
-                    shared_at: ActiveValue::Set(Some(now)),
+                    shared_at: ActiveValue::Set(Some(member_row_shared_at)),
                     shared_by_user_id: ActiveValue::Set(Some(sender.id)),
                     member_signature: role_change_member_sig,
                     expires_at: ActiveValue::NotSet,
@@ -343,7 +349,7 @@ impl<'ctx> Repository<'ctx> {
                     created_at: ActiveValue::Set(now),
                     expires_at: ActiveValue::Set(None),
                     share_role: ActiveValue::Set(requested_role_str.to_string()),
-                    shared_at: ActiveValue::Set(Some(now)),
+                    shared_at: ActiveValue::Set(Some(member_row_shared_at)),
                     shared_by_user_id: ActiveValue::Set(Some(sender.id)),
                     member_signature: ActiveValue::Set(persisted_member_sig.clone()),
                 };

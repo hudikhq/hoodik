@@ -420,7 +420,7 @@ async fn test_create_share_persists_supplied_member_signature() {
     register_user!(app, bob, "bob@example.com");
     let file = create_file!(app, alice, "member-sig-roundtrip");
 
-    let timestamp = now_secs();
+    let timestamp = now_secs() - 30;
     let envelope = build_share_envelope(
         &alice,
         &bob,
@@ -454,6 +454,11 @@ async fn test_create_share_persists_supplied_member_signature() {
     assert!(
         !row.member_signature.as_ref().unwrap().is_empty(),
         "stored sig bytes are non-empty"
+    );
+    assert_eq!(
+        row.shared_at,
+        Some(timestamp),
+        "shared_at must match MemberSigPayloadV1.signed_at so clients can re-verify"
     );
 }
 
