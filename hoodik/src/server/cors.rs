@@ -17,7 +17,7 @@ pub fn setup() -> Cors {
         .allow_any_origin()
         .supports_credentials()
         .allowed_origin_fn(move |_, _| true)
-        .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+        .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
         .expose_headers(expose)
         .allowed_headers(vec![
             http::header::CONTENT_TYPE,
