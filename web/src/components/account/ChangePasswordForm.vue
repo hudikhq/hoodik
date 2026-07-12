@@ -6,7 +6,7 @@ import * as yup from 'yup'
 import { changePassword } from '!/account'
 import type { ErrorResponse } from '!/api'
 import * as logger from '!/logger'
-import { zxcvbn } from '@zxcvbn-ts/core'
+import { isStrongPassword } from '@/utils/password'
 import { notify } from '@kyvg/vue3-notification'
 
 const props = defineProps<{
@@ -36,7 +36,7 @@ const init = () => {
         .test(
           'weak-password',
           'New password used is too weak',
-          (value: string) => zxcvbn(value).score > 3
+          (value: string | undefined) => isStrongPassword(value)
         )
     }),
     onSubmit: async (values: UnsecureChangePassword, ctx: any) => {
