@@ -7,7 +7,14 @@ import type { AppLink, EncryptedAppLink, KeyPair } from 'types'
  * is the discriminator — the same test `storage/meta.ts` uses on file keys.
  */
 export function isCurveKey(pem: string): boolean {
-  return !!pem && !pem.toUpperCase().includes('RSA')
+  // Decide by the PEM armor label only. RSA keys carry "RSA" in the label
+  // ("RSA PRIVATE KEY" / "RSA PUBLIC KEY"); the Ed25519 identity key and the
+  // HOODIK WRAPPING key do not. Scanning the whole PEM is wrong — a large
+  // hybrid X25519+ML-KEM wrapping key's random base64 body contains "RSA"
+  // ~5% of the time, misrouting a curve key down the RSA path (link create /
+  // decrypt then throws "Invalid key").
+  const label = pem.match(/-----BEGIN ([^-]+)-----/)?.[1] ?? ''
+  return !!pem && !label.toUpperCase().includes('RSA')
 }
 
 /**

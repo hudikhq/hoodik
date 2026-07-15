@@ -155,11 +155,12 @@ async function verifyBytesForSigner(
 }
 
 function isCurvePrivate(pem: string): boolean {
-  // Only RSA keys carry "RSA" in their PEM armor; the Ed25519 identity key and
-  // the hybrid wrapping key do not. Testing for the absence of "RSA" — the same
-  // discriminator `isCurveKey` uses — avoids depending on the exact label, which
-  // is what broke this when the wrapping key gained its own HOODIK WRAPPING armor.
-  return !!pem && !pem.toUpperCase().includes('RSA')
+  // Only RSA keys carry "RSA" in their PEM armor label ("RSA PRIVATE KEY"); the
+  // Ed25519 identity key and the HOODIK WRAPPING key do not. Test the label,
+  // not the whole PEM — a large hybrid wrapping key's random base64 body
+  // contains "RSA" ~5% of the time, which would misclassify it as RSA.
+  const label = pem.match(/-----BEGIN ([^-]+)-----/)?.[1] ?? ''
+  return !!pem && !label.toUpperCase().includes('RSA')
 }
 
 /**

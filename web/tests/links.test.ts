@@ -80,6 +80,27 @@ describe('Testing links', () => {
     expect(cryptfns.uint8.toHex(decrypted.key as Uint8Array)).toBe(cryptfns.uint8.toHex(file_key))
   })
 
+  it('UNIT: isCurveKey classifies by PEM armor label, not the key body', () => {
+    // Regression: a hybrid X25519+ML-KEM wrapping key's random base64 body
+    // contains "RSA" ~5% of the time. Classifying by the whole PEM misroutes
+    // such a curve key to the RSA path, where the link crypto throws
+    // "Invalid key" — a ~5% flake on curve link create/decrypt. Only the armor
+    // label is authoritative.
+    const wrappingWithRsaInBody =
+      '-----BEGIN HOODIK WRAPPING KEY-----\nAQIDrsaBCDwtRSAqLzAK\n-----END HOODIK WRAPPING KEY-----'
+    expect(links.crypto.isCurveKey(wrappingWithRsaInBody)).toBe(true)
+
+    const ed25519Pub = '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2Vw\n-----END PUBLIC KEY-----'
+    expect(links.crypto.isCurveKey(ed25519Pub)).toBe(true)
+
+    const rsaPub = '-----BEGIN RSA PUBLIC KEY-----\nMIIBCgKCAQEA\n-----END RSA PUBLIC KEY-----'
+    const rsaPriv = '-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKC\n-----END RSA PRIVATE KEY-----'
+    expect(links.crypto.isCurveKey(rsaPub)).toBe(false)
+    expect(links.crypto.isCurveKey(rsaPriv)).toBe(false)
+
+    expect(links.crypto.isCurveKey('')).toBe(false)
+  })
+
   it('UNIT: owner signature verification dispatches by key type', async () => {
     const rsaKp = await cryptfns.rsa.generateKeyPair()
     const rsaLink = await links.meta.createLinkFromFile(
