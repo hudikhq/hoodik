@@ -5,7 +5,7 @@
 - Rust (stable, >= 1.91) via [rustup](https://rustup.rs/)
 - Node.js 22 (see [.nvmrc](.nvmrc)) and [Yarn](https://yarnpkg.com/) (`npm install -g yarn`)
 - [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
-- [cargo-watch](https://crates.io/crates/cargo-watch) (`cargo install cargo-watch`)
+- [bacon](https://crates.io/crates/bacon) (`cargo install --locked bacon`)
 - [just](https://just.systems/) (`cargo install just`)
 - Docker (for MinIO / PostgreSQL dev services)
 
@@ -22,7 +22,7 @@ This installs JS dependencies, copies `.env.example` to `.env`, builds the WASM 
 ```shell
 just dev          # frontend (Vite :5173) + backend (:5443) with hot-reload
 just dev-web      # Vite dev server only
-just dev-api      # Rust backend only (cargo-watch)
+just dev-api      # Rust backend only (bacon)
 ```
 
 `just dev` builds the WASM crate, then starts both the Vite dev server and the Rust backend with auto-reload. Files are stored on the local filesystem in `DATA_DIR` by default.
