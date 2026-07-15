@@ -97,7 +97,11 @@ pub async fn engage(context: Context) -> AppResult<()> {
     let disabled = context.config.ssl.disabled;
     let app_url = context.config.get_app_url();
     let workers = context.config.app.workers;
-    let config = context.config.ssl.build_rustls_config(vec![app_url])?;
+    let rustls_config = if disabled {
+        None
+    } else {
+        Some(context.config.ssl.build_rustls_config(vec![app_url])?)
+    };
 
     let mut server = HttpServer::new(move || {
         // Health probes hit /api/liveness every few seconds; logging them buries
@@ -117,10 +121,11 @@ pub async fn engage(context: Context) -> AppResult<()> {
     if disabled {
         server.bind(&bind_address)?.run().await.map_err(Error::from)
     } else {
+        let config = rustls_config.expect("rustls config must be built when SSL is enabled");
         server
-        .bind_rustls(&bind_address, config)?
-        .run()
-        .await
-        .map_err(Error::from)
+            .bind_rustls(&bind_address, config)?
+            .run()
+            .await
+            .map_err(Error::from)
     }
 }
