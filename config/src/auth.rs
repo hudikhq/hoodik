@@ -152,12 +152,12 @@ fn get_cookie_domain(vars: &mut Vars, app_url: &Url) -> String {
         .map(|x| x.to_string())
         .unwrap_or_else(|| "localhost".to_string());
 
-    let maybe_url = Url::parse(format!("https://{}", &cookie_domain).as_str());
+    let maybe_url = Url::parse(format!("https://{}", cookie_domain).as_str());
 
     if maybe_url.is_err() {
         log::warn!(
                 "'{}' couldn't be parsed into a cookie domain, will use app_url host '{}' for cookie domain",
-                &cookie_domain,
+                cookie_domain,
                 app_url_domain
             );
 
