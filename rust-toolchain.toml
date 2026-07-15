@@ -1,0 +1,9 @@
+# Pin the Rust toolchain so clippy/rustc are reproducible across local and CI.
+# CI has no explicit toolchain step and was using the runner's rolling default,
+# so a new stable could start flagging pre-existing code (e.g. clippy's
+# redundant-reference lint) and red the pipeline on unrelated PRs. Bump this
+# deliberately, fixing any new lints in the same change.
+[toolchain]
+channel = "1.95.0"
+components = ["clippy", "rustfmt"]
+targets = ["wasm32-unknown-unknown"]
