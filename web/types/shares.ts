@@ -21,6 +21,10 @@ export type AuditEventAction =
   | 'shared_folder_restore'
   | 'shared_folder_evict'
   | 'shared_folder_move_out'
+  // Account-level event with no file and no recipient, signed under the
+  // key-rotation scheme (not `AuditEventSigInputV1`). Chained into the
+  // owner's per-sender audit chain on RSA→curve25519 migration.
+  | 'key_rotation'
 
 export interface DiscoveredUser {
   user_id: string
@@ -152,7 +156,9 @@ export interface ShareEvent {
   id: string
   sender_id: string | null
   recipient_id: string | null
-  file_id: string
+  /** Null on account-level events (e.g. `key_rotation`) that aren't tied to a
+   *  file. Mirrors the server's nullable `share_events.file_id`. */
+  file_id: string | null
   action: AuditEventAction
   share_role_before: ShareRole | null
   share_role_after: ShareRole | null

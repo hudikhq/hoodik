@@ -532,7 +532,9 @@ export function recomputeChainHash(row: ShareEvent, prevHashB64: string | null):
   const recipientBytes = row.recipient_id
     ? uuidStringToBytes(row.recipient_id)
     : new Uint8Array(16)
-  const fileBytes = uuidStringToBytes(row.file_id)
+  // Account-level events (`key_rotation`) carry no file; the server chains them
+  // with 16 zero bytes for `file_id`, so match that here.
+  const fileBytes = row.file_id ? uuidStringToBytes(row.file_id) : new Uint8Array(16)
   const wireRole = row.share_role_after === null ? WIRE_ROLE_ABSENT : SHARE_ROLE_WIRE[row.share_role_after]
   const der = audit_event_encode_v1(
     senderBytes,
@@ -825,7 +827,10 @@ export async function verifyEventSignature(
   row: ShareEvent,
   sender: SignerKey
 ): Promise<boolean> {
-  if (!row.sender_signature || !row.sender_id) return false
+  // A file-less account event (`key_rotation`) can't carry a share-event
+  // signature — it's signed under the key-rotation scheme. Return false rather
+  // than feed a null file_id into the canonical builder.
+  if (!row.sender_signature || !row.sender_id || !row.file_id) return false
   const input = buildAuditEventSigInput({
     senderId: row.sender_id,
     recipientId: row.recipient_id,
