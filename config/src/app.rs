@@ -177,7 +177,7 @@ impl AppConfig {
         let data_dir = data_dir.unwrap_or_else(|| self.data_dir.clone());
 
         let data_dir = absolute_path(&data_dir)
-            .unwrap_or_else(|| panic!("Couldn't get absolute path for '{}'", &data_dir));
+            .unwrap_or_else(|| panic!("Couldn't get absolute path for '{}'", data_dir));
 
         match DirBuilder::new().recursive(true).create(&data_dir) {
             Ok(_) => (),
@@ -202,7 +202,7 @@ impl AppConfig {
         } else {
             std::env::set_var(
                 "DATABASE_URL",
-                format!("sqlite:{}/sqlite.db?mode=rwc", &self.data_dir),
+                format!("sqlite:{}/sqlite.db?mode=rwc", self.data_dir),
             );
         }
 
