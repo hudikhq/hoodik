@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { AppForm, AppField, AppButton } from '@/components/form'
 import * as yup from 'yup'
-import { zxcvbn } from '@zxcvbn-ts/core'
+import { isStrongPassword } from '@/utils/password'
 import { store } from '!/auth/register'
 import { useRoute, useRouter } from 'vue-router'
 import { computed, ref } from 'vue'
@@ -46,7 +46,7 @@ const init = () => {
         .test(
           'weak-password',
           'Password used is too weak',
-          (value: string) => zxcvbn(value).score >= 3
+          (value: string | undefined) => isStrongPassword(value)
         ),
       confirm_password: yup
         .string()
