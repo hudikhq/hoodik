@@ -173,6 +173,7 @@ impl Repository<'_> {
             shared_at: ActiveValue::Set(None),
             shared_by_user_id: ActiveValue::Set(None),
             member_signature: ActiveValue::Set(None),
+            member_signed_at: ActiveValue::Set(None),
         };
         user_files::Entity::insert(user_file)
             .exec_without_returning(&tx)

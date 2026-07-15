@@ -188,12 +188,17 @@ impl Repository<'_> {
                 shared_at: ActiveValue::Set(if entry.is_owner_of_file {
                     None
                 } else {
-                    Some(signed_timestamp)
+                    Some(now)
                 }),
                 shared_by_user_id: ActiveValue::Set(if entry.is_owner_of_file {
                     None
                 } else {
                     Some(caller.id)
+                }),
+                member_signed_at: ActiveValue::Set(if entry.is_owner_of_file {
+                    None
+                } else {
+                    inherited_member_signature.as_ref().map(|_| signed_timestamp)
                 }),
                 member_signature: ActiveValue::Set(if entry.is_owner_of_file {
                     None

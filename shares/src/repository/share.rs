@@ -219,10 +219,13 @@ impl<'ctx> Repository<'ctx> {
             }
             None => None,
         };
-        let member_row_shared_at = if persisted_member_sig.is_some() {
-            member_sig_signed_at.unwrap_or(payload.timestamp)
+        // The signed timestamp goes in its own column so `shared_at` stays the
+        // server-side share time that orders the recipient's shares list. It's
+        // set only when a σ is actually persisted.
+        let member_signed_at_col = if persisted_member_sig.is_some() {
+            member_sig_signed_at
         } else {
-            payload.timestamp
+            None
         };
 
         let requested_role_str = role_enum_to_str(requested_role);
@@ -319,17 +322,22 @@ impl<'ctx> Repository<'ctx> {
                 // omitted σ (legacy client), leave the
                 // previous σ in place so a partial upgrade doesn't tear
                 // down already-valid signatures.
-                let role_change_member_sig = match persisted_member_sig.as_ref() {
-                    Some(sig) => ActiveValue::Set(Some(sig.clone())),
-                    None => ActiveValue::NotSet,
-                };
+                let (role_change_member_sig, role_change_member_signed_at) =
+                    match persisted_member_sig.as_ref() {
+                        Some(sig) => (
+                            ActiveValue::Set(Some(sig.clone())),
+                            ActiveValue::Set(member_signed_at_col),
+                        ),
+                        None => (ActiveValue::NotSet, ActiveValue::NotSet),
+                    };
                 let active = user_files::ActiveModel {
                     id: ActiveValue::Unchanged(prev.id),
                     encrypted_key: ActiveValue::Set(encrypted_key.clone()),
                     share_role: ActiveValue::Set(requested_role_str.to_string()),
-                    shared_at: ActiveValue::Set(Some(member_row_shared_at)),
+                    shared_at: ActiveValue::Set(Some(now)),
                     shared_by_user_id: ActiveValue::Set(Some(sender.id)),
                     member_signature: role_change_member_sig,
+                    member_signed_at: role_change_member_signed_at,
                     expires_at: ActiveValue::NotSet,
                     is_owner: ActiveValue::NotSet,
                     file_id: ActiveValue::Unchanged(prev.file_id),
@@ -349,9 +357,10 @@ impl<'ctx> Repository<'ctx> {
                     created_at: ActiveValue::Set(now),
                     expires_at: ActiveValue::Set(None),
                     share_role: ActiveValue::Set(requested_role_str.to_string()),
-                    shared_at: ActiveValue::Set(Some(member_row_shared_at)),
+                    shared_at: ActiveValue::Set(Some(now)),
                     shared_by_user_id: ActiveValue::Set(Some(sender.id)),
                     member_signature: ActiveValue::Set(persisted_member_sig.clone()),
+                    member_signed_at: ActiveValue::Set(member_signed_at_col),
                 };
                 user_files::Entity::insert(active)
                     .exec_without_returning(&tx)

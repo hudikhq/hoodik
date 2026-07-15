@@ -170,6 +170,7 @@ mod tests {
                 shared_at: None,
                 shared_by_user_id: None,
                 member_signature: None,
+                member_signed_at: None,
             };
             assert_eq!(map_row(Some(&row)), SharePermission::Owner);
         }
@@ -196,6 +197,7 @@ mod tests {
                 shared_at: None,
                 shared_by_user_id: None,
                 member_signature: None,
+                member_signed_at: None,
             };
             assert_eq!(map_row(Some(&row)), expect);
         }
