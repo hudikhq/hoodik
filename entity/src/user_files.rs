@@ -16,6 +16,10 @@ pub struct Model {
     pub shared_at: Option<i64>,
     pub shared_by_user_id: Option<Uuid>,
     pub member_signature: Option<Vec<u8>>,
+    /// Timestamp the `member_signature` covered (`MemberSigPayloadV1.signed_at`).
+    /// Served to clients as `added_at` for re-verification; kept apart from
+    /// `shared_at` so the shares-list ordering stays server-authoritative.
+    pub member_signed_at: Option<i64>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

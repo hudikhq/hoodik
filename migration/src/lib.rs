@@ -32,6 +32,7 @@ pub(crate) mod m20260705_000005_alter_share_events_file_id_nullable;
 pub(crate) mod m20260705_000006_alter_users_ksf_params;
 pub(crate) mod m20260710_000001_create_migration_rewrap_staging;
 pub(crate) mod m20260710_000002_alter_key_transitions_new_keys;
+pub(crate) mod m20260715_000001_alter_user_files_member_signed_at;
 
 #[cfg(test)]
 mod share_events_rebuild_test;
@@ -74,6 +75,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260705_000006_alter_users_ksf_params::Migration),
             Box::new(m20260710_000001_create_migration_rewrap_staging::Migration),
             Box::new(m20260710_000002_alter_key_transitions_new_keys::Migration),
+            Box::new(m20260715_000001_alter_user_files_member_signed_at::Migration),
         ]
     }
 }

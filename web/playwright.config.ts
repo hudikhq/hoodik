@@ -26,7 +26,12 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,
-  retries: 0,
+  // Retry on CI only. Browser-driven flows have inherent timing flakiness
+  // (a move request or confirm dialog occasionally lands a beat late); with
+  // retries: 0 a single transient miss reds an hour-long pipeline. Locally we
+  // keep 0 for fast, honest feedback. A test that passes on retry is reported
+  // as "flaky", so recurring offenders stay visible.
+  retries: process.env.CI ? 2 : 0,
   reporter: [['html', { open: 'never' }], ['list']],
   use: {
     baseURL,

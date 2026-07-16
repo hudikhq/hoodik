@@ -145,6 +145,7 @@ pub(crate) async fn seed_owned_files<C: entity::ConnectionTrait>(
             shared_at: ActiveValue::Set(None),
             shared_by_user_id: ActiveValue::Set(None),
             member_signature: ActiveValue::Set(None),
+            member_signed_at: ActiveValue::Set(None),
         });
     }
 

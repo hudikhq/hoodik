@@ -420,7 +420,7 @@ async fn test_create_share_persists_supplied_member_signature() {
     register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "member-sig-roundtrip");
 
-    let timestamp = now_secs();
+    let timestamp = now_secs() - 30;
     let envelope = build_share_envelope(
         &alice,
         &bob,
@@ -454,6 +454,17 @@ async fn test_create_share_persists_supplied_member_signature() {
     assert!(
         !row.member_signature.as_ref().unwrap().is_empty(),
         "stored sig bytes are non-empty"
+    );
+    assert_eq!(
+        row.member_signed_at,
+        Some(timestamp),
+        "member_signed_at must capture MemberSigPayloadV1.signed_at so clients can re-verify"
+    );
+    // shared_at stays the server-side share time (~now), not the client's
+    // signed timestamp, so the shares list stays server-authoritatively ordered.
+    assert!(
+        matches!(row.shared_at, Some(at) if at > timestamp),
+        "shared_at should be the server share time, not the signed timestamp"
     );
 }
 

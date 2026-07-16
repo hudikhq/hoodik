@@ -4,7 +4,7 @@ default:
 
 # ── Development ───────────────────────────────────────────────────────────────
 
-# Run frontend (Vite) and backend (cargo-watch) together
+# Run frontend (Vite) and backend (bacon) together
 # Rebuilds WASM first so the browser always gets the latest crypto code.
 # Kills any stale hoodik binaries left over from previous sessions before starting.
 dev: wasm build-editor
