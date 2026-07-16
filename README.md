@@ -279,6 +279,10 @@ See [DEVELOPMENT.md](./DEVELOPMENT.md) for setup instructions, available `just` 
 
 ---
 
-## Contributors
+## Authors
 
-- Logo design by [Nikola Matošević — Your Dear Designer](https://yourdeardesigner.com/) ❤️
+Created and maintained by [Tibor Hudik](https://github.com/htunlogic).
+
+Community patches are welcome and appreciated. Everyone who has sent one is listed in the [contributors graph](https://github.com/hudikhq/hoodik/graphs/contributors).
+
+Logo design by [Nikola Matošević — Your Dear Designer](https://yourdeardesigner.com/) ❤️
