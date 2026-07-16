@@ -637,6 +637,72 @@ async fn test_migration_aborts_on_foreign_link_key() {
     );
 }
 
+/// A file staged for re-wrap and then deleted before completion — an abandoned
+/// first attempt whose file the user dropped — must not block the migration. Its
+/// stale staging row is skipped rather than aborting the whole ceremony (foreign
+/// ids are already rejected at stage time, so a 0-row update here can only be a
+/// since-deleted own file), and the account still migrates.
+#[actix_web::test]
+async fn test_migration_skips_staged_row_for_a_since_deleted_file() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let user = register_legacy_with(&app, &context.db, "migrate-deleted@example.com").await;
+    let user_id = current_user_id(&app, &user.jwt).await;
+    helpers::seed_owned_files(&context.db, user_id, 3).await;
+
+    let parts = build_migration_parts(&app, &user).await;
+    assert_eq!(parts.rewrap_keys.len(), 3);
+    stage_rewraps(&app, &user, &parts.rewrap_keys, &parts.rewrap_link_keys).await;
+    assert_eq!(staging_count(&context.db, user_id).await, 3);
+
+    // Drop one staged file, as if it was deleted between an abandoned attempt and
+    // this completion; its staging row is younger than the TTL so it survives.
+    let deleted_file_id: entity::Uuid = parts.rewrap_keys[0]["file_id"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+    entity::user_files::Entity::delete_many()
+        .filter(entity::user_files::Column::UserId.eq(user_id))
+        .filter(entity::user_files::Column::FileId.eq(deleted_file_id))
+        .exec(&context.db)
+        .await
+        .unwrap();
+
+    let req = test::TestRequest::post()
+        .uri("/api/auth/migration/complete")
+        .cookie(user.jwt.clone())
+        .set_json(&parts.complete_body)
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::OK,
+        "the migration completes, skipping the stale row"
+    );
+
+    let migrator = entity::users::Entity::find_by_id(user_id)
+        .one(&context.db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(migrator.security_version, 1, "the account migrated");
+    assert_eq!(
+        staging_count(&context.db, user_id).await,
+        0,
+        "the stale staging row is cleared with the rest"
+    );
+
+    let untouched = entity::user_files::Entity::find()
+        .filter(entity::user_files::Column::UserId.eq(user_id))
+        .filter(entity::user_files::Column::EncryptedKey.eq("old-rsa-wrapped-key"))
+        .count(&context.db)
+        .await
+        .unwrap();
+    assert_eq!(untouched, 0, "the surviving files migrated");
+}
+
 /// Seed a prior audit row on `user_id`'s sender chain so the key-rotation event
 /// has a predecessor to chain off. Returns the row's `this_event_hash`.
 async fn seed_prior_event<C: entity::ConnectionTrait>(

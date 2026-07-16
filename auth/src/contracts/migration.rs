@@ -380,6 +380,14 @@ where
                     .exec(&tx)
                     .await?;
 
+                // Ownership was verified when the row was staged, so a 0-row
+                // update means the file was deleted or its access revoked between
+                // that staged attempt and this completion. Its staged key is moot
+                // now, so skip it rather than aborting the whole migration; the
+                // staging table is cleared for the user below regardless.
+                if updated.rows_affected == 0 {
+                    continue;
+                }
                 if updated.rows_affected != 1 {
                     tx.rollback().await?;
                     return Err(Error::BadRequest("rewrapped_key_not_owned".to_string()));
@@ -388,9 +396,11 @@ where
                 // A link key is re-wrapped and re-signed so the row converges to
                 // the new identity instead of keeping a stale RSA signature that
                 // would read as invalid post-migration.
+                // As with files, ownership was checked at stage time, so a link
+                // missing from the owner's set here was deleted between the staged
+                // attempt and completion. Skip its stale row.
                 let Some(file_id) = owned_link_file_ids.get(&link_id).copied() else {
-                    tx.rollback().await?;
-                    return Err(Error::BadRequest("rewrapped_link_key_not_owned".to_string()));
+                    continue;
                 };
 
                 let Some(signature) = row.signature.as_deref() else {
