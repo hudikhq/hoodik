@@ -117,6 +117,60 @@ pub fn sign_certificate(
     .sign(old_private_key, new_identity_private_key)
 }
 
+/// Binding-friendly wrapper over [`Certificate::verify`] for clients resolving
+/// another user's transition chain from server-supplied rows. The old key
+/// arrives as the stored member-DER (`key_transitions.old_key_spki`); the
+/// signatures are base64. Beyond the dual-signature check, each fingerprint
+/// must match the key it names: a TOFU client's only trust anchor is a pinned
+/// fingerprint, so a row whose keys don't hash to its claimed fingerprints —
+/// e.g. an attacker key dual-signing a certificate that names the victim's
+/// fingerprint as its `old_fingerprint` — must never link a chain.
+#[allow(clippy::too_many_arguments)]
+pub fn verify_certificate(
+    user_id: &[u8],
+    old_key_type: &str,
+    old_key_spki: &[u8],
+    old_fingerprint: &str,
+    new_identity_key_pem: &str,
+    new_wrapping_key_pem: &str,
+    new_fingerprint: &str,
+    issued_at: i64,
+    old_signature: &str,
+    new_signature: &str,
+) -> CryptoResult<()> {
+    let user_id: [u8; 16] = user_id
+        .try_into()
+        .map_err(|_| Error::InvalidLength("user_id must be 16 bytes"))?;
+    let old_key_type = <KeyType as std::str::FromStr>::from_str(old_key_type)?;
+    let old_key_pem = old_key_type.pem_from_member_der(old_key_spki)?;
+
+    if old_key_type.fingerprint(&old_key_pem)? != old_fingerprint {
+        return Err(Error::KeyEncoding(
+            "key_transition_old_fingerprint_mismatch".into(),
+        ));
+    }
+    if KeyType::Curve25519.fingerprint(new_identity_key_pem)? != new_fingerprint {
+        return Err(Error::KeyEncoding(
+            "key_transition_new_fingerprint_mismatch".into(),
+        ));
+    }
+
+    Certificate {
+        user_id,
+        old_key_type,
+        old_key_pem: &old_key_pem,
+        old_fingerprint,
+        new_identity_key_pem,
+        new_wrapping_key_pem,
+        new_fingerprint,
+        issued_at,
+    }
+    .verify(&Signatures {
+        old_signature: old_signature.to_string(),
+        new_signature: new_signature.to_string(),
+    })
+}
+
 /// Sign the key-rotation audit event with the new identity key — the first act
 /// of the new identity, appended to the owner's audit chain so a later reader
 /// sees why the signing key changed. `user_id` is the 16 UUID bytes; the
@@ -266,6 +320,84 @@ mod tests {
         let mut tampered = cert(&k);
         tampered.new_fingerprint = &k.rsa_fingerprint;
         assert!(tampered.verify(&signatures).is_err());
+    }
+
+    fn verify_row(
+        k: &Keys,
+        old_key_spki: &[u8],
+        old_fingerprint: &str,
+        signatures: &Signatures,
+    ) -> CryptoResult<()> {
+        verify_certificate(
+            &[9u8; 16],
+            "rsa",
+            old_key_spki,
+            old_fingerprint,
+            &k.ed_public,
+            &k.x_public,
+            &k.ed_fingerprint,
+            1_783_000_000,
+            &signatures.old_signature,
+            &signatures.new_signature,
+        )
+    }
+
+    #[test]
+    fn verify_certificate_round_trips_from_stored_member_der() {
+        let k = keys();
+        let signatures = cert(&k).sign(&k.rsa_private, &k.ed_private).unwrap();
+        let spki = KeyType::Rsa.member_pubkey_der(&k.rsa_public).unwrap();
+        verify_row(&k, &spki, &k.rsa_fingerprint, &signatures).unwrap();
+    }
+
+    #[test]
+    fn verify_certificate_rejects_garbage_signatures() {
+        let k = keys();
+        let spki = KeyType::Rsa.member_pubkey_der(&k.rsa_public).unwrap();
+        let garbage = Signatures {
+            old_signature: crate::base64::encode(b"garbage"),
+            new_signature: crate::base64::encode(b"garbage"),
+        };
+        assert!(verify_row(&k, &spki, &k.rsa_fingerprint, &garbage).is_err());
+    }
+
+    #[test]
+    fn verify_certificate_rejects_old_key_not_matching_claimed_fingerprint() {
+        // An attacker forges a row claiming the victim's fingerprint as its
+        // old_fingerprint but supplies (and signs with) its own key. Both
+        // signatures verify — the fingerprint↔key binding is what must fail.
+        let victim = keys();
+        let attacker = keys();
+        let mut forged = cert(&attacker);
+        forged.old_fingerprint = &victim.rsa_fingerprint;
+        let signatures = forged.sign(&attacker.rsa_private, &attacker.ed_private).unwrap();
+        let spki = KeyType::Rsa.member_pubkey_der(&attacker.rsa_public).unwrap();
+        assert!(verify_row(&attacker, &spki, &victim.rsa_fingerprint, &signatures).is_err());
+    }
+
+    #[test]
+    fn verify_certificate_rejects_new_key_not_matching_claimed_fingerprint() {
+        let k = keys();
+        let other = keys();
+        let mut forged = cert(&k);
+        forged.new_identity_key_pem = &other.ed_public;
+        let signatures = forged.sign(&k.rsa_private, &other.ed_private).unwrap();
+        let spki = KeyType::Rsa.member_pubkey_der(&k.rsa_public).unwrap();
+        // The certificate still claims k's new fingerprint, but carries
+        // other's identity key.
+        assert!(verify_certificate(
+            &[9u8; 16],
+            "rsa",
+            &spki,
+            &k.rsa_fingerprint,
+            &other.ed_public,
+            &k.x_public,
+            &k.ed_fingerprint,
+            1_783_000_000,
+            &signatures.old_signature,
+            &signatures.new_signature,
+        )
+        .is_err());
     }
 
     #[test]

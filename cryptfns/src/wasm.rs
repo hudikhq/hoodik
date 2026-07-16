@@ -341,6 +341,42 @@ pub fn transition_sign(
     serde_json::to_string(&signatures).ok()
 }
 
+/// Verify a key-transition certificate from server-supplied fields: the old
+/// key's endorsement of the new keys, the new identity key's proof of
+/// possession, and each fingerprint against the key it names. The old key is
+/// the stored member-DER (`key_transitions.old_key_spki`); signatures are
+/// base64.
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn transition_verify(
+    user_id: Vec<u8>,
+    old_key_type: String,
+    old_key_spki: Vec<u8>,
+    old_fingerprint: String,
+    new_identity_key_pem: String,
+    new_wrapping_key_pem: String,
+    new_fingerprint: String,
+    issued_at: i64,
+    old_signature: String,
+    new_signature: String,
+) -> bool {
+    crate::utils::set_panic_hook();
+
+    crate::transition::verify_certificate(
+        &user_id,
+        &old_key_type,
+        &old_key_spki,
+        &old_fingerprint,
+        &new_identity_key_pem,
+        &new_wrapping_key_pem,
+        &new_fingerprint,
+        issued_at,
+        &old_signature,
+        &new_signature,
+    )
+    .is_ok()
+}
+
 /// Sign the key-rotation audit event with the new identity key. Returns the
 /// base64 signature the client submits as `audit_event_signature`.
 #[wasm_bindgen]
@@ -409,6 +445,61 @@ pub fn cipher_encrypt(cipher: &str, key: Vec<u8>, plaintext: Vec<u8>) -> Option<
 #[wasm_bindgen]
 pub fn cipher_decrypt(cipher: &str, key: Vec<u8>, ciphertext: Vec<u8>) -> Option<Vec<u8>> {
     crate::cipher::Cipher::from_str(cipher).ok()?.decrypt(key, ciphertext).ok()
+}
+
+/// Encrypt a metadata string (file name, thumbnail, link fields) with a
+/// fresh random nonce prepended to the ciphertext. Returns hex.
+#[wasm_bindgen]
+pub fn cipher_encrypt_string(cipher: &str, secret: String, key: Vec<u8>) -> Option<String> {
+    let blob = crate::cipher::Cipher::from_str(cipher)
+        .ok()?
+        .encrypt_string(key, secret.into_bytes())
+        .ok()?;
+    Some(hex::encode(blob))
+}
+
+/// Decrypt a hex-encoded metadata string. Falls back to the legacy
+/// embedded-nonce layout so metadata written before per-string nonces
+/// still decrypts.
+#[wasm_bindgen]
+pub fn cipher_decrypt_string(cipher: &str, hex_data: String, key: Vec<u8>) -> Option<String> {
+    let data = hex::decode(hex_data).ok()?;
+    let plaintext = crate::cipher::Cipher::from_str(cipher)
+        .ok()?
+        .decrypt_string(key, data)
+        .ok()?;
+    String::from_utf8(plaintext).ok()
+}
+
+/// Encrypt one chunk of a multi-chunk payload; the chunk index is folded
+/// into the key's embedded nonce so no two chunks share one. Index 0
+/// matches `cipher_encrypt` output byte-for-byte.
+#[wasm_bindgen]
+pub fn cipher_encrypt_chunk(
+    cipher: &str,
+    key: Vec<u8>,
+    chunk_index: u32,
+    plaintext: Vec<u8>,
+) -> Option<Vec<u8>> {
+    crate::cipher::Cipher::from_str(cipher)
+        .ok()?
+        .encrypt_chunk(&key, chunk_index as u64, plaintext)
+        .ok()
+}
+
+/// Decrypt one chunk of a multi-chunk payload. Falls back to the legacy
+/// fixed-nonce scheme so files uploaded before per-chunk nonces still open.
+#[wasm_bindgen]
+pub fn cipher_decrypt_chunk(
+    cipher: &str,
+    key: Vec<u8>,
+    chunk_index: u32,
+    ciphertext: Vec<u8>,
+) -> Option<Vec<u8>> {
+    crate::cipher::Cipher::from_str(cipher)
+        .ok()?
+        .decrypt_chunk(&key, chunk_index as u64, ciphertext)
+        .ok()
 }
 
 #[cfg(feature = "tokenizer")]

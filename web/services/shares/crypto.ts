@@ -18,6 +18,7 @@ import type {
   FolderMemberListV1,
   FolderMemberListMemberInput,
   KeyTransitionRef,
+  KeyTransitionRow,
   ShareEntryInput,
   ShareEvent,
   ShareRequestPayloadV1,
@@ -105,8 +106,8 @@ export interface SignerKey {
   /**
    * The signer's single key rotation, when the response carries it. A
    * signature made before the signer rotated verifies under the old key, not
-   * the current one — the verifiers here fall back through it. Mirrors the
-   * server's read-path chain resolution.
+   * the current one — the verifiers here fall back through it after verifying
+   * the certificate itself, mirroring the server's read-path chain resolution.
    */
   key_transition?: KeyTransitionRef
 }
@@ -128,26 +129,117 @@ async function verifyAgainstKey(
 }
 
 /**
+ * Verify a server-supplied transition certificate before its old key is
+ * trusted for anything. `signerId` must be the id the caller resolved the
+ * signer as — the canonical binds it, so a certificate replayed from another
+ * account fails. Returns `false` on any decoding failure so callers treat a
+ * malformed certificate exactly like an invalid one.
+ */
+async function verifyTransitionCertificate(
+  signerId: Uint8Array,
+  transition: KeyTransitionRef
+): Promise<boolean> {
+  try {
+    return await cryptfns.transition.verify({
+      userId: signerId,
+      oldKeyType: transition.old_key_type,
+      oldKeySpki: pemToDerBytes(transition.old_key_pem),
+      oldFingerprint: transition.old_fingerprint,
+      newIdentityKeyPem: transition.new_identity_key_pem,
+      newWrappingKeyPem: transition.new_wrapping_key_pem,
+      newFingerprint: transition.new_fingerprint,
+      issuedAt: BigInt(transition.issued_at),
+      oldSignature: transition.old_signature,
+      newSignature: transition.new_signature
+    })
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Ceiling on transition hops walked before a chain is rejected — mirrors the
+ * server's `MAX_CHAIN_HOPS`. Far above any realistic rotation count; only a
+ * fabricated row set could spin the walk longer.
+ */
+const MAX_TRANSITION_CHAIN_HOPS = 8
+
+/**
+ * True when a verified, unbroken transition chain for `userId` links
+ * `trustedFingerprint` (the one the caller pinned) to `currentFingerprint`
+ * (the one the server now reports). Walks backward from the current
+ * fingerprint, verifying every hop's certificate — the old key's endorsement
+ * of the new keys and the new identity key's proof of possession — before
+ * stepping through it. Structural fingerprint linkage alone must never re-pin
+ * trust: the rows come from the server, and an unverified row is exactly how
+ * a hostile server would substitute its own key for a contact's.
+ */
+export async function verifyTransitionChain(
+  userId: string,
+  rows: KeyTransitionRow[],
+  trustedFingerprint: string,
+  currentFingerprint: string
+): Promise<boolean> {
+  const signerId = uuidStringToBytes(userId)
+  const byNewFingerprint = new Map(rows.map((row) => [row.new_fingerprint, row]))
+  let cursor = currentFingerprint
+  for (let hops = 0; hops < MAX_TRANSITION_CHAIN_HOPS; hops++) {
+    const hop = byNewFingerprint.get(cursor)
+    if (!hop) {
+      return false
+    }
+    const ok = await cryptfns.transition.verify({
+      userId: signerId,
+      oldKeyType: hop.old_key_type,
+      oldKeySpki: Uint8Array.from(hop.old_key_spki),
+      oldFingerprint: hop.old_fingerprint,
+      newIdentityKeyPem: hop.new_identity_key_pem,
+      newWrappingKeyPem: hop.new_wrapping_key_pem,
+      newFingerprint: hop.new_fingerprint,
+      issuedAt: BigInt(hop.issued_at),
+      oldSignature: cryptfns.uint8.toBase64(Uint8Array.from(hop.old_signature)),
+      newSignature: cryptfns.uint8.toBase64(Uint8Array.from(hop.new_signature))
+    })
+    if (!ok) {
+      return false
+    }
+    cursor = hop.old_fingerprint
+    if (cursor === trustedFingerprint) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
  * Verify against the signer's current key, falling back to their pre-rotation
- * key when the response carries a `key_transition`. The fallback runs the
- * caller-supplied `oldKeyInput` builder so a canonical that embeds the signer's
- * own fingerprint (the folder roster) can re-encode it under the old key; audit
+ * key when the response carries a `key_transition`. The fallback first
+ * verifies the transition certificate itself — without that check, a hostile
+ * server could attach a fabricated transition naming any key as the "old" one
+ * and have forged signatures accepted. It then runs the caller-supplied
+ * `oldKeyInput` builder so a canonical that embeds the signer's own
+ * fingerprint (the folder roster) can re-encode it under the old key; audit
  * canonicals embed no fingerprint and pass `signingInput` unchanged.
  *
- * A supplied-but-failing transition returns `false` — it never falls through to
- * accept. Absent transition is current-key-only.
+ * A supplied-but-failing transition returns `false` — it never falls through
+ * to accept, and a transition without the `signerId` the certificate binds is
+ * treated the same. Absent transition is current-key-only.
  */
 async function verifyBytesForSigner(
   signingInput: Uint8Array,
   signature: string,
   signer: SignerKey,
+  signerId?: Uint8Array,
   oldKeyInput?: (transition: KeyTransitionRef) => Uint8Array
 ): Promise<boolean> {
   if (await verifyAgainstKey(signingInput, signature, signer.pubkey, signer.key_type)) {
     return true
   }
   const transition = signer.key_transition
-  if (!transition) {
+  if (!transition || !signerId) {
+    return false
+  }
+  if (!(await verifyTransitionCertificate(signerId, transition))) {
     return false
   }
   const oldInput = oldKeyInput ? oldKeyInput(transition) : signingInput
@@ -351,7 +443,7 @@ export async function verifyAuditEvent(
     return false
   }
   const signingInput = concatPrefixed(AUDIT_EVENT_SIG_V1_PREFIX, der)
-  return verifyBytesForSigner(signingInput, signature, sender)
+  return verifyBytesForSigner(signingInput, signature, sender, input.senderId)
 }
 
 /**
@@ -400,6 +492,8 @@ export async function signMember(
  * mirror of `signMember`; used by both `verifyFolderMemberList` (the
  * SPA's hard-fail verifier on the upload path) and by tests that
  * round-trip the producer + verifier without going through the server.
+ * `signerUserId` enables the key-transition fallback for a since-rotated
+ * signer — without it only the current key is tried.
  */
 export async function verifyMemberSignature(
   args: {
@@ -410,7 +504,8 @@ export async function verifyMemberSignature(
     signedAt: bigint
   },
   signature: string,
-  signer: SignerKey
+  signer: SignerKey,
+  signerUserId?: string
 ): Promise<boolean> {
   const der = member_sig_encode_v1(
     uuidStringToBytes(args.userId),
@@ -421,7 +516,12 @@ export async function verifyMemberSignature(
   )
   if (!der) return false
   const signingInput = concatPrefixed(MEMBER_SIG_V1_PREFIX, der)
-  return verifyBytesForSigner(signingInput, signature, signer)
+  return verifyBytesForSigner(
+    signingInput,
+    signature,
+    signer,
+    signerUserId ? uuidStringToBytes(signerUserId) : undefined
+  )
 }
 
 /**
@@ -787,28 +887,28 @@ export async function verifyFolderMemberListSignature(
   try {
     const payloadDer = encodeFolderMemberList(input)
     const signingInput = concatPrefixed(FOLDER_LIST_V1_PREFIX, payloadDer)
-    return verifyBytesForSigner(signingInput, signatureB64, signer, (transition) => {
-      if (!signerUserId) {
-        // No way to locate the signer's own row to rewrite; re-encoding
-        // unchanged would just retry the current-fingerprint bytes. Return
-        // them so the fallback verify against the old key fails deterministically
-        // rather than accepting a mismatched canonical.
-        return signingInput
-      }
+    const signerIdBytes = signerUserId ? uuidStringToBytes(signerUserId) : undefined
+    const rewriteForOldKey = (signerId: Uint8Array) => (transition: KeyTransitionRef) => {
       const oldFingerprintHex = fingerprintForUser({
         pubkey: transition.old_key_pem,
         key_type: transition.old_key_type
       })
-      const signerIdBytes = uuidStringToBytes(signerUserId)
       const oldFingerprint = cryptfns.uint8.fromHex(oldFingerprintHex)
       const rewritten: FolderMemberListV1 = {
         ...input,
         members: input.members.map((m) =>
-          bytesEqual(m.userId, signerIdBytes) ? { ...m, pubkeyFingerprint: oldFingerprint } : m
+          bytesEqual(m.userId, signerId) ? { ...m, pubkeyFingerprint: oldFingerprint } : m
         )
       }
       return concatPrefixed(FOLDER_LIST_V1_PREFIX, encodeFolderMemberList(rewritten))
-    })
+    }
+    return verifyBytesForSigner(
+      signingInput,
+      signatureB64,
+      signer,
+      signerIdBytes,
+      signerIdBytes && rewriteForOldKey(signerIdBytes)
+    )
   } catch {
     return false
   }
@@ -828,9 +928,10 @@ export async function verifyEventSignature(
   row: ShareEvent,
   sender: SignerKey
 ): Promise<boolean> {
-  // A file-less account event (`key_rotation`) can't carry a share-event
-  // signature — it's signed under the key-rotation scheme. Return false rather
-  // than feed a null file_id into the canonical builder.
+  // A `key_rotation` event is signed under the key-rotation scheme, not the
+  // share-event canonical — classify it as unverifiable here rather than feed
+  // it (and its null file_id) into the wrong canonical builder.
+  if (row.action === 'key_rotation') return false
   if (!row.sender_signature || !row.sender_id || !row.file_id) return false
   const input = buildAuditEventSigInput({
     senderId: row.sender_id,

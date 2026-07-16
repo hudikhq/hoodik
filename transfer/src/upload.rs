@@ -399,7 +399,7 @@ async fn run_upload_pipeline<'a>(
             let t_enc = upload_trace::now_ms();
             let encrypted = cryptfns::cipher::Cipher::from_str(cipher)
                 .map_err(Error::from)?
-                .encrypt(encryption_key.to_vec(), plaintext)
+                .encrypt_chunk(encryption_key, chunk, plaintext)
                 .map_err(Error::from)?;
             let enc_ms = upload_trace::now_ms() - t_enc;
             if encrypted.is_empty() {

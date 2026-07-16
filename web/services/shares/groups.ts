@@ -11,6 +11,7 @@ import type {
   DiscoveredUser,
   GroupMemberWithKey,
   GroupRole,
+  KeyTransitionRow,
   ShareRole,
   TrustedFingerprintsStore
 } from 'types'
@@ -51,8 +52,8 @@ export class GroupMemberFingerprintMismatch extends Error {
  * server-supplied `member.fingerprint` — is what the wrap and signatures bind
  * to, so a server that lies about a member's key is caught here before any key
  * is wrapped. First sight records the recomputed fingerprint; a disagreement
- * with a trusted entry hard-stops (unless a key-transition chain connects them).
- * Returns the verified fingerprint.
+ * with a trusted entry hard-stops unless a verified key-transition chain
+ * connects them. Returns the verified fingerprint.
  */
 async function verifyMemberFingerprint(
   member: GroupMemberWithKey,
@@ -63,28 +64,30 @@ async function verifyMemberFingerprint(
     throw new GroupMemberFingerprintMismatch('pubkey_mismatch', member.user_id, member.email)
   }
   const cached = trusted.lookup(member.user_id)
-    if (cached && cached.pubkeyFingerprint !== localFingerprint) {
-      // Post-migration: if any fingerprint in the key transition history for
-      // this user matches a previously trusted one, the current fp is a valid
-      // successor — silently update trust.
-      let transitioned = false
-      try {
-        const chain = await api.getKeyTransitions(member.user_id)
-        const fpsInChain = new Set<string>()
-        for (const t of chain) {
-          if (t.old_fingerprint) fpsInChain.add(t.old_fingerprint)
-          if (t.new_fingerprint) fpsInChain.add(t.new_fingerprint)
-        }
-        transitioned = fpsInChain.has(cached.pubkeyFingerprint)
-      } catch {
-        /* best effort; if chain fetch fails we fall through to hard mismatch */
-      }
-      if (transitioned) {
-        trusted.trustFingerprint(member.user_id, localFingerprint, 'key-transition')
-        return localFingerprint
-      }
-      throw new GroupMemberFingerprintMismatch('trust_changed', member.user_id, member.email)
+  if (cached && cached.pubkeyFingerprint !== localFingerprint) {
+    // A key transition chain linking the previously trusted fingerprint to
+    // the current one explains the change (post-migration continuity) — but
+    // only after every hop's certificate verifies. The rows come from the
+    // server, so an unverified chain is exactly how a hostile server would
+    // substitute its own key for a contact's.
+    let transitioned = false
+    try {
+      const chain = (await api.getKeyTransitions(member.user_id)) as KeyTransitionRow[]
+      transitioned = await shareCrypto.verifyTransitionChain(
+        member.user_id,
+        chain,
+        cached.pubkeyFingerprint,
+        localFingerprint
+      )
+    } catch {
+      /* best effort; if chain fetch fails we fall through to hard mismatch */
     }
+    if (transitioned) {
+      trusted.trustFingerprint(member.user_id, localFingerprint, 'key-transition')
+      return localFingerprint
+    }
+    throw new GroupMemberFingerprintMismatch('trust_changed', member.user_id, member.email)
+  }
   if (!cached) {
     trusted.trustFingerprint(member.user_id, localFingerprint, 'silent')
   }

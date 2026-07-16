@@ -11,16 +11,7 @@ export type ShareRole = 'reader' | 'editor' | 'co-owner'
 export type GroupRole = 'reader' | 'editor' | 'co-owner'
 
 export type AuditEventAction =
-  | 'grant'
-  | 'revoke'
-  | 'role_change'
-  | 'shared_folder_upload'
-  | 'fork'
-  | 'shared_by_co_owner'
-  | 'shared_folder_edit'
-  | 'shared_folder_restore'
-  | 'shared_folder_evict'
-  | 'shared_folder_move_out'
+  | AuditEventActionWire
   // Account-level event with no file and no recipient, signed under the
   // key-rotation scheme (not `AuditEventSigInputV1`). Chained into the
   // owner's per-sender audit chain on RSA→curve25519 migration.
@@ -190,14 +181,38 @@ export interface ShareEvent {
 /**
  * A signer's single key rotation, attached to any response carrying a
  * signature they may have produced before rotating. Absent means the signer
- * never rotated — verify against the current key only. Public certificate
- * material only. Mirrors the server's `KeyTransitionRef`.
+ * never rotated — verify against the current key only. Carries every field
+ * the transition canonical covers, so the client can verify the certificate
+ * before trusting the old key. Public certificate material only. Mirrors the
+ * server's `KeyTransitionRef`.
  */
 export interface KeyTransitionRef {
   old_key_pem: string
   old_key_type: string
+  old_fingerprint: string
+  new_identity_key_pem: string
+  new_wrapping_key_pem: string
+  new_fingerprint: string
   old_signature: string
   new_signature: string
+  issued_at: number
+}
+
+/**
+ * A stored `key_transitions` row as `GET /api/auth/key-transitions` serves it.
+ * Byte columns arrive as JSON number arrays; the signatures are raw bytes
+ * (unlike {@link KeyTransitionRef}, which pre-encodes them to base64).
+ */
+export interface KeyTransitionRow {
+  user_id: string
+  old_fingerprint: string
+  old_key_spki: number[]
+  old_key_type: string
+  new_fingerprint: string
+  new_identity_key_pem: string
+  new_wrapping_key_pem: string
+  old_signature: number[]
+  new_signature: number[]
   issued_at: number
 }
 
@@ -278,6 +293,11 @@ export interface ShareRequestPayloadV1 {
   nonce: Uint8Array
 }
 
+/**
+ * The actions the `AuditEventSigInputV1` share-event canonical can encode.
+ * {@link AuditEventAction} adds `key_rotation`, which is signed under a
+ * different scheme and must never reach the share-event encoder.
+ */
 export type AuditEventActionWire =
   | 'grant'
   | 'revoke'

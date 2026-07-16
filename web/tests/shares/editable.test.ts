@@ -19,6 +19,7 @@ import type {
   FolderMember,
   FolderMembersResponse,
   KeyPair,
+  KeyTransitionRow,
   UploadMultiKeyBody,
   UploadMultiKeyResponse
 } from '../../types'
@@ -635,7 +636,7 @@ describe('editable folder upload pipeline', () => {
     ).rejects.toBeInstanceOf(FolderMemberFingerprintChanged)
   })
 
-  it('reconcile_accepts_cached_fingerprint_change_via_key_transition_chain', async () => {
+  it('reconcile_rejects_fabricated_key_transition_rows', async () => {
     const oldFp = '0'.repeat(64)
     const currentFp = 'ff'.repeat(32)
 
@@ -654,12 +655,88 @@ describe('editable folder upload pipeline', () => {
     trusted.bind(UPLOADER_ID)
     trusted.trustFingerprint(THIRD_ID, oldFp, 'other')
 
-    // The transition chain links old cached -> current roster fp
+    // A hostile server returns a row whose fingerprints link the trusted
+    // fingerprint to the reported one, but whose certificate carries no
+    // valid signatures. Structural linkage alone must never re-pin trust —
+    // that would hand the contact's identity to whoever controls the server.
     vi.spyOn(sharesApi, 'getKeyTransitions').mockResolvedValue([
-      { old_fingerprint: oldFp, new_fingerprint: currentFp }
+      {
+        user_id: THIRD_ID,
+        old_fingerprint: oldFp,
+        old_key_spki: [1, 2, 3],
+        old_key_type: 'rsa',
+        new_fingerprint: currentFp,
+        new_identity_key_pem: 'not-a-key',
+        new_wrapping_key_pem: 'not-a-key',
+        old_signature: [4, 5, 6],
+        new_signature: [7, 8, 9],
+        issued_at: 1_700_000_000
+      }
     ])
 
-    // Should not throw; silently updates trust using the chain
+    await expect(
+      reconcileFingerprints(members, UPLOADER_ID, trusted, async () => true)
+    ).rejects.toBeInstanceOf(FolderMemberFingerprintChanged)
+    expect(trusted.lookup(THIRD_ID)?.pubkeyFingerprint).toBe(oldFp)
+  })
+
+  it('reconcile_accepts_cached_fingerprint_change_via_verified_key_transition_chain', async () => {
+    // A real rotation: the member's old RSA key dual-signs the certificate
+    // with the new Ed25519 identity key, exactly as migration records it.
+    const oldRsa = await cryptfns.rsa.generateKeyPair()
+    const newEdPriv = await cryptfns.ed25519.generatePrivateKey()
+    const newEdPub = await cryptfns.ed25519.publicFromPrivate(newEdPriv)
+    const wrappingPriv = await cryptfns.wrapping.generatePrivateKey()
+    const wrappingPub = await cryptfns.wrapping.publicFromPrivate(wrappingPriv)
+
+    const oldFp = shareCrypto.computeFingerprint(oldRsa.publicKey as string)
+    const currentFp = await cryptfns.ed25519.fingerprint(newEdPub)
+    const issuedAt = 1_700_000_000
+    const { oldSignature, newSignature } = await cryptfns.transition.sign({
+      userId: uuidStringToBytes(THIRD_ID),
+      oldKeyType: 'rsa',
+      oldKeyPem: oldRsa.publicKey as string,
+      oldFingerprint: oldFp,
+      newIdentityKeyPem: newEdPub,
+      newWrappingKeyPem: wrappingPub,
+      newFingerprint: currentFp,
+      issuedAt: BigInt(issuedAt),
+      oldPrivateKey: oldRsa.input as string,
+      newIdentityPrivateKey: newEdPriv
+    })
+
+    const row: KeyTransitionRow = {
+      user_id: THIRD_ID,
+      old_fingerprint: oldFp,
+      old_key_spki: Array.from(pemToDerBytes(oldRsa.publicKey as string)),
+      old_key_type: 'rsa',
+      new_fingerprint: currentFp,
+      new_identity_key_pem: newEdPub,
+      new_wrapping_key_pem: wrappingPub,
+      old_signature: Array.from(cryptfns.uint8.fromBase64(oldSignature)),
+      new_signature: Array.from(cryptfns.uint8.fromBase64(newSignature)),
+      issued_at: issuedAt
+    }
+
+    const members: FolderMember[] = [
+      {
+        user_id: THIRD_ID,
+        pubkey: newEdPub,
+        pubkey_fingerprint: currentFp,
+        key_type: 'curve25519',
+        share_role: 'reader',
+        signed_by_user_id: OWNER_ID,
+        is_owner: false
+      } as any
+    ]
+
+    const trusted = trustedFingerprintsStore()
+    trusted.bind(UPLOADER_ID)
+    trusted.trustFingerprint(THIRD_ID, oldFp, 'other')
+
+    vi.spyOn(sharesApi, 'getKeyTransitions').mockResolvedValue([row])
+
+    // Should not throw; the verified chain re-pins trust silently.
     await reconcileFingerprints(members, UPLOADER_ID, trusted, async () => true)
 
     const entry = trusted.lookup(THIRD_ID)

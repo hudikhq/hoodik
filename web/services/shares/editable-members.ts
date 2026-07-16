@@ -11,6 +11,7 @@ import {
 import type {
   FolderMember,
   FolderMembersResponse,
+  KeyTransitionRow,
   TrustedFingerprintsStore,
   UploadMultiKeyMember
 } from 'types'
@@ -42,7 +43,8 @@ async function verifySingleMember(
       signedAt: BigInt(member.added_at)
     },
     member.member_signature,
-    signer
+    signer,
+    signer.user_id
   )
 }
 
@@ -240,18 +242,20 @@ export async function reconcileFingerprints(
     const cached = trusted.lookup(m.user_id)
     if (cached) {
       if (cached.pubkeyFingerprint !== m.pubkey_fingerprint) {
-        // Check for a valid key transition chain that links the previously
-        // trusted fingerprint for this user to the one now reported.
-        // If present, silently update trust (post-migration continuity).
+        // A key transition chain linking the previously trusted fingerprint
+        // to the one now reported explains the change (post-migration
+        // continuity) — but only after every hop's certificate verifies.
+        // The rows come from the server, so an unverified chain is exactly
+        // how a hostile server would substitute its own key for a contact's.
         let transitioned = false
         try {
-          const chain = await api.getKeyTransitions(m.user_id)
-          const fpsInChain = new Set<string>()
-          for (const t of chain) {
-            if (t.old_fingerprint) fpsInChain.add(t.old_fingerprint)
-            if (t.new_fingerprint) fpsInChain.add(t.new_fingerprint)
-          }
-          transitioned = fpsInChain.has(cached.pubkeyFingerprint)
+          const chain = (await api.getKeyTransitions(m.user_id)) as KeyTransitionRow[]
+          transitioned = await shareCrypto.verifyTransitionChain(
+            m.user_id,
+            chain,
+            cached.pubkeyFingerprint,
+            m.pubkey_fingerprint
+          )
         } catch {
           // best effort; fall through to hard fail
         }

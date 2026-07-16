@@ -1,8 +1,8 @@
 use crate::error::{CryptoResult, Error};
 use ::aegis::aegis256::Aegis256;
 
-const KEY_LENGTH: usize = 32;
-const NONCE_LENGTH: usize = 32;
+pub(crate) const KEY_LENGTH: usize = 32;
+pub(crate) const NONCE_LENGTH: usize = 32;
 const TAG_LENGTH: usize = 16;
 
 /// Generate random key + nonce for AEGIS-256 (64 bytes total).

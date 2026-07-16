@@ -1,4 +1,4 @@
-import { init, transition_sign, key_rotation_audit_sign } from './wasm'
+import { init, transition_sign, transition_verify, key_rotation_audit_sign } from './wasm'
 
 /**
  * Sign a transition certificate binding a user's old key to their new
@@ -38,6 +38,41 @@ export async function sign(args: {
 
   const parsed = JSON.parse(json)
   return { oldSignature: parsed.old_signature, newSignature: parsed.new_signature }
+}
+
+/**
+ * Verify another user's transition certificate from server-supplied fields:
+ * the old key's endorsement of the new keys, the new identity key's proof of
+ * possession, and each fingerprint against the key it names. `userId` must be
+ * the id the caller resolved the signer as — the canonical binds it, so a
+ * certificate replayed from a different account fails. `oldKeySpki` is the
+ * old key's member-DER (the PEM body); the signatures are base64.
+ */
+export async function verify(args: {
+  userId: Uint8Array
+  oldKeyType: string
+  oldKeySpki: Uint8Array
+  oldFingerprint: string
+  newIdentityKeyPem: string
+  newWrappingKeyPem: string
+  newFingerprint: string
+  issuedAt: bigint
+  oldSignature: string
+  newSignature: string
+}): Promise<boolean> {
+  await init()
+  return transition_verify(
+    args.userId,
+    args.oldKeyType,
+    args.oldKeySpki,
+    args.oldFingerprint,
+    args.newIdentityKeyPem,
+    args.newWrappingKeyPem,
+    args.newFingerprint,
+    args.issuedAt,
+    args.oldSignature,
+    args.newSignature
+  )
 }
 
 /**

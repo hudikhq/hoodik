@@ -81,7 +81,7 @@ async function decryptVersionBytes(v: FileVersion): Promise<Uint8Array> {
   const buffers: Uint8Array[] = []
   for (let i = 0; i < v.chunks; i++) {
     const encrypted = await versions.downloadChunk(props.file.id, v.version, i)
-    const decrypted = await cryptfns.cipher.decrypt(cipher, encrypted, props.file.key)
+    const decrypted = await cryptfns.cipher.decrypt(cipher, encrypted, props.file.key, i)
     buffers.push(decrypted)
   }
   const total = buffers.reduce((sum, b) => sum + b.length, 0)

@@ -825,6 +825,60 @@ describe('share-to-group fan-out', () => {
     expect(submit).not.toHaveBeenCalled()
   })
 
+  it('share_to_group_rejects_fabricated_key_transition_rows', async () => {
+    const kpOwner = await cryptfns.rsa.generateKeyPair()
+    const kpRotated = await cryptfns.rsa.generateKeyPair()
+
+    const fileKey = await cryptfns.aes.generateKey()
+    const ownerWrap = await cryptfns.rsa.encryptMessage(
+      cryptfns.uint8.toHex(fileKey),
+      kpOwner.publicKey as string
+    )
+
+    const trustedFp = 'dd'.repeat(32)
+    const trusted = trustedFingerprintsStore()
+    trusted.bind(OWNER_ID)
+    trusted.trustFingerprint(MEMBER_A, trustedFp, 'in-person')
+
+    const member = makeMemberWithKey(MEMBER_A, kpRotated.publicKey as string)
+    vi.spyOn(sharesApi, 'groupMembers').mockResolvedValue([member])
+    // A hostile server "explains" the key change with a transition row whose
+    // fingerprints link the pinned fingerprint to the new key but whose
+    // certificate carries no valid signatures. Linkage alone must not re-pin.
+    vi.spyOn(sharesApi, 'getKeyTransitions').mockResolvedValue([
+      {
+        user_id: MEMBER_A,
+        old_fingerprint: trustedFp,
+        old_key_spki: [1, 2, 3],
+        old_key_type: 'rsa',
+        new_fingerprint: member.fingerprint,
+        new_identity_key_pem: 'not-a-key',
+        new_wrapping_key_pem: 'not-a-key',
+        old_signature: [4, 5, 6],
+        new_signature: [7, 8, 9],
+        issued_at: 1_700_000_000
+      }
+    ])
+    const submit = vi.spyOn(sharesApi, 'createShare').mockResolvedValue({ shares: [] })
+    const wrapSpy = vi.spyOn(shareCrypto, 'wrapForRecipient')
+
+    await expect(
+      shareGroups.shareToGroup({
+        groupId: GROUP_ID,
+        root: { id: FILE_X, user_id: OWNER_ID, mime: 'application/pdf', encrypted_key: ownerWrap, is_owner: true } as never,
+        subtree: [{ id: FILE_X, user_id: OWNER_ID, mime: 'application/pdf', encrypted_key: ownerWrap, is_owner: true } as never],
+        shareRole: 'editor',
+        senderId: OWNER_ID,
+        privateKey: kpOwner.input as string,
+        wrappingPrivateKey: kpOwner.input as string,
+        trusted
+      })
+    ).rejects.toBeInstanceOf(GroupMemberFingerprintMismatch)
+    expect(trusted.lookup(MEMBER_A)?.pubkeyFingerprint).toBe(trustedFp)
+    expect(wrapSpy).not.toHaveBeenCalled()
+    expect(submit).not.toHaveBeenCalled()
+  })
+
   it('share_to_group_records_first_sight_fingerprints', async () => {
     const kpOwner = await cryptfns.rsa.generateKeyPair()
     const kpBob = await cryptfns.rsa.generateKeyPair()

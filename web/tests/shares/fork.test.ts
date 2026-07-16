@@ -45,8 +45,8 @@ async function prepareForkEnvironment(): Promise<SimEnvironment> {
   // Split into 3 chunks of 16 bytes; each gets independently encrypted.
   const chunkPlain = [plaintext.slice(0, 16), plaintext.slice(16, 32), plaintext.slice(32, 48)]
   const encryptedChunks: Uint8Array[] = []
-  for (const chunk of chunkPlain) {
-    encryptedChunks.push(await cryptfns.cipher.encrypt(cipher, chunk, oldKey))
+  for (let i = 0; i < chunkPlain.length; i++) {
+    encryptedChunks.push(await cryptfns.cipher.encrypt(cipher, chunkPlain[i], oldKey, i))
   }
 
   const source: AppFile = {
@@ -142,7 +142,7 @@ describe('fork pipeline', () => {
     for (let i = 0; i < 3; i++) {
       const ct = env.uploaded.get(i)
       expect(ct).toBeDefined()
-      const pt = await cryptfns.cipher.decrypt(cipher, ct as Uint8Array, newKey)
+      const pt = await cryptfns.cipher.decrypt(cipher, ct as Uint8Array, newKey, i)
       decryptedFlat.set(pt, cursor)
       cursor += pt.length
     }

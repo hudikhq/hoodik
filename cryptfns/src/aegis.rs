@@ -1,8 +1,8 @@
 use crate::error::{CryptoResult, Error};
 use ::aegis::aegis128l::Aegis128L;
 
-const KEY_LENGTH: usize = 16;
-const NONCE_LENGTH: usize = 16;
+pub(crate) const KEY_LENGTH: usize = 16;
+pub(crate) const NONCE_LENGTH: usize = 16;
 const TAG_LENGTH: usize = 16;
 
 /// Generate random key + nonce for AEGIS-128L (32 bytes total, same layout as Ascon-128a).

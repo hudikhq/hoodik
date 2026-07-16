@@ -47,7 +47,7 @@ export async function downloadAndDecrypt(link: AppLink): Promise<Uint8Array> {
     }
 
     const encrypted = new Uint8Array(await response.arrayBuffer())
-    const chunk = await cryptfns.cipher.decrypt(link.file_cipher, encrypted, key)
+    const chunk = await cryptfns.cipher.decrypt(link.file_cipher, encrypted, key, i)
 
     const next = new Uint8Array(data.length + chunk.length)
     next.set(data, 0)
@@ -116,13 +116,17 @@ export async function createLinkFromFile(file: AppFile, kp: KeyPair): Promise<Cr
     ? await cryptfns.wrapping.wrap(key, wrapPub)
     : await cryptfns.rsa.encryptMessage(cryptfns.uint8.toHex(key), wrapPub)
 
-  const encrypted_name = await cryptfns.aes.encryptToHex(file.name || 'no-name', key)
-  const encrypted_file_key = await cryptfns.aes.encryptToHex(cryptfns.uint8.toHex(file.key), key)
+  const encrypted_name = await cryptfns.cipher.encryptString(crypto.LINK_CIPHER, file.name || 'no-name', key)
+  const encrypted_file_key = await cryptfns.cipher.encryptString(
+    crypto.LINK_CIPHER,
+    cryptfns.uint8.toHex(file.key),
+    key
+  )
 
   let encrypted_thumbnail
 
   if (file.thumbnail) {
-    encrypted_thumbnail = await cryptfns.aes.encryptToHex(file.thumbnail, key)
+    encrypted_thumbnail = await cryptfns.cipher.encryptString(crypto.LINK_CIPHER, file.thumbnail, key)
   }
 
   return {

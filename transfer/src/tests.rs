@@ -741,6 +741,79 @@ async fn download_multi_chunk_ordering() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn upload_multi_chunk_uses_distinct_nonces() {
+    // Two identical plaintext chunks: a shared (key, nonce) pair would store
+    // identical ciphertexts and let the server learn plaintext relationships.
+    let cs = CHUNK_SIZE_BYTES as usize;
+    let data = vec![0x5Au8; cs * 2];
+    let source = MockDataSource::new(data);
+    let http = MockHttpClient::new();
+    let progress = MockProgressReporter::new();
+
+    crate::upload::upload_file(&http, &source, &progress, &test_auth(), "nonce", &test_key(), &[], UploadHashOptions::default(), None, cryptfns::cipher::DEFAULT)
+        .await
+        .unwrap();
+
+    let stored = http.stored_chunks.borrow();
+    assert_ne!(stored[&0], stored[&1]);
+
+    // Chunk 1 must not decrypt under the fixed legacy nonce.
+    let cipher = cryptfns::cipher::Cipher::from_str(cryptfns::cipher::DEFAULT).unwrap();
+    assert!(cipher.decrypt(test_key(), stored[&1].clone()).is_err());
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn download_legacy_fixed_nonce_file() {
+    // Files uploaded before per-chunk nonces encrypted every chunk with the
+    // key blob's embedded nonce; downloads must keep decrypting them.
+    let cs = CHUNK_SIZE_BYTES as usize;
+    let mut original = vec![0x11u8; cs];
+    original.extend(vec![0x22u8; cs]);
+    original.extend(vec![0x33u8; 300]);
+
+    let http = MockHttpClient::new();
+    let cipher = cryptfns::cipher::Cipher::from_str(cryptfns::cipher::DEFAULT).unwrap();
+    for (i, chunk) in original.chunks(cs).enumerate() {
+        let encrypted = cipher.encrypt(test_key(), chunk.to_vec()).unwrap();
+        http.stored_chunks.borrow_mut().insert(i as u64, encrypted);
+    }
+
+    let progress = MockProgressReporter::new();
+    let downloaded = crate::download::download_file(
+        &http,
+        &progress,
+        &test_auth(),
+        "legacy",
+        original.len() as u64,
+        compute_chunk_count(original.len() as u64),
+        &test_key(),
+        cryptfns::cipher::DEFAULT,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(downloaded, original);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn upload_single_chunk_matches_legacy_ciphertext() {
+    // Chunk 0 derives the identity nonce, so files up to one chunk stay
+    // byte-identical across the scheme change in both directions.
+    let data = vec![7u8; 1024];
+    let source = MockDataSource::new(data.clone());
+    let http = MockHttpClient::new();
+    let progress = MockProgressReporter::new();
+
+    crate::upload::upload_file(&http, &source, &progress, &test_auth(), "ident", &test_key(), &[], UploadHashOptions::default(), None, cryptfns::cipher::DEFAULT)
+        .await
+        .unwrap();
+
+    let cipher = cryptfns::cipher::Cipher::from_str(cryptfns::cipher::DEFAULT).unwrap();
+    let legacy = cipher.encrypt(test_key(), data).unwrap();
+    assert_eq!(http.stored_chunks.borrow()[&0], legacy);
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn download_cancelled_before_any_work() {
     let http = MockHttpClient::new();
     let progress = MockProgressReporter::cancelling_immediately();
@@ -868,8 +941,10 @@ async fn download_all_chunks_tar_multi_chunk() {
     // Decrypt each chunk and reassemble.
     let cipher = cryptfns::cipher::Cipher::from_str(cryptfns::cipher::DEFAULT).unwrap();
     let mut reassembled = Vec::new();
-    for entry in &entries {
-        let plaintext = cipher.decrypt(test_key(), entry.data.clone()).unwrap();
+    for (i, entry) in entries.iter().enumerate() {
+        let plaintext = cipher
+            .decrypt_chunk(&test_key(), i as u64, entry.data.clone())
+            .unwrap();
         reassembled.extend_from_slice(&plaintext);
     }
     assert_eq!(reassembled, data);

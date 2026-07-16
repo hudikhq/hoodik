@@ -9,6 +9,18 @@ const FOLDER_ID = '11111111-1111-1111-1111-111111111111'
 const OWNER_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const MEMBER_ID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 
+const ISSUED_AT = 1_700_000_000
+
+function uuidBytes(uuid: string): Uint8Array {
+  return cryptfns.uint8.fromHex(uuid.replace(/-/g, ''))
+}
+
+/**
+ * A signer that genuinely rotated RSA→curve25519: the transition certificate
+ * is dual-signed with the real old and new keys, exactly as the migration
+ * flow records it. The verifiers must accept signatures made under the old
+ * key only through this certificate.
+ */
 async function migratedSigner(): Promise<{
   oldRsa: Awaited<ReturnType<typeof cryptfns.rsa.generateKeyPair>>
   newEdPriv: string
@@ -18,13 +30,34 @@ async function migratedSigner(): Promise<{
   const oldRsa = await cryptfns.rsa.generateKeyPair()
   const newEdPriv = await cryptfns.ed25519.generatePrivateKey()
   const newEdPub = await cryptfns.ed25519.publicFromPrivate(newEdPriv)
+  const wrappingPriv = await cryptfns.wrapping.generatePrivateKey()
+  const wrappingPub = await cryptfns.wrapping.publicFromPrivate(wrappingPriv)
+
+  const oldFingerprint = shareCrypto.computeFingerprint(oldRsa.publicKey as string)
+  const newFingerprint = await cryptfns.ed25519.fingerprint(newEdPub)
+  const { oldSignature, newSignature } = await cryptfns.transition.sign({
+    userId: uuidBytes(OWNER_ID),
+    oldKeyType: 'rsa',
+    oldKeyPem: oldRsa.publicKey as string,
+    oldFingerprint,
+    newIdentityKeyPem: newEdPub,
+    newWrappingKeyPem: wrappingPub,
+    newFingerprint,
+    issuedAt: BigInt(ISSUED_AT),
+    oldPrivateKey: oldRsa.input as string,
+    newIdentityPrivateKey: newEdPriv
+  })
 
   const transition: KeyTransitionRef = {
     old_key_pem: oldRsa.publicKey as string,
     old_key_type: 'rsa',
-    old_signature: '',
-    new_signature: '',
-    issued_at: 1_700_000_000
+    old_fingerprint: oldFingerprint,
+    new_identity_key_pem: newEdPub,
+    new_wrapping_key_pem: wrappingPub,
+    new_fingerprint: newFingerprint,
+    old_signature: oldSignature,
+    new_signature: newSignature,
+    issued_at: ISSUED_AT
   }
   return { oldRsa, newEdPriv, newEdPub, transition }
 }
@@ -79,7 +112,7 @@ describe('Folder roster signature — key-transition fallback', () => {
   })
 
   it('UNIT: rejects a bogus transition (old key does not match the signature)', async () => {
-    const { oldRsa, newEdPub } = await migratedSigner()
+    const { oldRsa, newEdPub, transition } = await migratedSigner()
     const oldFpHex = shareCrypto.computeFingerprint(oldRsa.publicKey as string)
     const signedInput: FolderMemberListV1 = shareCrypto.buildFolderMemberListInput({
       folderId: FOLDER_ID,
@@ -100,13 +133,7 @@ describe('Folder roster signature — key-transition fallback', () => {
     // A transition pointing at an UNRELATED RSA key: the signature was never
     // made under it, so the fallback must fail rather than accept.
     const attacker = await cryptfns.rsa.generateKeyPair()
-    const bogus: KeyTransitionRef = {
-      old_key_pem: attacker.publicKey as string,
-      old_key_type: 'rsa',
-      old_signature: '',
-      new_signature: '',
-      issued_at: 1_700_000_000
-    }
+    const bogus: KeyTransitionRef = { ...transition, old_key_pem: attacker.publicKey as string }
 
     const newFpHex = await cryptfns.ed25519.fingerprint(newEdPub)
     const currentInput: FolderMemberListV1 = shareCrypto.buildFolderMemberListInput({
@@ -128,6 +155,56 @@ describe('Folder roster signature — key-transition fallback', () => {
       currentInput,
       signature,
       { pubkey: newEdPub, key_type: 'curve25519', key_transition: bogus },
+      OWNER_ID
+    )
+    expect(ok).toBe(false)
+  })
+
+  it('UNIT: rejects an unsigned transition even when it names the real old key', async () => {
+    const { oldRsa, newEdPub, transition } = await migratedSigner()
+    const oldFpHex = shareCrypto.computeFingerprint(oldRsa.publicKey as string)
+    const signedInput: FolderMemberListV1 = shareCrypto.buildFolderMemberListInput({
+      folderId: FOLDER_ID,
+      folderOwnerId: OWNER_ID,
+      members: [
+        {
+          userId: OWNER_ID,
+          pubkeyFingerprintHex: oldFpHex,
+          shareRole: 'co-owner',
+          isOwner: true,
+          signedByUserId: OWNER_ID
+        }
+      ],
+      membersSignedAt: BigInt(1_700_000_000)
+    })
+    const { signature } = await shareCrypto.signFolderMemberList(signedInput, oldRsa.input as string)
+
+    // The roster signature IS genuine under the named old key — but the
+    // transition certificate itself carries no valid signatures, so nothing
+    // proves the old key's holder ever endorsed the rotation. Trusting the
+    // fallback here would let the server fabricate transitions freely.
+    const unsigned: KeyTransitionRef = { ...transition, old_signature: '', new_signature: '' }
+
+    const newFpHex = await cryptfns.ed25519.fingerprint(newEdPub)
+    const currentInput: FolderMemberListV1 = shareCrypto.buildFolderMemberListInput({
+      folderId: FOLDER_ID,
+      folderOwnerId: OWNER_ID,
+      members: [
+        {
+          userId: OWNER_ID,
+          pubkeyFingerprintHex: newFpHex,
+          shareRole: 'co-owner',
+          isOwner: true,
+          signedByUserId: OWNER_ID
+        }
+      ],
+      membersSignedAt: BigInt(1_700_000_000)
+    })
+
+    const ok = await shareCrypto.verifyFolderMemberListSignature(
+      currentInput,
+      signature,
+      { pubkey: newEdPub, key_type: 'curve25519', key_transition: unsigned },
       OWNER_ID
     )
     expect(ok).toBe(false)
@@ -221,22 +298,32 @@ describe('Audit event signature — key-transition fallback', () => {
   })
 
   it('UNIT: rejects a bogus transition on an audit event', async () => {
-    const { oldRsa, newEdPub } = await migratedSigner()
+    const { oldRsa, newEdPub, transition } = await migratedSigner()
     const sig = await shareCrypto.signAuditEvent(buildInput(), oldRsa.input as string)
 
     const attacker = await cryptfns.rsa.generateKeyPair()
-    const bogus: KeyTransitionRef = {
-      old_key_pem: attacker.publicKey as string,
-      old_key_type: 'rsa',
-      old_signature: '',
-      new_signature: '',
-      issued_at: 1_700_000_000
-    }
+    const bogus: KeyTransitionRef = { ...transition, old_key_pem: attacker.publicKey as string }
 
     const ok = await shareCrypto.verifyEventSignature(eventRow(sig), {
       pubkey: newEdPub,
       key_type: 'curve25519',
       key_transition: bogus
+    })
+    expect(ok).toBe(false)
+  })
+
+  it('UNIT: rejects an unsigned transition on an audit event even when it names the real old key', async () => {
+    const { oldRsa, newEdPub, transition } = await migratedSigner()
+    const sig = await shareCrypto.signAuditEvent(buildInput(), oldRsa.input as string)
+
+    // Genuine event signature under the named old key, but a certificate with
+    // no valid signatures — the fallback must refuse to trust the old key.
+    const unsigned: KeyTransitionRef = { ...transition, old_signature: '', new_signature: '' }
+
+    const ok = await shareCrypto.verifyEventSignature(eventRow(sig), {
+      pubkey: newEdPub,
+      key_type: 'curve25519',
+      key_transition: unsigned
     })
     expect(ok).toBe(false)
   })

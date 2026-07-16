@@ -1,8 +1,8 @@
 use crate::error::{CryptoResult, Error};
 use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, Key, KeyInit, Nonce};
 
-const KEY_LENGTH: usize = 32;
-const NONCE_LENGTH: usize = 12;
+pub(crate) const KEY_LENGTH: usize = 32;
+pub(crate) const NONCE_LENGTH: usize = 12;
 
 /// Generate random key with nonce for encryption/decryption
 pub fn generate_key() -> CryptoResult<Vec<u8>> {

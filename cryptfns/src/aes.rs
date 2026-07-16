@@ -2,8 +2,8 @@ use crate::error::{CryptoResult, Error};
 use ascon_aead::aead::{Aead, KeyInit};
 use ascon_aead::{Ascon128a, Key, Nonce};
 
-const KEY_LENGTH: usize = 16;
-const NONCE_LENGTH: usize = 16;
+pub(crate) const KEY_LENGTH: usize = 16;
+pub(crate) const NONCE_LENGTH: usize = 16;
 
 /// 32 random bytes: first 16 are the Ascon-128a key, last 16 are the nonce.
 /// Callers pass the whole slice around as a single "key"; [`split_key_nonce`]

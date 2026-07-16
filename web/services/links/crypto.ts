@@ -2,6 +2,15 @@ import * as cryptfns from '!/cryptfns'
 import type { AppLink, EncryptedAppLink, KeyPair } from 'types'
 
 /**
+ * Link metadata is symmetric-encrypted under the link key with Ascon-128a —
+ * the algorithm the `cryptfns.aes` helpers wrap. Going through the `cipher`
+ * helpers with this identifier keeps new ciphertext byte-compatible with
+ * links created before the per-field random nonce, so the legacy fallback in
+ * `decryptString` still opens them.
+ */
+export const LINK_CIPHER = 'ascon128a'
+
+/**
  * True for a curve25519 key PEM. RSA PEMs carry "RSA" in their armor; the
  * Ed25519 and hybrid wrapping PEMs our generators emit do not, so the absence of "RSA"
  * is the discriminator — the same test `storage/meta.ts` uses on file keys.
@@ -61,15 +70,15 @@ export async function decryptOwnLink(link: EncryptedAppLink, kp: KeyPair): Promi
 export async function decryptLink(link: EncryptedAppLink, link_key_hex: string): Promise<AppLink> {
   const link_key = cryptfns.uint8.fromHex(link_key_hex)
 
-  const name = await cryptfns.aes.decryptFromHex(link.encrypted_name, link_key)
+  const name = await cryptfns.cipher.decryptString(LINK_CIPHER, link.encrypted_name, link_key)
 
   const thumbnail = link.encrypted_thumbnail
-    ? await cryptfns.aes.decryptFromHex(link.encrypted_thumbnail, link_key)
+    ? await cryptfns.cipher.decryptString(LINK_CIPHER, link.encrypted_thumbnail, link_key)
     : undefined
 
   let key: Uint8Array | undefined
   if (link.encrypted_file_key) {
-    const fileKeyHex = await cryptfns.aes.decryptFromHex(link.encrypted_file_key, link_key)
+    const fileKeyHex = await cryptfns.cipher.decryptString(LINK_CIPHER, link.encrypted_file_key, link_key)
     key = cryptfns.uint8.fromHex(fileKeyHex)
   }
 

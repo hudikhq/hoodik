@@ -188,7 +188,7 @@ async fn fetch_and_decrypt<'a>(
         let encrypted = http.download_chunk(auth, file_id, chunk).await?;
         let plaintext = cryptfns::cipher::Cipher::from_str(cipher)
             .map_err(Error::from)?
-            .decrypt(decryption_key.to_vec(), encrypted)
+            .decrypt_chunk(decryption_key, chunk, encrypted)
             .map_err(Error::from)?;
         Ok(plaintext)
     }
@@ -339,7 +339,7 @@ pub async fn decrypt_chunks_to_file(
             .map_err(|e| Error::Io(format!("chunk {i}: {e}")))?;
 
         let plaintext = cipher_impl
-            .decrypt(decryption_key.to_vec(), encrypted)
+            .decrypt_chunk(decryption_key, i, encrypted)
             .map_err(Error::from)?;
 
         file.write_all(&plaintext)

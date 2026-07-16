@@ -50,6 +50,51 @@ describe('Testing links', () => {
     expect(decrypted.encrypted_thumbnail).toBeUndefined()
   })
 
+  it('UNIT: link metadata fields never share a nonce', async () => {
+    const kp = await cryptfns.rsa.generateKeyPair()
+    const file_key = await cryptfns.aes.generateKey()
+
+    // Name and thumbnail carry identical plaintext under the same link key.
+    // With the old fixed embedded nonce their ciphertext would be byte-for-byte
+    // identical (the nonce-reuse tell); a fresh nonce per field breaks that.
+    const link = await links.meta.createLinkFromFile(
+      { id: '123', name: 'dup', key: file_key, thumbnail: 'dup' },
+      kp
+    )
+
+    expect(link.encrypted_name).not.toBe(link.encrypted_thumbnail)
+
+    const decrypted = await links.crypto.decryptOwnLink(link, kp)
+    expect(decrypted.name).toBe('dup')
+    expect(decrypted.thumbnail).toBe('dup')
+    expect(cryptfns.uint8.toHex(decrypted.key as Uint8Array)).toBe(cryptfns.uint8.toHex(file_key))
+  })
+
+  it('UNIT: links created before per-field nonces still decrypt', async () => {
+    const kp = await cryptfns.rsa.generateKeyPair()
+    const file_key = await cryptfns.aes.generateKey()
+    const link_key = await cryptfns.aes.generateKey()
+
+    // Reproduce the pre-fix ciphertext: fixed embedded nonce, no prefix.
+    const legacy = {
+      file_id: '123',
+      signature: await cryptfns.rsa.sign(kp, '123'),
+      encrypted_link_key: await cryptfns.rsa.encryptMessage(
+        cryptfns.uint8.toHex(link_key),
+        kp.publicKey as string
+      ),
+      encrypted_name: await cryptfns.aes.encryptToHex('legacy', link_key),
+      encrypted_file_key: await cryptfns.aes.encryptToHex(cryptfns.uint8.toHex(file_key), link_key),
+      encrypted_thumbnail: await cryptfns.aes.encryptToHex('thumb', link_key)
+    } as unknown as EncryptedAppLink
+
+    const decrypted = await links.crypto.decryptOwnLink(legacy, kp)
+
+    expect(decrypted.name).toBe('legacy')
+    expect(decrypted.thumbnail).toBe('thumb')
+    expect(cryptfns.uint8.toHex(decrypted.key as Uint8Array)).toBe(cryptfns.uint8.toHex(file_key))
+  })
+
   it('UNIT: curve25519 owners create and decrypt their own link', async () => {
     const edPriv = await cryptfns.ed25519.generatePrivateKey()
     const edPub = await cryptfns.ed25519.publicFromPrivate(edPriv)
@@ -153,7 +198,7 @@ describe('Testing links', () => {
       new TextEncoder().encode('second-chunk')
     ]
     const encryptedChunks = await Promise.all(
-      plaintextChunks.map((c) => cryptfns.cipher.encrypt(cipher, c, file_key))
+      plaintextChunks.map((c, i) => cryptfns.cipher.encrypt(cipher, c, file_key, i))
     )
 
     // file_size drives the chunk count via ceil(size / CHUNK_SIZE_BYTES); one

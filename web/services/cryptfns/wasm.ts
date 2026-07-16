@@ -34,6 +34,10 @@ import {
   cipher_generate_key,
   cipher_encrypt,
   cipher_decrypt,
+  cipher_encrypt_string,
+  cipher_decrypt_string,
+  cipher_encrypt_chunk,
+  cipher_decrypt_chunk,
   text_into_hashed_tokens,
   share_payload_encode_v1,
   audit_event_sig_input_encode_v1,
@@ -50,6 +54,7 @@ import {
   envelope_open,
   envelope_rewrap,
   transition_sign,
+  transition_verify,
   key_rotation_audit_sign
 } from '../../node_modules/transfer/transfer.js'
 
@@ -102,6 +107,10 @@ export {
   cipher_generate_key,
   cipher_encrypt,
   cipher_decrypt,
+  cipher_encrypt_string,
+  cipher_decrypt_string,
+  cipher_encrypt_chunk,
+  cipher_decrypt_chunk,
   text_into_hashed_tokens,
   share_payload_encode_v1,
   audit_event_sig_input_encode_v1,
@@ -118,5 +127,6 @@ export {
   envelope_open,
   envelope_rewrap,
   transition_sign,
+  transition_verify,
   key_rotation_audit_sign
 }
