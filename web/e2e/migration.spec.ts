@@ -41,6 +41,10 @@ test.describe('Legacy → Curve25519 auto-migration', () => {
     await expect(page).not.toHaveURL(/\/auth\/login/)
     await expect(page.getByTestId(`file-row-${FILE_NAME}`)).toBeVisible()
 
+    // A successful migration raises the one-time recovery-key notice; its overlay
+    // intercepts the sidebar clicks below, so dismiss it first.
+    await page.getByRole('button', { name: 'Got it' }).click()
+
     // The pre-migration public link still lists for its owner with its decrypted
     // name — the guard for the shipped bug where migration never re-wrapped
     // links.encrypted_link_key, stranding every pre-migration link. Navigate
