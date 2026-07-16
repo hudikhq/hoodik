@@ -44,6 +44,7 @@ async fn test_registration_and_login() {
         .set_json(&Signature {
             fingerprint: Some(fingerprint.clone()),
             signature: Some(signature),
+            ..Default::default()
         })
         .to_request();
 

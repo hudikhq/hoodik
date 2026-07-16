@@ -14,6 +14,10 @@ pub(crate) struct SignatureProvider<'ctx> {
     data: Signature,
 }
 
+/// Widest clock skew accepted between the client-signed timestamp and the
+/// server clock. Also bounds how long a spent nonce must stay recorded.
+const CLIENT_NONCE_MAX_SKEW_SECONDS: i64 = 300;
+
 impl<'ctx> SignatureProvider<'ctx> {
     pub(crate) fn new(auth: &'ctx Auth, data: Signature) -> Self {
         Self { auth, data }
@@ -26,6 +30,13 @@ impl<'ctx> SignatureProvider<'ctx> {
     pub(crate) fn generate_fingerprint_nonce(fingerprint: &str) -> String {
         format!("{}-{}", fingerprint, Self::generate_nonce_minutes())
     }
+
+    /// Canonical bytes a client-nonce login signs. Rebuilt here from the
+    /// received fields so a client can never substitute a different blob the
+    /// signature happens to match.
+    fn client_nonce_canonical(fingerprint: &str, timestamp: i64, nonce: &str) -> String {
+        format!("{fingerprint}:{timestamp}:{nonce}")
+    }
 }
 
 #[async_trait::async_trait]
@@ -33,9 +44,33 @@ impl AuthProvider for SignatureProvider<'_> {
     async fn authenticate(&self, user_agent: &str, ip: &str) -> AppResult<Authenticated> {
         let (fingerprint, signature) = self.data.into_tuple()?;
 
-        // Build nonce from the *presented* fingerprint (client may send an old one
-        // from a pre-migration backup key).
-        let nonce = Self::generate_fingerprint_nonce(&fingerprint);
+        // Upgraded clients sign `fingerprint:timestamp:nonce` with a random
+        // nonce, so back-to-back logins with the same key stay distinguishable
+        // from replays. Clients predating those fields sign the deterministic
+        // minute bucket instead; that path is kept accepted and carries its
+        // known limitation that a second login in the same bucket is refused.
+        // Either canonical is built from the *presented* fingerprint (the
+        // client may send an old one from a pre-migration backup key).
+        let (message, nonce, expires_at) = match (self.data.timestamp, self.data.nonce.as_deref())
+        {
+            (Some(timestamp), Some(nonce)) if !nonce.is_empty() => {
+                if (Utc::now().timestamp() - timestamp).abs() > CLIENT_NONCE_MAX_SKEW_SECONDS {
+                    return Err(Error::Unauthorized("signature_expired".to_string()));
+                }
+
+                (
+                    Self::client_nonce_canonical(&fingerprint, timestamp, nonce),
+                    nonce.to_string(),
+                    timestamp + CLIENT_NONCE_MAX_SKEW_SECONDS,
+                )
+            }
+            _ => {
+                let nonce = Self::generate_fingerprint_nonce(&fingerprint);
+                let expires_at = (Utc::now().timestamp() / 60 + 1) * 60;
+
+                (nonce.clone(), nonce, expires_at)
+            }
+        };
 
         // Resolve the user by the presented fingerprint, or fall back to an old
         // fingerprint recorded in a key transition. Drop the lookup error before
@@ -82,7 +117,15 @@ impl AuthProvider for SignatureProvider<'_> {
         }
 
         KeyType::from_str(&verify_key_type)?
-            .verify(&nonce, &signature, &verify_pubkey)?;
+            .verify(&message, &signature, &verify_pubkey)?;
+
+        // Recording the verified nonce makes a captured request single-use;
+        // the row only has to outlive the window in which the signature is
+        // still acceptable — the timestamp skew for client nonces, the minute
+        // bucket for legacy ones.
+        if !self.auth.consume_login_nonce(&fingerprint, &nonce, expires_at).await? {
+            return Err(Error::Unauthorized("signature_replayed".to_string()));
+        }
 
         let session = self.auth.generate(&user, user_agent, ip).await?;
 

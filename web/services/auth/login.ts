@@ -72,6 +72,8 @@ interface OpaqueRegisterStartResponse {
 interface PrivateKeyRequest {
   fingerprint: string
   signature: string
+  timestamp: number
+  nonce: string
   remember: boolean
 }
 
@@ -330,6 +332,10 @@ export const store = defineStore('login', () => {
 
     const keypair = await cryptfns.rsa.inputToKeyPair(credentials.privateKey)
 
+    // setupAuthenticated strips device_id from the session; keep it so a
+    // successful migration below can re-encrypt the remembered material.
+    const deviceId = authenticated.session.device_id as string
+
     if (credentials.remember) {
       await setupAndRemember(authenticated, keypair, crypto)
     } else {
@@ -346,6 +352,13 @@ export const store = defineStore('login', () => {
     if (secVer === 0 && credentials.password && credentials.privateKey) {
       try {
         await runMigrationCeremony(authenticated, credentials.privateKey, credentials.password, crypto)
+
+        // The remember-me material persisted above is the RSA key of a
+        // now-curve account; a reload would reject it against the new
+        // fingerprint and force a fresh login. Re-store the migrated bundle.
+        if (credentials.remember) {
+          await pk.setRememberMe(pkBundle.recoveryKeyFor(crypto.keypair), deviceId)
+        }
       } catch (e) {
         logger.error('[auth] auto-migration ceremony failed (user stays legacy)', e)
         notify({
@@ -471,10 +484,10 @@ export const store = defineStore('login', () => {
     const fingerprint = curve
       ? await ed25519.fingerprint(keypair.publicKey as string)
       : await cryptfns.rsa.getFingerprint(keypair.input as string)
-    const nonce = cryptfns.createFingerprintNonce(fingerprint)
+    const { nonce, timestamp, canonical } = cryptfns.createLoginNonce(fingerprint)
     const signature = curve
-      ? await ed25519.sign(nonce, keypair.input as string)
-      : await cryptfns.rsa.sign(keypair, nonce)
+      ? await ed25519.sign(canonical, keypair.input as string)
+      : await cryptfns.rsa.sign(keypair, canonical)
 
     const response = await Api.post<PrivateKeyRequest, Authenticated>(
       '/api/auth/signature',
@@ -482,6 +495,8 @@ export const store = defineStore('login', () => {
       {
         fingerprint,
         signature,
+        timestamp,
+        nonce,
         remember
       }
     )

@@ -3,10 +3,16 @@ use ::error::AppResult;
 use serde::{Deserialize, Serialize};
 use validr::*;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct Signature {
     pub fingerprint: Option<String>,
     pub signature: Option<String>,
+    /// Unix seconds signed into the login canonical together with `nonce`.
+    /// Absent on clients predating the client-nonce scheme, which sign the
+    /// deterministic minute bucket instead.
+    pub timestamp: Option<i64>,
+    /// Client-generated random nonce (lowercase hex) signed into the canonical.
+    pub nonce: Option<String>,
 }
 
 impl Validation for Signature {

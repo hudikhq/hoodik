@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use chrono::Utc;
 use context::DatabaseConnection;
 use entity::{
-    invitations, key_transitions, sessions, users, ActiveModelTrait, ActiveValue, ColumnTrait,
-    EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Uuid,
+    invitations, key_transitions, sessions, used_nonces, users, ActiveModelTrait, ActiveValue,
+    ColumnTrait, EntityTrait, OnConflict, PaginatorTrait, QueryFilter, QueryOrder, Uuid,
 };
 use error::{AppResult, Error};
 
@@ -95,6 +95,38 @@ where
             .all(self.connection())
             .await
             .map_err(Error::from)
+    }
+
+    /// Record a verified signature-login nonce as spent. Returns `false` when
+    /// the pair was already recorded — a replayed request. The conflict check
+    /// rides on the primary key so two concurrent copies of the same capture
+    /// cannot both pass; expired rows are purged first, keeping the table no
+    /// larger than the windows it still guards.
+    async fn consume_login_nonce(
+        &self,
+        fingerprint: &str,
+        nonce: &str,
+        expires_at: i64,
+    ) -> AppResult<bool> {
+        used_nonces::Entity::delete_many()
+            .filter(used_nonces::Column::ExpiresAt.lt(Utc::now().timestamp()))
+            .exec(self.connection())
+            .await?;
+
+        let inserted = used_nonces::Entity::insert(used_nonces::ActiveModel {
+            fingerprint: ActiveValue::Set(fingerprint.to_string()),
+            nonce: ActiveValue::Set(nonce.to_string()),
+            expires_at: ActiveValue::Set(expires_at),
+        })
+        .on_conflict(
+            OnConflict::columns([used_nonces::Column::Fingerprint, used_nonces::Column::Nonce])
+                .do_nothing()
+                .to_owned(),
+        )
+        .exec_without_returning(self.connection())
+        .await?;
+
+        Ok(inserted > 0)
     }
 
     /// Get user and session by session id, session does not have to be valid

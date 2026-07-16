@@ -17,6 +17,7 @@ pub mod share_events;
 pub mod share_group_members;
 pub mod share_groups;
 pub mod tokens;
+pub mod used_nonces;
 pub mod user_actions;
 pub mod user_files;
 pub mod users;

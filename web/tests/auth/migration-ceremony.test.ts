@@ -6,6 +6,7 @@ import * as wrapping from '../../services/cryptfns/wrapping'
 import * as ed25519 from '../../services/cryptfns/ed25519'
 import * as transition from '../../services/cryptfns/transition'
 import * as pk from '../../services/auth/pk'
+import { parseBundle } from '../../services/auth/bundle'
 import { notify } from '@kyvg/vue3-notification'
 
 import type { KeyPair } from '../../types'
@@ -13,6 +14,7 @@ import type { KeyPair } from '../../types'
 const posts: Array<{ path: string; body: unknown }> = []
 
 let loginUser: Record<string, unknown> | null = null
+let refreshUser: Record<string, unknown> | null = null
 let migrationKeys: {
   keys: Array<{ file_id: string; encrypted_key: string }>
   link_keys: Array<{ link_id: string; encrypted_link_key: string; file_id: string }>
@@ -41,8 +43,15 @@ vi.mock('../../services/api', () => ({
     post: vi.fn(async (path: string, _query: unknown, body: unknown) => {
       posts.push({ path, body })
       if (path === '/api/auth/login/start') return { body: { method: 'password' } }
-      if (path === '/api/auth/login') return { body: { user: loginUser, session: SESSION } }
-      if (path === '/api/auth/signature') return { body: { user: loginUser, session: SESSION } }
+      // The store strips device_id off the session it is handed, so each
+      // response gets its own copy to keep SESSION intact across tests.
+      if (path === '/api/auth/login') return { body: { user: loginUser, session: { ...SESSION } } }
+      if (path === '/api/auth/signature') {
+        return { body: { user: loginUser, session: { ...SESSION } } }
+      }
+      if (path === '/api/auth/refresh') {
+        return { body: refreshUser ? { user: refreshUser, session: { ...SESSION } } : null }
+      }
       if (path === '/api/auth/pake/register/start') {
         return { body: { registration_response: 'srv-reg-resp' } }
       }
@@ -107,6 +116,7 @@ describe('legacy -> curve25519 migration ceremony', () => {
   beforeEach(() => {
     posts.length = 0
     loginUser = legacyUser()
+    refreshUser = null
     migrationKeys = { keys: [], link_keys: [] }
     vi.mocked(notify).mockClear()
     vi.mocked(transition.keyRotationAuditSign).mockClear()
@@ -305,6 +315,51 @@ describe('legacy -> curve25519 migration ceremony', () => {
     expect(posts.find((p) => p.path === '/api/auth/migration/rewrap')).toBeUndefined()
     expect(posts.find((p) => p.path === '/api/auth/migration/complete')).toBeUndefined()
     expect(vi.mocked(notify)).toHaveBeenCalled()
+  })
+
+  it('UNIT: with remember-me, re-stores the persisted material as the migrated curve bundle', async () => {
+    migrationKeys = {
+      keys: [{ file_id: 'f0', encrypted_key: await rsaWrap(keyBytes(71)) }],
+      link_keys: []
+    }
+
+    const { store: loginStore } = await import('../../services/auth/login')
+    const { store: cryptoStore } = await import('../../services/crypto')
+    const login = loginStore()
+    const crypto = cryptoStore()
+
+    await login.withCredentials(crypto, {
+      email: 'legacy@test.com',
+      password: PASSWORD,
+      remember: true
+    })
+
+    expect(vi.mocked(notify)).not.toHaveBeenCalled()
+
+    // The blob persisted at login held the RSA PEM keyed to the retired
+    // fingerprint; after the ceremony it must carry the migrated bundle.
+    const remembered = await pk.getRememberMe('dev1')
+    const bundle = parseBundle(remembered as string)
+    expect(bundle.identity).toBe(crypto.keypair.input)
+    expect(bundle.wrapping).toBe(crypto.keypair.wrappingPrivate)
+    expect(bundle.rsa).toBe(rsaKp.input)
+
+    // Reload: fresh stores must restore the migrated identity from the
+    // persisted material instead of bouncing the user to a fresh login.
+    refreshUser = {
+      ...legacyUser(),
+      pubkey: crypto.keypair.publicKey,
+      fingerprint: crypto.keypair.fingerprint,
+      security_version: 1
+    }
+    setActivePinia(createPinia())
+    const reloadedCrypto = cryptoStore()
+    await loginStore().refresh(reloadedCrypto)
+
+    expect(reloadedCrypto.keypair.keyType).toBe('curve25519')
+    expect(reloadedCrypto.keypair.input).toBe(bundle.identity)
+    expect(reloadedCrypto.keypair.wrappingPrivate).toBe(bundle.wrapping)
+    expect(reloadedCrypto.keypair.legacyPrivate).toBe(rsaKp.input)
   })
 
   it('UNIT: splits a large key set into batches of at most 500 and stages each in order', async () => {

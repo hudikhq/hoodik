@@ -485,6 +485,7 @@ async fn test_signature_login_with_old_fingerprint_after_migration() {
         .set_json(&Signature {
             fingerprint: Some(old_fp.clone()),
             signature: Some(signature),
+            ..Default::default()
         })
         .to_request();
 
@@ -504,6 +505,30 @@ async fn test_signature_login_with_old_fingerprint_after_migration() {
     assert_ne!(
         authenticated.user.fingerprint, *old_fp,
         "the authenticated user must be the new curve identity, not the old fingerprint"
+    );
+
+    // The client-nonce format must resolve through the same transition
+    // fallback: the canonical is built from the presented (old) fingerprint.
+    let timestamp = chrono::Utc::now().timestamp();
+    let nonce = entity::Uuid::new_v4().simple().to_string();
+    let canonical = format!("{old_fp}:{timestamp}:{nonce}");
+    let signature = cryptfns::rsa::private::sign(&canonical, &user.rsa_private).unwrap();
+
+    let req = test::TestRequest::post()
+        .uri("/api/auth/signature")
+        .set_json(&Signature {
+            fingerprint: Some(old_fp.clone()),
+            signature: Some(signature),
+            timestamp: Some(timestamp),
+            nonce: Some(nonce),
+        })
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::OK,
+        "client-nonce signature login with the old fingerprint must succeed via key transition"
     );
 }
 

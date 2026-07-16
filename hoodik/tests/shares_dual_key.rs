@@ -54,6 +54,7 @@ async fn test_register_curve25519_user_and_signature_login() {
         .set_json(&Signature {
             fingerprint: Some(carol.fingerprint.clone()),
             signature: Some(signature),
+            ..Default::default()
         })
         .to_request();
     let resp = test::call_service(&app, req).await;
