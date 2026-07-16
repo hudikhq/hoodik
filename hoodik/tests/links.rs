@@ -287,6 +287,13 @@ async fn test_link_download_decrypts_aegis256_file() {
     // Per-chunk download must return exactly one chunk's ciphertext, and the
     // chunks concatenated in order must reproduce the whole-file stream — this
     // is what lets the recipient decrypt a multi-chunk file client-side.
+    use entity::EntityTrait;
+    let downloads_before = entity::links::Entity::find_by_id(link.id)
+        .one(&context.db)
+        .await
+        .unwrap()
+        .unwrap()
+        .downloads;
     let mut per_chunk = Vec::new();
     for i in 0..data.len() {
         let req = test::TestRequest::post()
@@ -295,6 +302,21 @@ async fn test_link_download_decrypts_aegis256_file() {
         per_chunk.extend(test::call_and_read_body(&app, req).await.to_vec());
     }
     assert_eq!(per_chunk, contents, "chunked link download must match the full stream");
+
+    // One recipient fetching every chunk is one download, not one per chunk:
+    // only the final chunk request increments the owner-visible counter.
+    let downloads_after = entity::links::Entity::find_by_id(link.id)
+        .one(&context.db)
+        .await
+        .unwrap()
+        .unwrap()
+        .downloads;
+    assert_eq!(
+        downloads_after - downloads_before,
+        1,
+        "downloading all {} chunks increments the counter by one, not per chunk",
+        data.len()
+    );
 
     context.config.app.cleanup();
 }

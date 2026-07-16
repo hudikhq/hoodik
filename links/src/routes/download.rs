@@ -37,7 +37,18 @@ pub(crate) async fn download(
         return Err(Error::Unauthorized("link_expired".to_string()));
     }
 
-    repository.increment_downloads(link.id).await?;
+    // Count one download per completed transfer, not per chunk request. The
+    // client fetches the file as N chunks (`?chunk=i`); only the final index
+    // closes a download, and a whole-file request (`chunk` omitted) is a single
+    // one. A preview or abandoned transfer that never reaches the last chunk
+    // correctly does not count.
+    let last_chunk = link
+        .file_size
+        .map(|size| (size as u64).div_ceil(fs::MAX_CHUNK_SIZE_BYTES).max(1) - 1)
+        .unwrap_or(0);
+    if chunk.is_none_or(|i| i as u64 == last_chunk) {
+        repository.increment_downloads(link.id).await?;
+    }
 
     let fs = Fs::new(&context.config);
     let streamer = if link.file_editable {
