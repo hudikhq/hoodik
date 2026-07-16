@@ -24,6 +24,7 @@ pub(crate) mod m20260601_000007_create_share_group_members;
 pub(crate) mod m20260601_000008_alter_settings_sharing_kill_switch;
 pub(crate) mod m20260601_000009_alter_files_folder_member_list;
 pub(crate) mod m20260601_000010_alter_share_group_members_role;
+pub(crate) mod m20260715_000001_alter_user_files_member_signed_at;
 
 pub struct Migrator;
 
@@ -55,6 +56,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260601_000008_alter_settings_sharing_kill_switch::Migration),
             Box::new(m20260601_000009_alter_files_folder_member_list::Migration),
             Box::new(m20260601_000010_alter_share_group_members_role::Migration),
+            Box::new(m20260715_000001_alter_user_files_member_signed_at::Migration),
         ]
     }
 }

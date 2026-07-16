@@ -75,7 +75,10 @@ impl Repository<'_> {
                     pubkey_fingerprint: user.map(|u| u.fingerprint.clone()).unwrap_or_default(),
                     share_role: row.share_role.clone(),
                     is_owner: row.is_owner,
-                    added_at: row.shared_at,
+                    // The client re-verifies the member σ against the timestamp it
+                    // signed. That's `member_signed_at`; legacy rows written before
+                    // the column existed fall back to `shared_at`.
+                    added_at: row.member_signed_at.or(row.shared_at),
                     signed_by_user_id: row.shared_by_user_id,
                     member_signature: row
                         .member_signature

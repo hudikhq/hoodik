@@ -110,8 +110,11 @@ pub(super) async fn rebind_node_to_roster<C: ConnectionTrait>(
                 id: ActiveValue::Unchanged(prev.id),
                 encrypted_key: ActiveValue::Set(entry.encrypted_key.clone()),
                 share_role: ActiveValue::Set(inherited_role),
-                shared_at: ActiveValue::Set(Some(signed_timestamp)),
+                shared_at: ActiveValue::Set(Some(now)),
                 shared_by_user_id: ActiveValue::Set(Some(caller_id)),
+                member_signed_at: ActiveValue::Set(
+                    inherited_member_signature.as_ref().map(|_| signed_timestamp),
+                ),
                 member_signature: ActiveValue::Set(inherited_member_signature),
                 expires_at: ActiveValue::NotSet,
                 is_owner: ActiveValue::NotSet,
@@ -131,8 +134,11 @@ pub(super) async fn rebind_node_to_roster<C: ConnectionTrait>(
                 created_at: ActiveValue::Set(now),
                 expires_at: ActiveValue::Set(None),
                 share_role: ActiveValue::Set(inherited_role),
-                shared_at: ActiveValue::Set(Some(signed_timestamp)),
+                shared_at: ActiveValue::Set(Some(now)),
                 shared_by_user_id: ActiveValue::Set(Some(caller_id)),
+                member_signed_at: ActiveValue::Set(
+                    inherited_member_signature.as_ref().map(|_| signed_timestamp),
+                ),
                 member_signature: ActiveValue::Set(inherited_member_signature),
             })
             .exec_without_returning(tx)

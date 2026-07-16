@@ -231,6 +231,7 @@ where
             shared_at: ActiveValue::NotSet,
             shared_by_user_id: ActiveValue::NotSet,
             member_signature: ActiveValue::NotSet,
+            member_signed_at: ActiveValue::NotSet,
         };
         entity::user_files::Entity::insert(user_file)
             .exec_without_returning(self.repository.connection())
