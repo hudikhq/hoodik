@@ -22,7 +22,7 @@ Hoodik is a lightweight, self-hosted, end-to-end encrypted cloud storage server.
 
 ## Features
 
-- **End-to-end encryption** — files are encrypted in the browser before upload and decrypted after download using a hybrid X25519 + AEGIS-128L scheme (RSA on legacy accounts)
+- **End-to-end encryption** — files are encrypted in the browser with AEGIS-128L before upload and decrypted after download; file keys are wrapped with a quantum-resistant X25519 + ML-KEM-768 hybrid (RSA on legacy accounts)
 - **Secure search** — file metadata is tokenized and hashed so the server can match search queries without storing plaintext names
 - **Encrypted notes** — create and edit rich markdown notes with a WYSIWYG editor; content is encrypted, auto-saved, and searchable just like uploaded files
 - **Public sharing links** — share files via a link; the recipient decrypts everything in their browser with the key in the URL fragment, and the server never decrypts a public link
@@ -39,7 +39,7 @@ Hoodik is a lightweight, self-hosted, end-to-end encrypted cloud storage server.
 
 ### File storage
 
-Each user gets an Ed25519 identity key pair (for signing) and an X25519 key pair (for wrapping file keys) on registration. Login uses OPAQUE, so your password never leaves the device; the private keys are stored envelope-encrypted under a key derived from the OPAQUE `export_key`, which only your password can produce — the server cannot read them. Accounts created before this scheme used an RSA-2048 key pair and are still supported; they migrate to the curve keys automatically on the next login.
+Each user gets an Ed25519 identity key pair (for signing) and an X25519 + ML-KEM-768 wrapping key pair (for wrapping file keys) on registration. File keys are wrapped under both algorithms at once — a hybrid that stays secure even if a future quantum computer breaks the elliptic-curve half. Login uses OPAQUE, so your password never leaves the device; the private keys are stored envelope-encrypted under a key derived from the OPAQUE `export_key`, which only your password can produce — the server cannot read them. Accounts created before this scheme used an RSA-2048 key pair and are still supported; they migrate to the new keys automatically on the next login.
 
 > ⚠️ **Store your private key somewhere safe** (e.g. a password manager). If you forget your password, the private key is the only way to recover your account and decrypt your files.
 
@@ -64,7 +64,7 @@ Searchable metadata (file name, etc.) is tokenized, hashed, and stored as opaque
 When you share a file:
 1. A random link key is generated.
 2. The file metadata and file key are encrypted with the link key.
-3. The link key itself is wrapped under your own current key type (X25519 for curve accounts, RSA for legacy accounts) so only you can recover it.
+3. The link key itself is wrapped under your own current key type (the X25519 + ML-KEM-768 hybrid on current accounts, RSA on legacy accounts) so only you can recover it.
 4. The link key is appended to the share URL as a fragment: `https://…/links/{id}#link-key`.
 
 The recipient's browser uses the fragment to decrypt the metadata and file key locally and does all decryption itself — the link key in the fragment never reaches the server. The server only ever serves encrypted bytes and never decrypts anything for a public link.
@@ -74,7 +74,7 @@ The recipient's browser uses the fragment to decrypt the metadata and file key l
 | Primitive | Algorithm |
 |-----------|-----------|
 | Identity / signing | Ed25519 (legacy accounts: RSA-2048 PKCS#1) |
-| Key wrapping | X25519 ECIES (legacy accounts: RSA-2048) |
+| Key wrapping | hybrid X25519 + ML-KEM-768 (post-quantum) — HKDF-SHA256 combiner, AEGIS-256 wrap AEAD (legacy accounts: RSA-2048) |
 | Symmetric (default) | AEGIS-128L — hardware-accelerated AEAD via WASM SIMD128/relaxed-simd |
 | Symmetric (supported) | AEGIS-256, Ascon-128a, ChaCha20-Poly1305 |
 | Login | OPAQUE (RFC 9807, ristretto255-SHA512), Argon2id KSF — password never crosses the wire |
