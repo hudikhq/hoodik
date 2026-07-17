@@ -88,6 +88,17 @@ export async function discoverUser(email: string): Promise<DiscoveredUser> {
 }
 
 /**
+ * `GET /api/auth/key-transitions?user_id=...` (or without for self).
+ * Returns the list of historical key transitions for TOFU / chain verification
+ * after a crypto migration.
+ */
+export async function getKeyTransitions(userId?: string): Promise<any[]> {
+  const params = userId ? { user_id: userId } : undefined
+  const resp = await Api.get<any[]>('/api/auth/key-transitions', params)
+  return resp.body || []
+}
+
+/**
  * `POST /api/shares` — create or upgrade a share. The caller is responsible
  * for building the signed DER payload and wrapping every entry key for the
  * recipient (see `services/shares/crypto.ts`).

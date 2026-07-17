@@ -1,6 +1,6 @@
 use crate::contracts::{
-    account::Account, cookies::Cookies, ctx::Ctx, email::Email, register::Register,
-    repository::Repository, sessions::Sessions,
+    account::Account, cookies::Cookies, ctx::Ctx, email::Email, migration::Migration,
+    opaque::Opaque, register::Register, repository::Repository, sessions::Sessions,
 };
 use context::Context;
 
@@ -14,6 +14,8 @@ impl Register for Auth<'_> {}
 impl Repository for Auth<'_> {}
 impl Sessions for Auth<'_> {}
 impl Account for Auth<'_> {}
+impl Opaque for Auth<'_> {}
+impl Migration for Auth<'_> {}
 
 impl Ctx for Auth<'_> {
     fn ctx(&self) -> &Context {

@@ -4,7 +4,7 @@ use entity::{
     paginated::Paginated,
     sort::Sortable,
     users, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait, QueryFilter,
-    QuerySelect, Uuid,
+    QueryOrder, QuerySelect, Uuid,
 };
 use error::{AppResult, Error};
 use validr::Validation;
@@ -15,6 +15,12 @@ use crate::{
 };
 
 use super::Repository;
+
+/// Minimum spacing between invitation sends. Prevents an admin on shared hosted
+/// mail infrastructure from turning the invite button into a spam amplifier.
+/// Global rather than per-admin: the invitations table records no inviter, and
+/// sending invites is already an admin-only action.
+const INVITATION_MIN_INTERVAL_SECONDS: i64 = 30;
 
 pub(crate) struct InvitationsRepository<'ctx, T: ConnectionTrait> {
     repository: &'ctx Repository<'ctx, T>,
@@ -91,6 +97,21 @@ where
     /// will be the only way to register
     pub(crate) async fn create(&self, invitation: Create) -> AppResult<invitations::Model> {
         let (email, message, role, quota, expires_at) = invitation.into_values()?;
+
+        let now = Utc::now().timestamp();
+        if let Some(last) = invitations::Entity::find()
+            .order_by_desc(invitations::Column::CreatedAt)
+            .one(self.repository.connection())
+            .await?
+        {
+            let elapsed = now - last.created_at;
+            if elapsed < INVITATION_MIN_INTERVAL_SECONDS {
+                return Err(Error::TooManyRequests(format!(
+                    "Please wait {} seconds before sending another invitation",
+                    INVITATION_MIN_INTERVAL_SECONDS - elapsed
+                )));
+            }
+        }
 
         let user = users::Entity::find()
             .filter(users::Column::Email.eq(email.as_str()))

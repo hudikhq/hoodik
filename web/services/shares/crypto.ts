@@ -8,7 +8,8 @@ import {
   rsa_fingerprint_public,
   rsa_sign_bytes,
   rsa_verify_bytes,
-  share_payload_encode_v1
+  share_payload_encode_v1,
+  spki_fingerprint
 } from '!/cryptfns/wasm'
 
 import type {
@@ -16,6 +17,8 @@ import type {
   AuditEventSigInputV1,
   FolderMemberListV1,
   FolderMemberListMemberInput,
+  KeyTransitionRef,
+  KeyTransitionRow,
   ShareEntryInput,
   ShareEvent,
   ShareRequestPayloadV1,
@@ -76,9 +79,11 @@ function uuidStringToBytes(uuid: string): Uint8Array {
 
 /**
  * Strip PEM armor and decode the base64-encoded DER body. The WASM
- * encoders take raw DER bytes, but Hoodik stores RSA public keys as
- * PKCS#1 PEM (matching `cryptfns/src/rsa.rs` line 46) — so the SPA
- * crosses the PEM↔DER boundary before any structured signing call.
+ * encoders take raw DER bytes, and the server's member-signature
+ * canonical defines `pubkey_der` as exactly the body of the stored PEM —
+ * the PKCS#1 body for RSA accounts, the SPKI body for curve25519
+ * accounts — so decoding the armor generically produces the right
+ * canonical bytes for both key types.
  */
 function pemToDerBytes(pem: string): Uint8Array {
   const trimmed = pem
@@ -86,6 +91,168 @@ function pemToDerBytes(pem: string): Uint8Array {
     .replace(/-----END [A-Z ]+-----/g, '')
     .replace(/\s+/g, '')
   return cryptfns.uint8.fromBase64(trimmed)
+}
+
+/**
+ * The key material the SPA holds about another user, as the server
+ * serialises it on member, audit, and discovery records. `key_type`
+ * absent means an RSA account; `"curve25519"` accounts sign with their
+ * Ed25519 identity `pubkey` and receive key wraps under their hybrid
+ * `wrapping_pubkey`.
+ */
+export interface SignerKey {
+  pubkey: string
+  key_type?: string
+  /**
+   * The signer's single key rotation, when the response carries it. A
+   * signature made before the signer rotated verifies under the old key, not
+   * the current one — the verifiers here fall back through it after verifying
+   * the certificate itself, mirroring the server's read-path chain resolution.
+   */
+  key_transition?: KeyTransitionRef
+}
+
+export interface RecipientKey extends SignerKey {
+  wrapping_pubkey?: string | null
+}
+
+async function verifyAgainstKey(
+  signingInput: Uint8Array,
+  signature: string,
+  pubkey: string,
+  keyType: string | undefined
+): Promise<boolean> {
+  if (keyType === 'curve25519') {
+    return cryptfns.ed25519.verifyBytes(signingInput, signature, pubkey)
+  }
+  return rsa_verify_bytes(signingInput, signature, pubkey)
+}
+
+/**
+ * Verify a server-supplied transition certificate before its old key is
+ * trusted for anything. `signerId` must be the id the caller resolved the
+ * signer as — the canonical binds it, so a certificate replayed from another
+ * account fails. Returns `false` on any decoding failure so callers treat a
+ * malformed certificate exactly like an invalid one.
+ */
+async function verifyTransitionCertificate(
+  signerId: Uint8Array,
+  transition: KeyTransitionRef
+): Promise<boolean> {
+  try {
+    return await cryptfns.transition.verify({
+      userId: signerId,
+      oldKeyType: transition.old_key_type,
+      oldKeySpki: pemToDerBytes(transition.old_key_pem),
+      oldFingerprint: transition.old_fingerprint,
+      newIdentityKeyPem: transition.new_identity_key_pem,
+      newWrappingKeyPem: transition.new_wrapping_key_pem,
+      newFingerprint: transition.new_fingerprint,
+      issuedAt: BigInt(transition.issued_at),
+      oldSignature: transition.old_signature,
+      newSignature: transition.new_signature
+    })
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Ceiling on transition hops walked before a chain is rejected — mirrors the
+ * server's `MAX_CHAIN_HOPS`. Far above any realistic rotation count; only a
+ * fabricated row set could spin the walk longer.
+ */
+const MAX_TRANSITION_CHAIN_HOPS = 8
+
+/**
+ * True when a verified, unbroken transition chain for `userId` links
+ * `trustedFingerprint` (the one the caller pinned) to `currentFingerprint`
+ * (the one the server now reports). Walks backward from the current
+ * fingerprint, verifying every hop's certificate — the old key's endorsement
+ * of the new keys and the new identity key's proof of possession — before
+ * stepping through it. Structural fingerprint linkage alone must never re-pin
+ * trust: the rows come from the server, and an unverified row is exactly how
+ * a hostile server would substitute its own key for a contact's.
+ */
+export async function verifyTransitionChain(
+  userId: string,
+  rows: KeyTransitionRow[],
+  trustedFingerprint: string,
+  currentFingerprint: string
+): Promise<boolean> {
+  const signerId = uuidStringToBytes(userId)
+  const byNewFingerprint = new Map(rows.map((row) => [row.new_fingerprint, row]))
+  let cursor = currentFingerprint
+  for (let hops = 0; hops < MAX_TRANSITION_CHAIN_HOPS; hops++) {
+    const hop = byNewFingerprint.get(cursor)
+    if (!hop) {
+      return false
+    }
+    const ok = await cryptfns.transition.verify({
+      userId: signerId,
+      oldKeyType: hop.old_key_type,
+      oldKeySpki: Uint8Array.from(hop.old_key_spki),
+      oldFingerprint: hop.old_fingerprint,
+      newIdentityKeyPem: hop.new_identity_key_pem,
+      newWrappingKeyPem: hop.new_wrapping_key_pem,
+      newFingerprint: hop.new_fingerprint,
+      issuedAt: BigInt(hop.issued_at),
+      oldSignature: cryptfns.uint8.toBase64(Uint8Array.from(hop.old_signature)),
+      newSignature: cryptfns.uint8.toBase64(Uint8Array.from(hop.new_signature))
+    })
+    if (!ok) {
+      return false
+    }
+    cursor = hop.old_fingerprint
+    if (cursor === trustedFingerprint) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
+ * Verify against the signer's current key, falling back to their pre-rotation
+ * key when the response carries a `key_transition`. The fallback first
+ * verifies the transition certificate itself — without that check, a hostile
+ * server could attach a fabricated transition naming any key as the "old" one
+ * and have forged signatures accepted. It then runs the caller-supplied
+ * `oldKeyInput` builder so a canonical that embeds the signer's own
+ * fingerprint (the folder roster) can re-encode it under the old key; audit
+ * canonicals embed no fingerprint and pass `signingInput` unchanged.
+ *
+ * A supplied-but-failing transition returns `false` — it never falls through
+ * to accept, and a transition without the `signerId` the certificate binds is
+ * treated the same. Absent transition is current-key-only.
+ */
+async function verifyBytesForSigner(
+  signingInput: Uint8Array,
+  signature: string,
+  signer: SignerKey,
+  signerId?: Uint8Array,
+  oldKeyInput?: (transition: KeyTransitionRef) => Uint8Array
+): Promise<boolean> {
+  if (await verifyAgainstKey(signingInput, signature, signer.pubkey, signer.key_type)) {
+    return true
+  }
+  const transition = signer.key_transition
+  if (!transition || !signerId) {
+    return false
+  }
+  if (!(await verifyTransitionCertificate(signerId, transition))) {
+    return false
+  }
+  const oldInput = oldKeyInput ? oldKeyInput(transition) : signingInput
+  return verifyAgainstKey(oldInput, signature, transition.old_key_pem, transition.old_key_type)
+}
+
+function isCurvePrivate(pem: string): boolean {
+  // Only RSA keys carry "RSA" in their PEM armor label ("RSA PRIVATE KEY"); the
+  // Ed25519 identity key and the HOODIK WRAPPING key do not. Test the label,
+  // not the whole PEM — a large hybrid wrapping key's random base64 body
+  // contains "RSA" ~5% of the time, which would misclassify it as RSA.
+  const label = pem.match(/-----BEGIN ([^-]+)-----/)?.[1] ?? ''
+  return !!pem && !label.toUpperCase().includes('RSA')
 }
 
 /**
@@ -109,26 +276,40 @@ export function toBase64Nonce(nonce: Uint8Array): string {
 }
 
 /**
- * RSA-decrypt the caller's own wrap of a file key, returning the hex-encoded
- * AES key bytes.
+ * Decrypt the caller's own wrap of a file key.
+ * For legacy RSA accounts this is an RSA private-key operation (hex inside).
+ * For curve25519 accounts the stored value is a hybrid wrap blob; we unwrap
+ * with the wrapping private and return hex so callers are unchanged.
  */
 export async function decryptOwnFileKey(
   encryptedKey: string,
   privateKey: string
 ): Promise<string> {
+  if (isCurvePrivate(privateKey)) {
+    const keyBytes = await cryptfns.wrapping.unwrap(encryptedKey, privateKey)
+    return cryptfns.uint8.toHex(keyBytes)
+  }
   return cryptfns.rsa.decryptMessage(privateKey, encryptedKey)
 }
 
 /**
- * Wrap a file key (hex string) under the recipient's RSA public key.
- * Returns base64 ciphertext — the same encoding the server stores in
- * `user_files.encrypted_key`.
+ * Wrap a file key for a recipient. RSA accounts (the default when
+ * `key_type` is absent) encrypt the key's HEX STRING — the format every
+ * stored wrap has used since v1; curve25519 accounts seal the RAW key
+ * BYTES in a hybrid wrap blob under `wrapping_pubkey`. Both come back
+ * base64 — the encoding the server stores in `user_files.encrypted_key`.
  */
 export async function wrapForRecipient(
   fileKeyHex: string,
-  recipientPubkey: string
+  recipient: RecipientKey
 ): Promise<string> {
-  return cryptfns.rsa.encryptMessage(fileKeyHex, recipientPubkey)
+  if (recipient.key_type === 'curve25519') {
+    if (!recipient.wrapping_pubkey) {
+      throw new Error('curve25519 recipient has no wrapping pubkey')
+    }
+    return cryptfns.wrapping.wrap(cryptfns.uint8.fromHex(fileKeyHex), recipient.wrapping_pubkey)
+  }
+  return cryptfns.rsa.encryptMessage(fileKeyHex, recipient.pubkey)
 }
 
 /**
@@ -196,7 +377,9 @@ export async function signSharePayload(
   }
 
   const signingInput = concatPrefixed(SHARE_REQUEST_V1_PREFIX, payloadDer)
-  const signature = rsa_sign_bytes(signingInput, privateKey)
+  const signature = isCurvePrivate(privateKey)
+    ? await cryptfns.ed25519.signBytes(signingInput, privateKey)
+    : rsa_sign_bytes(signingInput, privateKey)
   if (!signature) {
     throw new Error('Failed to sign ShareRequestPayloadV1')
   }
@@ -229,7 +412,9 @@ export async function signAuditEvent(
   }
 
   const signingInput = concatPrefixed(AUDIT_EVENT_SIG_V1_PREFIX, der)
-  const signature = rsa_sign_bytes(signingInput, privateKey)
+  const signature = isCurvePrivate(privateKey)
+    ? await cryptfns.ed25519.signBytes(signingInput, privateKey)
+    : rsa_sign_bytes(signingInput, privateKey)
   if (!signature) {
     throw new Error('Failed to sign AuditEventSigInputV1')
   }
@@ -237,13 +422,13 @@ export async function signAuditEvent(
 }
 
 /**
- * Verify an `AuditEventSigInputV1` signature against a known sender pubkey.
+ * Verify an `AuditEventSigInputV1` signature against a known sender key.
  * Used by the audit-log chain verifier to confirm rows weren't forged.
  */
 export async function verifyAuditEvent(
   input: AuditEventSigInputV1,
   signature: string,
-  senderPubkey: string
+  sender: SignerKey
 ): Promise<boolean> {
   const der = audit_event_sig_input_encode_v1(
     input.senderId,
@@ -258,7 +443,7 @@ export async function verifyAuditEvent(
     return false
   }
   const signingInput = concatPrefixed(AUDIT_EVENT_SIG_V1_PREFIX, der)
-  return rsa_verify_bytes(signingInput, signature, senderPubkey)
+  return verifyBytesForSigner(signingInput, signature, sender, input.senderId)
 }
 
 /**
@@ -293,7 +478,9 @@ export async function signMember(
     throw new Error('Failed to DER-encode MemberSigPayloadV1')
   }
   const signingInput = concatPrefixed(MEMBER_SIG_V1_PREFIX, der)
-  const signature = rsa_sign_bytes(signingInput, signerPrivateKey)
+  const signature = isCurvePrivate(signerPrivateKey)
+    ? await cryptfns.ed25519.signBytes(signingInput, signerPrivateKey)
+    : rsa_sign_bytes(signingInput, signerPrivateKey)
   if (!signature) {
     throw new Error('Failed to sign MemberSigPayloadV1')
   }
@@ -305,6 +492,8 @@ export async function signMember(
  * mirror of `signMember`; used by both `verifyFolderMemberList` (the
  * SPA's hard-fail verifier on the upload path) and by tests that
  * round-trip the producer + verifier without going through the server.
+ * `signerUserId` enables the key-transition fallback for a since-rotated
+ * signer — without it only the current key is tried.
  */
 export async function verifyMemberSignature(
   args: {
@@ -315,7 +504,8 @@ export async function verifyMemberSignature(
     signedAt: bigint
   },
   signature: string,
-  signerPubkey: string
+  signer: SignerKey,
+  signerUserId?: string
 ): Promise<boolean> {
   const der = member_sig_encode_v1(
     uuidStringToBytes(args.userId),
@@ -326,7 +516,12 @@ export async function verifyMemberSignature(
   )
   if (!der) return false
   const signingInput = concatPrefixed(MEMBER_SIG_V1_PREFIX, der)
-  return rsa_verify_bytes(signingInput, signature, signerPubkey)
+  return verifyBytesForSigner(
+    signingInput,
+    signature,
+    signer,
+    signerUserId ? uuidStringToBytes(signerUserId) : undefined
+  )
 }
 
 /**
@@ -340,6 +535,23 @@ export function computeFingerprint(pubkey: string): string {
     throw new Error('Failed to compute pubkey fingerprint')
   }
   return fingerprint
+}
+
+/**
+ * Fingerprint dispatch across account key types — mirrors the server's
+ * `identity::KeyType::fingerprint`. RSA accounts hash the key modulus
+ * (`computeFingerprint`); curve25519 accounts hash the Ed25519 SPKI body,
+ * exactly what registration stored in `users.fingerprint`.
+ */
+export function fingerprintForUser(user: SignerKey): string {
+  if (user.key_type === 'curve25519') {
+    const fingerprint = spki_fingerprint(user.pubkey)
+    if (!fingerprint) {
+      throw new Error('Failed to compute pubkey fingerprint')
+    }
+    return fingerprint
+  }
+  return computeFingerprint(user.pubkey)
 }
 
 /**
@@ -421,7 +633,9 @@ export function recomputeChainHash(row: ShareEvent, prevHashB64: string | null):
   const recipientBytes = row.recipient_id
     ? uuidStringToBytes(row.recipient_id)
     : new Uint8Array(16)
-  const fileBytes = uuidStringToBytes(row.file_id)
+  // Account-level events (`key_rotation`) carry no file; the server chains them
+  // with 16 zero bytes for `file_id`, so match that here.
+  const fileBytes = row.file_id ? uuidStringToBytes(row.file_id) : new Uint8Array(16)
   const wireRole = row.share_role_after === null ? WIRE_ROLE_ABSENT : SHARE_ROLE_WIRE[row.share_role_after]
   const der = audit_event_encode_v1(
     senderBytes,
@@ -642,7 +856,9 @@ export async function signFolderMemberList(
 ): Promise<{ payloadDer: Uint8Array; signature: string }> {
   const payloadDer = encodeFolderMemberList(input)
   const signingInput = concatPrefixed(FOLDER_LIST_V1_PREFIX, payloadDer)
-  const signature = rsa_sign_bytes(signingInput, signerPrivateKey)
+  const signature = isCurvePrivate(signerPrivateKey)
+    ? await cryptfns.ed25519.signBytes(signingInput, signerPrivateKey)
+    : rsa_sign_bytes(signingInput, signerPrivateKey)
   if (!signature) {
     throw new Error('Failed to sign FolderMemberListV1')
   }
@@ -654,19 +870,52 @@ export async function signFolderMemberList(
  * supplied `FolderMemberListV1`. Returns `false` on encoding failure
  * so the caller can treat it as a verification failure rather than
  * propagating a low-level encoder error.
+ *
+ * When the signer carries a `key_transition`, the fallback re-encodes the
+ * roster with the signer's *pre-migration* fingerprint in their own member
+ * row — the roster commits to the signer's fingerprint, which rotated with the
+ * key — then verifies against the old key. Mirrors the server's
+ * `members_list_sig` fallback. `signerUserId` identifies which member row to
+ * rewrite; without it the fallback can't run and only the current key is tried.
  */
 export async function verifyFolderMemberListSignature(
   input: FolderMemberListV1,
   signatureB64: string,
-  signerPubkey: string
+  signer: SignerKey,
+  signerUserId?: string
 ): Promise<boolean> {
   try {
     const payloadDer = encodeFolderMemberList(input)
     const signingInput = concatPrefixed(FOLDER_LIST_V1_PREFIX, payloadDer)
-    return rsa_verify_bytes(signingInput, signatureB64, signerPubkey)
+    const signerIdBytes = signerUserId ? uuidStringToBytes(signerUserId) : undefined
+    const rewriteForOldKey = (signerId: Uint8Array) => (transition: KeyTransitionRef) => {
+      const oldFingerprintHex = fingerprintForUser({
+        pubkey: transition.old_key_pem,
+        key_type: transition.old_key_type
+      })
+      const oldFingerprint = cryptfns.uint8.fromHex(oldFingerprintHex)
+      const rewritten: FolderMemberListV1 = {
+        ...input,
+        members: input.members.map((m) =>
+          bytesEqual(m.userId, signerId) ? { ...m, pubkeyFingerprint: oldFingerprint } : m
+        )
+      }
+      return concatPrefixed(FOLDER_LIST_V1_PREFIX, encodeFolderMemberList(rewritten))
+    }
+    return verifyBytesForSigner(
+      signingInput,
+      signatureB64,
+      signer,
+      signerIdBytes,
+      signerIdBytes && rewriteForOldKey(signerIdBytes)
+    )
   } catch {
     return false
   }
+}
+
+function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  return a.length === b.length && a.every((byte, i) => byte === b[i])
 }
 
 /**
@@ -677,9 +926,13 @@ export async function verifyFolderMemberListSignature(
  */
 export async function verifyEventSignature(
   row: ShareEvent,
-  senderPubkey: string
+  sender: SignerKey
 ): Promise<boolean> {
-  if (!row.sender_signature || !row.sender_id) return false
+  // A `key_rotation` event is signed under the key-rotation scheme, not the
+  // share-event canonical — classify it as unverifiable here rather than feed
+  // it (and its null file_id) into the wrong canonical builder.
+  if (row.action === 'key_rotation') return false
+  if (!row.sender_signature || !row.sender_id || !row.file_id) return false
   const input = buildAuditEventSigInput({
     senderId: row.sender_id,
     recipientId: row.recipient_id,
@@ -689,5 +942,5 @@ export async function verifyEventSignature(
     shareRoleAfter: row.share_role_after,
     timestamp: BigInt(row.created_at)
   })
-  return verifyAuditEvent(input, row.sender_signature, senderPubkey)
+  return verifyAuditEvent(input, row.sender_signature, sender)
 }

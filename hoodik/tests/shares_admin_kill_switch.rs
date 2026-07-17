@@ -37,8 +37,8 @@ async fn test_endpoints_return_503_when_disabled() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "kill-switch-target");
 
     context.settings.inner().await.sharing.set_enabled(false);
@@ -104,8 +104,8 @@ async fn test_flip_back_restores_endpoints() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "kill-switch-cycle");
 
     grant!(app, alice, bob, ShareRoleEnum::Editor, file.id);
@@ -172,7 +172,7 @@ async fn test_admin_settings_round_trip_flips_sharing_enabled() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
+    register_user!(app, context, alice, "alice@example.com");
 
     let req = test::TestRequest::get()
         .uri("/api/admin/settings")
@@ -222,8 +222,8 @@ async fn test_non_admin_cannot_flip_sharing_kill_switch() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let req = test::TestRequest::get()
         .uri("/api/admin/settings")

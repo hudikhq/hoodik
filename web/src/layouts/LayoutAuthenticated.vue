@@ -16,6 +16,7 @@ import { store as cryptoStore } from '!/crypto'
 import SearchButton from '@/components/files/search/SearchButton.vue'
 import SearchModal from '@/components/files/search/SearchModal.vue'
 import ResendActivationNotification from './components/ResendActivationNotification.vue'
+import MigrationNoticeModal from '@/components/modals/MigrationNoticeModal.vue'
 import { useAuthedShareBootstrap } from '@/composables/useAuthedShareBootstrap'
 
 const router = useRouter()
@@ -88,6 +89,8 @@ const menuClick = (event: Event, item: NavBarItem) => {
       <SearchModal :keypair="crypto.keypair" v-model="isSearchModalActive" />
 
       <ResendActivationNotification :authenticated="login.authenticated" />
+
+      <MigrationNoticeModal />
 
       <slot :authenticated="login.authenticated" :keypair="crypto.keypair" />
 

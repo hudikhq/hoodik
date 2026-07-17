@@ -40,7 +40,7 @@ async function fetchAndExpand(node: TreeNode) {
   if (!node.loaded) {
     node.loading = true
     const response = await meta.find({ dir_id: node.file.id })
-    const privateKey = props.keypair.input as string
+    const privateKey = props.keypair.wrappingPrivate || (props.keypair.input as string)
 
     const items: AppFile[] = []
     for (const item of response.children) {

@@ -11,22 +11,23 @@ export type ShareRole = 'reader' | 'editor' | 'co-owner'
 export type GroupRole = 'reader' | 'editor' | 'co-owner'
 
 export type AuditEventAction =
-  | 'grant'
-  | 'revoke'
-  | 'role_change'
-  | 'shared_folder_upload'
-  | 'fork'
-  | 'shared_by_co_owner'
-  | 'shared_folder_edit'
-  | 'shared_folder_restore'
-  | 'shared_folder_evict'
-  | 'shared_folder_move_out'
+  | AuditEventActionWire
+  // Account-level event with no file and no recipient, signed under the
+  // key-rotation scheme (not `AuditEventSigInputV1`). Chained into the
+  // owner's per-sender audit chain on RSA→curve25519 migration.
+  | 'key_rotation'
 
 export interface DiscoveredUser {
   user_id: string
   email: string
   pubkey: string
   fingerprint: string
+  /** `"rsa"` (assumed when absent) or `"curve25519"`. Curve25519 accounts
+   *  carry an Ed25519 identity `pubkey` and receive key wraps under
+   *  `wrapping_pubkey` instead of `pubkey`. */
+  key_type?: string
+  /** X25519 SPKI PEM for curve25519 accounts; `null` for RSA accounts. */
+  wrapping_pubkey?: string | null
 }
 
 export interface ShareEntryInput {
@@ -146,7 +147,9 @@ export interface ShareEvent {
   id: string
   sender_id: string | null
   recipient_id: string | null
-  file_id: string
+  /** Null on account-level events (e.g. `key_rotation`) that aren't tied to a
+   *  file. Mirrors the server's nullable `share_events.file_id`. */
+  file_id: string | null
   action: AuditEventAction
   share_role_before: ShareRole | null
   share_role_after: ShareRole | null
@@ -175,11 +178,53 @@ export interface ShareEvent {
   encrypted_key: string | null
 }
 
+/**
+ * A signer's single key rotation, attached to any response carrying a
+ * signature they may have produced before rotating. Absent means the signer
+ * never rotated — verify against the current key only. Carries every field
+ * the transition canonical covers, so the client can verify the certificate
+ * before trusting the old key. Public certificate material only. Mirrors the
+ * server's `KeyTransitionRef`.
+ */
+export interface KeyTransitionRef {
+  old_key_pem: string
+  old_key_type: string
+  old_fingerprint: string
+  new_identity_key_pem: string
+  new_wrapping_key_pem: string
+  new_fingerprint: string
+  old_signature: string
+  new_signature: string
+  issued_at: number
+}
+
+/**
+ * A stored `key_transitions` row as `GET /api/auth/key-transitions` serves it.
+ * Byte columns arrive as JSON number arrays; the signatures are raw bytes
+ * (unlike {@link KeyTransitionRef}, which pre-encodes them to base64).
+ */
+export interface KeyTransitionRow {
+  user_id: string
+  old_fingerprint: string
+  old_key_spki: number[]
+  old_key_type: string
+  new_fingerprint: string
+  new_identity_key_pem: string
+  new_wrapping_key_pem: string
+  old_signature: number[]
+  new_signature: number[]
+  issued_at: number
+}
+
 export interface AuditUserRef {
   id: string
   email: string
   pubkey: string
   fingerprint: string
+  /** `"rsa"` (assumed when absent) or `"curve25519"` — see {@link DiscoveredUser}. */
+  key_type?: string
+  wrapping_pubkey?: string | null
+  key_transition?: KeyTransitionRef
 }
 
 export interface ShareEventPage {
@@ -201,6 +246,7 @@ export interface Capabilities {
   share_groups: boolean
   audit_log: boolean
   fork: boolean
+  default_cipher?: string
   server_version?: string
 }
 
@@ -209,11 +255,15 @@ export interface FolderMember {
   email: string | null
   pubkey: string
   pubkey_fingerprint: string
+  /** `"rsa"` (assumed when absent) or `"curve25519"` — see {@link DiscoveredUser}. */
+  key_type?: string
+  wrapping_pubkey?: string | null
   share_role: ShareRole
   is_owner: boolean
   added_at: number | null
   signed_by_user_id: string | null
   member_signature: string | null
+  key_transition?: KeyTransitionRef
 }
 
 export interface FolderMembersResponse {
@@ -243,6 +293,11 @@ export interface ShareRequestPayloadV1 {
   nonce: Uint8Array
 }
 
+/**
+ * The actions the `AuditEventSigInputV1` share-event canonical can encode.
+ * {@link AuditEventAction} adds `key_rotation`, which is signed under a
+ * different scheme and must never reach the share-event encoder.
+ */
 export type AuditEventActionWire =
   | 'grant'
   | 'revoke'
@@ -310,9 +365,11 @@ export interface TrustedFingerprintEntry {
   lastVerifiedAt: number
   /** `silent` means the entry was recorded after a successful share
    *  without the user having to manually acknowledge the fingerprint.
+   *  `key-transition` is used after a successful automatic post-migration
+   *  fingerprint continuity via the append-only key_transitions chain.
    *  Kept as a separate value so an audit of past trust decisions can
    *  distinguish ceremony-backed entries from passive ones. */
-  verificationMethod: 'qr' | 'voice' | 'in-person' | 'silent' | 'other'
+  verificationMethod: 'qr' | 'voice' | 'in-person' | 'silent' | 'other' | 'key-transition'
 }
 
 export interface AppShareGroup {
@@ -357,6 +414,9 @@ export interface GroupMemberWithKey {
   email: string
   pubkey: string
   fingerprint: string
+  /** `"rsa"` (assumed when absent) or `"curve25519"` — see {@link DiscoveredUser}. */
+  key_type?: string
+  wrapping_pubkey?: string | null
   group_role: GroupRole | 'owner'
 }
 

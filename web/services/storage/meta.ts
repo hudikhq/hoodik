@@ -23,14 +23,21 @@ import type {
 /**
  * Take the unencrypted file or thumbnail and encrypt it with the file key.
  *
- * @param cipher  Cipher identifier (default: `cryptfns.cipher.DEFAULT_CIPHER`).
+ * @param cipher  Cipher identifier (default: `cryptfns.cipher.defaultCipher()`).
  *                Controls which algorithm is used for the file key generation,
  *                name encryption, thumbnail encryption, and chunk encryption.
  */
+function isRsaKey(pem: string): boolean {
+  // RSA PKCS#1 PEMs carry "RSA" in their header line; the Ed25519 identity and
+  // hybrid wrapping PEMs never do. A base64 body can't contain the header's
+  // space, so matching "BEGIN RSA" is an unambiguous key-type check.
+  return (pem || '').toUpperCase().includes('BEGIN RSA')
+}
+
 export async function encrypt(
   unencrypted: AppFileUnencryptedPart,
   publicKey: string,
-  cipher = cryptfns.cipher.DEFAULT_CIPHER
+  cipher = cryptfns.cipher.defaultCipher()
 ): Promise<AppFileEncryptedPart> {
   const key = unencrypted.key ? unencrypted.key : await cryptfns.cipher.generateKey(cipher)
 
@@ -40,7 +47,12 @@ export async function encrypt(
     : undefined
 
   const keyHex = cryptfns.uint8.toHex(key)
-  const encrypted_key = await cryptfns.rsa.encryptMessage(keyHex, publicKey)
+
+  // Curve accounts (post migration) wrap the raw key bytes with the hybrid
+  // construction; legacy accounts keep RSA on the hex-encoded key.
+  const encrypted_key = isRsaKey(publicKey)
+    ? await cryptfns.rsa.encryptMessage(keyHex, publicKey)
+    : await cryptfns.wrapping.wrap(key, publicKey)
 
   return {
     encrypted_key,
@@ -62,8 +74,13 @@ export async function decrypt(
 ): Promise<AppFileUnencryptedPart> {
   const cipher = encrypted.cipher
 
-  const keyHex = await cryptfns.rsa.decryptMessage(privateKey, encrypted.encrypted_key)
-  const key = cryptfns.uint8.fromHex(keyHex)
+  let key: Uint8Array
+  if (isRsaKey(privateKey)) {
+    const keyHex = await cryptfns.rsa.decryptMessage(privateKey, encrypted.encrypted_key)
+    key = cryptfns.uint8.fromHex(keyHex)
+  } else {
+    key = await cryptfns.wrapping.unwrap(encrypted.encrypted_key, privateKey)
+  }
 
   const name = await cryptfns.cipher.decryptString(cipher, encrypted.encrypted_name, key)
   const thumbnail = encrypted.encrypted_thumbnail
@@ -89,7 +106,8 @@ export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise
     throw new Error('Cannot create file without private key')
   }
 
-  const encryptedParts = await encrypt(unencrypted, keypair.publicKey, unencrypted.cipher)
+  const wrapPub = keypair.wrappingPublic || keypair.publicKey
+  const encryptedParts = await encrypt(unencrypted, wrapPub, unencrypted.cipher)
 
   const createFile: EncryptedCreateFile = {
     search_tokens_hashed: unencrypted.search_tokens_hashed,
@@ -118,7 +136,7 @@ export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise
   }
 
   const file = response.body
-  const unencryptedPart = await decrypt(file, keypair.input)
+  const unencryptedPart = await decrypt(file, keypair.wrappingPrivate || keypair.input)
 
   return {
     ...file,
@@ -142,7 +160,8 @@ export async function rename(
     throw new Error('Cannot rename file without private key')
   }
 
-  const encryptedParts = await encrypt({ key: file.key, name: unencrypted.name }, keypair.publicKey)
+  const wrapPub = keypair.wrappingPublic || keypair.publicKey
+  const encryptedParts = await encrypt({ key: file.key, name: unencrypted.name }, wrapPub)
 
   const rename: EncryptedRename = {
     search_tokens_hashed: unencrypted.search_tokens_hashed,
@@ -161,7 +180,7 @@ export async function rename(
   }
 
   const renamedFile = response.body
-  const unencryptedPart = await decrypt(renamedFile, keypair.input)
+  const unencryptedPart = await decrypt(renamedFile, keypair.wrappingPrivate || keypair.input)
 
   return {
     ...renamedFile,
@@ -184,7 +203,7 @@ export async function get(keypair: KeyPair, file_id: string): Promise<AppFile> {
   }
 
   const file = response.body
-  const unencryptedPart = await decrypt(file, keypair.input)
+  const unencryptedPart = await decrypt(file, keypair.wrappingPrivate || keypair.input)
 
   return { ...file, ...unencryptedPart }
 }
@@ -214,7 +233,7 @@ export async function getByName(
   }
 
   const file = response.body
-  const unencryptedPart = await decrypt(file, keypair.input)
+  const unencryptedPart = await decrypt(file, keypair.wrappingPrivate || keypair.input)
 
   return { ...file, ...unencryptedPart }
 }
@@ -323,7 +342,7 @@ export async function setEditable(
   }
 
   const file = response.body
-  const unencryptedPart = await decrypt(file, keypair.input)
+  const unencryptedPart = await decrypt(file, keypair.wrappingPrivate || keypair.input)
 
   return { ...file, ...unencryptedPart }
 }

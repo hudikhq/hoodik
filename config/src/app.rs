@@ -111,6 +111,18 @@ pub struct AppConfig {
     /// When unset only per-user quotas apply, which is the standard
     /// self-hosted case.
     pub storage_instance_quota_bytes: Option<u64>,
+
+    /// MAILER_DISABLE_TEST — hide the admin "send test email" action and reject
+    /// its endpoint.
+    ///
+    /// *optional*
+    ///
+    /// default: false
+    ///
+    /// Set on hosted deployments where the mailer is shared infrastructure and
+    /// a tenant admin repeatedly hitting the test button would amount to
+    /// self-inflicted mail spam.
+    pub mailer_disable_test: bool,
 }
 
 impl AppConfig {
@@ -139,6 +151,7 @@ impl AppConfig {
             .get();
         let workers = vars.maybe_var::<usize>("WORKERS");
         let storage_instance_quota_bytes = vars.maybe_var::<u64>("STORAGE_INSTANCE_QUOTA_BYTES");
+        let mailer_disable_test = vars.var_default("MAILER_DISABLE_TEST", false).get();
 
         vars.panic_if_errors("AppConfig");
 
@@ -155,6 +168,7 @@ impl AppConfig {
             max_file_versions,
             workers: workers.maybe_get(),
             storage_instance_quota_bytes: storage_instance_quota_bytes.maybe_get(),
+            mailer_disable_test,
         }
         .set_env()
     }

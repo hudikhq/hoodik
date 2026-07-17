@@ -1,6 +1,7 @@
 import * as cryptfns from '!/cryptfns'
 import * as crypto from './crypto'
 import Api from '!/api'
+import { CHUNK_SIZE_BYTES } from '!/constants'
 
 import type { AppLink, CreateLink, EncryptedAppLink, KeyPair, AppFile } from 'types'
 
@@ -20,22 +21,56 @@ export async function all(): Promise<EncryptedAppLink[]> {
 }
 
 /**
- * Download the link by its id, the download on the server will decrypt file and
- * return the file as a response.
+ * Fetch and decrypt the full link content client-side.
+ *
+ * The server stores the file as N independently-encrypted chunks; we pull each
+ * one raw (`?chunk=i`, no link_key sent) and decrypt it with the file cipher and
+ * the content key the caller unwrapped from the link metadata, concatenating the
+ * plaintext. This keeps the E2EE guarantee intact: the server never decrypts.
  */
-export async function download(id: string, link_key: string): Promise<Response> {
-  return new Api().postDownload<{ link_key: string }>(`/api/links/${id}`, undefined, {
-    link_key
-  })
+export async function downloadAndDecrypt(link: AppLink): Promise<Uint8Array> {
+  const key = link.key
+  if (!key) {
+    throw new Error('Cannot decrypt link content without the file key')
+  }
+
+  const chunks = Math.max(1, Math.ceil((link.file_size || 0) / CHUNK_SIZE_BYTES))
+  const api = new Api()
+
+  let data = new Uint8Array(0)
+
+  for (let i = 0; i < chunks; i++) {
+    const response = await api.postDownload(`/api/links/${link.id}?chunk=${i}`, undefined, undefined)
+
+    if (!response.ok) {
+      throw new Error(`Could not download link ${link.id}, chunk: ${i}`)
+    }
+
+    const encrypted = new Uint8Array(await response.arrayBuffer())
+    const chunk = await cryptfns.cipher.decrypt(link.file_cipher, encrypted, key, i)
+
+    const next = new Uint8Array(data.length + chunk.length)
+    next.set(data, 0)
+    next.set(chunk, data.length)
+    data = next
+  }
+
+  return data
 }
 
 /**
- * Run the download by mocking a form submit
+ * Decrypt the link content client-side and trigger a browser save under the
+ * name from the (client-decrypted) link metadata.
  */
-export async function formDownload(id: string, link_key: string): Promise<void> {
-  return new Api().formDownload<{ link_key: string }>(`/api/links/${id}`, undefined, {
-    link_key
-  })
+export async function saveDecrypted(link: AppLink): Promise<void> {
+  const data = await downloadAndDecrypt(link)
+
+  const url = window.URL.createObjectURL(new Blob([data], { type: link.file_mime }))
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = link.name || 'download'
+  anchor.click()
+  window.URL.revokeObjectURL(url)
 }
 
 /**
@@ -70,19 +105,28 @@ export async function createLinkFromFile(file: AppFile, kp: KeyPair): Promise<Cr
 
   const key = await cryptfns.aes.generateKey()
 
-  const signature = await cryptfns.rsa.sign(kp, file.id)
-  const encrypted_link_key = await cryptfns.rsa.encryptMessage(
-    cryptfns.uint8.toHex(key),
-    kp.publicKey as string
-  )
+  const identity = kp.input as string
+  const wrapPub = (kp as any).wrappingPublic || (kp.publicKey as string)
 
-  const encrypted_name = await cryptfns.aes.encryptToHex(file.name || 'no-name', key)
-  const encrypted_file_key = await cryptfns.aes.encryptToHex(cryptfns.uint8.toHex(file.key), key)
+  const signature = crypto.isCurveKey(identity)
+    ? await cryptfns.ed25519.sign(file.id, identity)
+    : await cryptfns.rsa.sign(kp, file.id)
+
+  const encrypted_link_key = crypto.isCurveKey(wrapPub)
+    ? await cryptfns.wrapping.wrap(key, wrapPub)
+    : await cryptfns.rsa.encryptMessage(cryptfns.uint8.toHex(key), wrapPub)
+
+  const encrypted_name = await cryptfns.cipher.encryptString(crypto.LINK_CIPHER, file.name || 'no-name', key)
+  const encrypted_file_key = await cryptfns.cipher.encryptString(
+    crypto.LINK_CIPHER,
+    cryptfns.uint8.toHex(file.key),
+    key
+  )
 
   let encrypted_thumbnail
 
   if (file.thumbnail) {
-    encrypted_thumbnail = await cryptfns.aes.encryptToHex(file.thumbnail, key)
+    encrypted_thumbnail = await cryptfns.cipher.encryptString(crypto.LINK_CIPHER, file.thumbnail, key)
   }
 
   return {

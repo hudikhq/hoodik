@@ -60,7 +60,7 @@ async fn upload_one_chunk(
     claims: StorageClaims,
     context: web::Data<Context>,
     meta: Meta,
-    mut request_body: web::Bytes,
+    request_body: web::Bytes,
 ) -> AppResult<HttpResponse> {
     if request_body.is_empty() {
         return Err(Error::BadRequest("no_file_data_received".to_string()));
@@ -70,13 +70,9 @@ async fn upload_one_chunk(
     let file_id: String = util::actix::path_var(&req, "file_id")?;
     let file_id = Uuid::from_str(&file_id)?;
     claims.validate_transfer_path(file_id, "upload")?;
-    let (chunk, checksum, checksum_function, key_hex) = meta.into_tuple()?;
+    let (chunk, checksum, checksum_function) = meta.into_tuple()?;
 
     validate_checksum(checksum, checksum_function, &request_body)?;
-
-    if let Some(key) = key_hex {
-        request_body = encrypt_request_body(&key, request_body)?;
-    }
 
     // Permission gate before any FS I/O: Readers / non-members get
     // rejected here so we don't waste bytes on chunk payload they have
@@ -217,18 +213,6 @@ fn validate_checksum(
     }
 
     Ok(())
-}
-
-/// Server-side encryption fallback for clients that can't encrypt locally
-/// (embedded devices, scripts). Off by default — setting `key_hex` in the
-/// query is the client's explicit opt-in. Chunk data is trusted as-is
-/// otherwise; the integrity contract is the file-level hash the client
-/// submits at the end of the upload.
-fn encrypt_request_body(key: &str, request_body: web::Bytes) -> AppResult<web::Bytes> {
-    let key = cryptfns::hex::decode(key)?;
-    let encrypted = cryptfns::aes::encrypt(key, request_body.to_vec())?;
-
-    Ok(web::Bytes::from(encrypted))
 }
 
 /// Reject bodies visibly larger than one chunk. The 1% tolerance matches

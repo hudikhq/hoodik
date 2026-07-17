@@ -87,17 +87,38 @@ const data = computed({
         <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">Sharing</p>
       </div>
 
-      <div class="p-3 rounded-xl bg-brownish-50/50 dark:bg-brownish-700/20 border border-brownish-100/50 dark:border-brownish-700/30">
-        <UniversalCheckbox
-          label="Account-to-account sharing"
-          name="sharing_enabled"
-          v-model="data.sharing.enabled"
-          :disabled="loading"
-          data-testid="admin-sharing-enabled-toggle"
-        />
-        <p class="text-xs text-brownish-400 dark:text-brownish-100 pl-7 leading-relaxed mt-1">
-          When off, the Share entry vanishes from every file row and all <code class="font-mono bg-brownish-100 dark:bg-brownish-700 px-1 rounded">/api/shares/*</code> endpoints return 503. Existing share rows are preserved across toggles; nothing is deleted.
-        </p>
+      <div class="space-y-3">
+        <div class="p-3 rounded-xl bg-brownish-50/50 dark:bg-brownish-700/20 border border-brownish-100/50 dark:border-brownish-700/30">
+          <UniversalCheckbox
+            label="Account-to-account sharing"
+            name="sharing_enabled"
+            v-model="data.sharing.enabled"
+            :disabled="loading"
+            data-testid="admin-sharing-enabled-toggle"
+          />
+          <p class="text-xs text-brownish-400 dark:text-brownish-100 pl-7 leading-relaxed mt-1">
+            When off, the Share entry vanishes from every file row and all <code class="font-mono bg-brownish-100 dark:bg-brownish-700 px-1 rounded">/api/shares/*</code> endpoints return 503. Existing share rows are preserved across toggles; nothing is deleted.
+          </p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-brownish-50/50 dark:bg-brownish-700/20 border border-brownish-100/50 dark:border-brownish-700/30">
+          <label class="block text-xs uppercase tracking-wider mb-1 text-brownish-300" for="default_cipher">Default cipher</label>
+          <select
+            id="default_cipher"
+            v-model="data.sharing.default_cipher"
+            :disabled="loading"
+            data-testid="admin-default-cipher-select"
+            class="w-full bg-white dark:bg-brownish-800 border border-brownish-200 dark:border-brownish-700 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-redish-500"
+          >
+            <option value="aegis128l">AEGIS-128L</option>
+            <option value="aegis256">AEGIS-256</option>
+            <option value="ascon128a">Ascon-128a</option>
+            <option value="chacha20poly1305">ChaCha20-Poly1305</option>
+          </select>
+          <p class="text-xs text-brownish-400 dark:text-brownish-100 leading-relaxed mt-1">
+            Applied to new uploads on every client. Existing files keep the cipher they were encrypted with.
+          </p>
+        </div>
       </div>
     </div>
 

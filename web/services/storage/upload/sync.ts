@@ -26,7 +26,7 @@ export async function uploadChunk(
     throw new Error(`File ${file.id} is missing key`)
   }
 
-  const encrypted = await cryptfns.cipher.encrypt(file.cipher, data, file.key)
+  const encrypted = await cryptfns.cipher.encrypt(file.cipher, data, file.key, chunk)
   const checksum = await cryptfns.wasm.crc16_digest(encrypted)
 
   const query: Query = {

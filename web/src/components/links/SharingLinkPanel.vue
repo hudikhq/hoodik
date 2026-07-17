@@ -16,7 +16,7 @@ import { AppField, AppDateTime } from '@/components/form'
 
 import { formatPrettyDate, formatSize, localDateFromUtcString } from '!/index'
 import * as logger from '!/logger'
-import * as cryptfns from '!/cryptfns'
+import { unwrapOwnLinkKey } from '!/links/crypto'
 import { useRouter } from 'vue-router'
 
 import type {
@@ -114,7 +114,7 @@ const getIfExists = async () => {
   loading.value = true
   try {
     if (file.value.link) {
-      const key = await cryptfns.rsa.decryptMessage(props.kp, file.value.link.encrypted_link_key)
+      const key = await unwrapOwnLinkKey(file.value.link.encrypted_link_key, props.kp)
       loadedLink.value = await props.links.get(file.value.link.id, key)
     }
   } finally {

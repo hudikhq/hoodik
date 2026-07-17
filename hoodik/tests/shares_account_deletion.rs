@@ -38,8 +38,8 @@ async fn test_account_deletion_drops_user_files_where_user_was_recipient() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "deleted-recipient-target");
     grant!(app, alice, bob, ShareRoleEnum::Editor, file.id);
 
@@ -72,9 +72,9 @@ async fn test_account_deletion_drops_grants_user_made_via_db_cascade() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let file = create_file!(app, alice, "co-owner-cascade-target");
 
     // Bob becomes Co-owner; Bob then re-shares to Carol.
@@ -121,9 +121,9 @@ async fn test_account_deletion_emits_audit_rows_with_system_attribution() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let file = create_file!(app, alice, "audit-emit-target");
 
     grant!(app, alice, bob, ShareRoleEnum::CoOwner, file.id);
@@ -177,8 +177,8 @@ async fn test_account_deletion_preserves_share_events_with_null_attribution() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "audit-set-null-target");
     grant!(app, alice, bob, ShareRoleEnum::Editor, file.id);
 

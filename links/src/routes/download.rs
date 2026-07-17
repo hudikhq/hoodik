@@ -1,6 +1,6 @@
 use actix_web::{
     route,
-    web::{self, Bytes},
+    web,
     HttpRequest, HttpResponse,
 };
 use context::Context;
@@ -8,44 +8,28 @@ use entity::Uuid;
 use error::{AppResult, Error};
 use fs::prelude::*;
 
-use crate::{data::download::Download, repository::Repository};
+use crate::repository::Repository;
 
-/// Map futures download stream so it can decrypt the file while it is being downloaded.
-fn map_chunk(
-    chunk: Result<web::Bytes, Error>,
-    file_key: Vec<u8>,
-    cipher: cryptfns::cipher::Cipher,
-) -> Result<Bytes, Error> {
-    match chunk {
-        Ok(chunk) => cipher
-            .decrypt(file_key, chunk.to_vec())
-            .map_err(|_| Error::Unauthorized("invalid_file_key".to_string()))
-            .map(Bytes::from),
-        Err(err) => Err(err),
-    }
-}
-
-/// Download file from a shareable link.
+/// Download file from a shareable link (raw ciphertext only).
 ///
-/// This route is not authenticated, and anyone
-/// with a valid link and file key can download the file.
-/// File is decrypted while it is being downloaded in memory.
-/// But before downloading starts the signature is verified so it
-/// matches the user that supposedly created the link for that file.
+/// This route is not authenticated. The server streams the stored ciphertext
+/// without performing any decryption. The caller (browser/app) must obtain
+/// the file key via the link metadata + link_key (from URL fragment) and
+/// decrypt client-side. This closes the last E2EE exception for public links.
 ///
-/// Request: [crate::data::download::Download]
+/// Request:
+///  - Query: chunk: i64 - if omitted, every chunk is streamed back to back
 ///
-/// Response: [actix_web::web::Bytes]
+/// Response: raw ciphertext bytes (Content-Type and generic disposition)
 #[route("/api/links/{link_id}", method = "POST")]
 pub(crate) async fn download(
     req: HttpRequest,
     context: web::Data<Context>,
-    data: web::Either<web::Json<Download>, web::Form<Download>>,
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let link_id: Uuid = util::actix::path_var(&req, "link_id")?;
     let repository = Repository::new(&context);
-    let link_key = data.into_inner().into_value()?;
+    let chunk = util::actix::query_var::<i64>(&req, "chunk").ok();
 
     let link = repository.get(link_id).await?;
 
@@ -53,52 +37,47 @@ pub(crate) async fn download(
         return Err(Error::Unauthorized("link_expired".to_string()));
     }
 
-    let filename = link.decrypt_name(&link_key)?;
-    let file_key = link.file_key(&link_key)?;
-    let cipher: cryptfns::cipher::Cipher = link
-        .file_cipher
-        .parse()
-        .map_err(|_| Error::BadRequest("unsupported_cipher".to_string()))?;
+    // Count one download per completed transfer, not per chunk request. The
+    // client fetches the file as N chunks (`?chunk=i`); only the final index
+    // closes a download, and a whole-file request (`chunk` omitted) is a single
+    // one. A preview or abandoned transfer that never reaches the last chunk
+    // correctly does not count.
+    let last_chunk = link
+        .file_size
+        .map(|size| (size as u64).div_ceil(fs::MAX_CHUNK_SIZE_BYTES).max(1) - 1)
+        .unwrap_or(0);
+    if chunk.is_none_or(|i| i as u64 == last_chunk) {
+        repository.increment_downloads(link.id).await?;
+    }
 
-    repository.increment_downloads(link.id).await?;
-
-    // Match the storage routes' split: editable files through the
-    // versioned layout (so the recipient never sees an in-flight edit),
-    // non-editable through the legacy flat layout.
     let fs = Fs::new(&context.config);
     let streamer = if link.file_editable {
-        fs.stream_v(&link, link.file_active_version, None).await?
+        fs.stream_v(&link, link.file_active_version, chunk).await?
     } else {
-        fs.stream(&link, None).await?
-    }
-    .map(move |chunk| map_chunk(chunk, file_key.clone(), cipher));
+        fs.stream(&link, chunk).await?
+    };
 
+    // The name lives in the link's encrypted metadata; the client decrypts it
+    // and renames the saved blob itself, so a generic disposition is enough.
     Ok(HttpResponse::Ok()
         .insert_header(("Content-Type", link.file_mime))
-        .insert_header(("Content-Length", link.file_size.unwrap_or(0).to_string()))
         .insert_header((
             "Content-Disposition",
-            format!("attachment; filename=\"{filename}\""),
+            "attachment; filename=\"download\"",
         ))
         .streaming(streamer.stream()))
 }
 
-/// Get HEAD information about the file, this route does everything as the one
-/// above, except it does not download the file, it only returns the headers.
-///
-/// Request: [crate::data::download::Download]
+/// Size + mime for the linked file. The encrypted file name is never resolved
+/// server-side — the client decrypts the link metadata with the fragment key
+/// and applies the real name itself.
 ///
 /// Response: No Content
 #[route("/api/links/{link_id}", method = "HEAD")]
-pub(crate) async fn head(
-    req: HttpRequest,
-    context: web::Data<Context>,
-    data: web::Either<web::Json<Download>, web::Form<Download>>,
-) -> AppResult<HttpResponse> {
+pub(crate) async fn head(req: HttpRequest, context: web::Data<Context>) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let link_id: Uuid = util::actix::path_var(&req, "link_id")?;
     let repository = Repository::new(&context);
-    let link_key = data.into_inner().into_value()?;
 
     let link = repository.get(link_id).await?;
 
@@ -106,14 +85,9 @@ pub(crate) async fn head(
         return Err(Error::Unauthorized("link_expired".to_string()));
     }
 
-    let filename = link.decrypt_name(&link_key)?;
-
     Ok(HttpResponse::NoContent()
         .insert_header(("Content-Type", link.file_mime))
         .insert_header(("Content-Length", link.file_size.unwrap_or(0).to_string()))
-        .insert_header((
-            "Content-Disposition",
-            format!("attachment; filename=\"{filename}\""),
-        ))
+        .insert_header(("Content-Disposition", "attachment; filename=\"download\""))
         .finish())
 }

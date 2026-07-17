@@ -23,8 +23,8 @@ async fn test_share_dispatches_notification_email_to_recipient() {
         context::Context::add_mock_sender(context::Context::mock_sqlite().await);
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "share-email-target");
 
     grant!(app, alice, bob, ShareRoleEnum::Reader, file.id);
@@ -45,8 +45,8 @@ async fn test_share_skips_email_when_recipient_opted_out() {
         context::Context::add_mock_sender(context::Context::mock_sqlite().await);
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let file = create_file!(app, alice, "share-email-optout");
 
     users::Entity::update(users::ActiveModel {
@@ -80,9 +80,9 @@ async fn test_co_owner_reshare_dispatches_notification() {
         context::Context::add_mock_sender(context::Context::mock_sqlite().await);
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
-    register_user!(app, carol, "carol@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    register_user!(app, context, carol, "carol@example.com");
     let file = create_file!(app, alice, "share-email-coowner-reshare");
 
     grant!(app, alice, bob, ShareRoleEnum::CoOwner, file.id);

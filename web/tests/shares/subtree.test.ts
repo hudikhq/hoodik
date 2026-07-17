@@ -137,7 +137,12 @@ describe('subtree walker', () => {
       .spyOn(crypto, 'wrapForRecipient')
       .mockImplementation(async (clear) => `wrap-${clear}`)
 
-    const entries = await buildEntriesForSubtree(subtree, 'recipient-pubkey', 'priv', {})
+    const entries = await buildEntriesForSubtree(
+      subtree,
+      { pubkey: 'recipient-pubkey' },
+      'priv',
+      {}
+    )
 
     expect(decryptSpy).toHaveBeenCalledTimes(2)
     expect(wrapSpy).toHaveBeenCalledTimes(2)

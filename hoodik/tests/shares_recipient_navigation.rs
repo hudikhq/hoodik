@@ -67,8 +67,8 @@ async fn test_recipient_can_fetch_metadata_for_shared_folder() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let folder = create_folder!(app, alice, "shared-folder");
     let envelope = signed_folder_envelope(
@@ -102,8 +102,8 @@ async fn test_recipient_lists_shared_folder_contents_without_is_owner_param() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let folder = create_folder!(app, alice, "browse-target");
     let child_one = create_child_file!(app, alice, "doc-one", folder.id);
@@ -158,8 +158,8 @@ async fn test_recipient_subfolder_breadcrumbs_stop_at_shared_root() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     // Alice's tree: outer-private / shared-root / sub / leaf.txt
     // Alice shares `shared-root` (and its descendants) with Bob. Bob's
@@ -218,8 +218,8 @@ async fn test_root_listing_unchanged_when_is_owner_not_specified() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let owned = create_file!(app, bob, "bob-owned");
     let alice_file = create_file!(app, alice, "alice-shared-to-bob");
@@ -253,8 +253,8 @@ async fn test_incoming_share_carries_mime_for_folder_and_file() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let leaf = create_file!(app, alice, "shared-pdf");
     grant!(app, alice, bob, ShareRoleEnum::Reader, leaf.id);
@@ -308,8 +308,8 @@ async fn test_explicit_is_owner_false_query_still_works() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let folder = create_folder!(app, alice, "explicit-folder");
     let child = create_child_file!(app, alice, "explicit-child", folder.id);
@@ -350,7 +350,7 @@ async fn test_owner_listing_unaffected_by_recipient_changes() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
+    register_user!(app, context, alice, "alice@example.com");
 
     let folder = create_folder!(app, alice, "alice-folder");
     let child = create_child_file!(app, alice, "alice-child", folder.id);
@@ -391,8 +391,8 @@ async fn test_shared_folder_listing_carries_owner_email_per_row() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let folder = create_folder!(app, alice, "shared-folder-owners");
     let alice_child = create_child_file!(app, alice, "alice-child", folder.id);
@@ -464,8 +464,8 @@ async fn test_metadata_endpoint_carries_owner_email_for_non_owner_caller() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let folder = create_folder!(app, alice, "metadata-owner-email");
     let envelope = signed_folder_envelope(
@@ -508,8 +508,8 @@ async fn test_storage_listing_carries_shared_with_count_for_owner_rows() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let folder = create_folder!(app, alice, "shared-out");
     let alice_child = create_child_file!(app, alice, "alice-child", folder.id);

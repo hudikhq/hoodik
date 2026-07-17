@@ -10,6 +10,7 @@ import {
 } from '../../services/shares'
 import { store as storageStore } from '../../services/storage'
 import { store as loginStore } from '../../services/auth/login'
+import { defaultCipher, setDefaultCipher } from '../../services/cryptfns/cipher'
 
 import type { CryptoStore } from '../../types'
 
@@ -389,5 +390,36 @@ describe('capabilities store', () => {
     expect(store.sharingEnabled).toBe(true)
     expect(store.forkEnabled).toBe(true)
     expect(store.shareGroups).toBe(true)
+  })
+
+  it('capabilities_store_applies_advertised_default_cipher', async () => {
+    const caps: Capabilities = {
+      sharing: { enabled: true, roles: ['reader', 'editor', 'co-owner'] },
+      editable_folders: true,
+      share_groups: true,
+      audit_log: true,
+      fork: true,
+      default_cipher: 'aegis256'
+    }
+    vi.spyOn(sharesApi, 'getCapabilities').mockResolvedValue(caps)
+    const store = capabilitiesStore()
+    await store.fetch()
+    expect(defaultCipher()).toBe('aegis256')
+    setDefaultCipher('aegis128l')
+  })
+
+  it('capabilities_store_default_cipher_falls_back_for_old_servers', async () => {
+    setDefaultCipher('aegis256')
+    const caps: Capabilities = {
+      sharing: { enabled: true, roles: ['reader', 'editor', 'co-owner'] },
+      editable_folders: true,
+      share_groups: true,
+      audit_log: true,
+      fork: true
+    }
+    vi.spyOn(sharesApi, 'getCapabilities').mockResolvedValue(caps)
+    const store = capabilitiesStore()
+    await store.fetch()
+    expect(defaultCipher()).toBe('aegis128l')
   })
 })

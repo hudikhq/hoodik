@@ -45,8 +45,8 @@ async function prepareForkEnvironment(): Promise<SimEnvironment> {
   // Split into 3 chunks of 16 bytes; each gets independently encrypted.
   const chunkPlain = [plaintext.slice(0, 16), plaintext.slice(16, 32), plaintext.slice(32, 48)]
   const encryptedChunks: Uint8Array[] = []
-  for (const chunk of chunkPlain) {
-    encryptedChunks.push(await cryptfns.cipher.encrypt(cipher, chunk, oldKey))
+  for (let i = 0; i < chunkPlain.length; i++) {
+    encryptedChunks.push(await cryptfns.cipher.encrypt(cipher, chunkPlain[i], oldKey, i))
   }
 
   const source: AppFile = {
@@ -123,7 +123,8 @@ describe('fork pipeline', () => {
     const result = await forkFile({
       source: env.source,
       keypair: env.kp,
-      callerUserId: CALLER_ID
+      callerUserId: CALLER_ID,
+      callerRecipient: { pubkey: env.kp.publicKey as string }
     })
     expect(result.file_id).toBe(NEW_FILE_ID)
     // The forkFile body carried the new wrap; decrypt it to obtain the
@@ -141,7 +142,7 @@ describe('fork pipeline', () => {
     for (let i = 0; i < 3; i++) {
       const ct = env.uploaded.get(i)
       expect(ct).toBeDefined()
-      const pt = await cryptfns.cipher.decrypt(cipher, ct as Uint8Array, newKey)
+      const pt = await cryptfns.cipher.decrypt(cipher, ct as Uint8Array, newKey, i)
       decryptedFlat.set(pt, cursor)
       cursor += pt.length
     }
@@ -150,7 +151,7 @@ describe('fork pipeline', () => {
 
   it('fork_uses_same_cipher_as_source', async () => {
     const env = await prepareForkEnvironment()
-    await forkFile({ source: env.source, keypair: env.kp, callerUserId: CALLER_ID })
+    await forkFile({ source: env.source, keypair: env.kp, callerUserId: CALLER_ID, callerRecipient: { pubkey: env.kp.publicKey as string } })
     const callArgs = (sharesApi.forkFile as unknown as { mock: { calls: unknown[][] } }).mock.calls
     const body = callArgs[0][1] as Parameters<typeof sharesApi.forkFile>[1]
     expect(body.cipher).toEqual(env.source.cipher)
@@ -158,7 +159,7 @@ describe('fork pipeline', () => {
 
   it('fork_creates_new_file_id_distinct_from_source', async () => {
     const env = await prepareForkEnvironment()
-    await forkFile({ source: env.source, keypair: env.kp, callerUserId: CALLER_ID })
+    await forkFile({ source: env.source, keypair: env.kp, callerUserId: CALLER_ID, callerRecipient: { pubkey: env.kp.publicKey as string } })
     const callArgs = (sharesApi.forkFile as unknown as { mock: { calls: unknown[][] } }).mock.calls
     const body = callArgs[0][1] as Parameters<typeof sharesApi.forkFile>[1]
     expect(body.new_file_id).not.toEqual(env.source.id)
@@ -174,7 +175,7 @@ describe('fork pipeline', () => {
     controller.abort()
     await expect(
       forkFile(
-        { source: env.source, keypair: env.kp, callerUserId: CALLER_ID },
+        { source: env.source, keypair: env.kp, callerUserId: CALLER_ID, callerRecipient: { pubkey: env.kp.publicKey as string } },
         { signal: controller.signal }
       )
     ).rejects.toBeInstanceOf(ForkAbortedError)
@@ -194,7 +195,7 @@ describe('fork pipeline', () => {
     })
     await expect(
       forkFile(
-        { source: env.source, keypair: env.kp, callerUserId: CALLER_ID },
+        { source: env.source, keypair: env.kp, callerUserId: CALLER_ID, callerRecipient: { pubkey: env.kp.publicKey as string } },
         { signal: controller.signal }
       )
     ).rejects.toBeInstanceOf(ForkAbortedError)
@@ -209,7 +210,7 @@ describe('fork pipeline', () => {
     const env = await prepareForkEnvironment()
     const progress: number[] = []
     await forkFile(
-      { source: env.source, keypair: env.kp, callerUserId: CALLER_ID },
+      { source: env.source, keypair: env.kp, callerUserId: CALLER_ID, callerRecipient: { pubkey: env.kp.publicKey as string } },
       {
         onProgress: (p) => progress.push(p.bytesProcessed)
       }
@@ -220,7 +221,7 @@ describe('fork pipeline', () => {
 
   it('fork_event_signature_signed_with_caller_privkey', async () => {
     const env = await prepareForkEnvironment()
-    await forkFile({ source: env.source, keypair: env.kp, callerUserId: CALLER_ID })
+    await forkFile({ source: env.source, keypair: env.kp, callerUserId: CALLER_ID, callerRecipient: { pubkey: env.kp.publicKey as string } })
     const callArgs = (sharesApi.forkFile as unknown as { mock: { calls: unknown[][] } }).mock.calls
     const body = callArgs[0][1] as Parameters<typeof sharesApi.forkFile>[1]
     // Fork signs over the source file id — the audit row attributes the
@@ -235,11 +236,9 @@ describe('fork pipeline', () => {
       shareRoleAfter: null,
       timestamp: BigInt(body.timestamp)
     })
-    const verified = await shareCrypto.verifyAuditEvent(
-      sigInput,
-      body.event_signature,
-      env.kp.publicKey as string
-    )
+    const verified = await shareCrypto.verifyAuditEvent(sigInput, body.event_signature, {
+      pubkey: env.kp.publicKey as string
+    })
     expect(verified).toBe(true)
   })
 

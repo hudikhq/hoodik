@@ -274,7 +274,7 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
         return
       }
       recipient.value = user
-      const localFingerprint = shareCrypto.computeFingerprint(user.pubkey)
+      const localFingerprint = shareCrypto.fingerprintForUser(user)
       recipientFingerprintHex.value = localFingerprint
       formattedFingerprint.value = shareCrypto.formatFingerprint(localFingerprint)
 
@@ -413,7 +413,7 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
 
   async function buildEntriesForAll(
     subtree: AppFile[],
-    pubkey: string
+    recipient: DiscoveredUser
   ): Promise<ShareEntryInput[]> {
     if (!walkController) {
       walkController = new AbortController()
@@ -424,12 +424,17 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
       current: 0,
       total: subtree.length
     }
-    return shareSubtree.buildEntriesForSubtree(subtree, pubkey, props.keypair.input as string, {
-      signal: walkController.signal,
-      onProgress: ({ current, total }) => {
-        progress.value = { ...progress.value, current, total }
+    return shareSubtree.buildEntriesForSubtree(
+      subtree,
+      recipient,
+      props.keypair.wrappingPrivate || (props.keypair.input as string),
+      {
+        signal: walkController.signal,
+        onProgress: ({ current, total }) => {
+          progress.value = { ...progress.value, current, total }
+        }
       }
-    })
+    )
   }
 
   async function submit(): Promise<void> {
@@ -456,7 +461,7 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
 
       if (!recipient.value) return
       const target = recipient.value
-      const entries = await buildEntriesForAll(subtree, target.pubkey)
+      const entries = await buildEntriesForAll(subtree, target)
       const created = await submitShare(root, entries, target)
       trusted.trustFingerprint(target.user_id, recipientFingerprintHex.value, 'silent')
 
@@ -512,6 +517,7 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
       shareRole: role.value,
       senderId: props.authenticatedUserId,
       privateKey: props.keypair.input,
+      wrappingPrivateKey: props.keypair.wrappingPrivate || props.keypair.input,
       trusted,
       onProgress: (done, total) => {
         progress.value = { ...progress.value, current: done, total }

@@ -4,6 +4,7 @@ use entity::{
     PaginatorTrait, QueryFilter, QuerySelect, Uuid,
 };
 use error::{AppResult, Error};
+use std::str::FromStr;
 use validr::Validation;
 
 use crate::data::{
@@ -24,13 +25,32 @@ where
 
         let user = self.get_by_email(&email).await?;
 
+        // OPAQUE accounts derive their private-key envelope KEK from the
+        // password's `export_key`, not from a bcrypt hash. The legacy re-key
+        // below would write a bcrypt password and a password-KDF envelope while
+        // leaving `opaque_password_file` untouched, stranding the account's keys
+        // on the next OPAQUE login. Password changes for these accounts go
+        // through the PAKE flow instead.
+        if user.opaque_password_file.is_some() {
+            return Err(Error::BadRequest(
+                "password_change_requires_opaque".to_string(),
+            ));
+        }
+
         if !user.verify_tfa(token) {
             return Err(Error::Unauthorized("invalid_otp_token".to_string()));
         }
 
-        verify_password(&user, current_password.as_deref())?;
+        let proved_by_password = verify_password(&user, current_password.as_deref())?;
+        let proved_by_signature = verify_signature(&user, &new_password, signature.as_deref())?;
 
-        verify_signature(&user, &new_password, signature.as_deref())?;
+        // Ownership must be affirmatively proven. Without this, a migrated
+        // account (whose `password` column is NULL) would pass `verify_password`
+        // for any supplied `current_password` because there is no hash to check
+        // against — an unauthenticated takeover.
+        if !proved_by_password && !proved_by_signature {
+            return Err(Error::Unauthorized("ownership_proof_required".to_string()));
+        }
 
         self.update_user(
             user.id,
@@ -131,24 +151,82 @@ where
     }
 }
 
-/// Verify the password
-fn verify_password(user: &users::Model, password: Option<&str>) -> AppResult<()> {
-    if let (Some(password), Some(hashed_password)) = (password, &user.password) {
-        if !util::password::verify(password, hashed_password) {
-            return Err(Error::Unauthorized("invalid_password".to_string()));
+/// Verify the current password. Returns `true` only when a password was
+/// supplied and matched. A supplied password against an account with no hash
+/// (e.g. migrated accounts, `password = NULL`) is an error, not a silent pass.
+fn verify_password(user: &users::Model, password: Option<&str>) -> AppResult<bool> {
+    match (password, &user.password) {
+        (Some(password), Some(hashed_password)) => {
+            if util::password::verify(password, hashed_password) {
+                Ok(true)
+            } else {
+                Err(Error::Unauthorized("invalid_password".to_string()))
+            }
+        }
+        (Some(_), None) => Err(Error::Unauthorized("password_not_set".to_string())),
+        (None, _) => Ok(false),
+    }
+}
+
+/// Verify the signature over `message`. Returns `true` only when a signature
+/// was supplied and verified against the user's current key.
+fn verify_signature(user: &users::Model, message: &str, signature: Option<&str>) -> AppResult<bool> {
+    match signature {
+        Some(signature) => {
+            let key_type = cryptfns::identity::KeyType::from_str(&user.key_type)?;
+            key_type.verify(message, signature, &user.pubkey)?;
+            Ok(true)
+        }
+        None => Ok(false),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{verify_password, verify_signature};
+    use entity::{users, Uuid};
+
+    fn user(password: Option<&str>) -> users::Model {
+        users::Model {
+            id: Uuid::new_v4(),
+            role: None,
+            quota: None,
+            email: "u@example.com".to_string(),
+            password: password.map(util::password::hash),
+            secret: None,
+            pubkey: "pubkey".to_string(),
+            fingerprint: "fp".to_string(),
+            key_type: "rsa".to_string(),
+            wrapping_pubkey: None,
+            security_version: 0,
+            opaque_password_file: None,
+            encrypted_private_key: None,
+            email_verified_at: None,
+            created_at: 0,
+            updated_at: 0,
+            share_notifications_enabled: true,
         }
     }
 
-    Ok(())
-}
-
-/// Verify the signature
-fn verify_signature(user: &users::Model, message: &str, signature: Option<&str>) -> AppResult<()> {
-    if let Some(signature) = signature {
-        return cryptfns::rsa::public::verify(message, signature, &user.pubkey)
-            .map(|_| ())
-            .map_err(Error::from);
+    #[test]
+    fn migrated_account_rejects_password_proof() {
+        // A migrated account has `password = NULL`. Supplying any current
+        // password must be rejected, never silently accepted.
+        let migrated = user(None);
+        assert!(verify_password(&migrated, Some("anything")).is_err());
     }
 
-    Ok(())
+    #[test]
+    fn absent_credentials_do_not_prove_ownership() {
+        let u = user(Some("correct horse battery staple"));
+        assert!(!verify_password(&u, None).unwrap());
+        assert!(!verify_signature(&u, "msg", None).unwrap());
+    }
+
+    #[test]
+    fn correct_password_proves_ownership_wrong_password_errors() {
+        let u = user(Some("correct horse battery staple"));
+        assert!(verify_password(&u, Some("correct horse battery staple")).unwrap());
+        assert!(verify_password(&u, Some("wrong")).is_err());
+    }
 }

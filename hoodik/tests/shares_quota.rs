@@ -70,8 +70,8 @@ async fn test_stats_used_space_counts_owner_bytes_not_shared_in() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     // Alice owns a 1024-byte file and shares it with Bob.
     let file = create_file!(app, alice, "stats-roundtrip");
@@ -90,8 +90,8 @@ async fn test_shared_with_me_does_not_count_toward_recipient_quota() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     // Cap Bob at exactly 1 KiB so any owner-attributed write past the
     // first byte would exceed the gate.
@@ -133,8 +133,8 @@ async fn test_fork_quota_exceeded_returns_409() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
     let source = create_file!(app, alice, "fork-quota-target");
     grant!(app, alice, bob, ShareRoleEnum::CoOwner, source.id);
 

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { UnsecureChangePassword, KeyPair } from 'types'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { AppForm, AppField, AppButton, AppCheckbox } from '@/components/form'
 import * as yup from 'yup'
-import { changePassword } from '!/account'
+import { changePassword, changePasswordV2 } from '!/account'
 import type { ErrorResponse } from '!/api'
 import * as logger from '!/logger'
 import { isStrongPassword } from '@/utils/password'
@@ -17,6 +17,11 @@ const props = defineProps<{
 
 const config = ref()
 const changePasswordError = ref<string | null>(null)
+
+// v2 accounts authenticate the change through their session + in-memory keys,
+// so the legacy proof inputs are hidden. Not available in forgot-password mode
+// (no session, no in-memory keypair).
+const isCurve = computed(() => !props.forgotPassword && props.keypair?.keyType === 'curve25519')
 
 const init = () => {
   config.value = {
@@ -45,18 +50,27 @@ const init = () => {
         delete values.token
       }
 
-      if (!values.use_private_key) {
-        if (!props.keypair || !props.keypair.input) {
-          throw new Error('Missing keypair')
-        }
+      // v2 (Curve25519 + OPAQUE) accounts change the password through the PAKE
+      // flow: the session already authenticates the user and the in-memory keys
+      // re-seal the envelope, so none of the legacy proof inputs apply.
+      if (!isCurve.value) {
+        if (!values.use_private_key) {
+          if (!props.keypair || !props.keypair.input) {
+            throw new Error('Missing keypair')
+          }
 
-        values.private_key = props.keypair.input
-      } else if (typeof values.current_password !== 'undefined') {
-        delete values.current_password
+          values.private_key = props.keypair.input
+        } else if (typeof values.current_password !== 'undefined') {
+          delete values.current_password
+        }
       }
 
       try {
-        await changePassword(values)
+        if (isCurve.value) {
+          await changePasswordV2(props.keypair as KeyPair, values.password, values.token)
+        } else {
+          await changePassword(values)
+        }
         ctx.resetForm()
 
         notify('Your password has been changed')
@@ -88,14 +102,14 @@ init()
     />
 
     <AppCheckbox
-      v-if="!forgotPassword"
+      v-if="!forgotPassword && !isCurve"
       label="Change with private key"
       :form="form"
       name="use_private_key"
     />
 
     <AppField
-      v-if="form.values.use_private_key"
+      v-if="!isCurve && form.values.use_private_key"
       textarea
       :rows="10"
       :form="form"
@@ -106,7 +120,7 @@ init()
     />
 
     <AppField
-      v-else
+      v-else-if="!isCurve"
       :form="form"
       label="Your current password"
       name="current_password"
@@ -132,7 +146,7 @@ init()
         :form="form"
         label="New password"
         name="password"
-        :disabled="!form.values.current_password && !form.values.private_key"
+        :disabled="!isCurve && !form.values.current_password && !form.values.private_key"
         help="Enter a new password that will be used to login to your account."
       />
     </div>

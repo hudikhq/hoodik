@@ -5,6 +5,7 @@ pub(crate) mod discover_rate_limit;
 pub(crate) mod folder_members;
 pub(crate) mod fork;
 pub(crate) mod groups;
+pub(crate) mod key_transition_resolve;
 pub(crate) mod members_list_sig;
 pub(crate) mod move_subtree;
 pub(crate) mod multikey_upload;

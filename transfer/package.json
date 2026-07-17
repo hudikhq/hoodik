@@ -6,6 +6,7 @@
   "main": "pkg/transfer.js",
   "types": "pkg/transfer.d.ts",
   "scripts": {
-    "wasm-pack": "wasm-pack build --out-name transfer --target bundler --release -- --features wasm && node scripts/patch-pkg.mjs"
+    "wasm-pack": "wasm-pack build --out-name transfer --target bundler --release -- --features wasm && node scripts/patch-pkg.mjs",
+    "wasm-pack-e2e": "wasm-pack build --out-name transfer --target bundler --release -- --features wasm,fast-test-kdf && node scripts/patch-pkg.mjs"
   }
 }

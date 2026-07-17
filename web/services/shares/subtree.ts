@@ -129,18 +129,18 @@ export interface BuildEntriesOptions {
 
 /**
  * For every file in `subtree`, decrypt the caller's own wrap of the file key
- * and re-wrap it under the recipient's pubkey. Returns the typed
+ * and re-wrap it under the recipient's public key. Returns the typed
  * `ShareEntryInput[]` ready to drop into the `entries` field of the
  * `POST /api/shares` envelope.
  *
- * The decrypt + wrap pair is two RSA operations per file; on a 5000-file
- * folder this is the dominant cost of the whole share submission. The
- * `onProgress` callback fires after every file so the UI can update its
+ * The decrypt + wrap pair is two asymmetric operations per file; on a
+ * 5000-file folder this is the dominant cost of the whole share submission.
+ * The `onProgress` callback fires after every file so the UI can update its
  * determinate progress bar.
  */
 export async function buildEntriesForSubtree(
   subtree: AppFile[],
-  recipientPubkey: string,
+  recipient: crypto.RecipientKey,
   privateKey: string,
   options: BuildEntriesOptions = {}
 ): Promise<ShareEntryInput[]> {
@@ -153,7 +153,7 @@ export async function buildEntriesForSubtree(
     }
     const node = subtree[i]
     const fileKeyHex = await crypto.decryptOwnFileKey(node.encrypted_key, privateKey)
-    const wrapped = await crypto.wrapForRecipient(fileKeyHex, recipientPubkey)
+    const wrapped = await crypto.wrapForRecipient(fileKeyHex, recipient)
     entries.push({ file_id: node.id, encrypted_key: wrapped })
     options.onProgress?.({ current: i + 1, total: subtree.length })
   }
@@ -315,7 +315,7 @@ async function buildPostShareListSignature(
  * `is_owner_of_file`, matching the single-file path the server inherits
  * σ_member from.
  *
- * Cost is `subtree` RSA decrypts plus `subtree × members` RSA wraps — the
+ * Cost is `subtree` RSA decrypts plus `subtree × members` key wraps — the
  * dominant cost of a large move, so `onProgress` fires after every node.
  */
 export async function buildCascadeEntries(
@@ -338,7 +338,7 @@ export async function buildCascadeEntries(
     for (const m of members) {
       memberKeys.push({
         user_id: m.user_id,
-        encrypted_key: await crypto.wrapForRecipient(fileKeyHex, m.pubkey),
+        encrypted_key: await crypto.wrapForRecipient(fileKeyHex, m),
         is_owner_of_file: m.user_id === callerId
       })
     }

@@ -114,6 +114,7 @@ export async function executeMove(
     throw new Error('Cannot move without an active keypair')
   }
   const privateKey = deps.keypair.input
+  const wrappingPrivateKey = deps.keypair.wrappingPrivate || deps.keypair.input
   const trusted = trustedFingerprintsStore()
   const onUnknownMember = deps.onUnknownMember ?? (async () => true)
 
@@ -133,6 +134,7 @@ export async function executeMove(
               {
                 callerUserId: deps.callerUserId,
                 callerPrivateKey: privateKey,
+                callerWrappingPrivateKey: wrappingPrivateKey,
                 root: item,
                 destinationFolderId: decision.destinationFolderId,
                 trustedFingerprints: trusted,
@@ -150,6 +152,7 @@ export async function executeMove(
             await moveSingleFileIntoSharedFolder({
               callerUserId: deps.callerUserId,
               callerPrivateKey: privateKey,
+              callerWrappingPrivateKey: wrappingPrivateKey,
               file: item,
               destinationFolderId: decision.destinationFolderId,
               trustedFingerprints: trusted,

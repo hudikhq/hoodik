@@ -8,7 +8,6 @@
 mod helpers;
 
 use actix_web::{http::StatusCode, test};
-use auth::data::create_user::CreateUser;
 use entity::{ColumnTrait, EntityTrait, QueryFilter};
 use hoodik::server;
 use std::path::Path;
@@ -16,27 +15,6 @@ use storage::data::app_file::AppFile;
 use storage::data::set_editable::SetEditable;
 
 use crate::helpers::{calculate_checksum, create_byte_chunks};
-
-/// Build a `CreateUser` payload with a fresh keypair. Registration is
-/// cookie-based, so the returned value is ready to drop into the HTTP
-/// request that extracts the session cookie.
-fn make_register(email: &str) -> CreateUser {
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
-    CreateUser {
-        email: Some(email.to_string()),
-        password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-        secret: None,
-        token: None,
-        pubkey: Some(public_string),
-        fingerprint: Some(fingerprint),
-        encrypted_private_key: Some("encrypted-secret".to_string()),
-        invitation_id: None,
-    }
-}
 
 /// True iff the data dir contains at least one legacy `{timestamp}-{uuid}.part.{n}`
 /// file for this file's id. Used to assert routing landed chunks where the
@@ -70,13 +48,7 @@ async fn test_non_editable_file_uses_legacy_layout_on_disk() {
     .await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&make_register("legacy-routing-1@test.com"))
-        .to_request();
-    let resp = test::call_service(&app, req).await;
-    let (jwt, _) = helpers::extract_cookies(resp.headers());
-    let jwt = jwt.unwrap();
+    let jwt = helpers::register_curve25519(&app, "legacy-routing-1@test.com").await.jwt;
 
     let (data, size, _) = create_byte_chunks();
     let checksum = calculate_checksum(data.clone());
@@ -160,13 +132,7 @@ async fn test_editable_note_uses_versioned_layout() {
     .await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&make_register("legacy-routing-2@test.com"))
-        .to_request();
-    let resp = test::call_service(&app, req).await;
-    let (jwt, _) = helpers::extract_cookies(resp.headers());
-    let jwt = jwt.unwrap();
+    let jwt = helpers::register_curve25519(&app, "legacy-routing-2@test.com").await.jwt;
 
     let payload = b"# hello world\n\nediting notes is nice".to_vec();
     let size = payload.len() as i64;
@@ -249,13 +215,7 @@ async fn test_set_editable_true_preserves_legacy_then_first_edit_snapshots_as_v1
     .await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&make_register("legacy-routing-3@test.com"))
-        .to_request();
-    let resp = test::call_service(&app, req).await;
-    let (jwt, _) = helpers::extract_cookies(resp.headers());
-    let jwt = jwt.unwrap();
+    let jwt = helpers::register_curve25519(&app, "legacy-routing-3@test.com").await.jwt;
 
     let v1_payload = b"original legacy content v1".to_vec();
     let v1_size = v1_payload.len() as i64;
@@ -328,7 +288,7 @@ async fn test_set_editable_true_preserves_legacy_then_first_edit_snapshots_as_v1
     let req = test::TestRequest::put()
         .uri(format!("/api/storage/{}/content", file.id).as_str())
         .cookie(jwt.clone())
-        .set_json(&serde_json::json!({ "size": v2_size, "chunks": 1 }))
+        .set_json(serde_json::json!({ "size": v2_size, "chunks": 1 }))
         .to_request();
     let body = test::call_and_read_body(&app, req).await;
     let file: AppFile = serde_json::from_slice(&body).unwrap();
@@ -400,13 +360,7 @@ async fn test_set_editable_false_rejects_with_history() {
     .await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&make_register("legacy-routing-4@test.com"))
-        .to_request();
-    let resp = test::call_service(&app, req).await;
-    let (jwt, _) = helpers::extract_cookies(resp.headers());
-    let jwt = jwt.unwrap();
+    let jwt = helpers::register_curve25519(&app, "legacy-routing-4@test.com").await.jwt;
 
     // Create editable and commit v1.
     let v1 = b"v1 payload".to_vec();
@@ -453,7 +407,7 @@ async fn test_set_editable_false_rejects_with_history() {
     let req = test::TestRequest::put()
         .uri(format!("/api/storage/{}/content", file.id).as_str())
         .cookie(jwt.clone())
-        .set_json(&serde_json::json!({ "size": v2.len() as i64, "chunks": 1 }))
+        .set_json(serde_json::json!({ "size": v2.len() as i64, "chunks": 1 }))
         .to_request();
     let _ = test::call_and_read_body(&app, req).await;
 
@@ -520,13 +474,7 @@ async fn test_set_editable_during_pending_edit_is_409() {
     .await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&make_register("legacy-routing-5@test.com"))
-        .to_request();
-    let resp = test::call_service(&app, req).await;
-    let (jwt, _) = helpers::extract_cookies(resp.headers());
-    let jwt = jwt.unwrap();
+    let jwt = helpers::register_curve25519(&app, "legacy-routing-5@test.com").await.jwt;
 
     let v1 = b"v1 payload".to_vec();
     let create = storage::data::create_file::CreateFile {
@@ -570,7 +518,7 @@ async fn test_set_editable_during_pending_edit_is_409() {
     let req = test::TestRequest::put()
         .uri(format!("/api/storage/{}/content", file.id).as_str())
         .cookie(jwt.clone())
-        .set_json(&serde_json::json!({ "size": 100, "chunks": 1 }))
+        .set_json(serde_json::json!({ "size": 100, "chunks": 1 }))
         .to_request();
     let body = test::call_and_read_body(&app, req).await;
     let file: AppFile = serde_json::from_slice(&body).unwrap();

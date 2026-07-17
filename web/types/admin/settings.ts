@@ -1,6 +1,11 @@
 export interface Data {
   users: Users
   sharing: Sharing
+  /**
+   * Read-only deployment flag surfaced on the settings GET (not persisted).
+   * When true the admin "send test email" card is hidden and its endpoint 403s.
+   */
+  mailer_disable_test?: boolean
 }
 
 export interface Users {
@@ -20,6 +25,8 @@ export interface Users {
  */
 export interface Sharing {
   enabled: boolean
+  /** Cipher new uploads are encrypted with, advertised to clients via `/api/capabilities`. */
+  default_cipher: string
 }
 
 export interface WhitelistOrBlacklist {

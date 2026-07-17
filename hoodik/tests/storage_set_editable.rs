@@ -2,7 +2,6 @@
 mod helpers;
 
 use actix_web::{http::StatusCode, test};
-use auth::data::create_user::CreateUser;
 use hoodik::server;
 use storage::data::app_file::AppFile;
 use storage::data::set_editable::SetEditable;
@@ -15,30 +14,9 @@ async fn test_set_editable_converts_file_to_note() {
         context::Context::mock_with_data_dir(Some("../data-test-set-editable-1".to_string()))
             .await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("editable-1@test.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string),
-            fingerprint: Some(fingerprint),
-            encrypted_private_key: Some("encrypted-secret".to_string()),
-            invitation_id: None,
-        })
-        .to_request();
-
-    let resp = test::call_service(&app, req).await;
-    let (jwt, _) = helpers::extract_cookies(resp.headers());
-    let jwt = jwt.unwrap();
+    let jwt = helpers::register_curve25519(&app, "editable-1@test.com").await.jwt;
 
     // Create a non-editable markdown file
     let (data, size, _) = create_byte_chunks();
@@ -106,30 +84,9 @@ async fn test_set_editable_can_revert_note_to_regular_file() {
         context::Context::mock_with_data_dir(Some("../data-test-set-editable-2".to_string()))
             .await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("editable-2@test.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string),
-            fingerprint: Some(fingerprint),
-            encrypted_private_key: Some("encrypted-secret".to_string()),
-            invitation_id: None,
-        })
-        .to_request();
-
-    let resp = test::call_service(&app, req).await;
-    let (jwt, _) = helpers::extract_cookies(resp.headers());
-    let jwt = jwt.unwrap();
+    let jwt = helpers::register_curve25519(&app, "editable-2@test.com").await.jwt;
 
     // Create an editable file
     let (data, size, _) = create_byte_chunks();
@@ -186,30 +143,9 @@ async fn test_set_editable_rejects_directory() {
         context::Context::mock_with_data_dir(Some("../data-test-set-editable-3".to_string()))
             .await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("editable-3@test.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string),
-            fingerprint: Some(fingerprint),
-            encrypted_private_key: Some("encrypted-secret".to_string()),
-            invitation_id: None,
-        })
-        .to_request();
-
-    let resp = test::call_service(&app, req).await;
-    let (jwt, _) = helpers::extract_cookies(resp.headers());
-    let jwt = jwt.unwrap();
+    let jwt = helpers::register_curve25519(&app, "editable-3@test.com").await.jwt;
 
     // Create a directory
     let create = storage::data::create_file::CreateFile {
@@ -261,30 +197,9 @@ async fn test_set_editable_requires_editable_field() {
         context::Context::mock_with_data_dir(Some("../data-test-set-editable-4".to_string()))
             .await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("editable-4@test.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string),
-            fingerprint: Some(fingerprint),
-            encrypted_private_key: Some("encrypted-secret".to_string()),
-            invitation_id: None,
-        })
-        .to_request();
-
-    let resp = test::call_service(&app, req).await;
-    let (jwt, _) = helpers::extract_cookies(resp.headers());
-    let jwt = jwt.unwrap();
+    let jwt = helpers::register_curve25519(&app, "editable-4@test.com").await.jwt;
 
     // Create a file
     let (data, size, _) = create_byte_chunks();

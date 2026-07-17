@@ -155,7 +155,7 @@ export async function buildSharedFolderPayloadFromFile(args: {
   editable?: boolean
   chunkSizeBytes: number
 }): Promise<SharedFolderFilePayload & { fileKeyBytes: Uint8Array }> {
-  const cipher = args.cipher ?? cryptfns.cipher.DEFAULT_CIPHER
+  const cipher = args.cipher ?? cryptfns.cipher.defaultCipher()
   const key = args.fileKey ?? (await cryptfns.cipher.generateKey(cipher))
   const encryptedName = await cryptfns.cipher.encryptString(cipher, args.file.name, key)
   const encryptedThumbnail = args.thumbnail

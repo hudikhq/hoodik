@@ -8,7 +8,7 @@ use ::error::AppResult;
 use serde::{Deserialize, Serialize};
 use validr::*;
 
-pub type MetaTuple = (i64, Option<String>, Option<String>, Option<String>);
+pub type MetaTuple = (i64, Option<String>, Option<String>);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Meta {
@@ -20,17 +20,6 @@ pub struct Meta {
     pub checksum: Option<String>,
     /// Tells us what checksum function was used to generate the checksum
     pub checksum_function: Option<String>,
-    /// Secret key to encrypt the data when before saving it
-    /// this is optional and it can be done on the client
-    /// side so the key is never sent to the backend.
-    ///
-    /// But in some cases, it might be more efficient to do it
-    /// on the backend, even if it is less secure.
-    ///
-    /// Obviously, if the data is already encrypted it will be
-    /// encrypted again because we don't check on the backend
-    /// if it was encrypted, so be warned..
-    pub key_hex: Option<String>,
 }
 
 impl Validation for Meta {
@@ -67,7 +56,6 @@ impl Meta {
             data.chunk.unwrap(),
             data.checksum.clone(),
             data.checksum_function.clone(),
-            data.key_hex,
         ))
     }
 }

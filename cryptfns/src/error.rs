@@ -28,6 +28,9 @@ pub enum Error {
     RandomError(RandomError),
     UnknownCipher(String),
     InvalidLength(&'static str),
+    /// Key parsing/encoding failures from the Curve25519 PKCS#8/SPKI stack,
+    /// which uses a newer `der` major than the RSA-era variants above.
+    KeyEncoding(String),
     #[cfg(feature = "tokenizer")]
     TokenizersError(TokenizersError),
 }

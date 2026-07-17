@@ -197,6 +197,83 @@ describe('audit log view', () => {
     expect(result.firstBreakIndex).toBe(-1)
   })
 
+  // A migrated account gets an account-level `key_rotation` audit row with a
+  // NULL file_id (and NULL recipient). The server chains it with 16 zero bytes
+  // for file_id; the client must recompute the same way instead of throwing on
+  // the null. Regression for the audit view crashing on any migrated account.
+  async function keyRotationRow(): Promise<ShareEvent> {
+    const wasm = await import('../../services/cryptfns/wasm')
+    const der = wasm.audit_event_encode_v1(
+      uuidToBytes(SENDER_ID),
+      new Uint8Array(16),
+      new Uint8Array(16),
+      'key_rotation',
+      0xff,
+      BigInt(1_700_000_050)
+    )
+    if (!der) throw new Error('failed to encode key_rotation row')
+    const prev = new Uint8Array(32)
+    const buffer = new Uint8Array(AUDIT_EVENT_V1_PREFIX.length + prev.length + der.length)
+    buffer.set(AUDIT_EVENT_V1_PREFIX, 0)
+    buffer.set(prev, AUDIT_EVENT_V1_PREFIX.length)
+    buffer.set(der, AUDIT_EVENT_V1_PREFIX.length + prev.length)
+    const hashHex = cryptfns.sha256.digest(buffer)
+    return {
+      id: 'key-rotation-1',
+      sender_id: SENDER_ID,
+      recipient_id: null,
+      file_id: null,
+      action: 'key_rotation',
+      share_role_before: null,
+      share_role_after: null,
+      created_at: 1_700_000_050,
+      prev_event_hash: null,
+      this_event_hash: cryptfns.uint8.toBase64(cryptfns.uint8.fromHex(hashHex)),
+      // Signed under the key-rotation scheme, not the share canonical — a
+      // plausible non-null blob the view must NOT run through the share verifier.
+      sender_signature: cryptfns.uint8.toBase64(new Uint8Array(64).fill(1)),
+      encrypted_name: null,
+      cipher: null,
+      encrypted_key: null
+    }
+  }
+
+  it('audit_chain_verifies_account_key_rotation_row_with_null_file', async () => {
+    const row = await keyRotationRow()
+    // Recompute matches the server's zero-byte-file encoding (no throw on null).
+    expect(shareCrypto.recomputeChainHash(row, null)).toBe(row.this_event_hash)
+    const result = shareCrypto.verifyChain([row])
+    expect(result.chainOk).toEqual([true])
+    expect(result.rowStatus).toEqual(['page-boundary'])
+    expect(result.firstBreakIndex).toBe(-1)
+  })
+
+  it('audit_key_rotation_row_renders_system_badge_and_sentence', async () => {
+    const kp = await cryptfns.rsa.generateKeyPair()
+    const row = await keyRotationRow()
+    const users: Record<string, AuditUserRef> = {
+      [SENDER_ID]: {
+        id: SENDER_ID,
+        email: 'alice@example.com',
+        pubkey: kp.publicKey as string,
+        fingerprint: 'fp'
+      }
+    }
+    const page: ShareEventPage = { events: [row], users, total: 1, limit: 100, offset: 0 }
+    vi.spyOn(sharesApi, 'getShareEvents').mockResolvedValue(page)
+    const router = setupRouter()
+    router.push('/share/audit')
+    await router.isReady()
+    const wrapper = mount(ShareHubAudit, { global: { plugins: [router] } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('alice@example.com rotated their account encryption keys')
+    expect(wrapper.find(`[data-testid="share-hub-audit-row-${row.id}-system"]`).exists()).toBe(true)
+    expect(wrapper.find(`[data-testid="share-hub-audit-row-${row.id}-tampered"]`).exists()).toBe(
+      false
+    )
+  })
+
   it('audit_chain_slice_aware_single_mid_bucket_gap_does_not_break', async () => {
     // A recipient's paged view sees grants targeting them but not an
     // intervening revoke of another user. A row whose `prev_event_hash`
@@ -306,14 +383,18 @@ describe('audit log view', () => {
   it('audit_signature_verification_passes_on_valid_sig', async () => {
     const kp = await cryptfns.rsa.generateKeyPair()
     const row = await buildRow(0, kp.input as string, null)
-    expect(await shareCrypto.verifyEventSignature(row, kp.publicKey as string)).toBe(true)
+    expect(
+      await shareCrypto.verifyEventSignature(row, { pubkey: kp.publicKey as string })
+    ).toBe(true)
   })
 
   it('audit_signature_verification_fails_on_tampered_payload', async () => {
     const kp = await cryptfns.rsa.generateKeyPair()
     const row = await buildRow(0, kp.input as string, null)
     const tampered: ShareEvent = { ...row, share_role_after: 'reader' }
-    expect(await shareCrypto.verifyEventSignature(tampered, kp.publicKey as string)).toBe(false)
+    expect(
+      await shareCrypto.verifyEventSignature(tampered, { pubkey: kp.publicKey as string })
+    ).toBe(false)
   })
 
   it('audit_null_signature_rows_show_system_badge', async () => {

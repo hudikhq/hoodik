@@ -49,7 +49,7 @@ function buildSettings(overrides: Partial<Data> = {}): Data {
       email_whitelist: { rules: [] },
       email_blacklist: { rules: [] }
     },
-    sharing: { enabled: true },
+    sharing: { enabled: true, default_cipher: 'aegis128l' },
     ...overrides
   } as Data
 }
@@ -78,7 +78,7 @@ describe('Admin UserSettings: sharing kill switch (B16)', () => {
   it('reflects sharing.enabled=false in the toggle state', () => {
     const wrapper = mount(UserSettings, {
       props: {
-        modelValue: buildSettings({ sharing: { enabled: false } }),
+        modelValue: buildSettings({ sharing: { enabled: false, default_cipher: 'aegis128l' } }),
         loading: false
       }
     })
@@ -114,5 +114,47 @@ describe('Admin UserSettings: sharing kill switch (B16)', () => {
     })
     const toggle = wrapper.find('[data-testid="admin-sharing-enabled-toggle"]')
     expect((toggle.element as HTMLInputElement).disabled).toBe(true)
+  })
+})
+
+describe('Admin UserSettings: default cipher select', () => {
+  it('renders the select bound to settings.sharing.default_cipher', () => {
+    const wrapper = mount(UserSettings, {
+      props: {
+        modelValue: buildSettings(),
+        loading: false
+      }
+    })
+    const select = wrapper.find('[data-testid="admin-default-cipher-select"]')
+    expect(select.exists()).toBe(true)
+    expect((select.element as HTMLSelectElement).value).toBe('aegis128l')
+    const values = wrapper
+      .findAll('[data-testid="admin-default-cipher-select"] option')
+      .map((o) => (o.element as HTMLOptionElement).value)
+    expect(values).toEqual(['aegis128l', 'aegis256', 'ascon128a', 'chacha20poly1305'])
+  })
+
+  it('user selection mutates settings.sharing.default_cipher via the v-model binding', async () => {
+    const settings = buildSettings()
+    const wrapper = mount(UserSettings, {
+      props: {
+        modelValue: settings,
+        loading: false
+      }
+    })
+    const select = wrapper.find('[data-testid="admin-default-cipher-select"]')
+    await select.setValue('aegis256')
+    expect(settings.sharing.default_cipher).toBe('aegis256')
+  })
+
+  it('disables the select while save is in flight', () => {
+    const wrapper = mount(UserSettings, {
+      props: {
+        modelValue: buildSettings(),
+        loading: true
+      }
+    })
+    const select = wrapper.find('[data-testid="admin-default-cipher-select"]')
+    expect((select.element as HTMLSelectElement).disabled).toBe(true)
   })
 })

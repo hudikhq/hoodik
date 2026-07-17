@@ -22,10 +22,10 @@ Hoodik is a lightweight, self-hosted, end-to-end encrypted cloud storage server.
 
 ## Features
 
-- **End-to-end encryption** — files are encrypted in the browser before upload and decrypted after download using a hybrid RSA + AEGIS-128L scheme
+- **End-to-end encryption** — files are encrypted in the browser with AEGIS-128L before upload and decrypted after download; file keys are wrapped with a quantum-resistant X25519 + ML-KEM-768 hybrid (RSA on legacy accounts)
 - **Secure search** — file metadata is tokenized and hashed so the server can match search queries without storing plaintext names
 - **Encrypted notes** — create and edit rich markdown notes with a WYSIWYG editor; content is encrypted, auto-saved, and searchable just like uploaded files
-- **Public sharing links** — share files via a link; the file key is never exposed to the recipient
+- **Public sharing links** — share files via a link; the recipient decrypts everything in their browser with the key in the URL fragment, and the server never decrypts a public link
 - **Two-factor authentication** — optional TOTP-based 2FA per user
 - **Admin dashboard** — manage users, sessions, invitations, and application settings
 - **Chunked transfers** — files are split into encrypted chunks for concurrent upload/download
@@ -39,13 +39,13 @@ Hoodik is a lightweight, self-hosted, end-to-end encrypted cloud storage server.
 
 ### File storage
 
-Each user gets an RSA-2048 key pair on registration. The private key is stored encrypted with your passphrase — the server cannot read it.
+Each user gets an Ed25519 identity key pair (for signing) and an X25519 + ML-KEM-768 wrapping key pair (for wrapping file keys) on registration. File keys are wrapped under both algorithms at once — a hybrid that stays secure even if a future quantum computer breaks the elliptic-curve half. Login uses OPAQUE, so your password never leaves the device; the private keys are stored envelope-encrypted under a key derived from the OPAQUE `export_key`, which only your password can produce — the server cannot read them. Accounts created before this scheme used an RSA-2048 key pair and are still supported; they migrate to the new keys automatically on the next login.
 
 > ⚠️ **Store your private key somewhere safe** (e.g. a password manager). If you forget your password, the private key is the only way to recover your account and decrypt your files.
 
 When you upload a file:
 1. A random symmetric key is generated for the file (key size depends on the cipher).
-2. The file is encrypted chunk-by-chunk with that key using the file's cipher (default: AEGIS-128L).
+2. The file is encrypted chunk-by-chunk with that key using the file's cipher (AEGIS-128L unless the admin picks a different default in the settings).
 3. The cipher identifier and the encrypted key are stored in the database alongside the file, so old files can always be decrypted with the correct algorithm even after the default cipher changes.
 
 Chunks move over one of two HTTP endpoints, both client-side encrypted:
@@ -64,19 +64,21 @@ Searchable metadata (file name, etc.) is tokenized, hashed, and stored as opaque
 When you share a file:
 1. A random link key is generated.
 2. The file metadata and file key are encrypted with the link key.
-3. The link key itself is encrypted with your RSA public key (so you can always recover it).
+3. The link key itself is wrapped under your own current key type (the X25519 + ML-KEM-768 hybrid on current accounts, RSA on legacy accounts) so only you can recover it.
 4. The link key is appended to the share URL as a fragment: `https://…/links/{id}#link-key`.
 
-The recipient's browser uses the fragment to decrypt the file key locally. The server only ever sees encrypted bytes.
+The recipient's browser uses the fragment to decrypt the metadata and file key locally and does all decryption itself — the link key in the fragment never reaches the server. The server only ever serves encrypted bytes and never decrypts anything for a public link.
 
 ### Cryptographic primitives
 
 | Primitive | Algorithm |
 |-----------|-----------|
-| Asymmetric | RSA-2048 PKCS#1 |
+| Identity / signing | Ed25519 (legacy accounts: RSA-2048 PKCS#1) |
+| Key wrapping | hybrid X25519 + ML-KEM-768 (post-quantum) — HKDF-SHA256 combiner, AEGIS-256 wrap AEAD (legacy accounts: RSA-2048) |
 | Symmetric (default) | AEGIS-128L — hardware-accelerated AEAD via WASM SIMD128/relaxed-simd |
-| Symmetric (supported) | Ascon-128a, ChaCha20-Poly1305 |
-| Key derivation | SHA-2, Blake2b |
+| Symmetric (supported) | AEGIS-256, Ascon-128a, ChaCha20-Poly1305 |
+| Login | OPAQUE (RFC 9807, ristretto255-SHA512), Argon2id KSF — password never crosses the wire |
+| Private-key wrap | envelope encryption under a KEK derived (HKDF-SHA512) from the OPAQUE `export_key` |
 
 The cipher used to encrypt each file is stored in the database (`files.cipher`), so the correct algorithm is always used for decryption regardless of what the current default is.
 
@@ -277,6 +279,10 @@ See [DEVELOPMENT.md](./DEVELOPMENT.md) for setup instructions, available `just` 
 
 ---
 
-## Contributors
+## Authors
 
-- Logo design by [Nikola Matošević — Your Dear Designer](https://yourdeardesigner.com/) ❤️
+Created and maintained by [Tibor Hudik](https://github.com/htunlogic).
+
+Community patches are welcome and appreciated. Everyone who has sent one is listed in the [contributors graph](https://github.com/hudikhq/hoodik/graphs/contributors).
+
+Logo design by [Nikola Matošević — Your Dear Designer](https://yourdeardesigner.com/) ❤️

@@ -95,3 +95,41 @@ async fn test_expire_invitation() {
 
     assert_eq!(invitations.len(), 0);
 }
+
+#[async_std::test]
+async fn test_invitation_rate_limit() {
+    let context: Context = Context::mock_sqlite().await;
+
+    let repository = super::get_repo(&context).await;
+
+    repository
+        .invitations()
+        .create(Create {
+            email: Some("first@test.com".to_string()),
+            role: None,
+            quota: None,
+            message: None,
+            expires_at: None,
+        })
+        .await
+        .unwrap();
+
+    // A second invitation within the 30s window is refused, even to a different
+    // address — the throttle is global anti-spam, not per-recipient.
+    let err = repository
+        .invitations()
+        .create(Create {
+            email: Some("second@test.com".to_string()),
+            role: None,
+            quota: None,
+            message: None,
+            expires_at: None,
+        })
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(err, error::Error::TooManyRequests(_)),
+        "expected TooManyRequests, got {err:?}"
+    );
+}

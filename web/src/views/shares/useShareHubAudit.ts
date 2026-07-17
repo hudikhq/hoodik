@@ -23,7 +23,8 @@ export const ACTION_LABELS: Record<AuditEventAction, string> = {
   shared_folder_edit: 'Edited shared file',
   shared_folder_restore: 'Restored shared version',
   shared_folder_evict: 'Cascade revoked',
-  shared_folder_move_out: 'Moved out of shared folder'
+  shared_folder_move_out: 'Moved out of shared folder',
+  key_rotation: 'Key rotation'
 }
 
 /**
@@ -32,7 +33,9 @@ export const ACTION_LABELS: Record<AuditEventAction, string> = {
  *   - **verified** — silent. The row IS the signal. No decoration.
  *   - **system** — neutral pill ("System"). The row legitimately has no
  *     sender signature by construction (cascade-revoke fan-outs, server-
- *     only events). The row is still cryptographically chained.
+ *     only events), OR is an account-level event (`key_rotation`) signed
+ *     under a different scheme this view doesn't re-verify. The row is
+ *     still cryptographically chained.
  *   - **tampered** — full-width banner with a forensic export CTA. Fires
  *     when ANY of the three local checks fails on a non-system row:
  *     (a) the row's signature fails to verify against the named sender,
@@ -104,6 +107,10 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
   async function verifySignatures(): Promise<void> {
     const checks: Record<string, boolean> = {}
     for (const row of shares.events) {
+      // `key_rotation` is signed under the key-rotation scheme, not the
+      // share-event canonical — it's classified `system`, so skip the
+      // share-signature check rather than verify against the wrong input.
+      if (row.action === 'key_rotation') continue
       if (!row.sender_signature || !row.sender_id) {
         checks[row.id] = false
         continue
@@ -114,7 +121,7 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
         continue
       }
       try {
-        checks[row.id] = await shareCrypto.verifyEventSignature(row, senderRecord.pubkey)
+        checks[row.id] = await shareCrypto.verifyEventSignature(row, senderRecord)
       } catch {
         checks[row.id] = false
       }
@@ -193,13 +200,14 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
   const decryptedNamesVersion = ref(0)
 
   async function hydrateDecryptedNames(events: ShareEvent[]): Promise<void> {
-    const privateKey = keypair.value?.input
+    const privateKey = keypair.value?.wrappingPrivate || keypair.value?.input
     if (!privateKey) return
     // A file_id we already decrypted in a previous batch stays — the
     // ciphertext is immutable for the lifetime of the file row.
     const seen = new Set(decryptedNames.value.keys())
     let touched = false
     for (const row of events) {
+      if (!row.file_id) continue
       if (seen.has(row.file_id)) continue
       if (!row.encrypted_name || !row.encrypted_key || !row.cipher) continue
       seen.add(row.file_id)
@@ -247,8 +255,9 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
     void decryptedNamesVersion.value
     const sender = senderEmail(row)
     const recipient = recipientEmail(row)
-    const decryptedName = decryptedNames.value.get(row.file_id)
-    const fileLabel = decryptedName ?? `file ${row.file_id.slice(0, 8)}…`
+    const decryptedName = row.file_id ? decryptedNames.value.get(row.file_id) : undefined
+    const fileLabel =
+      decryptedName ?? (row.file_id ? `file ${row.file_id.slice(0, 8)}…` : 'a file')
     const roleAfter = row.share_role_after ? formatRole(row.share_role_after) : null
     const roleBefore = row.share_role_before ? formatRole(row.share_role_before) : null
 
@@ -276,6 +285,8 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
         return `${recipient || 'A recipient'} lost access to ${fileLabel} (cascade)`
       case 'shared_folder_move_out':
         return `${sender} moved ${fileLabel} out of a shared folder`
+      case 'key_rotation':
+        return `${sender} rotated their account encryption keys`
       default:
         return `${ACTION_LABELS[row.action] ?? row.action} on ${fileLabel}`
     }
@@ -298,10 +309,12 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
 
   function computeRowState(row: ShareEvent): RowVerificationState {
     // Cascade-revoke fan-outs and other server-attributed events ship
-    // without a sender signature by construction. Treat any null-sig row
-    // as system — the "System" pill carries the meaning. Chain math still
-    // runs for these rows; they're verifiable, just not via signature.
-    if (!row.sender_signature) return 'system'
+    // without a sender signature by construction. `key_rotation` is signed,
+    // but under the key-rotation scheme rather than the share-event canonical.
+    // Treat both as system — the "System" pill carries the meaning. Chain math
+    // still runs for these rows; they're verifiable, just not via this view's
+    // share-signature check.
+    if (!row.sender_signature || row.action === 'key_rotation') return 'system'
 
     const rowIndex = shares.events.indexOf(row)
     const chainStatus = rowIndex >= 0 ? rowChainStatus(rowIndex) : undefined

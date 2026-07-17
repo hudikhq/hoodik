@@ -8,6 +8,9 @@
 //! requires when an async helper takes the app by reference.
 #![allow(dead_code)]
 
+use actix_web::body::{BoxBody, EitherBody};
+use actix_web::dev::{Service, ServiceResponse};
+use actix_web::test;
 use auth::data::create_user::CreateUser;
 use cryptfns::asn1::{
     encode_audit_event_sig_input_v1, encode_entries_v1, encode_folder_member_list_v1,
@@ -16,6 +19,7 @@ use cryptfns::asn1::{
     ShareRoleEnum, AUDIT_EVENT_SIG_V1_PREFIX, FOLDER_LIST_V1_PREFIX, MEMBER_SIG_V1_PREFIX,
     SHARE_REQUEST_V1_PREFIX,
 };
+use cryptfns::identity::KeyType;
 use entity::Uuid;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -38,6 +42,10 @@ pub struct TestUser {
     pub private_pem: String,
     pub public_pem: String,
     pub fingerprint: String,
+    pub key_type: KeyType,
+    /// X25519 wrapping keypair — curve25519 accounts only.
+    pub wrapping_private_pem: Option<String>,
+    pub wrapping_public_pem: Option<String>,
     pub jwt: actix_web::cookie::Cookie<'static>,
 }
 
@@ -47,6 +55,140 @@ impl TestUser {
         let mut out = [0u8; 32];
         out.copy_from_slice(&bytes);
         out
+    }
+
+    /// Sign with the account's identity key, mirroring the client:
+    /// RSA for legacy accounts, Ed25519 for curve25519 accounts.
+    pub fn sign_bytes(&self, message: &[u8]) -> String {
+        match self.key_type {
+            KeyType::Rsa => cryptfns::rsa::private::sign_bytes(message, &self.private_pem),
+            KeyType::Curve25519 => cryptfns::ed25519::private::sign_bytes(message, &self.private_pem),
+        }
+        .expect("sign with identity key")
+    }
+
+    /// Wrap a file key under the account's own key material: RSA encrypt
+    /// for legacy accounts, hybrid X25519 + ML-KEM wrap for curve25519 accounts.
+    pub fn wrap_key(&self, key: &str) -> String {
+        match self.key_type {
+            KeyType::Rsa => cryptfns::rsa::public::encrypt(key, &self.public_pem),
+            KeyType::Curve25519 => cryptfns::ecdh::wrap(
+                key.as_bytes(),
+                self.wrapping_public_pem
+                    .as_ref()
+                    .expect("curve25519 fixture carries a wrapping key"),
+            ),
+        }
+        .expect("wrap file key")
+    }
+}
+
+pub trait TestApp:
+    Service<
+    actix_http::Request,
+    Response = ServiceResponse<EitherBody<BoxBody>>,
+    Error = actix_web::Error,
+>
+{
+}
+impl<S> TestApp for S where
+    S: Service<
+        actix_http::Request,
+        Response = ServiceResponse<EitherBody<BoxBody>>,
+        Error = actix_web::Error,
+    >
+{
+}
+
+const CURVE_TEST_PASSWORD: &[u8] = b"not-4-weak-password-for-god-sakes!";
+
+/// Register a born-migrated curve25519 account through the real OPAQUE
+/// registration handshake, returning the fixture the shares suites drive.
+pub async fn register_curve25519(app: &impl TestApp, email: &str) -> TestUser {
+    let (private_pem, public_pem, fingerprint, wrapping_private_pem, wrapping_public_pem) =
+        generate_curve25519_keypair();
+
+    let reg_start = cryptfns::opaque::client_registration_start(CURVE_TEST_PASSWORD).unwrap();
+    let req = test::TestRequest::post()
+        .uri("/api/auth/register/pake/start")
+        .set_json(serde_json::json!({ "email": email, "registration_request": reg_start.message }))
+        .to_request();
+    let body: Value = test::read_body_json(test::call_service(app, req).await).await;
+    let reg_response = body["registration_response"].as_str().unwrap();
+    let reg_finish = cryptfns::opaque::client_registration_finish(
+        &reg_start.state,
+        reg_response,
+        CURVE_TEST_PASSWORD,
+    )
+    .unwrap();
+
+    let export_key = cryptfns::base64::decode(&reg_finish.export_key).unwrap();
+    let kek = cryptfns::envelope::derive_kek(&export_key).unwrap();
+    let envelope = cryptfns::envelope::seal(
+        &kek,
+        format!("v1|ed:{private_pem}|x:{wrapping_private_pem}").as_bytes(),
+    )
+    .unwrap();
+
+    let req = test::TestRequest::post()
+        .uri("/api/auth/register")
+        .set_json(serde_json::json!({
+            "email": email,
+            "pubkey": public_pem,
+            "wrapping_pubkey": wrapping_public_pem,
+            "fingerprint": fingerprint,
+            "key_type": "curve25519",
+            "encrypted_private_key": envelope,
+            "opaque_registration_upload": reg_finish.message,
+        }))
+        .to_request();
+    let resp = test::call_service(app, req).await;
+    assert!(resp.status().is_success(), "register {email} failed: {:?}", resp.status());
+    let (jwt, _) = extract_cookies(resp.headers());
+    let jwt = jwt.expect("register response missing JWT cookie");
+    let body = test::read_body(resp).await;
+    let authenticated: auth::data::authenticated::Authenticated =
+        serde_json::from_slice(&body).expect("authenticated json");
+
+    TestUser {
+        email: email.to_string(),
+        user_id: authenticated.user.id,
+        private_pem,
+        public_pem,
+        fingerprint,
+        key_type: KeyType::Curve25519,
+        wrapping_private_pem: Some(wrapping_private_pem),
+        wrapping_public_pem: Some(wrapping_public_pem),
+        jwt,
+    }
+}
+
+/// Seed a legacy RSA `TestUser`: insert the account at the data layer, then log
+/// it in through the credentials endpoint for a session cookie. The RSA private
+/// key is retained so the fixture can sign and wrap exactly as a pre-migration
+/// client would.
+pub async fn seed_legacy_test_user(app: &impl TestApp, db: &entity::DbConn, email: &str) -> TestUser {
+    let seeded = helpers::seed_legacy_user(db, email).await;
+
+    let req = test::TestRequest::post()
+        .uri("/api/auth/login")
+        .set_json(serde_json::json!({ "email": email, "password": helpers::LEGACY_PASSWORD }))
+        .to_request();
+    let resp = test::call_service(app, req).await;
+    assert!(resp.status().is_success(), "login {email} failed: {:?}", resp.status());
+    let (jwt, _) = extract_cookies(resp.headers());
+    let jwt = jwt.expect("login response missing JWT cookie");
+
+    TestUser {
+        email: email.to_string(),
+        user_id: seeded.user_id,
+        private_pem: seeded.rsa_private,
+        public_pem: seeded.rsa_public,
+        fingerprint: seeded.rsa_fingerprint,
+        key_type: KeyType::Rsa,
+        wrapping_private_pem: None,
+        wrapping_public_pem: None,
+        jwt,
     }
 }
 
@@ -59,13 +201,42 @@ pub fn make_create_user(email: &str, public_pem: &str, fingerprint: &str) -> Cre
         pubkey: Some(public_pem.to_string()),
         fingerprint: Some(fingerprint.to_string()),
         encrypted_private_key: Some("encrypted-private-key-blob".to_string()),
+        key_type: None,
+        wrapping_pubkey: None,
+        opaque_registration_upload: None,
         invitation_id: None,
     }
 }
 
+pub fn make_create_curve25519_user(
+    email: &str,
+    public_pem: &str,
+    fingerprint: &str,
+    wrapping_pubkey: &str,
+) -> CreateUser {
+    let mut user = make_create_user(email, public_pem, fingerprint);
+    user.key_type = Some("curve25519".to_string());
+    user.wrapping_pubkey = Some(wrapping_pubkey.to_string());
+    user
+}
+
 pub fn make_create_file(public_pem: &str, name_hash: &str) -> storage::data::create_file::CreateFile {
+    make_create_file_with_key(
+        cryptfns::rsa::public::encrypt("deadbeef", public_pem).unwrap(),
+        name_hash,
+    )
+}
+
+pub fn make_create_file_for(user: &TestUser, name_hash: &str) -> storage::data::create_file::CreateFile {
+    make_create_file_with_key(user.wrap_key("deadbeef"), name_hash)
+}
+
+fn make_create_file_with_key(
+    encrypted_key: String,
+    name_hash: &str,
+) -> storage::data::create_file::CreateFile {
     storage::data::create_file::CreateFile {
-        encrypted_key: Some(cryptfns::rsa::public::encrypt("deadbeef", public_pem).unwrap()),
+        encrypted_key: Some(encrypted_key),
         encrypted_name: Some("encrypted-name".to_string()),
         encrypted_thumbnail: None,
         search_tokens_hashed: None,
@@ -85,12 +256,12 @@ pub fn make_create_file(public_pem: &str, name_hash: &str) -> storage::data::cre
 }
 
 pub fn make_create_folder(
-    public_pem: &str,
+    user: &TestUser,
     name_hash: &str,
     parent_id: Option<Uuid>,
 ) -> storage::data::create_file::CreateFile {
     storage::data::create_file::CreateFile {
-        encrypted_key: Some(cryptfns::rsa::public::encrypt("deadbeef", public_pem).unwrap()),
+        encrypted_key: Some(user.wrap_key("deadbeef")),
         encrypted_name: Some("encrypted-name".to_string()),
         encrypted_thumbnail: None,
         search_tokens_hashed: None,
@@ -110,11 +281,11 @@ pub fn make_create_folder(
 }
 
 pub fn make_create_child_file(
-    public_pem: &str,
+    user: &TestUser,
     name_hash: &str,
     parent_id: Uuid,
 ) -> storage::data::create_file::CreateFile {
-    let mut file = make_create_file(public_pem, name_hash);
+    let mut file = make_create_file_for(user, name_hash);
     file.file_id = Some(parent_id.to_string());
     file
 }
@@ -169,8 +340,7 @@ pub fn sign_folder_member_list(
     let mut signing_input = Vec::with_capacity(FOLDER_LIST_V1_PREFIX.len() + der.len());
     signing_input.extend_from_slice(FOLDER_LIST_V1_PREFIX);
     signing_input.extend_from_slice(&der);
-    let signature = cryptfns::rsa::private::sign_bytes(&signing_input, &signer.private_pem)
-        .expect("sign folder member list");
+    let signature = signer.sign_bytes(&signing_input);
     serde_json::json!({
         "signature": signature,
         "signed_at": signed_at,
@@ -238,6 +408,7 @@ pub fn build_role_change_envelope(
 /// caller passes the projected post-share roster (owner + sender's
 /// existing position + recipient added/upgraded) and the signer (folder
 /// owner on initial share, Co-owner on re-share).
+#[allow(clippy::too_many_arguments)]
 pub fn build_folder_share_envelope(
     sender: &TestUser,
     recipient: &TestUser,
@@ -314,6 +485,7 @@ pub fn build_folder_role_change_envelope(
     inject_list_signature(envelope, folder_id, folder_owner_id, members_after, list_signer, timestamp)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn build_co_owner_folder_share_envelope(
     sender: &TestUser,
     recipient: &TestUser,
@@ -423,8 +595,7 @@ fn build_envelope_for_action(
     let mut signing_input = Vec::with_capacity(SHARE_REQUEST_V1_PREFIX.len() + payload_der.len());
     signing_input.extend_from_slice(SHARE_REQUEST_V1_PREFIX);
     signing_input.extend_from_slice(&payload_der);
-    let signature = cryptfns::rsa::private::sign_bytes(&signing_input, &sender.private_pem)
-        .expect("sign payload");
+    let signature = sender.sign_bytes(&signing_input);
 
     let event_signature = sign_audit_event(
         sender,
@@ -460,7 +631,9 @@ pub fn sign_member_payload(
     share_role: ShareRoleEnum,
     signed_at: i64,
 ) -> String {
-    let pubkey_der = cryptfns::rsa::public::to_pkcs1_der(&recipient.public_pem)
+    let pubkey_der = recipient
+        .key_type
+        .member_pubkey_der(&recipient.public_pem)
         .expect("recipient pubkey to DER");
     let payload = MemberSigPayloadV1 {
         user_id: recipient.user_id.into_bytes(),
@@ -473,8 +646,7 @@ pub fn sign_member_payload(
     let mut signing_input = Vec::with_capacity(MEMBER_SIG_V1_PREFIX.len() + der.len());
     signing_input.extend_from_slice(MEMBER_SIG_V1_PREFIX);
     signing_input.extend_from_slice(&der);
-    cryptfns::rsa::private::sign_bytes(&signing_input, &signer.private_pem)
-        .expect("sign MemberSigPayloadV1")
+    signer.sign_bytes(&signing_input)
 }
 
 /// Inject `member_signature` + `member_signed_at` into an envelope built
@@ -523,8 +695,7 @@ pub fn sign_audit_event(
     let mut signing_input = Vec::with_capacity(AUDIT_EVENT_SIG_V1_PREFIX.len() + der.len());
     signing_input.extend_from_slice(AUDIT_EVENT_SIG_V1_PREFIX);
     signing_input.extend_from_slice(&der);
-    cryptfns::rsa::private::sign_bytes(&signing_input, &actor.private_pem)
-        .expect("sign audit event")
+    actor.sign_bytes(&signing_input)
 }
 
 pub fn build_revoke_body(
@@ -550,6 +721,7 @@ pub fn build_revoke_body(
 /// projected post-revoke roster (current set minus the revoked
 /// recipient, and minus any cascade-affected Co-owner grants when the
 /// revoked recipient is a Co-owner).
+#[allow(clippy::too_many_arguments)]
 pub fn build_folder_revoke_body(
     caller: &TestUser,
     target: &TestUser,
@@ -605,8 +777,7 @@ pub fn sign_no_recipient_event(
     let mut signing_input = Vec::with_capacity(AUDIT_EVENT_SIG_V1_PREFIX.len() + der.len());
     signing_input.extend_from_slice(AUDIT_EVENT_SIG_V1_PREFIX);
     signing_input.extend_from_slice(&der);
-    cryptfns::rsa::private::sign_bytes(&signing_input, &actor.private_pem)
-        .expect("sign no-recipient audit event")
+    actor.sign_bytes(&signing_input)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -761,8 +932,7 @@ pub fn sign_add_group_member_event(
     let mut signing_input = Vec::with_capacity(AUDIT_EVENT_SIG_V1_PREFIX.len() + der.len());
     signing_input.extend_from_slice(AUDIT_EVENT_SIG_V1_PREFIX);
     signing_input.extend_from_slice(&der);
-    cryptfns::rsa::private::sign_bytes(&signing_input, &actor.private_pem)
-        .expect("sign group-add audit event")
+    actor.sign_bytes(&signing_input)
 }
 
 /// Build the `event_signatures` map (file_id → base64 sig) the group
@@ -830,50 +1000,46 @@ pub fn generate_keypair() -> (String, String, String) {
     (private_pem, public_pem, fingerprint)
 }
 
-/// Register a user via the real `/api/auth/register` route. Expands to a
-/// `let $user = TestUser { ... };` binding.
+/// Key material for a curve25519 account: Ed25519 identity keypair plus hybrid
+/// X25519 + ML-KEM wrapping keypair. Returns `(private_pem, public_pem,
+/// fingerprint, wrapping_private_pem, wrapping_public_pem)`.
+pub fn generate_curve25519_keypair() -> (String, String, String, String, String) {
+    let private_pem = cryptfns::ed25519::private::generate().unwrap();
+    let public_pem = cryptfns::ed25519::public::from_private(&private_pem).unwrap();
+    let fingerprint = cryptfns::spki::fingerprint(&public_pem).unwrap();
+    let wrapping_private_pem = cryptfns::ecdh::private::generate().unwrap();
+    let wrapping_public_pem = cryptfns::ecdh::public::from_private(&wrapping_private_pem).unwrap();
+    (private_pem, public_pem, fingerprint, wrapping_private_pem, wrapping_public_pem)
+}
+
+/// Seed a legacy RSA account at the data layer and log it in. Registration no
+/// longer creates RSA accounts, but the sharing routes must keep working for
+/// the pre-migration accounts real deployments still hold — and the RSA↔curve
+/// interop and chain-resolution suites need genuine RSA participants. Expands
+/// to a `let $user = TestUser { ... };` binding.
 #[macro_export]
 macro_rules! register_user {
+    ($app:expr, $context:expr, $user:ident, $email:expr) => {
+        let $user = $crate::shares_common::seed_legacy_test_user(&$app, &$context.db, $email).await;
+    };
+}
+
+/// Curve25519 sibling of `register_user!` — registers a born-migrated v2
+/// account through the real OPAQUE registration handshake: unauthenticated
+/// `register/pake/start`, then `register` with the resulting upload. Mirrors
+/// the client's ceremony so the fixture matches a real curve25519 signup.
+#[macro_export]
+macro_rules! register_curve25519_user {
     ($app:expr, $user:ident, $email:expr) => {
-        let $user = {
-            let (private_pem, public_pem, fingerprint) =
-                $crate::shares_common::generate_keypair();
-            let req = actix_web::test::TestRequest::post()
-                .uri("/api/auth/register")
-                .set_json(&$crate::shares_common::make_create_user(
-                    $email,
-                    &public_pem,
-                    &fingerprint,
-                ))
-                .to_request();
-            let resp = actix_web::test::call_service(&$app, req).await;
-            assert!(
-                resp.status().is_success(),
-                "register {} failed: {:?}",
-                $email,
-                resp.status()
-            );
-            let (jwt, _) = $crate::shares_common::extract_cookies(resp.headers());
-            let jwt = jwt.expect("register response missing JWT cookie");
-            let body = actix_web::test::read_body(resp).await;
-            let authenticated: auth::data::authenticated::Authenticated =
-                serde_json::from_slice(&body).expect("authenticated json");
-            $crate::shares_common::TestUser {
-                email: $email.to_string(),
-                user_id: authenticated.user.id,
-                private_pem,
-                public_pem,
-                fingerprint,
-                jwt,
-            }
-        };
+        let $user =
+            $crate::shares_common::register_curve25519(&$app, $email).await;
     };
 }
 
 #[macro_export]
 macro_rules! create_file {
     ($app:expr, $user:expr, $name_hash:expr) => {{
-        let payload = $crate::shares_common::make_create_file(&$user.public_pem, $name_hash);
+        let payload = $crate::shares_common::make_create_file_for(&$user, $name_hash);
         let req = actix_web::test::TestRequest::post()
             .uri("/api/storage")
             .cookie($user.jwt.clone())
@@ -887,7 +1053,7 @@ macro_rules! create_file {
 #[macro_export]
 macro_rules! create_folder {
     ($app:expr, $user:expr, $name_hash:expr) => {{
-        let payload = $crate::shares_common::make_create_folder(&$user.public_pem, $name_hash, None);
+        let payload = $crate::shares_common::make_create_folder(&$user, $name_hash, None);
         let req = actix_web::test::TestRequest::post()
             .uri("/api/storage")
             .cookie($user.jwt.clone())
@@ -898,11 +1064,7 @@ macro_rules! create_folder {
             .expect("create_folder json")
     }};
     ($app:expr, $user:expr, $name_hash:expr, $parent_id:expr) => {{
-        let payload = $crate::shares_common::make_create_folder(
-            &$user.public_pem,
-            $name_hash,
-            Some($parent_id),
-        );
+        let payload = $crate::shares_common::make_create_folder(&$user, $name_hash, Some($parent_id));
         let req = actix_web::test::TestRequest::post()
             .uri("/api/storage")
             .cookie($user.jwt.clone())
@@ -918,7 +1080,7 @@ macro_rules! create_folder {
 macro_rules! create_child_file {
     ($app:expr, $user:expr, $name_hash:expr, $parent_id:expr) => {{
         let payload =
-            $crate::shares_common::make_create_child_file(&$user.public_pem, $name_hash, $parent_id);
+            $crate::shares_common::make_create_child_file(&$user, $name_hash, $parent_id);
         let req = actix_web::test::TestRequest::post()
             .uri("/api/storage")
             .cookie($user.jwt.clone())

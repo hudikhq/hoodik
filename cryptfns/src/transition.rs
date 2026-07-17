@@ -1,0 +1,480 @@
+//! Key-transition certificate: the signed endorsement that lets a user re-key
+//! (RSA → Curve25519) without breaking their identity. The old key vouches for
+//! the new keys; the new identity key proves possession. Verifiers re-encode
+//! the canonical from authoritative state and check both signatures against
+//! that — the wire's own bytes are never trusted.
+
+use crate::asn1::{
+    encode_key_rotation_audit_v1, encode_key_transition_v1, KeyRotationAuditV1, KeyTransitionV1,
+    KEY_ROTATION_AUDIT_V1_PREFIX, KEY_TRANSITION_V1_PREFIX,
+};
+use crate::error::{CryptoResult, Error};
+use crate::identity::KeyType;
+
+/// The fields a verifier reconstructs from its own records, plus the two
+/// signatures from the wire. `old_*` come from the pre-migration user row;
+/// `new_*` are the keys the client is migrating to.
+pub struct Certificate<'a> {
+    pub user_id: [u8; 16],
+    pub old_key_type: KeyType,
+    pub old_key_pem: &'a str,
+    pub old_fingerprint: &'a str,
+    pub new_identity_key_pem: &'a str,
+    pub new_wrapping_key_pem: &'a str,
+    pub new_fingerprint: &'a str,
+    pub issued_at: i64,
+}
+
+impl Certificate<'_> {
+    fn signing_input(&self) -> CryptoResult<Vec<u8>> {
+        let payload = KeyTransitionV1 {
+            user_id: self.user_id,
+            old_key_spki: self.old_key_type.member_pubkey_der(self.old_key_pem)?,
+            old_fingerprint: hex32(self.old_fingerprint)?,
+            new_identity_key_spki: KeyType::Curve25519.member_pubkey_der(self.new_identity_key_pem)?,
+            new_wrapping_key_spki: crate::ecdh::public::from_str(self.new_wrapping_key_pem)?,
+            new_fingerprint: hex32(self.new_fingerprint)?,
+            issued_at: self.issued_at,
+        };
+        let der = encode_key_transition_v1(&payload)?;
+
+        let mut input = Vec::with_capacity(KEY_TRANSITION_V1_PREFIX.len() + der.len());
+        input.extend_from_slice(KEY_TRANSITION_V1_PREFIX);
+        input.extend_from_slice(&der);
+        Ok(input)
+    }
+
+    /// Sign the certificate with both keys. The client holds the old private
+    /// key (still decryptable at migration time) and the freshly generated new
+    /// identity key.
+    pub fn sign(&self, old_private_key: &str, new_identity_private_key: &str) -> CryptoResult<Signatures> {
+        let input = self.signing_input()?;
+
+        let old_signature = match self.old_key_type {
+            KeyType::Rsa => crate::rsa::private::sign_bytes(&input, old_private_key)?,
+            KeyType::Curve25519 => crate::ed25519::private::sign_bytes(&input, old_private_key)?,
+        };
+        let new_signature = crate::ed25519::private::sign_bytes(&input, new_identity_private_key)?;
+
+        Ok(Signatures { old_signature, new_signature })
+    }
+
+    /// Verify both signatures against the canonical re-encoded here. The old
+    /// signature must verify under the old key, the new under the new identity
+    /// key — a valid certificate proves the same person controls both.
+    pub fn verify(&self, signatures: &Signatures) -> CryptoResult<()> {
+        let input = self.signing_input()?;
+
+        self.old_key_type
+            .verify_bytes(&input, &signatures.old_signature, self.old_key_pem)
+            .map_err(|_| Error::KeyEncoding("key_transition_old_signature_invalid".into()))?;
+        KeyType::Curve25519
+            .verify_bytes(&input, &signatures.new_signature, self.new_identity_key_pem)
+            .map_err(|_| Error::KeyEncoding("key_transition_new_signature_invalid".into()))?;
+
+        Ok(())
+    }
+}
+
+/// The base64 signatures carried on the wire alongside the new keys.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+pub struct Signatures {
+    pub old_signature: String,
+    pub new_signature: String,
+}
+
+/// Binding-friendly wrapper over [`Certificate::sign`]: all fields owned, no
+/// lifetimes, for the WASM and FFI edges. `user_id` is the 16 UUID bytes and
+/// `old_key_type` is `"rsa"` or `"curve25519"`.
+#[allow(clippy::too_many_arguments)]
+pub fn sign_certificate(
+    user_id: &[u8],
+    old_key_type: &str,
+    old_key_pem: &str,
+    old_fingerprint: &str,
+    new_identity_key_pem: &str,
+    new_wrapping_key_pem: &str,
+    new_fingerprint: &str,
+    issued_at: i64,
+    old_private_key: &str,
+    new_identity_private_key: &str,
+) -> CryptoResult<Signatures> {
+    let user_id: [u8; 16] = user_id
+        .try_into()
+        .map_err(|_| Error::InvalidLength("user_id must be 16 bytes"))?;
+    let old_key_type = <KeyType as std::str::FromStr>::from_str(old_key_type)?;
+
+    Certificate {
+        user_id,
+        old_key_type,
+        old_key_pem,
+        old_fingerprint,
+        new_identity_key_pem,
+        new_wrapping_key_pem,
+        new_fingerprint,
+        issued_at,
+    }
+    .sign(old_private_key, new_identity_private_key)
+}
+
+/// Binding-friendly wrapper over [`Certificate::verify`] for clients resolving
+/// another user's transition chain from server-supplied rows. The old key
+/// arrives as the stored member-DER (`key_transitions.old_key_spki`); the
+/// signatures are base64. Beyond the dual-signature check, each fingerprint
+/// must match the key it names: a TOFU client's only trust anchor is a pinned
+/// fingerprint, so a row whose keys don't hash to its claimed fingerprints —
+/// e.g. an attacker key dual-signing a certificate that names the victim's
+/// fingerprint as its `old_fingerprint` — must never link a chain.
+#[allow(clippy::too_many_arguments)]
+pub fn verify_certificate(
+    user_id: &[u8],
+    old_key_type: &str,
+    old_key_spki: &[u8],
+    old_fingerprint: &str,
+    new_identity_key_pem: &str,
+    new_wrapping_key_pem: &str,
+    new_fingerprint: &str,
+    issued_at: i64,
+    old_signature: &str,
+    new_signature: &str,
+) -> CryptoResult<()> {
+    let user_id: [u8; 16] = user_id
+        .try_into()
+        .map_err(|_| Error::InvalidLength("user_id must be 16 bytes"))?;
+    let old_key_type = <KeyType as std::str::FromStr>::from_str(old_key_type)?;
+    let old_key_pem = old_key_type.pem_from_member_der(old_key_spki)?;
+
+    if old_key_type.fingerprint(&old_key_pem)? != old_fingerprint {
+        return Err(Error::KeyEncoding(
+            "key_transition_old_fingerprint_mismatch".into(),
+        ));
+    }
+    if KeyType::Curve25519.fingerprint(new_identity_key_pem)? != new_fingerprint {
+        return Err(Error::KeyEncoding(
+            "key_transition_new_fingerprint_mismatch".into(),
+        ));
+    }
+
+    Certificate {
+        user_id,
+        old_key_type,
+        old_key_pem: &old_key_pem,
+        old_fingerprint,
+        new_identity_key_pem,
+        new_wrapping_key_pem,
+        new_fingerprint,
+        issued_at,
+    }
+    .verify(&Signatures {
+        old_signature: old_signature.to_string(),
+        new_signature: new_signature.to_string(),
+    })
+}
+
+/// Sign the key-rotation audit event with the new identity key — the first act
+/// of the new identity, appended to the owner's audit chain so a later reader
+/// sees why the signing key changed. `user_id` is the 16 UUID bytes; the
+/// fingerprints are the hex strings held in `users.fingerprint`.
+pub fn sign_key_rotation_audit(
+    user_id: &[u8],
+    old_fingerprint: &str,
+    new_fingerprint: &str,
+    rotated_at: i64,
+    new_identity_private_key: &str,
+) -> CryptoResult<String> {
+    let input = key_rotation_audit_input(user_id, old_fingerprint, new_fingerprint, rotated_at)?;
+    crate::ed25519::private::sign_bytes(&input, new_identity_private_key)
+}
+
+/// Verify a key-rotation audit signature against the new identity key. The
+/// caller reconstructs the canonical from authoritative state — never the wire.
+pub fn verify_key_rotation_audit(
+    user_id: &[u8],
+    old_fingerprint: &str,
+    new_fingerprint: &str,
+    rotated_at: i64,
+    signature: &str,
+    new_identity_public_key: &str,
+) -> CryptoResult<()> {
+    let input = key_rotation_audit_input(user_id, old_fingerprint, new_fingerprint, rotated_at)?;
+    KeyType::Curve25519
+        .verify_bytes(&input, signature, new_identity_public_key)
+        .map_err(|_| Error::KeyEncoding("key_rotation_audit_signature_invalid".into()))
+}
+
+fn key_rotation_audit_input(
+    user_id: &[u8],
+    old_fingerprint: &str,
+    new_fingerprint: &str,
+    rotated_at: i64,
+) -> CryptoResult<Vec<u8>> {
+    let payload = KeyRotationAuditV1 {
+        user_id: user_id
+            .try_into()
+            .map_err(|_| Error::InvalidLength("user_id must be 16 bytes"))?,
+        old_fingerprint: hex32(old_fingerprint)?,
+        new_fingerprint: hex32(new_fingerprint)?,
+        rotated_at,
+    };
+    let der = encode_key_rotation_audit_v1(&payload)?;
+    let mut input = Vec::with_capacity(KEY_ROTATION_AUDIT_V1_PREFIX.len() + der.len());
+    input.extend_from_slice(KEY_ROTATION_AUDIT_V1_PREFIX);
+    input.extend_from_slice(&der);
+    Ok(input)
+}
+
+fn hex32(fingerprint: &str) -> CryptoResult<[u8; 32]> {
+    let bytes = crate::hex::decode(fingerprint)?;
+    bytes
+        .as_slice()
+        .try_into()
+        .map_err(|_| Error::InvalidLength("fingerprint must be 32 bytes"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct Keys {
+        rsa_private: String,
+        rsa_public: String,
+        rsa_fingerprint: String,
+        ed_private: String,
+        ed_public: String,
+        ed_fingerprint: String,
+        x_public: String,
+    }
+
+    fn keys() -> Keys {
+        let rsa = crate::rsa::private::generate().unwrap();
+        let rsa_private = crate::rsa::private::to_string(&rsa).unwrap();
+        let rsa_public_key = crate::rsa::public::from_private(&rsa).unwrap();
+        let rsa_public = crate::rsa::public::to_string(&rsa_public_key).unwrap();
+        let rsa_fingerprint = crate::rsa::fingerprint(rsa_public_key).unwrap();
+
+        let ed_private = crate::ed25519::private::generate().unwrap();
+        let ed_public = crate::ed25519::public::from_private(&ed_private).unwrap();
+        let ed_fingerprint = crate::spki::fingerprint(&ed_public).unwrap();
+
+        let x_private = crate::ecdh::private::generate().unwrap();
+        let x_public = crate::ecdh::public::from_private(&x_private).unwrap();
+
+        Keys {
+            rsa_private,
+            rsa_public,
+            rsa_fingerprint,
+            ed_private,
+            ed_public,
+            ed_fingerprint,
+            x_public,
+        }
+    }
+
+    fn cert<'a>(k: &'a Keys) -> Certificate<'a> {
+        Certificate {
+            user_id: [9u8; 16],
+            old_key_type: KeyType::Rsa,
+            old_key_pem: &k.rsa_public,
+            old_fingerprint: &k.rsa_fingerprint,
+            new_identity_key_pem: &k.ed_public,
+            new_wrapping_key_pem: &k.x_public,
+            new_fingerprint: &k.ed_fingerprint,
+            issued_at: 1_783_000_000,
+        }
+    }
+
+    #[test]
+    fn sign_and_verify_round_trip() {
+        let k = keys();
+        let c = cert(&k);
+        let signatures = c.sign(&k.rsa_private, &k.ed_private).unwrap();
+        c.verify(&signatures).unwrap();
+    }
+
+    #[test]
+    fn wrong_old_key_rejected() {
+        let k = keys();
+        let other = keys();
+        let c = cert(&k);
+        // Signed by a different old key than the certificate names.
+        let signatures = c.sign(&other.rsa_private, &k.ed_private).unwrap();
+        assert!(c.verify(&signatures).is_err());
+    }
+
+    #[test]
+    fn new_key_must_prove_possession() {
+        let k = keys();
+        let other = keys();
+        let c = cert(&k);
+        // New signature from a key that isn't the named new identity key.
+        let signatures = c.sign(&k.rsa_private, &other.ed_private).unwrap();
+        assert!(c.verify(&signatures).is_err());
+    }
+
+    #[test]
+    fn tampered_new_fingerprint_breaks_verification() {
+        let k = keys();
+        let c = cert(&k);
+        let signatures = c.sign(&k.rsa_private, &k.ed_private).unwrap();
+
+        let mut tampered = cert(&k);
+        tampered.new_fingerprint = &k.rsa_fingerprint;
+        assert!(tampered.verify(&signatures).is_err());
+    }
+
+    fn verify_row(
+        k: &Keys,
+        old_key_spki: &[u8],
+        old_fingerprint: &str,
+        signatures: &Signatures,
+    ) -> CryptoResult<()> {
+        verify_certificate(
+            &[9u8; 16],
+            "rsa",
+            old_key_spki,
+            old_fingerprint,
+            &k.ed_public,
+            &k.x_public,
+            &k.ed_fingerprint,
+            1_783_000_000,
+            &signatures.old_signature,
+            &signatures.new_signature,
+        )
+    }
+
+    #[test]
+    fn verify_certificate_round_trips_from_stored_member_der() {
+        let k = keys();
+        let signatures = cert(&k).sign(&k.rsa_private, &k.ed_private).unwrap();
+        let spki = KeyType::Rsa.member_pubkey_der(&k.rsa_public).unwrap();
+        verify_row(&k, &spki, &k.rsa_fingerprint, &signatures).unwrap();
+    }
+
+    #[test]
+    fn verify_certificate_rejects_garbage_signatures() {
+        let k = keys();
+        let spki = KeyType::Rsa.member_pubkey_der(&k.rsa_public).unwrap();
+        let garbage = Signatures {
+            old_signature: crate::base64::encode(b"garbage"),
+            new_signature: crate::base64::encode(b"garbage"),
+        };
+        assert!(verify_row(&k, &spki, &k.rsa_fingerprint, &garbage).is_err());
+    }
+
+    #[test]
+    fn verify_certificate_rejects_old_key_not_matching_claimed_fingerprint() {
+        // An attacker forges a row claiming the victim's fingerprint as its
+        // old_fingerprint but supplies (and signs with) its own key. Both
+        // signatures verify — the fingerprint↔key binding is what must fail.
+        let victim = keys();
+        let attacker = keys();
+        let mut forged = cert(&attacker);
+        forged.old_fingerprint = &victim.rsa_fingerprint;
+        let signatures = forged.sign(&attacker.rsa_private, &attacker.ed_private).unwrap();
+        let spki = KeyType::Rsa.member_pubkey_der(&attacker.rsa_public).unwrap();
+        assert!(verify_row(&attacker, &spki, &victim.rsa_fingerprint, &signatures).is_err());
+    }
+
+    #[test]
+    fn verify_certificate_rejects_new_key_not_matching_claimed_fingerprint() {
+        let k = keys();
+        let other = keys();
+        let mut forged = cert(&k);
+        forged.new_identity_key_pem = &other.ed_public;
+        let signatures = forged.sign(&k.rsa_private, &other.ed_private).unwrap();
+        let spki = KeyType::Rsa.member_pubkey_der(&k.rsa_public).unwrap();
+        // The certificate still claims k's new fingerprint, but carries
+        // other's identity key.
+        assert!(verify_certificate(
+            &[9u8; 16],
+            "rsa",
+            &spki,
+            &k.rsa_fingerprint,
+            &other.ed_public,
+            &k.x_public,
+            &k.ed_fingerprint,
+            1_783_000_000,
+            &signatures.old_signature,
+            &signatures.new_signature,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn key_rotation_audit_signs_and_verifies_under_new_key() {
+        let k = keys();
+        let user_id = [9u8; 16];
+        let sig = sign_key_rotation_audit(
+            &user_id,
+            &k.rsa_fingerprint,
+            &k.ed_fingerprint,
+            1_783_000_000,
+            &k.ed_private,
+        )
+        .unwrap();
+        verify_key_rotation_audit(
+            &user_id,
+            &k.rsa_fingerprint,
+            &k.ed_fingerprint,
+            1_783_000_000,
+            &sig,
+            &k.ed_public,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn key_rotation_audit_rejects_tampered_state() {
+        let k = keys();
+        let user_id = [9u8; 16];
+        let sig = sign_key_rotation_audit(
+            &user_id,
+            &k.rsa_fingerprint,
+            &k.ed_fingerprint,
+            1_783_000_000,
+            &k.ed_private,
+        )
+        .unwrap();
+        // A verifier that reconstructs a different timestamp must reject it.
+        assert!(verify_key_rotation_audit(
+            &user_id,
+            &k.rsa_fingerprint,
+            &k.ed_fingerprint,
+            1_783_000_001,
+            &sig,
+            &k.ed_public,
+        )
+        .is_err());
+        // ...and the old RSA key must not verify the new identity's signature.
+        assert!(verify_key_rotation_audit(
+            &user_id,
+            &k.rsa_fingerprint,
+            &k.ed_fingerprint,
+            1_783_000_000,
+            &sig,
+            &k.rsa_public,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn curve25519_to_curve25519_rotation() {
+        let old_private = crate::ed25519::private::generate().unwrap();
+        let old_public = crate::ed25519::public::from_private(&old_private).unwrap();
+        let old_fingerprint = crate::spki::fingerprint(&old_public).unwrap();
+        let k = keys();
+
+        let c = Certificate {
+            user_id: [1u8; 16],
+            old_key_type: KeyType::Curve25519,
+            old_key_pem: &old_public,
+            old_fingerprint: &old_fingerprint,
+            new_identity_key_pem: &k.ed_public,
+            new_wrapping_key_pem: &k.x_public,
+            new_fingerprint: &k.ed_fingerprint,
+            issued_at: 1_783_000_000,
+        };
+        let signatures = c.sign(&old_private, &k.ed_private).unwrap();
+        c.verify(&signatures).unwrap();
+    }
+}

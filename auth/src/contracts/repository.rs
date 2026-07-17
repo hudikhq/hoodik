@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use chrono::Utc;
 use context::DatabaseConnection;
 use entity::{
-    invitations, sessions, users, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait,
-    PaginatorTrait, QueryFilter, Uuid,
+    invitations, key_transitions, sessions, used_nonces, users, ActiveModelTrait, ActiveValue,
+    ColumnTrait, EntityTrait, OnConflict, PaginatorTrait, QueryFilter, QueryOrder, Uuid,
 };
 use error::{AppResult, Error};
 
@@ -42,7 +42,7 @@ where
     /// Get a user by email
     async fn get_by_email(&self, email: &str) -> AppResult<users::Model> {
         users::Entity::find()
-            .filter(users::Column::Email.contains(email))
+            .filter(users::Column::Email.eq(email))
             .one(self.connection())
             .await
             .map_err(Error::from)?
@@ -66,11 +66,67 @@ where
     /// Get a user by fingerprint
     async fn get_by_fingerprint(&self, fingerprint: &str) -> AppResult<users::Model> {
         users::Entity::find()
-            .filter(users::Column::Fingerprint.contains(fingerprint))
+            .filter(users::Column::Fingerprint.eq(fingerprint))
             .one(self.connection())
             .await
             .map_err(Error::from)?
             .ok_or_else(|| Error::NotFound(format!("user_not_found:{fingerprint}")))
+    }
+
+    /// Look up a key transition row by its old_fingerprint (used to resolve
+    /// pre-migration identity for signature login and historical signatures).
+    async fn get_key_transition_by_old_fingerprint(
+        &self,
+        old_fingerprint: &str,
+    ) -> AppResult<Option<key_transitions::Model>> {
+        key_transitions::Entity::find()
+            .filter(key_transitions::Column::OldFingerprint.eq(old_fingerprint))
+            .one(self.connection())
+            .await
+            .map_err(Error::from)
+    }
+
+    /// List the full transition chain for a user (in issued order). Used by
+    /// clients to walk historical fingerprints for TOFU, share acceptance, etc.
+    async fn list_key_transitions(&self, user_id: Uuid) -> AppResult<Vec<key_transitions::Model>> {
+        key_transitions::Entity::find()
+            .filter(key_transitions::Column::UserId.eq(user_id))
+            .order_by_asc(key_transitions::Column::IssuedAt)
+            .all(self.connection())
+            .await
+            .map_err(Error::from)
+    }
+
+    /// Record a verified signature-login nonce as spent. Returns `false` when
+    /// the pair was already recorded — a replayed request. The conflict check
+    /// rides on the primary key so two concurrent copies of the same capture
+    /// cannot both pass; expired rows are purged first, keeping the table no
+    /// larger than the windows it still guards.
+    async fn consume_login_nonce(
+        &self,
+        fingerprint: &str,
+        nonce: &str,
+        expires_at: i64,
+    ) -> AppResult<bool> {
+        used_nonces::Entity::delete_many()
+            .filter(used_nonces::Column::ExpiresAt.lt(Utc::now().timestamp()))
+            .exec(self.connection())
+            .await?;
+
+        let inserted = used_nonces::Entity::insert(used_nonces::ActiveModel {
+            fingerprint: ActiveValue::Set(fingerprint.to_string()),
+            nonce: ActiveValue::Set(nonce.to_string()),
+            expires_at: ActiveValue::Set(expires_at),
+        })
+        .on_conflict(
+            OnConflict::columns([used_nonces::Column::Fingerprint, used_nonces::Column::Nonce])
+                .do_nothing()
+                .to_owned(),
+        )
+        .exec_without_returning(self.connection())
+        .await?;
+
+        Ok(inserted > 0)
     }
 
     /// Get user and session by session id, session does not have to be valid

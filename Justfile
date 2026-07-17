@@ -52,6 +52,13 @@ wasm:
     mkdir -p web/node_modules/transfer
     cp -R transfer/pkg/. web/node_modules/transfer/
 
+# Same as `wasm`, but with the fast-test-kdf feature so the OPAQUE KSF uses
+# cheap Argon2id params. For the e2e recipe only — never for production builds.
+wasm-e2e:
+    yarn workspace @hoodik/transfer run wasm-pack-e2e
+    mkdir -p web/node_modules/transfer
+    cp -R transfer/pkg/. web/node_modules/transfer/
+
 # ── Editor ────────────────────────────────────────────────────────────────────
 
 # Build the @hoodik/editor workspace. web/ imports the compiled bundle from
@@ -94,6 +101,15 @@ test-rust-integration:
     cargo test --test shares_search -- --nocapture
     cargo test --test shares_audit -- --nocapture
     cargo test --test shares_admin_kill_switch -- --nocapture
+    cargo test --test shares_default_cipher -- --nocapture
+    cargo test --test shares_dual_key -- --nocapture
+    cargo test --test key_transitions -- --nocapture
+    cargo test --test shares_key_transition_chain -- --nocapture
+    cargo test --test opaque_login -- --nocapture
+    cargo test --test opaque_password_change -- --nocapture
+    cargo test --test migration -- --nocapture
+    cargo test --test auth_rate_limit -- --nocapture
+    cargo test --test register_v2 -- --nocapture
     cargo test --test shares_groups -- --nocapture
     cargo test --test shares_fork -- --nocapture
     cargo test --test shares_quota -- --nocapture
@@ -190,10 +206,11 @@ e2e *args:
     # The server bundles `web/dist/` into its binary via hoodik/build.rs,
     # so a stale or missing `dist` makes every Playwright `page.goto` land
     # on an empty 200 OK and every test time out waiting for selectors.
-    just wasm
+    just wasm-e2e
     just build-web
 
     cargo build --bin hoodik --release
+    cargo build -p hoodik --bin seed_legacy --release --features e2e-seed
 
     RUST_LOG=error $PWD/target/release/hoodik &
     SERVER_PID=$!
@@ -202,6 +219,13 @@ e2e *args:
     trap cleanup EXIT
 
     node_modules/.bin/wait-on -t 600000 http://127.0.0.1:5443/api/liveness
+
+    # Seed one legacy (RSA + bcrypt) account with a file and a public link.
+    # Registration is Curve25519 + OPAQUE only, so migration.spec.ts has no
+    # other way to obtain a migratable account. Runs after liveness (schema is
+    # migrated at boot) and before Playwright. The email, password and file
+    # name here must match the constants in web/e2e/migration.spec.ts.
+    $PWD/target/release/seed_legacy "$DATA_DIR/sqlite.db" "legacy-migrate@e2e.test" "legacy-password-1234" "$PWD/web/e2e/fixtures/test-image.png"
 
     export ENV_FILE="../.env.e2e"
     yarn workspace @hoodik/web test:e2e -- {{args}}

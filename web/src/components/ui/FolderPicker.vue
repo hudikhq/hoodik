@@ -24,7 +24,7 @@ const stack = ref<{ id?: string; name: string }[]>([])
 async function loadFolders(dirId?: string) {
   loading.value = true
   const response = await meta.find({ dir_id: dirId, dirs_only: true })
-  const privateKey = props.keypair.input as string
+  const privateKey = props.keypair.wrappingPrivate || (props.keypair.input as string)
 
   const items: AppFile[] = []
   for (const item of response.children) {

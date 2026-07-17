@@ -2,9 +2,9 @@
 mod helpers;
 
 use actix_web::test;
-use auth::data::create_user::CreateUser;
 use hoodik::server;
 use links::data::app_link::AppLink;
+use serde_json::json;
 use storage::data::app_file::AppFile;
 
 use crate::helpers::{create_byte_chunks, CHUNK_SIZE_BYTES};
@@ -13,30 +13,18 @@ use crate::helpers::{create_byte_chunks, CHUNK_SIZE_BYTES};
 async fn test_creating_and_downloading_link() {
     let context = context::Context::mock_with_data_dir(Some("../data-test-links".to_string())).await;
 
-    let private = cryptfns::rsa::private::generate().unwrap();
-    let public = cryptfns::rsa::public::from_private(&private).unwrap();
-    let public_string = cryptfns::rsa::public::to_string(&public).unwrap();
-    let private_string = cryptfns::rsa::private::to_string(&private).unwrap();
-    let fingerprint = cryptfns::rsa::fingerprint(public).unwrap();
-
-    let encrypted_secret = "some-random-encrypted-secret".to_string();
-
     let app = test::init_service(server::app(context.clone())).await;
 
-    let req = test::TestRequest::post()
-        .uri("/api/auth/register")
-        .set_json(&CreateUser {
-            email: Some("john@doe.com".to_string()),
-            password: Some("not-4-weak-password-for-god-sakes!".to_string()),
-            secret: None,
-            token: None,
-            pubkey: Some(public_string.clone()),
-            fingerprint: Some(fingerprint.clone()),
-            encrypted_private_key: Some(encrypted_secret.clone()),
-            invitation_id: None,
-        })
-        .to_request();
+    // Public links are signed and their link key is RSA-wrapped against the
+    // owner's account key, so the owner is a legacy RSA account.
+    let owner = helpers::seed_legacy_user(&context.db, "john@doe.com").await;
+    let public_string = owner.rsa_public.clone();
+    let private_string = owner.rsa_private.clone();
 
+    let req = test::TestRequest::post()
+        .uri("/api/auth/login")
+        .set_json(json!({ "email": "john@doe.com", "password": helpers::LEGACY_PASSWORD }))
+        .to_request();
     let resp = test::call_service(&app, req).await;
     let (jwt, _) = helpers::extract_cookies(resp.headers());
     let jwt = jwt.unwrap();
@@ -84,17 +72,15 @@ async fn test_creating_and_downloading_link() {
     for (i, chunk) in data.into_iter().enumerate() {
         println!("chunk: {}", i);
         // println!("chunk: {}", i);
-        let checksum = cryptfns::sha256::digest(chunk.as_slice());
-        let uri = format!(
-            "/api/storage/{}?checksum={}&chunk={}&key_hex={}",
-            &file.id, checksum, i, &file_key_hex
-        );
+        let encrypted = cryptfns::aes::encrypt(file_key.clone(), chunk).unwrap();
+        let checksum = cryptfns::sha256::digest(encrypted.as_slice());
+        let uri = format!("/api/storage/{}?checksum={}&chunk={}", &file.id, checksum, i);
 
         let req = test::TestRequest::post()
             .uri(uri.as_str())
             .cookie(jwt.clone())
             .append_header(("Content-Type", "application/octet-stream"))
-            .set_payload(chunk)
+            .set_payload(encrypted)
             .to_request();
 
         let body = test::call_and_read_body(&app, req).await;
@@ -143,25 +129,25 @@ async fn test_creating_and_downloading_link() {
     let body = test::call_and_read_body(&app, req).await;
     let link: AppLink = serde_json::from_slice(&body).unwrap();
 
-    let download_linked_file = links::data::download::Download {
-        link_key: Some(link_key_hex),
-    };
+    // E2EE closure: the server streams raw ciphertext and never reads a request
+    // body. A stray `link_key` from an old client is ignored, and the returned
+    // bytes are ciphertext (checksum differs from the known plaintext checksum).
     let uri = format!("/api/links/{}", link.id);
     let req = test::TestRequest::post()
         .uri(&uri)
-        .set_json(download_linked_file)
+        .set_json(json!({ "link_key": "deadbeef" }))
         // .cookie(jwt.clone()) - no need for jwt, this should be public
         .to_request();
 
     let contents = test::call_and_read_body(&app, req).await.to_vec();
-    // let string_body = String::from_utf8(contents.to_vec()).unwrap();
-    // println!("string_body: {}", string_body);
 
     let content_len = contents.len();
-    let file_checksum = cryptfns::sha256::digest(contents.as_slice());
+    let received_checksum = cryptfns::sha256::digest(contents.as_slice());
 
-    assert_eq!(content_len, size as usize);
-    assert_eq!(file_checksum, checksum);
+    // Ciphertext size is >= plaintext (AEAD overhead); exact depends on chunking.
+    assert!(content_len >= size as usize);
+    // The body must NOT be the plaintext (server never decrypts for public link content).
+    assert_ne!(received_checksum, checksum, "public link content download must return ciphertext");
 
     let req = test::TestRequest::get()
         .uri(format!("/api/storage/{}/metadata", &file.id).as_str())
@@ -176,6 +162,161 @@ async fn test_creating_and_downloading_link() {
 
     assert!(file.link.is_some());
     assert_eq!(file.link.unwrap().id, link.id);
+
+    context.config.app.cleanup();
+}
+
+#[actix_web::test]
+async fn test_link_download_decrypts_aegis256_file() {
+    let context =
+        context::Context::mock_with_data_dir(Some("../data-test-links-256".to_string())).await;
+
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let owner = helpers::seed_legacy_user(&context.db, "jane@doe.com").await;
+    let public_string = owner.rsa_public.clone();
+    let private_string = owner.rsa_private.clone();
+
+    let req = test::TestRequest::post()
+        .uri("/api/auth/login")
+        .set_json(json!({ "email": "jane@doe.com", "password": helpers::LEGACY_PASSWORD }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    let (jwt, _) = helpers::extract_cookies(resp.headers());
+    let jwt = jwt.unwrap();
+
+    let (data, size, checksum) = create_byte_chunks();
+
+    let random_file = storage::data::create_file::CreateFile {
+        encrypted_key: Some("encrypted-gibberish".to_string()),
+        encrypted_name: Some("name".to_string()),
+        encrypted_thumbnail: None,
+        search_tokens_hashed: None,
+        name_hash: Some(checksum.clone()),
+        mime: Some("text/plain".to_string()),
+        size: Some(size),
+        chunks: Some(data.len() as i64),
+        file_id: None,
+        file_modified_at: None,
+        md5: Some("asd".to_string()),
+        sha1: Some("asd".to_string()),
+        sha256: Some("asd".to_string()),
+        blake2b: Some("asd".to_string()),
+        cipher: Some("aegis256".to_string()),
+        editable: None,
+    };
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(jwt.clone())
+        .set_json(&random_file)
+        .to_request();
+
+    let body = test::call_and_read_body(&app, req).await;
+    let mut file: AppFile = serde_json::from_slice(&body).unwrap();
+
+    // The client encrypts chunks before upload — the server only ever sees
+    // AEGIS-256 ciphertext.
+    let file_key = cryptfns::aegis256::generate_key().unwrap();
+    let file_key_hex = cryptfns::hex::encode(file_key.clone());
+
+    for (i, chunk) in data.iter().enumerate() {
+        let encrypted = cryptfns::aegis256::encrypt(file_key.clone(), chunk.clone()).unwrap();
+        let checksum = cryptfns::sha256::digest(encrypted.as_slice());
+        let uri = format!(
+            "/api/storage/{}?checksum={}&chunk={}",
+            &file.id, checksum, i
+        );
+
+        let req = test::TestRequest::post()
+            .uri(uri.as_str())
+            .cookie(jwt.clone())
+            .append_header(("Content-Type", "application/octet-stream"))
+            .set_payload(encrypted)
+            .to_request();
+
+        let body = test::call_and_read_body(&app, req).await;
+        file = serde_json::from_slice(&body).unwrap();
+    }
+
+    assert!(file.finished_upload_at.is_some());
+
+    let link_key = cryptfns::aes::generate_key().unwrap();
+    let link_key_hex = cryptfns::hex::encode(link_key.clone());
+    let link_key_rsa_enc = cryptfns::rsa::public::encrypt(&link_key_hex, &public_string).unwrap();
+    let signature =
+        cryptfns::rsa::private::sign(file.id.to_string().as_str(), &private_string).unwrap();
+    let encrypted_name = cryptfns::aes::encrypt(
+        link_key.clone(),
+        "aegis256-file.txt".to_string().as_bytes().to_vec(),
+    )
+    .unwrap();
+    let file_key_hex_enc =
+        cryptfns::aes::encrypt(link_key.clone(), file_key_hex.as_bytes().to_vec()).unwrap();
+
+    let create_link = links::data::create_link::CreateLink {
+        file_id: Some(file.id.to_string()),
+        signature: Some(signature),
+        encrypted_name: Some(cryptfns::hex::encode(encrypted_name)),
+        encrypted_link_key: Some(link_key_rsa_enc),
+        encrypted_thumbnail: None,
+        encrypted_file_key: Some(cryptfns::hex::encode(file_key_hex_enc)),
+        expires_at: None,
+    };
+    let req = test::TestRequest::post()
+        .uri("/api/links")
+        .cookie(jwt.clone())
+        .set_json(create_link)
+        .to_request();
+
+    let body = test::call_and_read_body(&app, req).await;
+    let link: AppLink = serde_json::from_slice(&body).unwrap();
+
+    // E2EE: server returns ciphertext for public link content.
+    let req = test::TestRequest::post()
+        .uri(&format!("/api/links/{}", link.id))
+        .to_request();
+
+    let contents = test::call_and_read_body(&app, req).await.to_vec();
+
+    // Ciphertext size >= plaintext.
+    assert!(contents.len() >= size as usize);
+    let received = cryptfns::sha256::digest(contents.as_slice());
+    assert_ne!(received, checksum, "public link content must be ciphertext only");
+
+    // Per-chunk download must return exactly one chunk's ciphertext, and the
+    // chunks concatenated in order must reproduce the whole-file stream — this
+    // is what lets the recipient decrypt a multi-chunk file client-side.
+    use entity::EntityTrait;
+    let downloads_before = entity::links::Entity::find_by_id(link.id)
+        .one(&context.db)
+        .await
+        .unwrap()
+        .unwrap()
+        .downloads;
+    let mut per_chunk = Vec::new();
+    for i in 0..data.len() {
+        let req = test::TestRequest::post()
+            .uri(&format!("/api/links/{}?chunk={}", link.id, i))
+            .to_request();
+        per_chunk.extend(test::call_and_read_body(&app, req).await.to_vec());
+    }
+    assert_eq!(per_chunk, contents, "chunked link download must match the full stream");
+
+    // One recipient fetching every chunk is one download, not one per chunk:
+    // only the final chunk request increments the owner-visible counter.
+    let downloads_after = entity::links::Entity::find_by_id(link.id)
+        .one(&context.db)
+        .await
+        .unwrap()
+        .unwrap()
+        .downloads;
+    assert_eq!(
+        downloads_after - downloads_before,
+        1,
+        "downloading all {} chunks increments the counter by one, not per chunk",
+        data.len()
+    );
 
     context.config.app.cleanup();
 }

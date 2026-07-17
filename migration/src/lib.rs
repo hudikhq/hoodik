@@ -24,7 +24,19 @@ pub(crate) mod m20260601_000007_create_share_group_members;
 pub(crate) mod m20260601_000008_alter_settings_sharing_kill_switch;
 pub(crate) mod m20260601_000009_alter_files_folder_member_list;
 pub(crate) mod m20260601_000010_alter_share_group_members_role;
+pub(crate) mod m20260705_000001_alter_users_key_type;
+pub(crate) mod m20260705_000002_create_key_transitions;
+pub(crate) mod m20260705_000003_create_opaque_tables;
+pub(crate) mod m20260705_000004_alter_key_transitions_old_key_type;
+pub(crate) mod m20260705_000005_alter_share_events_file_id_nullable;
+pub(crate) mod m20260705_000006_alter_users_ksf_params;
+pub(crate) mod m20260710_000001_create_migration_rewrap_staging;
+pub(crate) mod m20260710_000002_alter_key_transitions_new_keys;
 pub(crate) mod m20260715_000001_alter_user_files_member_signed_at;
+pub(crate) mod m20260716_000001_create_used_nonces;
+
+#[cfg(test)]
+mod share_events_rebuild_test;
 
 pub struct Migrator;
 
@@ -56,7 +68,16 @@ impl MigratorTrait for Migrator {
             Box::new(m20260601_000008_alter_settings_sharing_kill_switch::Migration),
             Box::new(m20260601_000009_alter_files_folder_member_list::Migration),
             Box::new(m20260601_000010_alter_share_group_members_role::Migration),
+            Box::new(m20260705_000001_alter_users_key_type::Migration),
+            Box::new(m20260705_000002_create_key_transitions::Migration),
+            Box::new(m20260705_000003_create_opaque_tables::Migration),
+            Box::new(m20260705_000004_alter_key_transitions_old_key_type::Migration),
+            Box::new(m20260705_000005_alter_share_events_file_id_nullable::Migration),
+            Box::new(m20260705_000006_alter_users_ksf_params::Migration),
+            Box::new(m20260710_000001_create_migration_rewrap_staging::Migration),
+            Box::new(m20260710_000002_alter_key_transitions_new_keys::Migration),
             Box::new(m20260715_000001_alter_user_files_member_signed_at::Migration),
+            Box::new(m20260716_000001_create_used_nonces::Migration),
         ]
     }
 }

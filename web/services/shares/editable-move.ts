@@ -35,6 +35,7 @@ export async function moveSingleFileIntoSharedFolder(
   args: {
     callerUserId: string
     callerPrivateKey: string
+    callerWrappingPrivateKey: string
     file: AppFile
     destinationFolderId: string
     trustedFingerprints: TrustedFingerprintsStore
@@ -52,7 +53,7 @@ export async function moveSingleFileIntoSharedFolder(
 
   const fileKeyHex = await shareCrypto.decryptOwnFileKey(
     args.file.encrypted_key,
-    args.callerPrivateKey
+    args.callerWrappingPrivateKey
   )
 
   const response = await fetchMembers(args.destinationFolderId)
@@ -169,7 +170,7 @@ export async function moveIntoSharedFolder(
       nodes,
       snapshot.members,
       args.callerUserId,
-      args.callerPrivateKey,
+      args.callerWrappingPrivateKey,
       {
         signal: options.signal,
         onProgress: () => {

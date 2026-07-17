@@ -9,6 +9,7 @@ import { uuidv4 } from '!/index'
 
 import * as api from './api'
 import * as shareCrypto from './crypto'
+import type { RecipientKey } from './crypto'
 
 import type {
   AppFile,
@@ -100,10 +101,16 @@ async function streamingSha256(chunks: Uint8Array[]): Promise<string> {
 export interface ForkArgs {
   /** Source file (must have a populated `key`). */
   source: AppFile
-  /** Caller's keypair. The fork is wrapped under the caller's pubkey. */
+  /** Caller's keypair — its private key decrypts the source wrap and signs the audit event. */
   keypair: KeyPair
   /** Caller's user id — folded into the audit-event signature. */
   callerUserId: string
+  /**
+   * Caller's own key material, used to wrap the fresh key back to
+   * themselves. Curve25519 accounts seal under their `wrapping_pubkey`;
+   * RSA accounts encrypt under their `pubkey`.
+   */
+  callerRecipient: RecipientKey
 }
 
 /**
@@ -124,7 +131,7 @@ export async function forkFile(
   args: ForkArgs,
   options: ForkOptions = {}
 ): Promise<ForkResponse> {
-  const { source, keypair, callerUserId } = args
+  const { source, keypair, callerUserId, callerRecipient } = args
   if (!keypair.input) {
     throw new Error('Cannot fork without the caller\'s private key')
   }
@@ -144,7 +151,10 @@ export async function forkFile(
   // Decrypt the source's per-user key. `source.key` may already be in
   // place from the page that opened the fork (My-Files row); the
   // explicit decrypt keeps the helper standalone.
-  const sourceKeyHex = await shareCrypto.decryptOwnFileKey(source.encrypted_key, keypair.input)
+  const sourceKeyHex = await shareCrypto.decryptOwnFileKey(
+    source.encrypted_key,
+    keypair.wrappingPrivate || keypair.input
+  )
   const sourceKey = cryptfns.uint8.fromHex(sourceKeyHex)
   const sourceWithKey: AppFile = { ...source, key: sourceKey }
 
@@ -157,9 +167,10 @@ export async function forkFile(
   const newKey = await cryptfns.cipher.generateKey(cipher)
   const newKeyHex = cryptfns.uint8.toHex(newKey)
 
-  // 4 — wrap the new key for the caller. The same wrap is stored both
-  // in the file row's `encrypted_key` (legacy) and on the per-user row.
-  const wrappedKey = await cryptfns.rsa.encryptMessage(newKeyHex, keypair.publicKey)
+  // 4 — wrap the new key for the caller under their own key type. The
+  // same wrap is stored both in the file row's `encrypted_key` (legacy)
+  // and on the per-user row.
+  const wrappedKey = await shareCrypto.wrapForRecipient(newKeyHex, callerRecipient)
 
   // Re-encrypt the source's plaintext name + thumbnail under the new
   // key so the server's encrypted_metadata column carries the right

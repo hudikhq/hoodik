@@ -1,7 +1,7 @@
 use actix_web::{route, web, HttpResponse};
 use auth::data::staff::Staff;
 use context::{Context, SenderContract};
-use error::AppResult;
+use error::{AppResult, Error};
 
 use crate::repository::Repository;
 
@@ -14,6 +14,10 @@ pub(crate) async fn test_email(
     context: web::Data<Context>,
 ) -> AppResult<HttpResponse> {
     staff.is_admin_or_err()?;
+
+    if context.config.app.mailer_disable_test {
+        return Err(Error::ServiceUnavailable("test_email_disabled".to_string()));
+    }
 
     let sender = match &context.sender {
         Some(s) => s,

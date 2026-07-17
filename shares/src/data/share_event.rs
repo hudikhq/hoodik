@@ -20,7 +20,8 @@ pub struct AppShareEvent {
     pub id: Uuid,
     pub sender_id: Option<Uuid>,
     pub recipient_id: Option<Uuid>,
-    pub file_id: Uuid,
+    /// NULL on account-level rows such as `key_rotation`.
+    pub file_id: Option<Uuid>,
     pub action: String,
     pub share_role_before: Option<String>,
     pub share_role_after: Option<String>,
@@ -61,15 +62,20 @@ impl AppShareEvent {
 
 /// Compact identity record returned alongside the audit page so the
 /// client can label rows and verify per-row signatures without an
-/// extra round-trip per sender. Only `id`, `email`, and `pubkey` are
-/// surfaced; nothing here that isn't already public on
-/// `/api/users/discover`.
+/// extra round-trip per sender. Surfaces nothing that isn't already
+/// public on `/api/users/discover`.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AuditUserRef {
     pub id: Uuid,
     pub email: String,
     pub pubkey: String,
+    pub key_type: String,
+    pub wrapping_pubkey: Option<String>,
     pub fingerprint: String,
+    /// Present when this account rotated keys, so a client verifying a
+    /// pre-rotation audit-event signature can fall back to their old key.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key_transition: Option<crate::data::key_transition::KeyTransitionRef>,
 }
 
 /// Paginated envelope returned by `GET /api/shares/events`. The

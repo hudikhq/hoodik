@@ -217,6 +217,8 @@ pub struct GroupMemberWithKey {
     pub user_id: Uuid,
     pub email: String,
     pub pubkey: String,
+    pub key_type: String,
+    pub wrapping_pubkey: Option<String>,
     pub fingerprint: String,
     pub group_role: String,
 }

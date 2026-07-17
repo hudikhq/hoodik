@@ -444,7 +444,7 @@ export const store = defineStore('files', () => {
           encrypted_name: row.encrypted_name,
           encrypted_thumbnail: row.encrypted_thumbnail ?? undefined
         },
-        kp.input as string
+        kp.wrappingPrivate || (kp.input as string)
       )
       return { ...base, ...decrypted }
     } catch {
@@ -517,7 +517,7 @@ export const store = defineStore('files', () => {
    * Decrypt each item
    */
   async function decryptItem(item: AppFile, kp: KeyPair): Promise<AppFile> {
-    const decryptedParts = await meta.decrypt(item, kp.input as string)
+    const decryptedParts = await meta.decrypt(item, kp.wrappingPrivate || (kp.input as string))
 
     return {
       ...item,
@@ -692,7 +692,7 @@ export const store = defineStore('files', () => {
       file_id: dir_id,
       file_modified_at: utcStringFromLocal(new Date()),
       search_tokens_hashed,
-      cipher: cryptfns.cipher.DEFAULT_CIPHER
+      cipher: cryptfns.cipher.defaultCipher()
     }
 
     const dir = await meta.create(keypair, createFile)
@@ -848,7 +848,7 @@ export async function search(
     throw new Error('Cannot search without private key')
   }
 
-  const privateKey = kp.input
+  const privateKey = kp.wrappingPrivate || kp.input
   const response = await meta.search(query, options)
 
   const results = await Promise.all(

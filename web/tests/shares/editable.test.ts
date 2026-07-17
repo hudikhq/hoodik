@@ -12,12 +12,14 @@ import {
   uploadIntoSharedFolder,
   verifyFolderMemberList
 } from '../../services/shares/editable'
+import { reconcileFingerprints } from '../../services/shares/editable-members'
 import { trustedFingerprintsStore } from '../../services/shares'
 
 import type {
   FolderMember,
   FolderMembersResponse,
   KeyPair,
+  KeyTransitionRow,
   UploadMultiKeyBody,
   UploadMultiKeyResponse
 } from '../../types'
@@ -44,13 +46,16 @@ async function signMember(
   memberUserId: string,
   signerPrivateKey: string,
   addedAt: number,
-  role: 'reader' | 'editor' | 'co-owner'
+  role: 'reader' | 'editor' | 'co-owner',
+  memberKeyType?: string
 ): Promise<string> {
   const { member_sig_encode_v1, rsa_sign_bytes } = await import('../../services/cryptfns/wasm')
   const der = member_sig_encode_v1(
     uuidStringToBytes(memberUserId),
     pemToDerBytes(memberPubkey),
-    cryptfns.uint8.fromHex(shareCrypto.computeFingerprint(memberPubkey)),
+    cryptfns.uint8.fromHex(
+      shareCrypto.fingerprintForUser({ pubkey: memberPubkey, key_type: memberKeyType })
+    ),
     role === 'reader' ? 0 : role === 'editor' ? 1 : 2,
     BigInt(addedAt)
   )
@@ -66,6 +71,7 @@ interface MemberFixture {
   email: string | null
   role: 'reader' | 'editor' | 'co-owner'
   isOwner?: boolean
+  keyType?: string
 }
 
 async function buildResponse(
@@ -95,24 +101,34 @@ async function buildResponse(
   const folderMembers: FolderMember[] = []
 
   for (const fix of members) {
-    let kp: KeyPair
+    let pubkey: string
     if (fix.user_id === ownerUserId) {
-      kp = ownerKp
+      pubkey = ownerKp.publicKey as string
+    } else if (fix.keyType === 'curve25519') {
+      pubkey = await cryptfns.ed25519.publicFromPrivate(
+        await cryptfns.ed25519.generatePrivateKey()
+      )
     } else {
-      kp = await cryptfns.rsa.generateKeyPair()
+      const kp = await cryptfns.rsa.generateKeyPair()
       keypairs.set(fix.user_id, kp)
+      pubkey = kp.publicKey as string
     }
-    const fingerprint = shareCrypto.computeFingerprint(kp.publicKey as string)
+    const fingerprint = shareCrypto.fingerprintForUser({ pubkey, key_type: fix.keyType })
     const addedAt = 1_700_000_000
-    const sig =
-      fix.user_id === ownerUserId
-        ? await signMember(kp.publicKey as string, fix.user_id, ownerKp.input as string, addedAt, fix.role)
-        : await signMember(kp.publicKey as string, fix.user_id, ownerKp.input as string, addedAt, fix.role)
+    const sig = await signMember(
+      pubkey,
+      fix.user_id,
+      ownerKp.input as string,
+      addedAt,
+      fix.role,
+      fix.keyType
+    )
     folderMembers.push({
       user_id: fix.user_id,
       email: fix.email,
-      pubkey: kp.publicKey as string,
+      pubkey,
       pubkey_fingerprint: fingerprint,
+      key_type: fix.keyType,
       share_role: fix.role,
       is_owner: !!fix.isOwner,
       added_at: addedAt,
@@ -342,11 +358,9 @@ describe('editable folder upload pipeline', () => {
       shareRoleAfter: null,
       timestamp: BigInt(captured!.timestamp)
     })
-    const ok = await shareCrypto.verifyAuditEvent(
-      sigInput,
-      captured!.event_signature,
-      uploaderKp.publicKey as string
-    )
+    const ok = await shareCrypto.verifyAuditEvent(sigInput, captured!.event_signature, {
+      pubkey: uploaderKp.publicKey as string
+    })
     expect(ok).toBe(true)
   })
 
@@ -573,6 +587,19 @@ describe('editable folder upload pipeline', () => {
     )
   })
 
+  it('verify_folder_member_list_accepts_curve25519_member', async () => {
+    // A curve25519 member's fingerprint is the SPKI hash of their Ed25519
+    // pubkey, not an RSA modulus hash — the verifier must re-derive it
+    // through the same dispatch registration used, or the list hard-fails
+    // for every roster containing such an account.
+    const ownerKp = await cryptfns.rsa.generateKeyPair()
+    const { response } = await buildResponse(FOLDER_ID, ownerKp, OWNER_ID, [
+      { user_id: OWNER_ID, email: 'a@example.com', role: 'co-owner', isOwner: true },
+      { user_id: UPLOADER_ID, email: 'b@example.com', role: 'editor', keyType: 'curve25519' }
+    ])
+    await expect(verifyFolderMemberList(response)).resolves.toBeUndefined()
+  })
+
   it('upload_into_shared_folder_aborts_on_cached_fingerprint_change', async () => {
     const ownerKp = await cryptfns.rsa.generateKeyPair()
     const { response, keypairs } = await buildResponse(FOLDER_ID, ownerKp, OWNER_ID, [
@@ -607,6 +634,114 @@ describe('editable folder upload pipeline', () => {
         { fetchMembers: async () => response, postUpload: async () => ({ file_id: NEW_FILE_ID }) }
       )
     ).rejects.toBeInstanceOf(FolderMemberFingerprintChanged)
+  })
+
+  it('reconcile_rejects_fabricated_key_transition_rows', async () => {
+    const oldFp = '0'.repeat(64)
+    const currentFp = 'ff'.repeat(32)
+
+    const members: FolderMember[] = [
+      {
+        user_id: THIRD_ID,
+        pubkey: 'irrelevant-for-this-check',
+        pubkey_fingerprint: currentFp,
+        share_role: 'reader',
+        signed_by_user_id: OWNER_ID,
+        is_owner: false
+      } as any
+    ]
+
+    const trusted = trustedFingerprintsStore()
+    trusted.bind(UPLOADER_ID)
+    trusted.trustFingerprint(THIRD_ID, oldFp, 'other')
+
+    // A hostile server returns a row whose fingerprints link the trusted
+    // fingerprint to the reported one, but whose certificate carries no
+    // valid signatures. Structural linkage alone must never re-pin trust —
+    // that would hand the contact's identity to whoever controls the server.
+    vi.spyOn(sharesApi, 'getKeyTransitions').mockResolvedValue([
+      {
+        user_id: THIRD_ID,
+        old_fingerprint: oldFp,
+        old_key_spki: [1, 2, 3],
+        old_key_type: 'rsa',
+        new_fingerprint: currentFp,
+        new_identity_key_pem: 'not-a-key',
+        new_wrapping_key_pem: 'not-a-key',
+        old_signature: [4, 5, 6],
+        new_signature: [7, 8, 9],
+        issued_at: 1_700_000_000
+      }
+    ])
+
+    await expect(
+      reconcileFingerprints(members, UPLOADER_ID, trusted, async () => true)
+    ).rejects.toBeInstanceOf(FolderMemberFingerprintChanged)
+    expect(trusted.lookup(THIRD_ID)?.pubkeyFingerprint).toBe(oldFp)
+  })
+
+  it('reconcile_accepts_cached_fingerprint_change_via_verified_key_transition_chain', async () => {
+    // A real rotation: the member's old RSA key dual-signs the certificate
+    // with the new Ed25519 identity key, exactly as migration records it.
+    const oldRsa = await cryptfns.rsa.generateKeyPair()
+    const newEdPriv = await cryptfns.ed25519.generatePrivateKey()
+    const newEdPub = await cryptfns.ed25519.publicFromPrivate(newEdPriv)
+    const wrappingPriv = await cryptfns.wrapping.generatePrivateKey()
+    const wrappingPub = await cryptfns.wrapping.publicFromPrivate(wrappingPriv)
+
+    const oldFp = shareCrypto.computeFingerprint(oldRsa.publicKey as string)
+    const currentFp = await cryptfns.ed25519.fingerprint(newEdPub)
+    const issuedAt = 1_700_000_000
+    const { oldSignature, newSignature } = await cryptfns.transition.sign({
+      userId: uuidStringToBytes(THIRD_ID),
+      oldKeyType: 'rsa',
+      oldKeyPem: oldRsa.publicKey as string,
+      oldFingerprint: oldFp,
+      newIdentityKeyPem: newEdPub,
+      newWrappingKeyPem: wrappingPub,
+      newFingerprint: currentFp,
+      issuedAt: BigInt(issuedAt),
+      oldPrivateKey: oldRsa.input as string,
+      newIdentityPrivateKey: newEdPriv
+    })
+
+    const row: KeyTransitionRow = {
+      user_id: THIRD_ID,
+      old_fingerprint: oldFp,
+      old_key_spki: Array.from(pemToDerBytes(oldRsa.publicKey as string)),
+      old_key_type: 'rsa',
+      new_fingerprint: currentFp,
+      new_identity_key_pem: newEdPub,
+      new_wrapping_key_pem: wrappingPub,
+      old_signature: Array.from(cryptfns.uint8.fromBase64(oldSignature)),
+      new_signature: Array.from(cryptfns.uint8.fromBase64(newSignature)),
+      issued_at: issuedAt
+    }
+
+    const members: FolderMember[] = [
+      {
+        user_id: THIRD_ID,
+        pubkey: newEdPub,
+        pubkey_fingerprint: currentFp,
+        key_type: 'curve25519',
+        share_role: 'reader',
+        signed_by_user_id: OWNER_ID,
+        is_owner: false
+      } as any
+    ]
+
+    const trusted = trustedFingerprintsStore()
+    trusted.bind(UPLOADER_ID)
+    trusted.trustFingerprint(THIRD_ID, oldFp, 'other')
+
+    vi.spyOn(sharesApi, 'getKeyTransitions').mockResolvedValue([row])
+
+    // Should not throw; the verified chain re-pins trust silently.
+    await reconcileFingerprints(members, UPLOADER_ID, trusted, async () => true)
+
+    const entry = trusted.lookup(THIRD_ID)
+    expect(entry?.pubkeyFingerprint).toBe(currentFp)
+    expect(entry?.verificationMethod).toBe('key-transition')
   })
 
   it('upload_into_shared_folder_aborts_when_user_declines_tofu', async () => {
@@ -969,11 +1104,9 @@ describe('editable folder upload pipeline', () => {
     // RSA-PSS is randomised, so signatures differ by definition — but
     // a signature over the ordered list must verify against bytes
     // canonicalised from the reversed list.
-    const okOnReversed = await shareCrypto.verifyFolderMemberListSignature(
-      inputReversed,
-      sigA,
-      ownerKp.publicKey as string
-    )
+    const okOnReversed = await shareCrypto.verifyFolderMemberListSignature(inputReversed, sigA, {
+      pubkey: ownerKp.publicKey as string
+    })
     expect(okOnReversed).toBe(true)
   })
 
@@ -1017,11 +1150,9 @@ describe('editable folder upload pipeline', () => {
       membersSignedAt: 1736000000n
     })
     const { signature } = await shareCrypto.signFolderMemberList(input, ownerKp.input as string)
-    const ok = await shareCrypto.verifyFolderMemberListSignature(
-      input,
-      signature,
-      ownerKp.publicKey as string
-    )
+    const ok = await shareCrypto.verifyFolderMemberListSignature(input, signature, {
+      pubkey: ownerKp.publicKey as string
+    })
     expect(ok).toBe(true)
   })
 
@@ -1046,12 +1177,45 @@ describe('editable folder upload pipeline', () => {
     }
     const sig = await shareCrypto.signMember(args, ownerKp.input as string)
     expect(sig).toBeTruthy()
-    const ok = await shareCrypto.verifyMemberSignature(
-      args,
-      sig,
-      ownerKp.publicKey as string
-    )
+    const ok = await shareCrypto.verifyMemberSignature(args, sig, {
+      pubkey: ownerKp.publicKey as string
+    })
     expect(ok).toBe(true)
+  })
+
+  it('verify_member_signature_accepts_an_ed25519_signer', async () => {
+    // No curve25519 login exists client-side yet, so there is no producer
+    // to round-trip against — build the exact bytes `signMember` covers
+    // and sign them with Ed25519 the way a curve25519 account would.
+    const signerPrivate = await cryptfns.ed25519.generatePrivateKey()
+    const signerPublic = await cryptfns.ed25519.publicFromPrivate(signerPrivate)
+    const recipientKp = await cryptfns.rsa.generateKeyPair()
+    const args = {
+      userId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      pubkeyPem: recipientKp.publicKey as string,
+      pubkeyFingerprintHex: shareCrypto.computeFingerprint(recipientKp.publicKey as string),
+      shareRole: 'editor' as const,
+      signedAt: 1_736_000_000n
+    }
+    const { member_sig_encode_v1 } = await import('../../services/cryptfns/wasm')
+    const der = member_sig_encode_v1(
+      uuidStringToBytes(args.userId),
+      pemToDerBytes(args.pubkeyPem),
+      cryptfns.uint8.fromHex(args.pubkeyFingerprintHex),
+      1,
+      args.signedAt
+    )
+    if (!der) throw new Error('encode failed')
+    const signingInput = new Uint8Array(MEMBER_SIG_V1_PREFIX.length + der.length)
+    signingInput.set(MEMBER_SIG_V1_PREFIX, 0)
+    signingInput.set(der, MEMBER_SIG_V1_PREFIX.length)
+    const sig = await cryptfns.ed25519.signBytes(signingInput, signerPrivate)
+
+    const signer = { pubkey: signerPublic, key_type: 'curve25519' }
+    expect(await shareCrypto.verifyMemberSignature(args, sig, signer)).toBe(true)
+
+    const promoted = { ...args, shareRole: 'co-owner' as const }
+    expect(await shareCrypto.verifyMemberSignature(promoted, sig, signer)).toBe(false)
   })
 
   it('verify_member_signature_fails_under_wrong_signer_pubkey', async () => {
@@ -1072,11 +1236,9 @@ describe('editable folder upload pipeline', () => {
       signedAt: 1_736_000_000n
     }
     const sig = await shareCrypto.signMember(args, ownerKp.input as string)
-    const okStranger = await shareCrypto.verifyMemberSignature(
-      args,
-      sig,
-      strangerKp.publicKey as string
-    )
+    const okStranger = await shareCrypto.verifyMemberSignature(args, sig, {
+      pubkey: strangerKp.publicKey as string
+    })
     expect(okStranger).toBe(false)
   })
 
@@ -1108,7 +1270,7 @@ describe('editable folder upload pipeline', () => {
         signedAt: 1_736_000_000n
       },
       sig,
-      ownerKp.publicKey as string
+      { pubkey: ownerKp.publicKey as string }
     )
     expect(okPromoted).toBe(false)
   })

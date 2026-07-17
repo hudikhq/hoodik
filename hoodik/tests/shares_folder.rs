@@ -75,8 +75,8 @@ async fn test_folder_share_eager_recursion_creates_rows_for_all_descendants() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let folder = create_folder!(app, alice, "folder-root");
     let child_one = create_child_file!(app, alice, "child-one", folder.id);
@@ -124,8 +124,8 @@ async fn test_folder_share_partial_subtree_rejected_with_entries_do_not_match_su
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let folder = create_folder!(app, alice, "partial-root");
     let _child = create_child_file!(app, alice, "partial-child", folder.id);
@@ -152,8 +152,8 @@ async fn test_folder_share_5000_files_succeeds_at_boundary() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let folder = create_folder!(app, alice, "5000-root");
     let mut entries = Vec::with_capacity(5000);
@@ -192,8 +192,8 @@ async fn test_folder_share_5001_files_rejected_with_entries_too_many() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let folder = create_folder!(app, alice, "5001-root");
     let mut entries = Vec::with_capacity(5001);
@@ -225,8 +225,8 @@ async fn test_folder_share_role_inherited_on_each_descendant_row() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let folder = create_folder!(app, alice, "inherit-root");
     let child = create_child_file!(app, alice, "inherit-child", folder.id);
@@ -269,8 +269,8 @@ async fn test_folder_share_revoke_cascade_drops_descendants_for_recipient() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let folder = create_folder!(app, alice, "revoke-root");
     let child = create_child_file!(app, alice, "revoke-child", folder.id);
@@ -327,8 +327,8 @@ async fn test_subfolder_in_shared_folder_inherits_share_membership() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let folder = create_folder!(app, alice, "parent-root");
     let sub = create_folder!(app, alice, "sub-folder", folder.id);
@@ -373,8 +373,8 @@ async fn test_member_cannot_see_files_outside_shared_subtree() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    register_user!(app, alice, "alice@example.com");
-    register_user!(app, bob, "bob@example.com");
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
 
     let shared_folder = create_folder!(app, alice, "shared-folder");
     let shared_child = create_child_file!(app, alice, "shared-child", shared_folder.id);

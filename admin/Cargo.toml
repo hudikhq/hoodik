@@ -19,6 +19,7 @@ num-traits = { workspace = true }
 
 auth = { path = "../auth" }
 context = { path = "../context" }
+cryptfns = { path = "../cryptfns" }
 entity = { path = "../entity" }
 error = { path = "../error" }
 fs = { path = "../fs" }

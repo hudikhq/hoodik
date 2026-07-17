@@ -408,6 +408,8 @@ impl Repository<'_> {
                 user_id: owner.id,
                 email: owner.email.clone(),
                 pubkey: owner.pubkey.clone(),
+                key_type: owner.key_type.clone(),
+                wrapping_pubkey: owner.wrapping_pubkey.clone(),
                 fingerprint: owner.fingerprint.clone(),
                 group_role: "owner".to_string(),
             });
@@ -418,6 +420,8 @@ impl Repository<'_> {
                     user_id: user.id,
                     email: user.email.clone(),
                     pubkey: user.pubkey.clone(),
+                    key_type: user.key_type.clone(),
+                    wrapping_pubkey: user.wrapping_pubkey.clone(),
                     fingerprint: user.fingerprint.clone(),
                     group_role: row.role,
                 });
