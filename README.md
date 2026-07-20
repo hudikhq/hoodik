@@ -12,7 +12,7 @@
 
 Hoodik is a lightweight, self-hosted, end-to-end encrypted cloud storage server. All encryption and decryption happens in your browser — the server never sees your plaintext data. Built with Rust (Actix-web) on the backend and Vue 3 on the frontend.
 
-🌐 **[hoodik.io](https://hoodik.io)** — Website &nbsp;|&nbsp; 📱 **[Android App](https://play.google.com/store/apps/details?id=com.hudikhq.hoodik)** &nbsp;|&nbsp; ⚡ **[VPS Setup Guide](https://hoodik.io/get-started)**
+🌐 **[hoodik.io](https://hoodik.io)** — Website &nbsp;|&nbsp; ☁️ **[Hoodik Cloud](https://hoodik.cloud)** &nbsp;|&nbsp; 📱 **[Android App](https://play.google.com/store/apps/details?id=com.hudikhq.hoodik)** &nbsp;|&nbsp; 🍎 **[iOS & macOS App](https://apps.apple.com/app/hoodik/id6761471179)** &nbsp;|&nbsp; ⚡ **[Self-Hosting Guide](https://hoodik.io/get-started)**
 
 <p align="center">
   <img src="./screenshot.png" alt="Hoodik screenshot" />
@@ -81,6 +81,12 @@ The recipient's browser uses the fragment to decrypt the metadata and file key l
 | Private-key wrap | envelope encryption under a KEK derived (HKDF-SHA512) from the OPAQUE `export_key` |
 
 The cipher used to encrypt each file is stored in the database (`files.cipher`), so the correct algorithm is always used for decryption regardless of what the current default is.
+
+---
+
+## Hoodik Cloud
+
+If you'd rather not run a server, [Hoodik Cloud](https://hoodik.cloud) is the managed version, run by us on the same open-source code. The encryption is identical — files are encrypted in the browser and the server only ever stores ciphertext. There is no lock-in: you can export your whole instance at any time and get a runnable copy of Hoodik with your encrypted data inside, ready to self-host with Docker.
 
 ---
 
