@@ -19,19 +19,11 @@ pub(crate) async fn search(
     let context = context.into_inner();
 
     let data = data.into_inner();
-    let attributes = util::attributes::parse(data.attributes.as_deref());
 
-    let files = Repository::new(&context.db)
+    let file = Repository::new(&context.db)
         .tokens(claims.sub)
         .search(data)
         .await?;
 
-    let Some(keys) = attributes else {
-        return Ok(HttpResponse::Ok().json(files));
-    };
-
-    let mut value = serde_json::to_value(&files)?;
-    util::attributes::project_rows(&mut value, &keys);
-
-    Ok(HttpResponse::Ok().json(value))
+    Ok(HttpResponse::Ok().json(file))
 }

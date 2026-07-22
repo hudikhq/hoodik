@@ -110,9 +110,47 @@ where
 
     /// Preset the selector for the given user, maybe check if the user is the owner
     pub(crate) fn selector(&self, user_id: Uuid, check_is_owner: bool) -> Select<files::Entity> {
+        self.build_selector(user_id, check_is_owner, false)
+    }
+
+    /// Listing variant that leaves `files.encrypted_thumbnail` in the
+    /// database and reports only whether one exists. A directory of images
+    /// otherwise reads megabytes of base64 off the page and ships it to a
+    /// caller that immediately discards it; clients fetch the blob per file
+    /// from the thumbnail route instead.
+    pub(crate) fn compact_selector(
+        &self,
+        user_id: Uuid,
+        check_is_owner: bool,
+    ) -> Select<files::Entity> {
+        self.build_selector(user_id, check_is_owner, true)
+    }
+
+    fn build_selector(
+        &self,
+        user_id: Uuid,
+        check_is_owner: bool,
+        compact: bool,
+    ) -> Select<files::Entity> {
         let mut selector = files::Entity::find().select_only();
 
-        entity::join::add_columns_with_prefix::<_, files::Entity>(&mut selector, "file");
+        match compact {
+            true => entity::join::add_columns_with_prefix_nulling::<_, files::Entity>(
+                &mut selector,
+                "file",
+                &["encrypted_thumbnail"],
+            ),
+            false => {
+                entity::join::add_columns_with_prefix::<_, files::Entity>(&mut selector, "file")
+            }
+        }
+
+        entity::join::add_not_null_flag::<_, files::Entity>(
+            &mut selector,
+            files::Column::EncryptedThumbnail,
+            "has_thumbnail",
+        );
+
         entity::join::add_columns_with_prefix::<_, user_files::Entity>(&mut selector, "user_file");
         entity::join::add_columns_with_prefix::<_, links::Entity>(&mut selector, "link");
 

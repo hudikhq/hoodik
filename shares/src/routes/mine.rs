@@ -11,21 +11,6 @@ use crate::{
     routes::gate,
 };
 
-/// Serialize a page, applying the caller's `attributes` projection to
-/// the item rows when one was requested.
-fn page_response(page: IncomingSharePage, attributes: Option<&str>) -> AppResult<HttpResponse> {
-    let Some(keys) = util::attributes::parse(attributes) else {
-        return Ok(HttpResponse::Ok().json(page));
-    };
-
-    let mut value = serde_json::to_value(&page)?;
-    if let Some(rows) = value.get_mut("items") {
-        util::attributes::project_rows(rows, &keys);
-    }
-
-    Ok(HttpResponse::Ok().json(value))
-}
-
 /// `GET /api/shares/mine` — paged list of incoming shares for the caller.
 #[route("/api/shares/mine", method = "GET")]
 pub(crate) async fn mine(
@@ -43,6 +28,7 @@ pub(crate) async fn mine(
         None,
         query.resolved_limit(),
         query.resolved_offset(),
+        query.compact.unwrap_or(false),
     )
     .await?;
 
@@ -52,7 +38,7 @@ pub(crate) async fn mine(
         limit: query.resolved_limit(),
         offset: query.resolved_offset(),
     };
-    page_response(page, query.attributes.as_deref())
+    Ok(HttpResponse::Ok().json(page))
 }
 
 /// `GET /api/shares/mine/by/{user_id}` — same as `/mine`, narrowed to
@@ -75,6 +61,7 @@ pub(crate) async fn mine_by(
         Some(sender_id),
         query.resolved_limit(),
         query.resolved_offset(),
+        query.compact.unwrap_or(false),
     )
     .await?;
 
@@ -84,5 +71,5 @@ pub(crate) async fn mine_by(
         limit: query.resolved_limit(),
         offset: query.resolved_offset(),
     };
-    page_response(page, query.attributes.as_deref())
+    Ok(HttpResponse::Ok().json(page))
 }

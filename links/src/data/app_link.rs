@@ -32,13 +32,13 @@ pub struct AppLink {
     /// from the database entry, everyone else must have it shared with them.
     pub encrypted_link_key: String,
     /// If the file has a thumbnail it is encrypted with the link key.
-    /// Sent by default; clients that prefer lazy thumbnails project it
-    /// away with the listing `attributes` parameter and fetch the blob
-    /// from the metadata route per link.
+    /// Sent by default; listings asked for `compact` leave it in the
+    /// database and clients fetch the blob per link from the metadata
+    /// route.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub encrypted_thumbnail: Option<String>,
-    /// Whether this link carries a thumbnail, kept accurate when the
-    /// `attributes` projection omits `encrypted_thumbnail`.
+    /// Whether this link carries a thumbnail, computed in SQL so it stays
+    /// accurate when `compact` withholds the blob itself.
     #[serde(default)]
     pub has_thumbnail: bool,
     /// The file's content key encrypted with the link key. The recipient
@@ -91,7 +91,11 @@ impl FromQueryResult for AppLink {
             downloads: link.downloads,
             encrypted_name: link.encrypted_name,
             encrypted_link_key: link.encrypted_link_key,
-            has_thumbnail: link.encrypted_thumbnail.is_some(),
+            // Computed in SQL by the listing selector; the fallback covers
+            // the single-link lookups that don't project it.
+            has_thumbnail: res
+                .try_get::<bool>("", "has_thumbnail")
+                .unwrap_or_else(|_| link.encrypted_thumbnail.is_some()),
             encrypted_thumbnail: link.encrypted_thumbnail,
             encrypted_file_key: link.encrypted_file_key,
             created_at: link.created_at,

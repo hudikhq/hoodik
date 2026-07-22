@@ -7,41 +7,12 @@ import { CHUNK_SIZE_BYTES } from '!/constants'
 import type { AppLink, CreateLink, EncryptedAppLink, KeyPair, AppFile } from 'types'
 
 /**
- * Every listing field the links page consumes, minus
- * `encrypted_thumbnail` — thumbnails load lazily from the metadata
- * route. Older servers ignore the projection and ship full rows, which
- * also works (the inline blob decrypts eagerly like before).
- */
-export const LISTING_ATTRIBUTES = [
-  'id',
-  'file_id',
-  'owner_id',
-  'owner_email',
-  'owner_pubkey',
-  'owner_key_type',
-  'file_size',
-  'file_mime',
-  'signature',
-  'downloads',
-  'encrypted_name',
-  'encrypted_link_key',
-  'encrypted_file_key',
-  'has_thumbnail',
-  'created_at',
-  'file_modified_at',
-  'file_cipher',
-  'file_active_version',
-  'file_editable',
-  'expires_at'
-].join(',')
-
-/**
  * Load all the shared links for the user.
  */
 export async function all(): Promise<EncryptedAppLink[]> {
   const response = await Api.get<EncryptedAppLink[]>(`/api/links`, {
     with_expired: 'true',
-    attributes: LISTING_ATTRIBUTES
+    compact: true
   })
 
   if (!Array.isArray(response.body)) {

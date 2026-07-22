@@ -1,9 +1,9 @@
 //! Listings carry full rows by default so older clients keep working.
-//! A client that passes `attributes` gets each row projected to the
-//! requested fields — the web and app clients use it to drop
-//! `encrypted_thumbnail` from listings and fetch blobs lazily, per file
+//! A client that passes `compact=true` gets rows without the thumbnail
+//! blob — the column is never read off the page, and a SQL-computed
+//! `has_thumbnail` tells the client to fetch it lazily instead, per file
 //! (thumbnail route) or per link (metadata route). These tests pin the
-//! default, the projection, and the lazy routes.
+//! default, the compact projection, and the lazy routes.
 
 #[path = "./helpers.rs"]
 mod helpers;
@@ -38,7 +38,7 @@ fn create_file_with_thumbnail(name_hash: &str) -> storage::data::create_file::Cr
 }
 
 #[actix_web::test]
-async fn test_storage_attributes_projection_and_thumbnail_route() {
+async fn test_storage_compact_listing_and_thumbnail_route() {
     let context =
         context::Context::mock_with_data_dir(Some("../data-test-thumbnails".to_string())).await;
 
@@ -57,7 +57,7 @@ async fn test_storage_attributes_projection_and_thumbnail_route() {
         serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
     assert!(file.has_thumbnail);
 
-    // Without `attributes` the listing ships full rows — the compatible
+    // Without `compact` the listing ships full rows — the compatible
     // default for clients that predate the parameter.
     let req = test::TestRequest::get()
         .uri("/api/storage")
@@ -73,9 +73,10 @@ async fn test_storage_attributes_projection_and_thumbnail_route() {
     assert_eq!(listed.encrypted_thumbnail.as_deref(), Some(THUMBNAIL));
     assert!(listed.has_thumbnail);
 
-    // With `attributes` each row is projected to the requested fields.
+    // `compact` withholds the blob and reports the SQL-computed flag,
+    // leaving every other field in place.
     let req = test::TestRequest::get()
-        .uri("/api/storage?attributes=id,mime,has_thumbnail")
+        .uri("/api/storage?compact=true")
         .cookie(jwt.clone())
         .to_request();
     let body = test::call_and_read_body(&app, req).await;
@@ -92,7 +93,36 @@ async fn test_storage_attributes_projection_and_thumbnail_route() {
         .unwrap();
     assert_eq!(listed["has_thumbnail"], json!(true));
     assert!(listed.get("encrypted_thumbnail").is_none());
-    assert!(listed.get("encrypted_name").is_none());
+    assert_eq!(listed["encrypted_name"], json!("name"));
+    assert_eq!(listed["mime"], json!("image/jpeg"));
+
+    // A file without a thumbnail reports the flag as false.
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(jwt.clone())
+        .set_json(storage::data::create_file::CreateFile {
+            encrypted_thumbnail: None,
+            name_hash: Some("hash-no-thumb".to_string()),
+            ..create_file_with_thumbnail("unused")
+        })
+        .to_request();
+    let plain: AppFile =
+        serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
+    assert!(!plain.has_thumbnail);
+
+    let req = test::TestRequest::get()
+        .uri("/api/storage?compact=true")
+        .cookie(jwt.clone())
+        .to_request();
+    let listing: serde_json::Value =
+        serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
+    let listed = listing["children"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|child| child["id"] == json!(plain.id))
+        .unwrap();
+    assert_eq!(listed["has_thumbnail"], json!(false));
 
     // The thumbnail route serves the blob to anyone with a user_files row.
     let req = test::TestRequest::get()
@@ -124,7 +154,7 @@ async fn test_storage_attributes_projection_and_thumbnail_route() {
 }
 
 #[actix_web::test]
-async fn test_links_attributes_projection_and_metadata_blob() {
+async fn test_links_compact_listing_and_metadata_blob() {
     let context =
         context::Context::mock_with_data_dir(Some("../data-test-thumbnails-links".to_string()))
             .await;
@@ -172,7 +202,7 @@ async fn test_links_attributes_projection_and_metadata_blob() {
         serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
     assert!(link.has_thumbnail);
 
-    // Without `attributes` the owner's listing ships full rows.
+    // Without `compact` the owner's listing ships full rows.
     let req = test::TestRequest::get()
         .uri("/api/links")
         .cookie(jwt.clone())
@@ -183,9 +213,9 @@ async fn test_links_attributes_projection_and_metadata_blob() {
     assert_eq!(listed.encrypted_thumbnail.as_deref(), Some(THUMBNAIL));
     assert!(listed.has_thumbnail);
 
-    // With `attributes` each row is projected to the requested fields.
+    // `compact` withholds the blob and reports the SQL-computed flag.
     let req = test::TestRequest::get()
-        .uri("/api/links?attributes=id,has_thumbnail,encrypted_name")
+        .uri("/api/links?compact=true")
         .cookie(jwt.clone())
         .to_request();
     let body = test::call_and_read_body(&app, req).await;
@@ -212,4 +242,69 @@ async fn test_links_attributes_projection_and_metadata_blob() {
     assert_eq!(metadata.encrypted_thumbnail.as_deref(), Some(THUMBNAIL));
 
     context.config.app.cleanup();
+}
+
+/// `compact` on the search route. Search reaches the projection through
+/// a different query builder than the listing — it joins the token index
+/// and aggregates — so the flag needs its own coverage. Drives the route
+/// the way current clients do: hashed tokens in, no plaintext term.
+#[actix_web::test]
+async fn test_search_compact_withholds_thumbnail_blob() {
+    let context =
+        context::Context::mock_with_data_dir(Some("../data-test-thumbnails-search".to_string()))
+            .await;
+
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let jwt = helpers::register_curve25519(&app, "john@doe.com").await.jwt;
+
+    let hashed: Vec<String> = cryptfns::tokenizer::into_hashed_tokens("octopus")
+        .expect("tokenize search word")
+        .into_iter()
+        .map(|t| format!("{}:{}", t.token, t.weight))
+        .collect();
+
+    let mut payload = create_file_with_thumbnail("searchable-thumb");
+    payload.search_tokens_hashed = Some(hashed.clone());
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(jwt.clone())
+        .set_json(&payload)
+        .to_request();
+    let file: AppFile =
+        serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
+    assert!(file.has_thumbnail);
+
+    // Default: the blob rides along, as it did before the flag existed.
+    let req = test::TestRequest::post()
+        .uri("/api/storage/search")
+        .cookie(jwt.clone())
+        .set_json(json!({ "search_tokens_hashed": hashed }))
+        .to_request();
+    let hits: Vec<AppFile> =
+        serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
+    let hit = hits.iter().find(|f| f.id == file.id).unwrap();
+    assert_eq!(hit.encrypted_thumbnail.as_deref(), Some(THUMBNAIL));
+
+    // `compact`: same hit, no blob, flag still true.
+    let req = test::TestRequest::post()
+        .uri("/api/storage/search")
+        .cookie(jwt.clone())
+        .set_json(json!({ "search_tokens_hashed": hashed, "compact": true }))
+        .to_request();
+    let body = test::call_and_read_body(&app, req).await;
+    assert!(!String::from_utf8(body.to_vec())
+        .unwrap()
+        .contains(THUMBNAIL));
+
+    let hits: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let hit = hits
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["id"] == serde_json::json!(file.id))
+        .expect("compact search should still return the file");
+    assert_eq!(hit["has_thumbnail"], json!(true));
+    assert!(hit["encrypted_thumbnail"].is_null());
 }

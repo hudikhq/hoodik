@@ -103,7 +103,7 @@ async fn test_trying_to_create_link_for_other_users_file_errors() {
 
     let repository = Repository::new(&context);
 
-    let links = repository.links(user.id, false).await.unwrap();
+    let links = repository.links(user.id, false, false).await.unwrap();
 
     assert_eq!(links.len(), 6);
 }

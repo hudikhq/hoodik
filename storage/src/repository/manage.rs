@@ -69,7 +69,10 @@ where
             None if scoped_by_dir => None,
             None => Some(true),
         };
-        let mut selector = self.repository.selector(user_id, false);
+        let mut selector = match request_query.compact.unwrap_or(false) {
+            true => self.repository.compact_selector(user_id, false),
+            false => self.repository.selector(user_id, false),
+        };
         if let Some(is_owner) = restrict_to_owner {
             selector = selector.filter(user_files::Column::IsOwner.eq(is_owner));
         }

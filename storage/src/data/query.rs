@@ -9,10 +9,10 @@ pub struct Query {
     pub dirs_only: Option<bool>,
     pub is_owner: Option<bool>,
     pub editable: Option<bool>,
-    /// Comma-separated whitelist of row fields to include in the
-    /// response. Absent means full rows — the compatible default for
-    /// clients that predate the parameter.
-    pub attributes: Option<String>,
+    /// Withhold `encrypted_thumbnail` from the rows and report only
+    /// `has_thumbnail`. Absent means full rows — the compatible default
+    /// for clients that predate the parameter.
+    pub compact: Option<bool>,
 }
 
 impl Validation for Query {}

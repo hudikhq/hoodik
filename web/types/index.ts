@@ -49,19 +49,19 @@ export interface Parameters extends Query {
   is_owner?: boolean
   editable?: boolean
 
-  /** Comma-separated projection of row fields; absent means full rows. */
-  attributes?: string
+  /** Withhold thumbnail blobs; absent means full rows. */
+  compact?: boolean
 }
 
 export interface SearchQuery {
-  search: string
+  search_tokens_hashed: string[]
   dir_id?: string
   limit?: number
   skip?: number
   editable?: boolean
 
-  /** Comma-separated projection of row fields; absent means full rows. */
-  attributes?: string
+  /** Withhold thumbnail blobs; absent means full rows. */
+  compact?: boolean
 }
 
 export interface FileResponse {

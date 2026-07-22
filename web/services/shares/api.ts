@@ -147,41 +147,6 @@ export async function getShareRecipients(fileId: string): Promise<AppShare[]> {
 }
 
 /**
- * Every incoming-share field this client consumes, minus
- * `encrypted_thumbnail` — recipient rows fetch thumbnails lazily from
- * the storage thumbnail route. Older servers ignore the projection and
- * ship full rows, which also works.
- */
-export const MINE_ATTRIBUTES = [
-  'file_id',
-  'mime',
-  'encrypted_name',
-  'has_thumbnail',
-  'cipher',
-  'editable',
-  'size',
-  'chunks',
-  'chunks_stored',
-  'finished_upload_at',
-  'md5',
-  'sha1',
-  'sha256',
-  'blake2b',
-  'share_role',
-  'encrypted_key',
-  'created_at',
-  'shared_at',
-  'owner_id',
-  'owner_email',
-  'owner_pubkey',
-  'owner_key_type',
-  'owner_wrapping_pubkey',
-  'owner_pubkey_fingerprint',
-  'shared_by_user_id',
-  'shared_by_email'
-].join(',')
-
-/**
  * `GET /api/shares/mine` — recipient-side paged list of incoming shares.
  */
 export async function getSharesMine(
@@ -191,7 +156,7 @@ export async function getSharesMine(
   const response = await Api.get<IncomingSharePage>(`/api/shares/mine`, {
     limit,
     offset,
-    attributes: MINE_ATTRIBUTES
+    compact: true
   })
   if (!response.body) {
     throw new Error('Empty response from /api/shares/mine')
@@ -211,7 +176,7 @@ export async function getSharesMineBy(
   const response = await Api.get<IncomingSharePage>(`/api/shares/mine/by/${senderId}`, {
     limit,
     offset,
-    attributes: MINE_ATTRIBUTES
+    compact: true
   })
   if (!response.body) {
     throw new Error('Empty response from /api/shares/mine/by/{user_id}')

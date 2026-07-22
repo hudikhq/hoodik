@@ -21,48 +21,6 @@ import type {
 } from 'types'
 
 /**
- * Every listing field this client consumes, minus `encrypted_thumbnail`
- * — thumbnails load lazily through `thumbnail()`. Sent as the
- * `attributes` projection on listing and search calls. Older servers
- * ignore the parameter and ship full rows, which also works: the inline
- * blob simply gets decrypted eagerly like before.
- */
-export const LISTING_ATTRIBUTES = [
-  'id',
-  'user_id',
-  'is_owner',
-  'encrypted_key',
-  'encrypted_name',
-  'has_thumbnail',
-  'name_hash',
-  'md5',
-  'sha1',
-  'sha256',
-  'blake2b',
-  'cipher',
-  'editable',
-  'mime',
-  'size',
-  'chunks',
-  'chunks_stored',
-  'file_id',
-  'file_modified_at',
-  'created_at',
-  'finished_upload_at',
-  'active_version',
-  'pending_version',
-  'pending_chunks',
-  'pending_size',
-  'is_new',
-  'uploaded_chunks',
-  'link',
-  'members_signed_at',
-  'share_role',
-  'owner_email',
-  'shared_with_count'
-].join(',')
-
-/**
  * Take the unencrypted file or thumbnail and encrypt it with the file key.
  *
  * @param cipher  Cipher identifier (default: `cryptfns.cipher.defaultCipher()`).
@@ -301,7 +259,7 @@ export async function find(parameters: Parameters): Promise<FileResponse> {
 
   const response = await Api.get<FileResponse>(`/api/storage`, {
     ...parameters,
-    attributes: LISTING_ATTRIBUTES
+    compact: true
   })
 
   return response.body || { children: [], parents: [] }
@@ -329,19 +287,22 @@ export async function stats(): Promise<StorageStatsResponse> {
 }
 
 /**
- * Get file or directory metadata
+ * Full text search. The query is tokenized and hashed here so the plaintext
+ * term never leaves the browser — the server matches the hashes against the
+ * token index built the same way at upload time (which lowercases the name,
+ * hence the lowercasing before tokenizing).
  */
 export async function search(
   input: string,
   options?: { dir_id?: string; editable?: boolean; limit?: number }
 ): Promise<EncryptedAppFile[]> {
-  const body = {
-    search: input,
+  const body: SearchQuery = {
+    search_tokens_hashed: cryptfns.stringToHashedTokens(input.toLowerCase()),
     dir_id: options?.dir_id,
     editable: options?.editable,
     limit: options?.limit ?? 10,
     skip: 0,
-    attributes: LISTING_ATTRIBUTES
+    compact: true
   }
 
   const response = await Api.post<SearchQuery, EncryptedAppFile[]>(

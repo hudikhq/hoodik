@@ -6321,7 +6321,6 @@ dependencies = [
  "error",
  "google-authenticator",
  "qstring",
- "serde_json",
  "url",
  "zxcvbn",
 ]

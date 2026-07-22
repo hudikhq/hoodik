@@ -84,6 +84,7 @@ pub(crate) async fn incoming_for_recipient<C: ConnectionTrait>(
     sender_filter: Option<Uuid>,
     limit: u64,
     offset: u64,
+    compact: bool,
 ) -> AppResult<(Vec<IncomingShare>, u64)> {
     let mut all_query = user_files::Entity::find()
         .filter(user_files::Column::UserId.eq(recipient_id))
@@ -119,7 +120,7 @@ pub(crate) async fn incoming_for_recipient<C: ConnectionTrait>(
     };
 
     let owner_rows = owner_rows_for_files(db, rows.iter().map(|r| r.file_id)).await?;
-    let file_metas = file_metas_for_files(db, rows.iter().map(|r| r.file_id)).await?;
+    let file_metas = file_metas_for_files(db, rows.iter().map(|r| r.file_id), compact).await?;
 
     let extra_user_ids: HashSet<Uuid> = owner_rows
         .values()
@@ -144,9 +145,7 @@ pub(crate) async fn incoming_for_recipient<C: ConnectionTrait>(
                 mime: meta.map(|m| m.mime.clone()).unwrap_or_default(),
                 encrypted_name: meta.map(|m| m.encrypted_name.clone()).unwrap_or_default(),
                 encrypted_thumbnail: meta.and_then(|m| m.encrypted_thumbnail.clone()),
-                has_thumbnail: meta
-                    .map(|m| m.encrypted_thumbnail.is_some())
-                    .unwrap_or(false),
+                has_thumbnail: meta.map(|m| m.has_thumbnail).unwrap_or(false),
                 cipher: meta.map(|m| m.cipher.clone()).unwrap_or_default(),
                 editable: meta.map(|m| m.editable).unwrap_or(false),
                 size: meta.and_then(|m| m.size),
@@ -371,9 +370,11 @@ async fn owner_rows_for_files<C: ConnectionTrait, I: IntoIterator<Item = Uuid>>(
 /// "Shared with me" list renders with the same shape the owner sees in
 /// their own file browser — size, upload progress, checksums.
 pub(crate) struct IncomingFileMeta {
+    pub id: Uuid,
     pub mime: String,
     pub encrypted_name: String,
     pub encrypted_thumbnail: Option<String>,
+    pub has_thumbnail: bool,
     pub cipher: String,
     pub editable: bool,
     pub size: Option<i64>,
@@ -384,6 +385,28 @@ pub(crate) struct IncomingFileMeta {
     pub sha1: Option<String>,
     pub sha256: Option<String>,
     pub blake2b: Option<String>,
+}
+
+impl FromQueryResult for IncomingFileMeta {
+    fn from_query_result(res: &QueryResult, pre: &str) -> Result<Self, DbErr> {
+        Ok(Self {
+            id: res.try_get(pre, "id")?,
+            mime: res.try_get(pre, "mime")?,
+            encrypted_name: res.try_get(pre, "encrypted_name")?,
+            encrypted_thumbnail: res.try_get(pre, "encrypted_thumbnail").ok(),
+            has_thumbnail: res.try_get(pre, "has_thumbnail")?,
+            cipher: res.try_get(pre, "cipher")?,
+            editable: res.try_get(pre, "editable")?,
+            size: res.try_get(pre, "size").ok(),
+            chunks: res.try_get(pre, "chunks").ok(),
+            chunks_stored: res.try_get(pre, "chunks_stored").ok(),
+            finished_upload_at: res.try_get(pre, "finished_upload_at").ok(),
+            md5: res.try_get(pre, "md5").ok(),
+            sha1: res.try_get(pre, "sha1").ok(),
+            sha256: res.try_get(pre, "sha256").ok(),
+            blake2b: res.try_get(pre, "blake2b").ok(),
+        })
+    }
 }
 
 async fn parent_pointers_for_files<C: ConnectionTrait, I: IntoIterator<Item = Uuid>>(
@@ -404,38 +427,47 @@ async fn parent_pointers_for_files<C: ConnectionTrait, I: IntoIterator<Item = Uu
 async fn file_metas_for_files<C: ConnectionTrait, I: IntoIterator<Item = Uuid>>(
     db: &C,
     file_ids: I,
+    compact: bool,
 ) -> AppResult<HashMap<Uuid, IncomingFileMeta>> {
     let ids: Vec<Uuid> = file_ids.into_iter().collect();
     if ids.is_empty() {
         return Ok(HashMap::new());
     }
-    let rows = files::Entity::find()
+
+    let query = files::Entity::find()
+        .select_only()
         .filter(files::Column::Id.is_in(ids))
-        .all(db)
-        .await?;
-    Ok(rows
-        .into_iter()
-        .map(|r| {
-            (
-                r.id,
-                IncomingFileMeta {
-                    mime: r.mime,
-                    encrypted_name: r.encrypted_name,
-                    encrypted_thumbnail: r.encrypted_thumbnail,
-                    cipher: r.cipher,
-                    editable: r.editable,
-                    size: r.size,
-                    chunks: r.chunks,
-                    chunks_stored: r.chunks_stored,
-                    finished_upload_at: r.finished_upload_at,
-                    md5: r.md5,
-                    sha1: r.sha1,
-                    sha256: r.sha256,
-                    blake2b: r.blake2b,
-                },
-            )
-        })
-        .collect())
+        .columns([
+            files::Column::Id,
+            files::Column::Mime,
+            files::Column::EncryptedName,
+            files::Column::Cipher,
+            files::Column::Editable,
+            files::Column::Size,
+            files::Column::Chunks,
+            files::Column::ChunksStored,
+            files::Column::FinishedUploadAt,
+            files::Column::Md5,
+            files::Column::Sha1,
+            files::Column::Sha256,
+            files::Column::Blake2b,
+        ])
+        .column_as(
+            Expr::col((files::Entity, files::Column::EncryptedThumbnail)).is_not_null(),
+            "has_thumbnail",
+        );
+
+    // Recipients on the lazy-thumbnail path never receive the blob, so it
+    // is never read off the page either. The cast keeps Postgres from
+    // typing the literal as `unknown`.
+    let query = match compact {
+        true => query.column_as(Expr::cust("CAST(NULL AS TEXT)"), "encrypted_thumbnail"),
+        false => query.column(files::Column::EncryptedThumbnail),
+    };
+
+    let rows = query.into_model::<IncomingFileMeta>().all(db).await?;
+
+    Ok(rows.into_iter().map(|meta| (meta.id, meta)).collect())
 }
 
 /// Files within the subtree rooted at `scope_file_id` that `user_id`
