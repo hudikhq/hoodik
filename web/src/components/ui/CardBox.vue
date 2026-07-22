@@ -26,13 +26,20 @@ const slots = useSlots()
 const hasFooterSlot = computed(() => slots.footer && !!slots.footer())
 
 const componentClass = computed(() => {
+  // A modal has to read as a surface sitting above the page, and in dark mode
+  // the page, the scrim and the card were all within a shade of each other —
+  // nothing separated the dialog from what it covered. Modals get the lighter
+  // surface, a border that survives against the scrim, and a real shadow;
+  // inline cards keep the flatter treatment that suits them in a page flow.
   const base = [
     props.rounded,
     props.flex,
     'border',
-    'border-brownish-200/40 dark:border-brownish-700/40',
-    'shadow-sm dark:shadow-none',
-    'dark:bg-brownish-900'
+    props.isModal
+      ? 'border-brownish-200 dark:border-brownish-600'
+      : 'border-brownish-200/40 dark:border-brownish-700/40',
+    props.isModal ? 'shadow-2xl' : 'shadow-sm dark:shadow-none',
+    props.isModal ? 'dark:bg-brownish-800' : 'dark:bg-brownish-900'
   ]
 
   if (props.isHoverable) {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 
 const props = defineProps<{
   modelValue?: boolean
@@ -12,78 +13,20 @@ const opacity = computed(() => {
 </script>
 <template>
   <div
-    class="puppy-loader-div bg-brownish-700"
+    class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10
+      flex flex-col items-center gap-2 px-5 py-4 rounded-xl
+      bg-white/85 dark:bg-brownish-800/85 backdrop-blur-sm
+      border border-brownish-200/40 dark:border-brownish-600/60
+      text-brownish-400 dark:text-brownish-100 shadow-sm"
     :style="{ opacity }"
+    role="status"
+    aria-live="polite"
     v-if="props.modelValue || typeof props.modelValue === 'undefined'"
   >
-    <img src="/android-chrome-192x192.png" alt="logo" />
+    <SpinnerIcon :size="24" />
 
     <slot>
-      <div class="working">
-        Working<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
-      </div>
+      <span class="text-sm">Working…</span>
     </slot>
   </div>
 </template>
-<style scoped lang="css">
-.puppy-loader-div {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  padding: 20px;
-  border-radius: 10px;
-  border-radius: 25%;
-  animation: breath 2s infinite;
-}
-
-@keyframes breath {
-  0% {
-    box-shadow: 0 0 0 0 rgba(249, 38, 114, 0.7);
-  }
-  50% {
-    box-shadow: 0 0 0 50px rgba(249, 38, 114, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(249, 38, 114, 0.7);
-  }
-}
-
-.working {
-  font-size: 20px;
-  display: inline-block;
-  position: relative;
-  color: #eeeeee;
-  text-align: center;
-  width: 100%;
-}
-
-.dot {
-  display: inline-block;
-  opacity: 0;
-  animation: dot 0.6s infinite;
-  animation-delay: 0;
-  width: 10px;
-  text-align: center;
-}
-
-.dot:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.dot:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes dot {
-  0% {
-    opacity: 0;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-</style>
