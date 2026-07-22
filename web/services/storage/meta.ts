@@ -286,6 +286,25 @@ export async function stats(): Promise<StorageStatsResponse> {
   return response.body || { stats: [], used_space: 0, quota: undefined }
 }
 
+/** Digest lengths in hex characters: MD5, SHA1, SHA256, BLAKE2b. */
+const HEX_HASH_LENGTHS = [32, 40, 64, 128]
+
+/**
+ * A query that is itself a content digest is sent verbatim so the server can
+ * match it against the stored hash columns — the lookup behind the copy
+ * buttons in the file details panel, and the way to check whether a local
+ * file is already here. The digest is computed from the file's own bytes on
+ * the client and the server already stores all four, so it carries nothing
+ * the server does not have. Anything else stays on the client.
+ */
+function hashLookup(input: string): string | undefined {
+  const candidate = input.trim()
+
+  return HEX_HASH_LENGTHS.includes(candidate.length) && /^[0-9a-f]+$/i.test(candidate)
+    ? candidate
+    : undefined
+}
+
 /**
  * Full text search. The query is tokenized and hashed here so the plaintext
  * term never leaves the browser — the server matches the hashes against the
@@ -298,6 +317,7 @@ export async function search(
 ): Promise<EncryptedAppFile[]> {
   const body: SearchQuery = {
     search_tokens_hashed: cryptfns.stringToHashedTokens(input.toLowerCase()),
+    hash: hashLookup(input),
     dir_id: options?.dir_id,
     editable: options?.editable,
     limit: options?.limit ?? 10,

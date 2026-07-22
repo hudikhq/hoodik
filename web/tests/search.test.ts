@@ -41,6 +41,8 @@ describe('Search privacy', () => {
     expect(path).toBe('/api/storage/search')
     expect(params).toBeUndefined()
     expect(body).not.toHaveProperty('search')
+    // An ordinary query is not a digest, so nothing goes over verbatim.
+    expect(body.hash).toBeUndefined()
 
     // Tokenization matches the upload path, which indexes the lowercased name.
     expect(body.search_tokens_hashed).toEqual(stringToHashedTokens('annual report'))
@@ -56,15 +58,31 @@ describe('Search privacy', () => {
     expect(wire).not.toContain('report')
   })
 
-  it('UNIT: search: a hash-shaped query is tokenized like any other input', async () => {
-    const sha256 = 'f'.repeat(64)
+  it('UNIT: search: a content digest goes over verbatim as a hash lookup', async () => {
+    // Every digest length the file rows carry: MD5, SHA1, SHA256, BLAKE2b.
+    for (const length of [32, 40, 64, 128]) {
+      ApiPostMock.mockClear()
+      const digest = 'f'.repeat(length)
 
-    await meta.search(sha256)
+      await meta.search(digest)
 
-    const [, , body] = ApiPostMock.mock.calls[0]
-    expect(body).not.toHaveProperty('search')
-    expect(body).not.toHaveProperty('hash')
-    expect(body.search_tokens_hashed).toEqual(stringToHashedTokens(sha256))
+      const [, , body] = ApiPostMock.mock.calls[0]
+      expect(body.hash).toBe(digest)
+      expect(body).not.toHaveProperty('search')
+    }
+  })
+
+  it('UNIT: search: near-digest strings are not treated as hash lookups', async () => {
+    // One character short of SHA256, and a same-length string with a
+    // non-hex character in it.
+    for (const candidate of ['f'.repeat(63), `g${'f'.repeat(63)}`]) {
+      ApiPostMock.mockClear()
+
+      await meta.search(candidate)
+
+      const [, , body] = ApiPostMock.mock.calls[0]
+      expect(body.hash).toBeUndefined()
+    }
   })
 
   it('UNIT: search: options are forwarded alongside the hashed tokens', async () => {

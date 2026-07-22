@@ -55,6 +55,8 @@ export interface Parameters extends Query {
 
 export interface SearchQuery {
   search_tokens_hashed: string[]
+  /** A content digest matched verbatim against the stored hash columns. */
+  hash?: string
   dir_id?: string
   limit?: number
   skip?: number

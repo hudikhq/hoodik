@@ -164,7 +164,7 @@ where
     /// Search files based on given tokens and sort by the token weight
     pub(crate) async fn search(&self, search: Search) -> AppResult<Vec<AppFile>> {
         let compact = search.compact.unwrap_or(false);
-        let (file_id, tokens, limit, skip, editable) = search.into_tuple();
+        let (file_id, hash, tokens, limit, skip, editable) = search.into_tuple();
 
         let user_id = self.user_id;
         let selector = match compact {
@@ -181,6 +181,25 @@ where
             query = query.filter(files::Column::Editable.eq(editable));
         }
 
+        let mut filter = tokens::Column::Hash.is_in(
+            tokens
+                .iter()
+                .map(|t| t.token.clone())
+                .collect::<Vec<String>>(),
+        );
+
+        // A query that is itself a content digest matches the file whose
+        // bytes hash to it. Only added when the client sent one, so an
+        // ordinary search never compares against these columns.
+        if let Some(hash) = hash {
+            filter = files::Column::Md5
+                .eq(&hash)
+                .or(files::Column::Sha1.eq(&hash))
+                .or(files::Column::Sha256.eq(&hash))
+                .or(files::Column::Blake2b.eq(&hash))
+                .or(filter);
+        }
+
         // Postgres only infers functional dependency from the GROUP BY
         // column to columns of the *same* table. The selector projects
         // columns from `files`, `user_files`, and (left-joined) `links`,
@@ -190,12 +209,7 @@ where
         // which is fine — NULL forms its own group in PG and rows without
         // a matching link still aggregate correctly.
         let mut query = query
-            .filter(tokens::Column::Hash.is_in(
-                tokens
-                    .iter()
-                    .map(|t| t.token.clone())
-                    .collect::<Vec<String>>(),
-            ))
+            .filter(filter)
             .group_by(files::Column::Id)
             .group_by(user_files::Column::Id)
             .group_by(links::Column::Id)
