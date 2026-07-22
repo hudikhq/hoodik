@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AppFile } from 'types'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
+import FileThumbnail from '@/components/files/FileThumbnail.vue'
 import { mdiFolderOutline, mdiFileOutline } from '@mdi/js'
 import { computed } from 'vue'
 import { formatSize } from '!'
@@ -48,34 +49,31 @@ const fileSize = computed(() => {
 </script>
 <template>
   <router-link
-    class="p-2 flex hover:bg-brownish-200 hover:dark:bg-brownish-800 border-b-[1px] border-brownish-50 dark:border-brownish-700"
+    class="flex items-center gap-3 p-2 rounded-lg transition-colors
+      hover:bg-brownish-50 dark:hover:bg-brownish-800"
     :to="url"
     @click="emits('clicked', props.file)"
   >
-    <div class="w-1/12 pt-2">
-      <img
-        v-if="props.file.thumbnail"
-        :src="props.file.thumbnail"
-        :alt="name"
-        class="w-10 h-10 rounded-md"
-      />
-      <BaseIcon
-        v-else-if="props.file.mime === 'dir'"
-        :path="mdiFolderOutline"
-        :size="28"
-        w="w-8"
-        h="h-8"
-      />
-      <BaseIcon v-else :path="mdiFileOutline" :size="28" w="w-8" h="h-8" />
+    <div class="shrink-0 text-brownish-300 dark:text-brownish-100">
+      <FileThumbnail :file="props.file" img-class="w-10 h-10 rounded-md">
+        <BaseIcon
+          v-if="props.file.mime === 'dir'"
+          :path="mdiFolderOutline"
+          :size="28"
+          w="w-10"
+          h="h-10"
+        />
+        <BaseIcon v-else :path="mdiFileOutline" :size="28" w="w-10" h="h-10" />
+      </FileThumbnail>
     </div>
-    <div class="w-7/12 text-left">
-      <div class="w-full text-left truncate">
-        {{ name }}
-      </div>
-      <div class="w-full text-left truncate text-sm">
+    <div class="min-w-0 flex-1 text-left">
+      <div class="truncate">{{ name }}</div>
+      <div class="truncate text-sm text-brownish-300 dark:text-brownish-100">
         {{ props.file.mime }}
       </div>
     </div>
-    <div class="w-4/12 text-right truncate text-sm">{{ fileSize || '-' }}</div>
+    <div class="shrink-0 text-sm text-brownish-300 dark:text-brownish-100">
+      {{ fileSize || '-' }}
+    </div>
   </router-link>
 </template>

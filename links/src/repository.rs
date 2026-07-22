@@ -120,10 +120,36 @@ impl<'ctx> Repository<'ctx> {
 
     /// Get all the links for a user.
     /// This will not include expired links.
-    pub(crate) async fn links(&self, user_id: Uuid, with_expired: bool) -> AppResult<Vec<AppLink>> {
+    ///
+    /// `compact` leaves `links.encrypted_thumbnail` in the database and
+    /// reports only whether one exists — a page of image links otherwise
+    /// reads megabytes of base64 the caller discards; clients fetch the
+    /// blob per link from the metadata route instead.
+    pub(crate) async fn links(
+        &self,
+        user_id: Uuid,
+        with_expired: bool,
+        compact: bool,
+    ) -> AppResult<Vec<AppLink>> {
         let mut selector = links::Entity::find().select_only();
 
-        entity::join::add_columns_with_prefix::<_, links::Entity>(&mut selector, "link");
+        match compact {
+            true => entity::join::add_columns_with_prefix_nulling::<_, links::Entity>(
+                &mut selector,
+                "link",
+                &["encrypted_thumbnail"],
+            ),
+            false => {
+                entity::join::add_columns_with_prefix::<_, links::Entity>(&mut selector, "link")
+            }
+        }
+
+        entity::join::add_not_null_flag::<_, links::Entity>(
+            &mut selector,
+            links::Column::EncryptedThumbnail,
+            "has_thumbnail",
+        );
+
         entity::join::add_columns_with_prefix::<_, users::Entity>(&mut selector, "user");
         entity::join::add_columns_with_prefix::<_, files::Entity>(&mut selector, "file");
 

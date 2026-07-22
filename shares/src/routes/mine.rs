@@ -28,6 +28,7 @@ pub(crate) async fn mine(
         None,
         query.resolved_limit(),
         query.resolved_offset(),
+        query.compact.unwrap_or(false),
     )
     .await?;
 
@@ -60,6 +61,7 @@ pub(crate) async fn mine_by(
         Some(sender_id),
         query.resolved_limit(),
         query.resolved_offset(),
+        query.compact.unwrap_or(false),
     )
     .await?;
 

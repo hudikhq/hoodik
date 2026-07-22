@@ -64,7 +64,17 @@ export interface EncryptedAppLink {
   encrypted_name: string
   encrypted_link_key: string
   encrypted_file_key?: string
+
+  /**
+   * Only present on single-link metadata responses. The owner's link
+   * listing clears it and sets `has_thumbnail` — the blob comes from
+   * `GET /api/links/{id}/metadata` on demand.
+   */
   encrypted_thumbnail?: string
+
+  /** Whether the link carries a thumbnail, accurate even in listings. */
+  has_thumbnail?: boolean
+
   created_at: number
   file_modified_at: number
 

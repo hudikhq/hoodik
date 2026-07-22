@@ -1,5 +1,6 @@
 import * as meta from './meta'
 import * as queue from '../queue'
+import * as thumbnailCache from './thumbnail-cache'
 import * as upload from './upload'
 import * as download from './download'
 import { emitFileTreeChange } from './events'
@@ -428,7 +429,7 @@ export const store = defineStore('files', () => {
       active_version: 1,
       encrypted_key: row.encrypted_key,
       encrypted_name: row.encrypted_name,
-      encrypted_thumbnail: row.encrypted_thumbnail ?? undefined,
+      has_thumbnail: row.has_thumbnail ?? false,
       cipher: row.cipher,
       share_role: row.share_role,
       shared_by_email: row.shared_by_email ?? row.owner_email,
@@ -441,8 +442,7 @@ export const store = defineStore('files', () => {
         {
           cipher: row.cipher,
           encrypted_key: row.encrypted_key,
-          encrypted_name: row.encrypted_name,
-          encrypted_thumbnail: row.encrypted_thumbnail ?? undefined
+          encrypted_name: row.encrypted_name
         },
         kp.wrappingPrivate || (kp.input as string)
       )
@@ -522,6 +522,58 @@ export const store = defineStore('files', () => {
     return {
       ...item,
       ...decryptedParts
+    }
+  }
+
+  /**
+   * In-flight thumbnail fetches keyed by file id. The same file can mount
+   * in the file browser and the sidebar tree in one tick — the map
+   * collapses their fetches into a single request.
+   */
+  const thumbnailFetches = new Map<string, Promise<string | undefined>>()
+
+  /**
+   * Fetch and decrypt a file's thumbnail on demand. Listings request an
+   * `attributes` projection without the blob and only carry
+   * `has_thumbnail`; the ciphertext comes from the localStorage cache
+   * when a previous session already fetched it, or from the thumbnail
+   * route otherwise. The decrypted result is cached back onto the store
+   * row so navigation, previews and link creation reuse it without
+   * another decrypt.
+   */
+  async function loadThumbnail(file: AppFile): Promise<string | undefined> {
+    if (file.thumbnail) return file.thumbnail
+
+    const cached = getItem(file.id)
+    if (cached?.thumbnail) return cached.thumbnail
+
+    if (!file.has_thumbnail || !file.key) return undefined
+
+    const pending = thumbnailFetches.get(file.id)
+    if (pending) return pending
+
+    const key = file.key
+    const fetched = (async () => {
+      const cachedCiphertext = thumbnailCache.get(file.id, file.active_version)
+      const encrypted = cachedCiphertext ?? (await meta.thumbnail(file.id))
+      if (!encrypted) return undefined
+
+      const thumbnail = await cryptfns.cipher.decryptString(file.cipher, encrypted, key)
+      if (!cachedCiphertext) {
+        thumbnailCache.put(file.id, file.active_version, encrypted)
+      }
+
+      const existing = getItem(file.id)
+      if (existing) updateItem({ ...existing, thumbnail })
+
+      return thumbnail
+    })()
+
+    thumbnailFetches.set(file.id, fetched)
+    try {
+      return await fetched
+    } finally {
+      thumbnailFetches.delete(file.id)
     }
   }
 
@@ -809,6 +861,7 @@ export const store = defineStore('files', () => {
     items,
     loading,
     loadStats,
+    loadThumbnail,
     metadata,
     moveAll,
     parameters,

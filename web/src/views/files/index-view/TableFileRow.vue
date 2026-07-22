@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ActionsDropdown from '@/components/files/browser/ActionsDropdown.vue'
+import FileThumbnail from '@/components/files/FileThumbnail.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import TruncatedSpan from '@/components/ui/TruncatedSpan.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -284,13 +285,7 @@ const drop = (e: DragEvent) => {
       :title="fileName"
       @click="click"
     >
-      <img
-        name="thumbnail"
-        v-if="file.thumbnail"
-        :src="file.thumbnail"
-        :alt="fileName"
-        class="w-6 h-6 mr-2 rounded-md"
-      />
+      <FileThumbnail :file="file" img-class="w-6 h-6 mr-2 rounded-md" />
 
       <BaseIcon
         v-if="file.id === SHARED_WITH_ME_DIR_ID"

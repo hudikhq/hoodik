@@ -174,10 +174,20 @@ export async function forkFile(
 
   // Re-encrypt the source's plaintext name + thumbnail under the new
   // key so the server's encrypted_metadata column carries the right
-  // ciphertext for the forked file.
+  // ciphertext for the forked file. Listings no longer carry thumbnail
+  // blobs, so pull it from the thumbnail route when the row only
+  // advertises one — otherwise the fork would silently lose it.
+  let sourceThumbnail = source.thumbnail
+  if (!sourceThumbnail && source.has_thumbnail) {
+    const encrypted = await meta.thumbnail(source.id)
+    if (encrypted) {
+      sourceThumbnail = await cryptfns.cipher.decryptString(cipher, encrypted, sourceKey)
+    }
+  }
+
   const encryptedName = await cryptfns.cipher.encryptString(cipher, source.name, newKey)
-  const encryptedThumbnail = source.thumbnail
-    ? await cryptfns.cipher.encryptString(cipher, source.thumbnail, newKey)
+  const encryptedThumbnail = sourceThumbnail
+    ? await cryptfns.cipher.encryptString(cipher, sourceThumbnail, newKey)
     : undefined
 
   const newFileId = uuidv4()

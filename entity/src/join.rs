@@ -1,5 +1,5 @@
 use sea_orm::prelude::*;
-use sea_orm::sea_query::{Alias, IntoIden, SelectExpr, SelectStatement};
+use sea_orm::sea_query::{Alias, Expr, IntoIden, SelectExpr, SelectStatement};
 use sea_orm::{EntityTrait, QueryTrait};
 
 /// Helper found in this discussion https://github.com/SeaQL/sea-orm/discussions/1502
@@ -67,13 +67,58 @@ pub fn add_columns_with_prefix<S: QueryTrait<QueryStatement = SelectStatement>, 
     selector: &mut S,
     prefix: &'static str,
 ) {
+    add_columns_with_prefix_nulling::<S, T>(selector, prefix, &[])
+}
+
+/// Same as [`add_columns_with_prefix`], but the `nulled` columns are
+/// selected as a literal `NULL` instead of their stored value.
+///
+/// The projection still carries every alias the row's `FromQueryResult`
+/// expects, so a large blob column can be dropped from a listing without
+/// the database ever reading it off the page. Pair it with a computed
+/// flag (`<column> IS NOT NULL`) when the caller still needs to know
+/// whether a value was there.
+///
+/// The NULL is cast to `TEXT` because Postgres types a bare NULL literal
+/// as `unknown`, which the row decoder rejects. Only string-typed columns
+/// may be nulled through this helper.
+pub fn add_columns_with_prefix_nulling<
+    S: QueryTrait<QueryStatement = SelectStatement>,
+    T: EntityTrait,
+>(
+    selector: &mut S,
+    prefix: &'static str,
+    nulled: &[&str],
+) {
     for col in <T::Column as sea_orm::entity::Iterable>::iter() {
-        let alias = format!("{}{}", prefix, col.to_string());
+        let name = col.to_string();
+        let alias = format!("{}{}", prefix, name);
+
+        let expr = match nulled.contains(&name.as_str()) {
+            true => Expr::cust("CAST(NULL AS TEXT)"),
+            false => col.select_as(col.into_expr()),
+        };
 
         selector.query().expr(SelectExpr {
-            expr: col.select_as(col.into_expr()),
+            expr,
             alias: Some(Alias::new(&alias).into_iden()),
             window: None,
         });
     }
+}
+
+/// Append a computed `<column> IS NOT NULL` boolean under `alias`.
+///
+/// Lets a projection report that a value exists without selecting it —
+/// the companion to nulling a blob column out of a listing.
+pub fn add_not_null_flag<S: QueryTrait<QueryStatement = SelectStatement>, T: EntityTrait>(
+    selector: &mut S,
+    column: T::Column,
+    alias: &str,
+) {
+    selector.query().expr(SelectExpr {
+        expr: Expr::col((T::default(), column)).is_not_null(),
+        alias: Some(Alias::new(alias).into_iden()),
+        window: None,
+    });
 }

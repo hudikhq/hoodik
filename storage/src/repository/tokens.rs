@@ -163,13 +163,15 @@ where
 
     /// Search files based on given tokens and sort by the token weight
     pub(crate) async fn search(&self, search: Search) -> AppResult<Vec<AppFile>> {
-        let (file_id, search, tokens, limit, skip, editable) = search.into_tuple();
+        let compact = search.compact.unwrap_or(false);
+        let (file_id, hash, tokens, limit, skip, editable) = search.into_tuple();
 
         let user_id = self.user_id;
-        let mut query = self
-            .repository
-            .selector(user_id, false)
-            .inner_join(tokens::Entity);
+        let selector = match compact {
+            true => self.repository.compact_selector(user_id, false),
+            false => self.repository.selector(user_id, false),
+        };
+        let mut query = selector.inner_join(tokens::Entity);
 
         if let Some(file_id) = file_id {
             query = query.filter(files::Column::FileId.eq(file_id));
@@ -179,12 +181,24 @@ where
             query = query.filter(files::Column::Editable.eq(editable));
         }
 
-        // `files.id` is a `uuid` column; Postgres refuses to compare it
-        // against a `text` argument and SQLite happily coerces. Only
-        // include the id-equality predicate when the search term parses
-        // as a Uuid — otherwise drop it. The hash columns are `varchar`
-        // and compare against arbitrary strings on both backends.
-        let search_uuid = Uuid::parse_str(&search).ok();
+        let mut filter = tokens::Column::Hash.is_in(
+            tokens
+                .iter()
+                .map(|t| t.token.clone())
+                .collect::<Vec<String>>(),
+        );
+
+        // A query that is itself a content digest matches the file whose
+        // bytes hash to it. Only added when the client sent one, so an
+        // ordinary search never compares against these columns.
+        if let Some(hash) = hash {
+            filter = files::Column::Md5
+                .eq(&hash)
+                .or(files::Column::Sha1.eq(&hash))
+                .or(files::Column::Sha256.eq(&hash))
+                .or(files::Column::Blake2b.eq(&hash))
+                .or(filter);
+        }
 
         // Postgres only infers functional dependency from the GROUP BY
         // column to columns of the *same* table. The selector projects
@@ -194,22 +208,6 @@ where
         // the extra columns. `links.id` is nullable under the left join,
         // which is fine — NULL forms its own group in PG and rows without
         // a matching link still aggregate correctly.
-        let mut filter = files::Column::Md5
-            .eq(&search)
-            .or(files::Column::Sha1.eq(&search))
-            .or(files::Column::Sha256.eq(&search))
-            .or(files::Column::Blake2b.eq(&search))
-            .or(tokens::Column::Hash.is_in(
-                tokens
-                    .iter()
-                    .map(|t| t.token.clone())
-                    .collect::<Vec<String>>(),
-            ));
-
-        if let Some(uuid) = search_uuid {
-            filter = files::Column::Id.eq(uuid).or(filter);
-        }
-
         let mut query = query
             .filter(filter)
             .group_by(files::Column::Id)

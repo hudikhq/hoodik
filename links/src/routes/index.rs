@@ -21,9 +21,10 @@ pub(crate) async fn index(
     let repository = Repository::new(&context);
     let data = data.into_inner().validate()?;
     let with_expired = data.with_expired.unwrap_or(false);
+    let compact = data.compact.unwrap_or(false);
 
     let response = repository
-        .links(authenticated.user.id, with_expired)
+        .links(authenticated.user.id, with_expired, compact)
         .await?;
 
     Ok(HttpResponse::Ok().json(response))

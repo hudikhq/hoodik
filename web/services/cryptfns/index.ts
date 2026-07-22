@@ -33,7 +33,7 @@ export {
 export function stringToHashedTokens(s: string): string[] {
   const output = wasm.text_into_hashed_tokens(s) || ''
 
-  return output.split(';')
+  return output.split(';').filter((token) => token !== '')
 }
 
 export interface LoginNonce {

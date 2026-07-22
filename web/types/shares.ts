@@ -101,12 +101,11 @@ export interface IncomingShare {
   /** Encrypted filename — the recipient unwraps `encrypted_key` and
    *  decrypts this client-side to surface the plaintext name. */
   encrypted_name: string
-  /** Encrypted thumbnail when one was generated at upload time.
-   *  Decrypted with the same `encrypted_key` so the recipient's
-   *  Shared-with-me row renders a real preview thumbnail and the
-   *  double-click handler can route into `/p/{id}` instead of the
-   *  details modal. `null` for shares of files without thumbnails. */
-  encrypted_thumbnail?: string | null
+  /** Whether the file has a thumbnail (generated at upload time). The
+   *  listing never ships the blob — the recipient's row fetches it from
+   *  the storage thumbnail route (their `user_files` row grants access)
+   *  and decrypts with the same `encrypted_key`. */
+  has_thumbnail?: boolean
   /** Cipher used for `encrypted_name` (and the file's chunks). */
   cipher: string
   /** File's `editable` flag; true for markdown notes that can be saved

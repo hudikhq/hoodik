@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { randomEmail, randomPassword, createUser } from './helpers/auth'
+import { randomEmail, randomPassword, createUser, logout, loginAsUser } from './helpers/auth'
 import path from 'path'
 
 const imageFixture = path.join(__dirname, 'fixtures', 'test-image.png')
@@ -9,6 +9,7 @@ async function setup(page: Parameters<typeof createUser>[0]) {
   const password = randomPassword()
   // createUser registers and leaves the user fully logged in at '/'
   await createUser(page, email, password)
+  return { email, password }
 }
 
 test.describe('Directories', () => {
@@ -36,7 +37,7 @@ test.describe('Directories', () => {
 
 test.describe('Upload', () => {
   test('can upload an image file and see the thumbnail', async ({ page }) => {
-    await setup(page)
+    const { email, password } = await setup(page)
 
     await page.setInputFiles('[name="upload-file-input"]', imageFixture)
 
@@ -44,6 +45,14 @@ test.describe('Upload', () => {
     await page.getByTestId('upload-active').waitFor({ state: 'hidden', timeout: 30_000 })
 
     // File row with thumbnail appears
+    await expect(page.getByTestId('file-row-test-image.png')).toBeVisible()
+    await expect(page.locator('img[name="thumbnail"][alt="test-image.png"]')).toBeVisible()
+
+    // A fresh session starts with an empty store and a listing that
+    // carries only `has_thumbnail` — the row fetches the blob from the
+    // thumbnail route and decrypts it lazily.
+    await logout(page)
+    await loginAsUser(page, email, password)
     await expect(page.getByTestId('file-row-test-image.png')).toBeVisible()
     await expect(page.locator('img[name="thumbnail"][alt="test-image.png"]')).toBeVisible()
   })

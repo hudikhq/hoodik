@@ -48,14 +48,22 @@ export interface Parameters extends Query {
   dirs_only?: boolean
   is_owner?: boolean
   editable?: boolean
+
+  /** Withhold thumbnail blobs; absent means full rows. */
+  compact?: boolean
 }
 
 export interface SearchQuery {
-  search: string
+  search_tokens_hashed: string[]
+  /** A content digest matched verbatim against the stored hash columns. */
+  hash?: string
   dir_id?: string
   limit?: number
   skip?: number
   editable?: boolean
+
+  /** Withhold thumbnail blobs; absent means full rows. */
+  compact?: boolean
 }
 
 export interface FileResponse {

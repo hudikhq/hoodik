@@ -158,6 +158,143 @@ async fn test_search_finds_shared_file_for_every_recipient_role_but_not_stranger
     let _ = context;
 }
 
+/// Current clients tokenize + hash the query on-device and POST only
+/// the hashes. The wire body must carry no plaintext, the server must
+/// find the file from the hashes alone, and a legacy `search` field
+/// must be dead weight whenever hashes are present — the plaintext
+/// tests above stay green as the old-client compatibility proof.
+#[actix_web::test]
+async fn test_search_with_client_hashed_tokens_carries_no_plaintext() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+
+    let file = create_searchable_file!(app, alice, "octopus-note");
+
+    let hashed: Vec<String> = into_hashed_tokens(SEARCH_WORD)
+        .expect("tokenize search word")
+        .into_iter()
+        .map(|t| format!("{}:{}", t.token, t.weight))
+        .collect();
+
+    let body = serde_json::json!({ "search_tokens_hashed": hashed });
+    assert!(
+        !serde_json::to_string(&body).unwrap().contains(SEARCH_WORD),
+        "hashed-search request body must not contain the plaintext term"
+    );
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage/search")
+        .cookie(alice.jwt.clone())
+        .set_json(&body)
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let hits: Vec<AppFile> =
+        serde_json::from_slice(&test::read_body(resp).await).expect("search response");
+    assert!(
+        hits.iter().any(|f| f.id == file.id),
+        "hashed tokens alone should find the file; got {:?}",
+        hits.iter().map(|f| f.id).collect::<Vec<_>>()
+    );
+}
+
+/// A decoy plaintext term naming the real file must be ignored whenever
+/// hashed tokens are present — proof the server no longer tokenizes the
+/// `search` field for current clients.
+#[actix_web::test]
+async fn test_plaintext_search_field_is_ignored_when_hashed_tokens_present() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+
+    let file = create_searchable_file!(app, alice, "octopus-note");
+
+    let miss_tokens: Vec<String> = into_hashed_tokens("xylophone")
+        .expect("tokenize decoy word")
+        .into_iter()
+        .map(|t| format!("{}:{}", t.token, t.weight))
+        .collect();
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage/search")
+        .cookie(alice.jwt.clone())
+        .set_json(serde_json::json!({
+            "search": SEARCH_WORD,
+            "search_tokens_hashed": miss_tokens,
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let hits: Vec<AppFile> =
+        serde_json::from_slice(&test::read_body(resp).await).expect("search response");
+    assert!(
+        hits.iter().all(|f| f.id != file.id),
+        "plaintext decoy must not resolve to a hit when hashed tokens are present"
+    );
+}
+
+/// Pasting a file's content digest finds it without any tokens. The
+/// four hash columns are populated at upload and surfaced with copy
+/// buttons in the file details panel, so this is a reachable flow.
+#[actix_web::test]
+async fn test_search_by_content_hash_matches_hash_columns() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+
+    let file = create_searchable_file!(app, alice, "octopus-note");
+
+    // `make_create_file` stores "sha256" in the sha256 column.
+    let req = test::TestRequest::post()
+        .uri("/api/storage/search")
+        .cookie(alice.jwt.clone())
+        .set_json(serde_json::json!({
+            "search_tokens_hashed": [],
+            "hash": "sha256",
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let hits: Vec<AppFile> =
+        serde_json::from_slice(&test::read_body(resp).await).expect("search response");
+    assert!(
+        hits.iter().any(|f| f.id == file.id),
+        "content-hash lookup should find the file; got {:?}",
+        hits.iter().map(|f| f.id).collect::<Vec<_>>()
+    );
+}
+
+/// A search that carries neither tokens nor a hash must not match rows.
+/// Guards the absent-hash path against degrading into an empty-string
+/// comparison, which would match any row with an empty hash column.
+#[actix_web::test]
+async fn test_search_without_tokens_or_hash_matches_nothing() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+
+    let file = create_searchable_file!(app, alice, "octopus-note");
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage/search")
+        .cookie(alice.jwt.clone())
+        .set_json(serde_json::json!({ "search_tokens_hashed": [] }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let hits: Vec<AppFile> =
+        serde_json::from_slice(&test::read_body(resp).await).expect("search response");
+    assert!(
+        hits.iter().all(|f| f.id != file.id),
+        "empty search must not match anything"
+    );
+}
+
 /// After a revoke, the recipient's `user_files` row is gone and the
 /// search join can no longer reach the file from their side. The
 /// owner keeps finding it. This isolates the access predicate from

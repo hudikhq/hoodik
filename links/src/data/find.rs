@@ -4,6 +4,10 @@ use validr::*;
 #[derive(Clone, Debug, Deserialize)]
 pub struct Find {
     pub with_expired: Option<bool>,
+    /// Withhold `encrypted_thumbnail` from the rows and report only
+    /// `has_thumbnail`. Absent means full rows — the compatible default
+    /// for older clients.
+    pub compact: Option<bool>,
 }
 
 impl Validation for Find {

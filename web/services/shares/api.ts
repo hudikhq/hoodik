@@ -155,7 +155,8 @@ export async function getSharesMine(
 ): Promise<IncomingSharePage> {
   const response = await Api.get<IncomingSharePage>(`/api/shares/mine`, {
     limit,
-    offset
+    offset,
+    compact: true
   })
   if (!response.body) {
     throw new Error('Empty response from /api/shares/mine')
@@ -174,7 +175,8 @@ export async function getSharesMineBy(
 ): Promise<IncomingSharePage> {
   const response = await Api.get<IncomingSharePage>(`/api/shares/mine/by/${senderId}`, {
     limit,
-    offset
+    offset,
+    compact: true
   })
   if (!response.body) {
     throw new Error('Empty response from /api/shares/mine/by/{user_id}')

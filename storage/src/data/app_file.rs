@@ -10,7 +10,16 @@ pub struct AppFile {
     pub is_owner: bool,
     pub encrypted_key: String,
     pub encrypted_name: String,
+    /// Thumbnail encrypted with the file key. Sent by default; listings
+    /// asked for `compact` leave it in the database and clients fetch the
+    /// blob per file from the thumbnail route — a directory of images
+    /// otherwise ships megabytes of base64 in one response.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub encrypted_thumbnail: Option<String>,
+    /// Whether a thumbnail exists for this file, computed in SQL so it
+    /// stays accurate when `compact` withholds the blob itself.
+    #[serde(default)]
+    pub has_thumbnail: bool,
     pub name_hash: String,
     pub md5: Option<String>,
     pub sha1: Option<String>,
@@ -152,6 +161,11 @@ impl FromQueryResult for AppFile {
             sha256: file.sha256,
             blake2b: file.blake2b,
             encrypted_name: file.encrypted_name,
+            // Computed in SQL by the repository selectors; the fallback
+            // covers rows built by a query that doesn't project it.
+            has_thumbnail: res
+                .try_get::<bool>("", "has_thumbnail")
+                .unwrap_or_else(|_| file.encrypted_thumbnail.is_some()),
             encrypted_thumbnail: file.encrypted_thumbnail,
             cipher: file.cipher,
             editable: file.editable,

@@ -1,9 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import Api from '!/api'
+import * as cryptfns from '!/cryptfns'
 import * as logger from '!/logger'
 import * as meta from './meta'
 import * as crypto from './crypto'
+import * as thumbnailCache from '!/storage/thumbnail-cache'
 import type { AppLink, CreateLink, EncryptedAppLink, KeyPair, AppFile } from 'types'
 
 export { meta, crypto }
@@ -212,6 +214,61 @@ export const store = defineStore('links', () => {
   }
 
   /**
+   * In-flight thumbnail fetches keyed by link id, collapsing concurrent
+   * requests from rows that mount in the same tick.
+   */
+  const thumbnailFetches = new Map<string, Promise<string | undefined>>()
+
+  /**
+   * Fetch and decrypt a link's thumbnail on demand. The owner's listing
+   * projects the blob away and only advertises `has_thumbnail`; the
+   * ciphertext comes from the localStorage cache when a previous session
+   * already fetched it, or from the public metadata route otherwise, and
+   * decrypts with the link key already unwrapped on the row. Link
+   * thumbnails are immutable snapshots, so cache entries never go stale.
+   */
+  async function loadThumbnail(link: AppLink): Promise<string | undefined> {
+    if (link.thumbnail) return link.thumbnail
+
+    const cached = getItem(link.id)
+    if (cached?.thumbnail) return cached.thumbnail
+
+    if (!link.has_thumbnail || !link.link_key) return undefined
+
+    const pending = thumbnailFetches.get(link.id)
+    if (pending) return pending
+
+    const fetched = (async () => {
+      const cacheKey = `link:${link.id}`
+      const cachedCiphertext = thumbnailCache.get(cacheKey)
+      const encrypted =
+        cachedCiphertext ?? (await meta.encryptedMetadata(link.id)).encrypted_thumbnail
+      if (!encrypted) return undefined
+
+      const thumbnail = await cryptfns.cipher.decryptString(
+        crypto.LINK_CIPHER,
+        encrypted,
+        link.link_key
+      )
+      if (!cachedCiphertext) {
+        thumbnailCache.put(cacheKey, undefined, encrypted)
+      }
+
+      const existing = getItem(link.id)
+      if (existing) updateItem({ ...existing, thumbnail })
+
+      return thumbnail
+    })()
+
+    thumbnailFetches.set(link.id, fetched)
+    try {
+      return await fetched
+    } finally {
+      thumbnailFetches.delete(link.id)
+    }
+  }
+
+  /**
    * Get link from the store (as its owner)
    */
   async function get(id: string, key: string): Promise<AppLink> {
@@ -257,6 +314,7 @@ export const store = defineStore('links', () => {
     get,
     getItem,
     hasItem,
+    loadThumbnail,
     remove,
     removeAll,
     removeItem,

@@ -23,6 +23,84 @@
   <meta name="description" content="Hoodik - End 2 End Encrypted File Storage">
   <link rel="preconnect" href="https://fonts.bunny.net">
   <link href="https://fonts.bunny.net/css?family=inter:300,400,500,600,700&display=swap" rel="stylesheet">
+
+  <!--
+    Boot splash. Lives inside #app, so Vue discards it the moment it mounts —
+    no teardown code and nothing to keep in sync. Styles are inline because
+    the stylesheet is part of the bundle this is covering for, and the theme
+    class isn't on <html> until the app runs, so it follows the OS instead.
+
+    Nothing is drawn for the first second. A boot that beats it should look
+    instant rather than blink a spinner on and off, so on a healthy load this
+    markup is never seen at all. The hint follows only if the bundle still
+    hasn't arrived after twelve seconds — the difference between "slow" and
+    "this is broken".
+  -->
+  <style>
+    #boot {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.25rem;
+      background: #f5f5f4;
+      color: #555555;
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      opacity: 0;
+      animation: boot-in 400ms ease-out 1s forwards;
+    }
+
+    #boot-spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      opacity: 0.4;
+      animation: boot-spin 700ms linear infinite;
+    }
+
+    #boot-hint {
+      max-width: 22rem;
+      padding: 0 1.5rem;
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      text-align: center;
+      opacity: 0;
+      animation: boot-in 300ms ease-out 12s forwards;
+    }
+
+    @keyframes boot-in {
+      to { opacity: 1; }
+    }
+
+    @keyframes boot-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      #boot {
+        background: #1E1E1E;
+        color: #898989;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      /* Drop the spin and the fade, but keep the delays — those are timing
+         rather than motion, and they're what stops this appearing at all on
+         a healthy boot. */
+      #boot,
+      #boot-hint {
+        animation-duration: 1ms;
+      }
+
+      #boot-spinner {
+        animation: none;
+      }
+    }
+  </style>
 </head>
 
 <body>
@@ -32,7 +110,15 @@
       does not work without Javascript enabled. Please enable it to continue.
     </strong>
   </noscript>
-  <div id="app"></div>
+  <div id="app">
+    <div id="boot">
+      <div id="boot-spinner"></div>
+      <p id="boot-hint">
+        Still starting up. If this doesn't clear, the app bundle failed to
+        load — check the browser console and that the server is reachable.
+      </p>
+    </div>
+  </div>
   <script type="module" src="/src/main.ts"></script>
   <!-- built files will be auto injected -->
 </body>

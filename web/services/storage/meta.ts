@@ -257,9 +257,24 @@ export async function find(parameters: Parameters): Promise<FileResponse> {
     return { children: [], parents: [] }
   }
 
-  const response = await Api.get<FileResponse>(`/api/storage`, parameters)
+  const response = await Api.get<FileResponse>(`/api/storage`, {
+    ...parameters,
+    compact: true
+  })
 
   return response.body || { children: [], parents: [] }
+}
+
+/**
+ * Fetch a single file's encrypted thumbnail. Listings only advertise
+ * `has_thumbnail`; the blob itself comes from here, one file at a time.
+ */
+export async function thumbnail(fileId: string): Promise<string | undefined> {
+  const response = await Api.get<{ encrypted_thumbnail?: string }>(
+    `/api/storage/${fileId}/thumbnail`
+  )
+
+  return response.body?.encrypted_thumbnail ?? undefined
 }
 
 /**
@@ -271,19 +286,43 @@ export async function stats(): Promise<StorageStatsResponse> {
   return response.body || { stats: [], used_space: 0, quota: undefined }
 }
 
+/** Digest lengths in hex characters: MD5, SHA1, SHA256, BLAKE2b. */
+const HEX_HASH_LENGTHS = [32, 40, 64, 128]
+
 /**
- * Get file or directory metadata
+ * A query that is itself a content digest is sent verbatim so the server can
+ * match it against the stored hash columns — the lookup behind the copy
+ * buttons in the file details panel, and the way to check whether a local
+ * file is already here. The digest is computed from the file's own bytes on
+ * the client and the server already stores all four, so it carries nothing
+ * the server does not have. Anything else stays on the client.
+ */
+function hashLookup(input: string): string | undefined {
+  const candidate = input.trim()
+
+  return HEX_HASH_LENGTHS.includes(candidate.length) && /^[0-9a-f]+$/i.test(candidate)
+    ? candidate
+    : undefined
+}
+
+/**
+ * Full text search. The query is tokenized and hashed here so the plaintext
+ * term never leaves the browser — the server matches the hashes against the
+ * token index built the same way at upload time (which lowercases the name,
+ * hence the lowercasing before tokenizing).
  */
 export async function search(
   input: string,
   options?: { dir_id?: string; editable?: boolean; limit?: number }
 ): Promise<EncryptedAppFile[]> {
-  const body = {
-    search: input,
+  const body: SearchQuery = {
+    search_tokens_hashed: cryptfns.stringToHashedTokens(input.toLowerCase()),
+    hash: hashLookup(input),
     dir_id: options?.dir_id,
     editable: options?.editable,
     limit: options?.limit ?? 10,
-    skip: 0
+    skip: 0,
+    compact: true
   }
 
   const response = await Api.post<SearchQuery, EncryptedAppFile[]>(
