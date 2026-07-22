@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AppFile } from 'types'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
+import FileThumbnail from '@/components/files/FileThumbnail.vue'
 import { mdiFolderOutline, mdiFileOutline } from '@mdi/js'
 import { computed } from 'vue'
 import { formatSize } from '!'
@@ -53,20 +54,16 @@ const fileSize = computed(() => {
     @click="emits('clicked', props.file)"
   >
     <div class="w-1/12 pt-2">
-      <img
-        v-if="props.file.thumbnail"
-        :src="props.file.thumbnail"
-        :alt="name"
-        class="w-10 h-10 rounded-md"
-      />
-      <BaseIcon
-        v-else-if="props.file.mime === 'dir'"
-        :path="mdiFolderOutline"
-        :size="28"
-        w="w-8"
-        h="h-8"
-      />
-      <BaseIcon v-else :path="mdiFileOutline" :size="28" w="w-8" h="h-8" />
+      <FileThumbnail :file="props.file" img-class="w-10 h-10 rounded-md">
+        <BaseIcon
+          v-if="props.file.mime === 'dir'"
+          :path="mdiFolderOutline"
+          :size="28"
+          w="w-8"
+          h="h-8"
+        />
+        <BaseIcon v-else :path="mdiFileOutline" :size="28" w="w-8" h="h-8" />
+      </FileThumbnail>
     </div>
     <div class="w-7/12 text-left">
       <div class="w-full text-left truncate">

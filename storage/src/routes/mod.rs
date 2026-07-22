@@ -16,6 +16,7 @@ pub mod replace_content;
 pub mod search;
 pub mod set_editable;
 pub mod stats;
+pub mod thumbnail;
 pub mod update_hashes;
 pub mod upload;
 pub(crate) mod upload_tar;
@@ -38,6 +39,7 @@ pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
     cfg.service(search::search);
     cfg.service(set_editable::set_editable);
     cfg.service(stats::stats);
+    cfg.service(thumbnail::thumbnail);
     cfg.service(update_hashes::update_hashes);
     cfg.service(upload::upload);
     cfg.service(versions::list);

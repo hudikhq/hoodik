@@ -21,10 +21,18 @@ pub(crate) async fn index(
     let repository = Repository::new(&context);
     let data = data.into_inner().validate()?;
     let with_expired = data.with_expired.unwrap_or(false);
+    let attributes = util::attributes::parse(data.attributes.as_deref());
 
     let response = repository
         .links(authenticated.user.id, with_expired)
         .await?;
 
-    Ok(HttpResponse::Ok().json(response))
+    let Some(keys) = attributes else {
+        return Ok(HttpResponse::Ok().json(response));
+    };
+
+    let mut value = serde_json::to_value(&response)?;
+    util::attributes::project_rows(&mut value, &keys);
+
+    Ok(HttpResponse::Ok().json(value))
 }

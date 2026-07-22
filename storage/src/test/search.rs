@@ -68,6 +68,7 @@ async fn create_files_and_try_searching() {
         skip: None,
         limit: None,
         editable: None,
+        attributes: None,
     };
 
     let mut results = repository.tokens(user.id).search(search).await.unwrap();
@@ -98,6 +99,7 @@ async fn create_files_and_try_searching_by_hash() {
         skip: None,
         limit: None,
         editable: None,
+        attributes: None,
     };
 
     let mut results = repository.tokens(user.id).search(search).await.unwrap();

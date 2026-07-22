@@ -21,6 +21,7 @@ bcrypt = { workspace = true }
 chrono = { workspace = true }
 qstring = { workspace = true }
 actix-web = { workspace = true }
+serde_json = { workspace = true }
 url = { workspace = true }
 
 error = { path = "../error" }

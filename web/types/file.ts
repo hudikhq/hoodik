@@ -133,6 +133,13 @@ export interface EncryptedAppFile extends AppFileEncryptedPart {
    * own.
    */
   shared_with_count?: number
+
+  /**
+   * Whether a thumbnail exists for this file. Listings carry only this
+   * flag; the `FileThumbnail` component fetches and decrypts the blob
+   * lazily per file.
+   */
+  has_thumbnail?: boolean
 }
 
 /**
@@ -167,6 +174,12 @@ export interface AppFileEncryptedPart {
   encrypted_key: string
 
   encrypted_name: string
+
+  /**
+   * Only present on single-file metadata responses. Listings clear it
+   * and set `has_thumbnail` instead — the blob comes from
+   * `GET /api/storage/{id}/thumbnail` on demand.
+   */
   encrypted_thumbnail?: string
 
   /** Cipher used for both chunk payloads and metadata (name, thumbnail). */

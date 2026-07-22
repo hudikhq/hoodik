@@ -21,6 +21,7 @@ function isFilePreviewable(item: AppFile): boolean {
     !!item.size &&
     item.size > 0 &&
     (item.thumbnail !== undefined ||
+      item.has_thumbnail === true ||
       item.mime === 'application/pdf' ||
       item.mime === 'text/markdown' ||
       item.mime === 'text/x-markdown' ||
@@ -47,7 +48,9 @@ function isLinkPreviewable(item: AppLink): boolean {
   return (
     !!item.file_size &&
     item.file_size > 0 &&
-    (item.thumbnail !== undefined || item.file_mime === 'application/pdf')
+    (item.thumbnail !== undefined ||
+      item.has_thumbnail === true ||
+      item.file_mime === 'application/pdf')
   )
 }
 

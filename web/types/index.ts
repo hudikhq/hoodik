@@ -48,6 +48,9 @@ export interface Parameters extends Query {
   dirs_only?: boolean
   is_owner?: boolean
   editable?: boolean
+
+  /** Comma-separated projection of row fields; absent means full rows. */
+  attributes?: string
 }
 
 export interface SearchQuery {
@@ -56,6 +59,9 @@ export interface SearchQuery {
   limit?: number
   skip?: number
   editable?: boolean
+
+  /** Comma-separated projection of row fields; absent means full rows. */
+  attributes?: string
 }
 
 export interface FileResponse {

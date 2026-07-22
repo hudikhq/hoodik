@@ -144,6 +144,9 @@ pub(crate) async fn incoming_for_recipient<C: ConnectionTrait>(
                 mime: meta.map(|m| m.mime.clone()).unwrap_or_default(),
                 encrypted_name: meta.map(|m| m.encrypted_name.clone()).unwrap_or_default(),
                 encrypted_thumbnail: meta.and_then(|m| m.encrypted_thumbnail.clone()),
+                has_thumbnail: meta
+                    .map(|m| m.encrypted_thumbnail.is_some())
+                    .unwrap_or(false),
                 cipher: meta.map(|m| m.cipher.clone()).unwrap_or_default(),
                 editable: meta.map(|m| m.editable).unwrap_or(false),
                 size: meta.and_then(|m| m.size),

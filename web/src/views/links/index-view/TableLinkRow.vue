@@ -4,9 +4,10 @@ import TruncatedSpan from '@/components/ui/TruncatedSpan.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { formatPrettyDate, formatSize } from '!'
+import { store as linksStore } from '!/links'
 import { mdiOpenInNew, mdiDownload } from '@mdi/js'
 import type { AppLink } from 'types'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps<{
   link: AppLink
@@ -31,6 +32,29 @@ const emits = defineEmits<{
 const selectOne = (value: boolean) => {
   emits('select-one', value, props.link)
 }
+
+const Links = linksStore()
+const thumbnail = ref<string | undefined>(props.link.thumbnail)
+const thumbnailLoading = ref(false)
+
+watch(
+  () => [props.link.id, props.link.thumbnail, props.link.has_thumbnail],
+  async () => {
+    thumbnail.value = props.link.thumbnail
+
+    if (thumbnail.value || !props.link.has_thumbnail) return
+
+    thumbnailLoading.value = true
+    try {
+      thumbnail.value = await Links.loadThumbnail(props.link)
+    } catch {
+      // A missing thumbnail is cosmetic — the row just stays icon-less.
+    } finally {
+      thumbnailLoading.value = false
+    }
+  },
+  { immediate: true }
+)
 
 const checked = computed({
   get: () => !!props.checkedRows.find((item) => item.id === props.link.id),
@@ -133,10 +157,15 @@ const singleClick = () => {
     >
       <img
         name="thumbnail"
-        v-if="link.thumbnail"
-        :src="link.thumbnail"
+        v-if="thumbnail"
+        :src="thumbnail"
         :alt="linkName"
         class="w-6 h-6 mr-2 rounded-md"
+      />
+      <span
+        v-else-if="thumbnailLoading"
+        name="thumbnail-placeholder"
+        class="inline-block w-6 h-6 mr-2 animate-pulse bg-brownish-100 dark:bg-brownish-700 rounded-md"
       />
 
       <TruncatedSpan :text="linkName" />

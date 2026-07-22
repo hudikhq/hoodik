@@ -1,16 +1,47 @@
 import * as cryptfns from '!/cryptfns'
 import * as crypto from './crypto'
+import * as storageMeta from '!/storage/meta'
 import Api from '!/api'
 import { CHUNK_SIZE_BYTES } from '!/constants'
 
 import type { AppLink, CreateLink, EncryptedAppLink, KeyPair, AppFile } from 'types'
 
 /**
+ * Every listing field the links page consumes, minus
+ * `encrypted_thumbnail` — thumbnails load lazily from the metadata
+ * route. Older servers ignore the projection and ship full rows, which
+ * also works (the inline blob decrypts eagerly like before).
+ */
+export const LISTING_ATTRIBUTES = [
+  'id',
+  'file_id',
+  'owner_id',
+  'owner_email',
+  'owner_pubkey',
+  'owner_key_type',
+  'file_size',
+  'file_mime',
+  'signature',
+  'downloads',
+  'encrypted_name',
+  'encrypted_link_key',
+  'encrypted_file_key',
+  'has_thumbnail',
+  'created_at',
+  'file_modified_at',
+  'file_cipher',
+  'file_active_version',
+  'file_editable',
+  'expires_at'
+].join(',')
+
+/**
  * Load all the shared links for the user.
  */
 export async function all(): Promise<EncryptedAppLink[]> {
   const response = await Api.get<EncryptedAppLink[]>(`/api/links`, {
-    with_expired: 'true'
+    with_expired: 'true',
+    attributes: LISTING_ATTRIBUTES
   })
 
   if (!Array.isArray(response.body)) {
@@ -123,10 +154,21 @@ export async function createLinkFromFile(file: AppFile, kp: KeyPair): Promise<Cr
     key
   )
 
+  // Listings no longer carry thumbnail blobs, so pull it from the
+  // thumbnail route when the row only advertises one — the link keeps
+  // its own copy encrypted under the link key.
+  let thumbnail = file.thumbnail
+  if (!thumbnail && file.has_thumbnail) {
+    const encrypted = await storageMeta.thumbnail(file.id)
+    if (encrypted) {
+      thumbnail = await cryptfns.cipher.decryptString(file.cipher, encrypted, file.key)
+    }
+  }
+
   let encrypted_thumbnail
 
-  if (file.thumbnail) {
-    encrypted_thumbnail = await cryptfns.cipher.encryptString(crypto.LINK_CIPHER, file.thumbnail, key)
+  if (thumbnail) {
+    encrypted_thumbnail = await cryptfns.cipher.encryptString(crypto.LINK_CIPHER, thumbnail, key)
   }
 
   return {

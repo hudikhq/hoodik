@@ -20,11 +20,16 @@ pub struct IncomingShare {
     /// with-me list; the server never sees the plaintext.
     pub encrypted_name: String,
     /// Encrypted thumbnail (when one was generated at upload time).
-    /// Recipients decrypt with the same `encrypted_key` to render the
-    /// row's preview thumbnail and to satisfy the previewable check
-    /// that gates the double-click into `/p/{id}`. `None` for shares
-    /// of files without thumbnails (folders, non-image leaves).
+    /// Recipients decrypt with the same `encrypted_key`. Sent by
+    /// default; clients that prefer lazy thumbnails project it away via
+    /// the `attributes` parameter and fetch the blob from the storage
+    /// thumbnail route (their `user_files` row grants access).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub encrypted_thumbnail: Option<String>,
+    /// Whether the file has a thumbnail, kept accurate when the
+    /// `attributes` projection omits `encrypted_thumbnail`.
+    #[serde(default)]
+    pub has_thumbnail: bool,
     /// Cipher the file was encrypted with (e.g. `"aegis128l"`). Needed
     /// because the recipient unwraps `encrypted_key` with their RSA
     /// private key and then decrypts the name with this cipher.
@@ -83,6 +88,7 @@ impl FromQueryResult for IncomingShare {
             file_id: row.file_id,
             mime,
             encrypted_name,
+            has_thumbnail: encrypted_thumbnail.is_some(),
             encrypted_thumbnail,
             cipher,
             editable,
@@ -122,4 +128,7 @@ pub struct IncomingSharePage {
 pub struct IncomingShareQuery {
     pub limit: Option<u64>,
     pub offset: Option<u64>,
+    /// Comma-separated whitelist of item fields to include. Absent
+    /// means full rows — the compatible default for older clients.
+    pub attributes: Option<String>,
 }

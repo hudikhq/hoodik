@@ -18,10 +18,12 @@ pub(crate) async fn index(
     data: web::Query<Query>,
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
+    let data = data.into_inner();
+    let attributes = util::attributes::parse(data.attributes.as_deref());
 
     let mut response = Repository::new(&context.db)
         .manage(claims.sub)
-        .find(data.into_inner())
+        .find(data)
         .await?;
 
     for file in response.children.iter_mut() {
@@ -33,5 +35,17 @@ pub(crate) async fn index(
         }
     }
 
-    Ok(HttpResponse::Ok().json(response))
+    let Some(keys) = attributes else {
+        return Ok(HttpResponse::Ok().json(response));
+    };
+
+    let mut value = serde_json::to_value(&response)?;
+    if let Some(rows) = value.get_mut("parents") {
+        util::attributes::project_rows(rows, &keys);
+    }
+    if let Some(rows) = value.get_mut("children") {
+        util::attributes::project_rows(rows, &keys);
+    }
+
+    Ok(HttpResponse::Ok().json(value))
 }

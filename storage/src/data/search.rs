@@ -10,6 +10,9 @@ pub struct Search {
     pub limit: Option<u64>,
     pub skip: Option<u64>,
     pub editable: Option<bool>,
+    /// Comma-separated whitelist of result fields to include. Absent
+    /// means full rows — the compatible default for older clients.
+    pub attributes: Option<String>,
 }
 
 impl Validation for Search {}

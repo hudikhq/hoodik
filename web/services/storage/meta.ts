@@ -21,6 +21,48 @@ import type {
 } from 'types'
 
 /**
+ * Every listing field this client consumes, minus `encrypted_thumbnail`
+ * — thumbnails load lazily through `thumbnail()`. Sent as the
+ * `attributes` projection on listing and search calls. Older servers
+ * ignore the parameter and ship full rows, which also works: the inline
+ * blob simply gets decrypted eagerly like before.
+ */
+export const LISTING_ATTRIBUTES = [
+  'id',
+  'user_id',
+  'is_owner',
+  'encrypted_key',
+  'encrypted_name',
+  'has_thumbnail',
+  'name_hash',
+  'md5',
+  'sha1',
+  'sha256',
+  'blake2b',
+  'cipher',
+  'editable',
+  'mime',
+  'size',
+  'chunks',
+  'chunks_stored',
+  'file_id',
+  'file_modified_at',
+  'created_at',
+  'finished_upload_at',
+  'active_version',
+  'pending_version',
+  'pending_chunks',
+  'pending_size',
+  'is_new',
+  'uploaded_chunks',
+  'link',
+  'members_signed_at',
+  'share_role',
+  'owner_email',
+  'shared_with_count'
+].join(',')
+
+/**
  * Take the unencrypted file or thumbnail and encrypt it with the file key.
  *
  * @param cipher  Cipher identifier (default: `cryptfns.cipher.defaultCipher()`).
@@ -257,9 +299,24 @@ export async function find(parameters: Parameters): Promise<FileResponse> {
     return { children: [], parents: [] }
   }
 
-  const response = await Api.get<FileResponse>(`/api/storage`, parameters)
+  const response = await Api.get<FileResponse>(`/api/storage`, {
+    ...parameters,
+    attributes: LISTING_ATTRIBUTES
+  })
 
   return response.body || { children: [], parents: [] }
+}
+
+/**
+ * Fetch a single file's encrypted thumbnail. Listings only advertise
+ * `has_thumbnail`; the blob itself comes from here, one file at a time.
+ */
+export async function thumbnail(fileId: string): Promise<string | undefined> {
+  const response = await Api.get<{ encrypted_thumbnail?: string }>(
+    `/api/storage/${fileId}/thumbnail`
+  )
+
+  return response.body?.encrypted_thumbnail ?? undefined
 }
 
 /**
@@ -283,7 +340,8 @@ export async function search(
     dir_id: options?.dir_id,
     editable: options?.editable,
     limit: options?.limit ?? 10,
-    skip: 0
+    skip: 0,
+    attributes: LISTING_ATTRIBUTES
   }
 
   const response = await Api.post<SearchQuery, EncryptedAppFile[]>(

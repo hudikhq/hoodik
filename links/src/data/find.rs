@@ -4,6 +4,9 @@ use validr::*;
 #[derive(Clone, Debug, Deserialize)]
 pub struct Find {
     pub with_expired: Option<bool>,
+    /// Comma-separated whitelist of row fields to include. Absent
+    /// means full rows — the compatible default for older clients.
+    pub attributes: Option<String>,
 }
 
 impl Validation for Find {
