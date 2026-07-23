@@ -47,7 +47,7 @@ function baseFile(overrides: Partial<AppFile> = {}): AppFile {
 
 function mountRow(file: AppFile): ReturnType<typeof mount> {
   return mount(TableFileRow, {
-    props: { file, checkedRows: [], sizes: SIZES }
+    props: { file, checkedIds: new Set<string>(), sizes: SIZES }
   })
 }
 

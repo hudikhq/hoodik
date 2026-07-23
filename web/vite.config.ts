@@ -52,8 +52,8 @@ const bootProgress = (): Plugin => {
       const assets: { url: string; size: number; kind: string }[] = []
       let out = html
       for (const [pattern, kind] of [
-        [/<link rel="stylesheet"[^>]*href="\/([^":]+\.css)">\s*/g, 'css'],
-        [/<link rel="modulepreload"[^>]*href="\/([^":]+\.js)">\s*/g, 'preload']
+        [/<link rel="stylesheet"[^>]*href="\/(assets\/[^"]+\.css)">\s*/g, 'css'],
+        [/<link rel="modulepreload"[^>]*href="\/(assets\/[^"]+\.js)">\s*/g, 'preload']
       ] as [RegExp, string][]) {
         for (const tag of out.matchAll(pattern)) {
           assets.push({ url: `/${tag[1]}`, size: fileSizes.get(tag[1]) ?? 0, kind })

@@ -6,7 +6,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps<{
   file: AppFile
-  checkedRows: Partial<AppFile>[]
+  checkedIds: Set<string>
   hideDelete?: boolean
   share?: boolean
   hideCheckbox?: boolean
@@ -76,7 +76,7 @@ onUnmounted(() => {
     <TableFileRow
       v-else
       :file="props.file"
-      :checked-rows="props.checkedRows"
+      :checked-ids="props.checkedIds"
       :hide-delete="props.hideDelete"
       :share="props.share"
       :hide-checkbox="props.hideCheckbox"

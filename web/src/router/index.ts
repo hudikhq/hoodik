@@ -4,6 +4,13 @@ import { SHARED_WITH_ME_DIR_ID } from '!/constants'
 
 const router = createRouter({
   history: createWebHistory(`/`),
+  scrollBehavior(_to, _from, savedPosition) {
+    // Back/forward restores where the user was; forward navigation into a
+    // new view starts at the top. Hash targets (row highlighting) are
+    // handled by the file browser itself, because rows render lazily and
+    // may not exist when navigation settles.
+    return savedPosition || { top: 0 }
+  },
   routes: [
     /**
      * File routes

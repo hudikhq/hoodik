@@ -236,38 +236,50 @@ async function expandToFolder(folderId: string) {
   const response = await meta.find({ dir_id: folderId })
   const privateKey = props.keypair.wrappingPrivate || (props.keypair.input as string)
 
-  const parents: AppFile[] = []
-  for (const item of response.parents || []) {
-    const decrypted = await meta.decrypt(item, privateKey)
-    parents.push({ ...item, ...decrypted } as AppFile)
-  }
+  const decryptRows = (rows: AppFile[]) =>
+    Promise.all(
+      rows.map(async (item) => {
+        const decrypted = await meta.decrypt(item, privateKey)
+        return { ...item, ...decrypted } as AppFile
+      })
+    )
 
-  // parents come in root-first order from the backend
-  // Expand each ancestor, loading children along the way
+  const parents = await decryptRows((response.parents as AppFile[]) || [])
+
+  // Every unloaded ancestor level fetches concurrently — the walk used to
+  // await one round trip per level of nesting. Insertion below still runs
+  // root-first, because a deeper node only exists once its parent's
+  // children are in the tree.
+  const childrenByParent = new Map<string, AppFile[]>()
+  await Promise.all(
+    parents.map(async (parent) => {
+      const existing = findNode(treeState.rootNodes, parent.id)
+      if (existing?.loaded) return
+      childrenByParent.set(parent.id, await fetchChildren(parent.id))
+    })
+  )
+
   for (const parent of parents) {
-    let node = findNode(treeState.rootNodes, parent.id)
+    const node = findNode(treeState.rootNodes, parent.id)
     if (!node) continue
 
     if (!node.loaded) {
-      node.loading = true
-      const children = await fetchChildren(parent.id)
-      node.children = children.map(toNode)
+      node.children = (childrenByParent.get(parent.id) || []).map(toNode)
       node.loaded = true
-      node.loading = false
     }
 
     treeState.expanded.add(parent.id)
   }
 
-  // Also expand the target folder itself
-  let targetNode = findNode(treeState.rootNodes, folderId)
+  // The target's children arrived with the first response — decrypt those
+  // instead of paying a second request for the same listing.
+  const targetNode = findNode(treeState.rootNodes, folderId)
   if (targetNode) {
     if (!targetNode.loaded) {
-      targetNode.loading = true
-      const children = await fetchChildren(folderId)
-      targetNode.children = children.map(toNode)
+      targetNode.children = sortListing(
+        await decryptRows((response.children as AppFile[]) || [])
+      ).map(toNode)
       targetNode.loaded = true
-      targetNode.loading = false
     }
     treeState.expanded.add(folderId)
   }

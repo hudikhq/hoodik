@@ -76,10 +76,10 @@ const dirId = computed<string | undefined>(() => {
   return undefined
 })
 
+const checkedIds = computed(() => new Set(props.selected.map((file) => file.id)))
+
 const checkedRows = computed(() => {
-  return props.items.filter((item) => {
-    return props.selected.find((file) => file.id === item.id)
-  })
+  return props.items.filter((item) => checkedIds.value.has(item.id))
 })
 
 const showDeleteAll = computed(() => {
@@ -432,7 +432,7 @@ const sizes = {
         <TableFileRowWatcher
           :file="file"
           :sizes="sizes"
-          :checkedRows="checkedRows"
+          :checkedIds="checkedIds"
           :hideCheckbox="props.hideCheckbox"
           :hideDelete="props.hideDelete"
           :share="props.share"

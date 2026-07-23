@@ -22,6 +22,16 @@ export const store = defineStore('queue', () => {
    * Start all the depending queues and setup worker listeners
    */
   async function start(files: FilesStore, upload: UploadStore, download: DownloadStore) {
+    if ('Worker' in window) {
+      // Dynamic on purpose: the spawn module references worker URLs that
+      // only resolve under Vite, and environments without Worker (tests)
+      // must never load it.
+      const { ensureWorkers } = await import('./worker-spawn')
+      ensureWorkers()
+    } else {
+      logger.warn('[queue] Worker API not available — transfers will run on main thread')
+    }
+
     if (uploadWorkerListenerActive.value === false) {
       if ('UPLOAD' in window) {
         logger.info('[queue] UPLOAD worker found, attaching listener')
