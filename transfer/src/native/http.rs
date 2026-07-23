@@ -1,6 +1,7 @@
 use crate::error::{Error, HttpError, Result};
 use crate::platform::HttpClient;
-use crate::types::{Auth, ChunkResponse, FileHashes};
+use futures::StreamExt;
+use crate::types::{Auth, ChunkResponse, DownloadSource, FileHashes};
 use std::collections::HashMap;
 
 /// Native HTTP client backed by `reqwest`.
@@ -9,6 +10,23 @@ pub struct NativeHttpClient {
 }
 
 impl NativeHttpClient {
+    /// Collect a response body while reporting the running byte count after
+    /// every network read, so download progress moves with the wire instead
+    /// of jumping when the body completes.
+    async fn read_streaming(resp: reqwest::Response, on_bytes: &dyn Fn(u64)) -> Result<Vec<u8>> {
+        let expected = resp.content_length().unwrap_or(0) as usize;
+        let mut data = Vec::with_capacity(expected);
+        let mut stream = resp.bytes_stream();
+
+        while let Some(piece) = stream.next().await {
+            let piece = piece.map_err(|e| Error::Io(format!("Failed to read response bytes: {e}")))?;
+            data.extend_from_slice(&piece);
+            on_bytes(data.len() as u64);
+        }
+
+        Ok(data)
+    }
+
     pub fn new() -> Result<Self> {
         let client = reqwest::Client::builder()
             .build()
@@ -95,24 +113,26 @@ impl HttpClient for NativeHttpClient {
         })
     }
 
-    fn download_chunk(
-        &self,
+    fn download_chunk<'a>(
+        &'a self,
         auth: &Auth,
-        file_id: &str,
+        source: DownloadSource<'_>,
         chunk_index: u64,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + '_>> {
+        on_bytes: Box<dyn Fn(u64) + 'a>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + 'a>> {
         let auth = auth.clone();
-        let file_id = file_id.to_string();
+        let url = source.chunk_url(&auth.base_url, chunk_index);
+        let method = source.method();
 
         Box::pin(async move {
-            let url = format!("{}/api/storage/{}", auth.base_url, file_id);
             let headers = Self::auth_headers(&auth);
 
-            let resp = self
-                .client
-                .get(&url)
+            let request = match method {
+                "POST" => self.client.post(&url),
+                _ => self.client.get(&url),
+            };
+            let resp = request
                 .headers(headers)
-                .query(&[("chunk", chunk_index.to_string())])
                 .send()
                 .await
                 .map_err(|e| Error::Io(format!("Download request failed: {e}")))?;
@@ -131,18 +151,16 @@ impl HttpClient for NativeHttpClient {
                 }));
             }
 
-            resp.bytes()
-                .await
-                .map(|b| b.to_vec())
-                .map_err(|e| Error::Io(format!("Failed to read response bytes: {e}")))
+            Self::read_streaming(resp, &on_bytes).await
         })
     }
 
-    fn download_all_chunks(
-        &self,
+    fn download_all_chunks<'a>(
+        &'a self,
         auth: &Auth,
         file_id: &str,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + '_>> {
+        on_bytes: Box<dyn Fn(u64) + 'a>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + 'a>> {
         let auth = auth.clone();
         let file_id = file_id.to_string();
 
@@ -173,10 +191,7 @@ impl HttpClient for NativeHttpClient {
                 }));
             }
 
-            resp.bytes()
-                .await
-                .map(|b| b.to_vec())
-                .map_err(|e| Error::Io(format!("Failed to read tar response bytes: {e}")))
+            Self::read_streaming(resp, &on_bytes).await
         })
     }
 

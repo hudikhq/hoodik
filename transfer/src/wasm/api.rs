@@ -2,7 +2,7 @@ use crate::config::{
     UploadHashOptions, HASH_DISABLE_BLAKE2B, HASH_DISABLE_MD5, HASH_DISABLE_SHA1,
     HASH_OFFLOAD_SHA256,
 };
-use crate::types::{Auth, FileHashes};
+use crate::types::{Auth, DownloadSource, FileHashes};
 use crate::wasm::http::WasmHttpClient;
 use crate::wasm::progress::JsProgressReporter;
 use crate::wasm::source::FileSource;
@@ -185,6 +185,7 @@ impl TransferUploader {
 /// ```
 #[wasm_bindgen]
 pub struct TransferDownloader {
+    /// File id, or link id when [`Self::public_link`] is set.
     file_id: String,
     /// File size in bytes (stored as u64; constructor accepts f64 for JS Number compatibility).
     file_size: u64,
@@ -193,6 +194,16 @@ pub struct TransferDownloader {
     decryption_key: Vec<u8>,
     /// Cipher identifier (e.g. `"ascon128a"`, `"chacha20poly1305"`).
     cipher: String,
+    /// Chunks come from the anonymous public-link route instead of storage.
+    public_link: bool,
+}
+
+fn source_of(id: &str, public_link: bool) -> DownloadSource<'_> {
+    if public_link {
+        DownloadSource::PublicLink(id)
+    } else {
+        DownloadSource::Storage(id)
+    }
 }
 
 #[wasm_bindgen]
@@ -228,6 +239,37 @@ impl TransferDownloader {
             },
             decryption_key,
             cipher: cryptfns::cipher::DEFAULT.to_string(),
+            public_link: false,
+        }
+    }
+
+    /// Create a downloader for a public share link.
+    ///
+    /// Chunks come from `POST /api/links/{link_id}` — anonymous by design, so
+    /// there are no tokens here. The key is whatever the caller unwrapped from
+    /// the link metadata using the fragment key; the server only ever streams
+    /// ciphertext.
+    #[wasm_bindgen(js_name = "forPublicLink")]
+    pub fn for_public_link(
+        link_id: String,
+        file_size: f64,
+        chunk_count: u32,
+        base_url: String,
+        decryption_key: Vec<u8>,
+    ) -> TransferDownloader {
+        TransferDownloader {
+            file_id: link_id,
+            file_size: file_size as u64,
+            chunk_count: chunk_count as u64,
+            auth: Auth {
+                base_url,
+                jwt_token: None,
+                refresh_token: None,
+                cookie: None,
+            },
+            decryption_key,
+            cipher: cryptfns::cipher::DEFAULT.to_string(),
+            public_link: true,
         }
     }
 
@@ -259,15 +301,16 @@ impl TransferDownloader {
         let chunk_count = self.chunk_count;
         let decryption_key = self.decryption_key.clone();
         let cipher = self.cipher.clone();
+        let public_link = self.public_link;
 
         let http = WasmHttpClient::new();
         let reporter = JsProgressReporter::new(on_progress, is_cancelled);
 
-        crate::download::download_file(
+        crate::download::download_file_from(
             &http,
             &reporter,
             &auth,
-            &file_id,
+            source_of(&file_id, public_link),
             file_size,
             chunk_count,
             &decryption_key,
@@ -275,6 +318,88 @@ impl TransferDownloader {
         )
         .await
         .map_err(|e| JsValue::from_str(&format!("{e}")))
+    }
+
+    /// Download the file, handing each decrypted chunk to `on_chunk` in
+    /// file order instead of returning one buffer.
+    ///
+    /// This is the path for large files: the module's linear memory holds
+    /// only the in-flight window (wasm32 caps at 4 GB, and the memory a
+    /// buffered download reserves is never returned to the browser), while
+    /// the caller parks each chunk in storage the browser manages.
+    #[wasm_bindgen(js_name = "downloadStreaming")]
+    pub async fn download_streaming(
+        &self,
+        on_progress: js_sys::Function,
+        is_cancelled: js_sys::Function,
+        on_chunk: js_sys::Function,
+    ) -> Result<(), JsValue> {
+        let auth = self.auth.clone();
+        let file_id = self.file_id.clone();
+        let file_size = self.file_size;
+        let chunk_count = self.chunk_count;
+        let decryption_key = self.decryption_key.clone();
+        let cipher = self.cipher.clone();
+        let public_link = self.public_link;
+
+        let http = WasmHttpClient::new();
+        let reporter = JsProgressReporter::new(on_progress, is_cancelled);
+
+        crate::download::download_file_streaming(
+            &http,
+            &reporter,
+            &auth,
+            source_of(&file_id, public_link),
+            file_size,
+            chunk_count,
+            &decryption_key,
+            &cipher,
+            &mut |chunk| {
+                let array = js_sys::Uint8Array::from(chunk.as_slice());
+                let _ = on_chunk.call1(&JsValue::NULL, &array);
+            },
+        )
+        .await
+        .map_err(|e| JsValue::from_str(&format!("{e}")))
+    }
+
+    /// Download and decrypt a single chunk by index.
+    ///
+    /// Random access for progressive consumers — video playback feeds
+    /// MediaSource one chunk at a time instead of waiting for the file.
+    ///
+    /// - `on_bytes`: optional JS callback receiving the ciphertext bytes
+    ///   received so far for this chunk, from the first network read.
+    #[wasm_bindgen(js_name = "downloadChunk")]
+    pub async fn download_chunk(
+        &self,
+        chunk_index: u32,
+        on_bytes: Option<js_sys::Function>,
+    ) -> Result<Vec<u8>, JsValue> {
+        let auth = self.auth.clone();
+        let file_id = self.file_id.clone();
+        let decryption_key = self.decryption_key.clone();
+        let cipher = self.cipher.clone();
+        let public_link = self.public_link;
+
+        let http = WasmHttpClient::new();
+
+        let (_, result) = crate::download::fetch_and_decrypt(
+            &http,
+            &auth,
+            source_of(&file_id, public_link),
+            chunk_index as u64,
+            &decryption_key,
+            &cipher,
+            Box::new(move |bytes| {
+                if let Some(callback) = &on_bytes {
+                    let _ = callback.call1(&JsValue::NULL, &JsValue::from_f64(bytes as f64));
+                }
+            }),
+        )
+        .await;
+
+        result.map_err(|e| JsValue::from_str(&format!("{e}")))
     }
 }
 

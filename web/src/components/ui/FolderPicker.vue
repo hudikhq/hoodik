@@ -22,9 +22,17 @@ const currentName = ref(props.startName || 'Root')
 const stack = ref<{ id?: string; name: string }[]>([])
 
 async function loadFolders(dirId?: string) {
+  const privateKey = props.keypair.wrappingPrivate || (props.keypair.input as string)
+
+  // Without key material (e.g. a guest viewing a public link) there is
+  // nothing this picker could decrypt or move to.
+  if (!privateKey) {
+    folders.value = []
+    return
+  }
+
   loading.value = true
   const response = await meta.find({ dir_id: dirId, dirs_only: true })
-  const privateKey = props.keypair.wrappingPrivate || (props.keypair.input as string)
 
   const items: AppFile[] = []
   for (const item of response.children) {

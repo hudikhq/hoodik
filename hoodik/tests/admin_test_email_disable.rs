@@ -10,7 +10,6 @@ use actix_web::{http::StatusCode, test};
 use hoodik::server;
 use serde_json::Value;
 
-use crate::shares_common::*;
 
 #[actix_web::test]
 async fn disabled_flag_is_advertised_and_endpoint_unavailable() {

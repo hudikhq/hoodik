@@ -86,17 +86,26 @@ export const grantsStore = defineStore('grants', () => {
    * `find` is idempotent in practice (upserts by id), so calling it again
    * for a follow-up open is cheap.
    */
-  async function loadGrants(fileId: string, kp: KeyPair): Promise<void> {
+  async function loadGrants(fileId: string, kp: KeyPair, includeLinks = true): Promise<void> {
     setState(fileId, 'loading')
     try {
-      await Promise.all([
+      const work = [
         shares.loadOutgoingFor(fileId).catch((err) => {
           throw err instanceof Error ? err : new Error(String(err))
-        }),
-        links.find(kp).catch((err) => {
-          throw err instanceof Error ? err : new Error(String(err))
         })
-      ])
+      ]
+
+      // The link grant reads from the full owner links list — an expensive
+      // fetch + decrypt that folders (no Link tab) never display.
+      if (includeLinks) {
+        work.push(
+          links.find(kp).catch((err) => {
+            throw err instanceof Error ? err : new Error(String(err))
+          })
+        )
+      }
+
+      await Promise.all(work)
       setState(fileId, 'loaded')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load grants'

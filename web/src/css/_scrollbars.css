@@ -1,44 +1,52 @@
 @layer base {
-  html {
+  /* One scrollbar for the whole app: slim rounded thumb on a transparent
+     track, following the theme. scrollbar-color inherits from the root, so
+     every scroller — body, modals, lists — picks it up; scrollbar-width
+     doesn't inherit, hence the universal selector. */
+  * {
     scrollbar-width: thin;
-    scrollbar-color: rgb(156, 163, 175) rgb(249, 250, 251);
   }
 
-  body::-webkit-scrollbar {
+  html {
+    scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+  }
+
+  html.dark {
+    scrollbar-color: theme('colors.brownish.500') transparent;
+  }
+
+  ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
 
-  body::-webkit-scrollbar-track {
-    @apply bg-brownish-50;
+  ::-webkit-scrollbar-track {
+    background: transparent;
   }
 
-  body::-webkit-scrollbar-thumb {
-    @apply bg-brownish-400 rounded;
+  ::-webkit-scrollbar-corner {
+    background: transparent;
   }
 
-  body::-webkit-scrollbar-thumb:hover {
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.45);
+  }
+
+  :is(.dark, .dark *)::-webkit-scrollbar-thumb {
     @apply bg-brownish-500;
+  }
+
+  :is(.dark, .dark *)::-webkit-scrollbar-thumb:hover {
+    @apply bg-brownish-400;
   }
 }
 
 @layer utilities {
-  .dark-scrollbars-compat {
-    scrollbar-color: rgb(71, 85, 105) rgb(30, 41, 59);
-  }
-
-  .dark-scrollbars::-webkit-scrollbar-track {
-    @apply bg-brownish-800;
-  }
-
-  .dark-scrollbars::-webkit-scrollbar-thumb {
-    @apply bg-brownish-600;
-  }
-
-  .dark-scrollbars::-webkit-scrollbar-thumb:hover {
-    @apply bg-brownish-500;
-  }
-
   .scrollbar-hide {
     scrollbar-width: none;
   }

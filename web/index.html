@@ -25,10 +25,9 @@
   <link href="https://fonts.bunny.net/css?family=inter:300,400,500,600,700&display=swap" rel="stylesheet">
 
   <!--
-    Boot splash. Lives inside #app, so Vue discards it the moment it mounts —
-    no teardown code and nothing to keep in sync. Styles are inline because
-    the stylesheet is part of the bundle this is covering for, and the theme
-    class isn't on <html> until the app runs, so it follows the OS instead.
+    Boot splash. Styles are inline because the stylesheet is part of the
+    bundle this is covering for, and the theme class isn't on <html> until
+    the app runs, so it follows the OS instead.
 
     Nothing is drawn for the first second. A boot that beats it should look
     instant rather than blink a spinner on and off, so on a healthy load this
@@ -40,6 +39,7 @@
     #boot {
       position: fixed;
       inset: 0;
+      z-index: 100;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -50,6 +50,13 @@
       font-family: Inter, system-ui, -apple-system, sans-serif;
       opacity: 0;
       animation: boot-in 400ms ease-out 1s forwards;
+    }
+
+    #boot-bytes {
+      min-height: 1.25rem;
+      font-size: 0.8125rem;
+      font-variant-numeric: tabular-nums;
+      opacity: 0.7;
     }
 
     #boot-spinner {
@@ -110,15 +117,92 @@
       does not work without Javascript enabled. Please enable it to continue.
     </strong>
   </noscript>
-  <div id="app">
-    <div id="boot">
-      <div id="boot-spinner"></div>
-      <p id="boot-hint">
-        Still starting up. If this doesn't clear, the app bundle failed to
-        load — check the browser console and that the server is reachable.
-      </p>
-    </div>
+  <!-- Outside #app on purpose: Vue mounting only means the shell arrived,
+       while the route views are still downloading. The splash stays up until
+       the router has actually rendered the first view — App.vue removes it. -->
+  <div id="boot">
+    <div id="boot-spinner"></div>
+    <div id="boot-bytes"></div>
+    <p id="boot-hint">
+      This is taking longer than expected — most likely a slow connection.
+      Hang tight, it's still working.
+    </p>
   </div>
+
+  <div id="app"></div>
+
+  <!--
+    Build-only bootstrap. The build strips the stylesheet, module preloads
+    and the entry script, and lists them in __BOOT_ASSETS__; every one is
+    fetched here in parallel with a combined byte counter feeding
+    #boot-bytes, then reinstated — from HTTP cache, since assets are
+    content-hashed and immutable, so nothing downloads twice. Any hiccup
+    reinstates the tags immediately: the bootstrap can only ever add
+    progress, not block the app. In dev the marker doesn't exist and this
+    is a no-op.
+  -->
+  <script>
+    (async () => {
+      const assets = window.__BOOT_ASSETS__
+      if (!assets || !assets.length) return
+
+      const attach = (asset) => {
+        if (asset.attached) return
+        asset.attached = true
+
+        if (asset.kind === 'css') {
+          const link = document.createElement('link')
+          link.rel = 'stylesheet'
+          link.href = asset.url
+          document.head.appendChild(link)
+        } else if (asset.kind === 'entry') {
+          const script = document.createElement('script')
+          script.type = 'module'
+          script.crossOrigin = ''
+          script.src = asset.url
+          document.head.appendChild(script)
+        }
+        // Preloaded chunks need no tag: fetching them was the whole point,
+        // and the entry's own imports now hit the warm cache.
+      }
+
+      const counter = document.getElementById('boot-bytes')
+      const total = assets.reduce((sum, asset) => sum + (asset.size || 0), 0)
+      let received = 0
+
+      const track = async (asset) => {
+        const response = await fetch(asset.url)
+        if (!response.ok) throw new Error(asset.url)
+
+        if (!response.body) {
+          await response.arrayBuffer()
+        } else {
+          const reader = response.body.getReader()
+          for (;;) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            received += value.length
+            if (counter && total) {
+              counter.textContent = Math.min(99, Math.round((received / total) * 100)) + '%'
+            }
+          }
+        }
+
+        // Styles apply the moment they're here; scripts wait for the rest.
+        if (asset.kind === 'css') attach(asset)
+      }
+
+      try {
+        await Promise.all(assets.map(track))
+        if (counter) counter.textContent = ''
+        assets.forEach(attach)
+      } catch {
+        if (counter) counter.textContent = ''
+        assets.forEach(attach)
+      }
+    })()
+  </script>
   <script type="module" src="/src/main.ts"></script>
   <!-- built files will be auto injected -->
 </body>

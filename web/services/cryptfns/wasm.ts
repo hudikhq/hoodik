@@ -57,6 +57,17 @@ import {
   transition_verify,
   key_rotation_audit_sign
 } from '../../node_modules/transfer/transfer.js'
+// @ts-ignore — resolved by the wasm plugin; carries the module's linear memory.
+import { memory as wasmMemory } from '../../node_modules/transfer/transfer_bg.wasm'
+
+/**
+ * Bytes of linear memory the main thread's wasm instance has reserved.
+ * Wasm memory never shrinks, so this is also the session's high-water
+ * mark — the debug overlay watches it against the wasm32 4 GB ceiling.
+ */
+export function wasmMemoryBytes(): number {
+  return (wasmMemory as WebAssembly.Memory).buffer.byteLength
+}
 
 /**
  * Currently we don't need this part.. it is working fine like this.

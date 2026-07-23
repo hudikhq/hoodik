@@ -110,10 +110,7 @@ const logoutAction = async () => {
           <BaseIcon :path="mdiClose" />
         </button>
       </div>
-      <div
-        :class="styleStore.darkMode ? 'aside-scrollbars-[brownish]' : styleStore.asideScrollbarsStyle"
-        class="flex-1 overflow-y-auto overflow-x-hidden"
-      >
+      <div class="flex-1 overflow-y-auto overflow-x-hidden">
         <template v-for="item in menu" :key="(item.to as any)?.name || item.label">
           <template v-if="item.expandable && hasKeypair">
             <AsideMenuList :menu="[item]" @menu-click="() => toggleExpand(item)" />

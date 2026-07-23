@@ -133,8 +133,10 @@ const create = async () => {
     // here.
     props.links.upsertItem(fresh)
     loadedLink.value = fresh
-    await props.storage.find(props.kp, file.value.file_id ?? undefined)
     emit('created', fresh)
+    // The row's link badge refreshes behind the reveal — the copyable URL
+    // is what the user is waiting for, not a directory re-list.
+    void props.storage.find(props.kp, file.value.file_id ?? undefined, false)
   } finally {
     loading.value = false
   }

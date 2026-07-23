@@ -12,7 +12,6 @@
 #[path = "./helpers.rs"]
 mod helpers;
 
-use actix_web::body::{BoxBody, EitherBody};
 use actix_web::dev::{Service, ServiceResponse};
 use actix_web::{http::StatusCode, test};
 use hoodik::server;
@@ -23,16 +22,20 @@ const OLD_PASSWORD: &[u8] = helpers::LEGACY_PASSWORD.as_bytes();
 const NEW_PASSWORD: &[u8] = b"an-entirely-different-passphrase-42";
 
 trait TestApp:
-    Service<actix_http::Request, Response = ServiceResponse<EitherBody<BoxBody>>, Error = actix_web::Error>
+    Service<actix_http::Request, Response = ServiceResponse<Self::Body>, Error = actix_web::Error>
 {
+    type Body: actix_web::body::MessageBody;
 }
-impl<S> TestApp for S where
+impl<S, B> TestApp for S
+where
+    B: actix_web::body::MessageBody,
     S: Service<
         actix_http::Request,
-        Response = ServiceResponse<EitherBody<BoxBody>>,
+        Response = ServiceResponse<B>,
         Error = actix_web::Error,
-    >
+    >,
 {
+    type Body = B;
 }
 
 /// A v2 account together with the identity private key (to sign the ownership
@@ -141,7 +144,7 @@ async fn post_finish(
     signature: &str,
     issued_at: i64,
     token: Option<&str>,
-) -> ServiceResponse<EitherBody<BoxBody>> {
+) -> ServiceResponse<impl actix_web::body::MessageBody> {
     let mut body = json!({
         "registration_upload": registration_upload,
         "encrypted_private_key": envelope,
@@ -181,7 +184,7 @@ async fn enable_two_factor(db: &entity::DbConn, user_id: entity::Uuid) {
 async fn opaque_login(
     app: &impl TestApp,
     password: &[u8],
-) -> Option<(ServiceResponse<EitherBody<BoxBody>>, Vec<u8>)> {
+) -> Option<(ServiceResponse<impl actix_web::body::MessageBody>, Vec<u8>)> {
     let start = cryptfns::opaque::client_login_start(password).unwrap();
 
     let req = test::TestRequest::post()

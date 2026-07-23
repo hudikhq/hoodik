@@ -121,10 +121,24 @@ export abstract class Preview {
   }
 
   /**
-   * Load the data for the preview
+   * Load the data for the preview.
+   *
+   * `onBytes` receives the cumulative received byte count as the content
+   * streams in, so large files can show movement instead of a bare spinner.
    */
-  public async load(): Promise<Uint8Array> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async load(onBytes?: (bytes: number) => void): Promise<Uint8Array> {
     return new Uint8Array()
+  }
+
+  /**
+   * Thumbnail to hold the frame while the full asset downloads.
+   *
+   * Subclasses that can source one lazily override this; the base just
+   * hands back whatever was passed in at construction.
+   */
+  public async loadThumbnail(): Promise<string | undefined> {
+    return this.thumbnail
   }
 
   /**

@@ -61,7 +61,7 @@ export const store = defineStore('queue', () => {
           }
 
           if (event.data.type === 'download-completed') {
-            await handleDownloadCompletedMessage(event.data.response)
+            await handleDownloadCompletedMessage(download, event.data.response)
           }
         }
 
@@ -180,16 +180,19 @@ async function handleDownloadProgressMessage(
   download: DownloadStore,
   response: DownloadProgressResponseMessage
 ) {
-  const { transferableFile, chunkBytes, error } = response
+  const { transferableFile, chunkBytes, error, stage } = response
 
-  await download.progress(files, transferableFile, chunkBytes, error)
+  await download.progress(files, transferableFile, chunkBytes, error, stage)
 }
 
 /**
  * Handle catching the file stream after it has completed with downloading
  * in the worker and send it to the browser download.
  */
-async function handleDownloadCompletedMessage(response: DownloadCompletedResponseMessage) {
+async function handleDownloadCompletedMessage(
+  download: DownloadStore,
+  response: DownloadCompletedResponseMessage
+) {
   const { transferableFile, blob } = response
 
   const url = window.URL.createObjectURL(blob)
@@ -198,4 +201,7 @@ async function handleDownloadCompletedMessage(response: DownloadCompletedRespons
   anchor.download = transferableFile.name
   anchor.click()
   window.URL.revokeObjectURL(url)
+
+  // Only now has the browser actually received the file.
+  download.finish(transferableFile)
 }

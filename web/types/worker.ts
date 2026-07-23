@@ -43,6 +43,14 @@ export type DownloadProgressResponseMessage = {
   transferableFile: AppFile
   chunkBytes: number
   error?: WorkerErrorType
+
+  /**
+   * Which part of the pipeline the file is in. `processing` covers the
+   * gap between the last received byte and the blob reaching the
+   * browser — final decrypt and the large buffer copies — which used to
+   * read as a stall at 100%.
+   */
+  stage?: 'downloading' | 'processing'
 }
 
 /**

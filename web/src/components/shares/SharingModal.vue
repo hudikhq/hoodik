@@ -222,7 +222,7 @@ watch(
     tab.value = resolveInitialTab()
     prefill.value = null
     try {
-      await grants.loadGrants(next.id, props.keypair)
+      await grants.loadGrants(next.id, props.keypair, showLinkTab.value)
     } catch (err) {
       errorNotification(err)
     }

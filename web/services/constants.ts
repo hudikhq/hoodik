@@ -94,3 +94,10 @@ export const VIDEO_MIME_TYPES = [
   'video/x-matroska',
 ]
 export const VIDEO_THUMBNAIL_SIZE_PX = 200
+
+/**
+ * Synthetic folder id for the recipient-side "Shared with me" root. Client
+ * only — the server has no row for it. Lives here so leaf consumers (the
+ * router) don't drag the whole storage barrel into the entry chunk.
+ */
+export const SHARED_WITH_ME_DIR_ID = '__shared_with_me__'

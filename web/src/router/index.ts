@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import { capabilitiesStore } from '!/shares'
-import { SHARED_WITH_ME_DIR_ID } from '!/storage'
+import { SHARED_WITH_ME_DIR_ID } from '!/constants'
 
 const router = createRouter({
   history: createWebHistory(`/`),
@@ -237,6 +236,10 @@ const router = createRouter({
  */
 router.beforeEach(async (to) => {
   if (to.meta?.requiresSharing !== true) return true
+  // Lazy on purpose: this guard is the only entry-graph consumer of the
+  // shares barrel, and a static import would drag the whole storage +
+  // shares + crypto wire layer into the boot chunk.
+  const { capabilitiesStore } = await import('!/shares')
   const caps = capabilitiesStore()
   if (caps.lastFetchedAt === null) {
     try {

@@ -16,6 +16,45 @@ pub struct Auth {
     pub cookie: Option<String>,
 }
 
+/// Where encrypted chunks are downloaded from.
+///
+/// The two routes differ in more than the path: storage downloads carry the
+/// caller's credentials, while public-link downloads are anonymous by design —
+/// the server authorises them by link id alone and only ever hands out
+/// ciphertext, which the recipient decrypts with the key from the URL fragment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DownloadSource<'a> {
+    /// A file owned by or shared with the authenticated user.
+    Storage(&'a str),
+    /// A file behind a public share link.
+    PublicLink(&'a str),
+}
+
+impl<'a> DownloadSource<'a> {
+    /// The id progress events are keyed by: file id or link id.
+    pub fn id(&self) -> &'a str {
+        match self {
+            Self::Storage(id) | Self::PublicLink(id) => id,
+        }
+    }
+
+    /// Full URL for one chunk of this source.
+    pub fn chunk_url(&self, base_url: &str, chunk: u64) -> String {
+        match self {
+            Self::Storage(id) => format!("{base_url}/api/storage/{id}?chunk={chunk}"),
+            Self::PublicLink(id) => format!("{base_url}/api/links/{id}?chunk={chunk}"),
+        }
+    }
+
+    /// HTTP method the server expects for chunk downloads from this source.
+    pub fn method(&self) -> &'static str {
+        match self {
+            Self::Storage(_) => "GET",
+            Self::PublicLink(_) => "POST",
+        }
+    }
+}
+
 /// Metadata about a chunk upload response from the server.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChunkResponse {

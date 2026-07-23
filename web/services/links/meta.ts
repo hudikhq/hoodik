@@ -3,6 +3,7 @@ import * as crypto from './crypto'
 import * as storageMeta from '!/storage/meta'
 import Api from '!/api'
 import { CHUNK_SIZE_BYTES } from '!/constants'
+import { TransferDownloader } from 'transfer'
 
 import type { AppLink, CreateLink, EncryptedAppLink, KeyPair, AppFile } from 'types'
 
@@ -23,41 +24,81 @@ export async function all(): Promise<EncryptedAppLink[]> {
 }
 
 /**
- * Fetch and decrypt the full link content client-side.
- *
- * The server stores the file as N independently-encrypted chunks; we pull each
- * one raw (`?chunk=i`, no link_key sent) and decrypt it with the file cipher and
- * the content key the caller unwrapped from the link metadata, concatenating the
- * plaintext. This keeps the E2EE guarantee intact: the server never decrypts.
+ * Number of encrypted chunks behind a link, derived the same way the
+ * uploader sliced them.
  */
-export async function downloadAndDecrypt(link: AppLink): Promise<Uint8Array> {
-  const key = link.key
-  if (!key) {
+export function linkChunks(link: AppLink): number {
+  return Math.max(1, Math.ceil((link.file_size || 0) / CHUNK_SIZE_BYTES))
+}
+
+/**
+ * Build a wasm downloader for a public link. Chunks come from the anonymous
+ * link route; the content key was unwrapped from the link metadata with the
+ * fragment key and never leaves the browser — the server only ever streams
+ * ciphertext. Callers must `free()` the downloader.
+ */
+function linkDownloader(link: AppLink): TransferDownloader {
+  if (!link.key) {
     throw new Error('Cannot decrypt link content without the file key')
   }
 
-  const chunks = Math.max(1, Math.ceil((link.file_size || 0) / CHUNK_SIZE_BYTES))
-  const api = new Api()
+  const downloader = TransferDownloader.forPublicLink(
+    link.id,
+    link.file_size || 0,
+    linkChunks(link),
+    new Api().toJson().apiUrl || '',
+    link.key
+  )
+  downloader.set_cipher(link.file_cipher)
 
-  let data = new Uint8Array(0)
+  return downloader
+}
 
-  for (let i = 0; i < chunks; i++) {
-    const response = await api.postDownload(`/api/links/${link.id}?chunk=${i}`, undefined, undefined)
+/**
+ * Fetch and decrypt the full link content client-side through the wasm
+ * transfer pipeline — concurrent chunk downloads, decryption and ordering
+ * all happen inside the crate.
+ */
+export async function downloadAndDecrypt(
+  link: AppLink,
+  onBytes?: (bytes: number) => void
+): Promise<Uint8Array> {
+  const downloader = linkDownloader(link)
 
-    if (!response.ok) {
-      throw new Error(`Could not download link ${link.id}, chunk: ${i}`)
-    }
+  try {
+    return await downloader.download((progressJson: string) => {
+      if (!onBytes) return
 
-    const encrypted = new Uint8Array(await response.arrayBuffer())
-    const chunk = await cryptfns.cipher.decrypt(link.file_cipher, encrypted, key, i)
+      const progress = JSON.parse(progressJson)
+      if (progress.type === 'download' && typeof progress.bytes_downloaded === 'number') {
+        onBytes(progress.bytes_downloaded)
+      }
+    }, () => false)
+  } finally {
+    downloader.free()
+  }
+}
 
-    const next = new Uint8Array(data.length + chunk.length)
-    next.set(data, 0)
-    next.set(chunk, data.length)
-    data = next
+/**
+ * Download and decrypt a single chunk of a public link — random access for
+ * progressive video playback.
+ */
+export async function downloadLinkChunk(
+  link: AppLink,
+  chunk: number,
+  signal?: AbortSignal
+): Promise<Uint8Array> {
+  if (signal?.aborted) {
+    throw new DOMException('Download aborted', 'AbortError')
   }
 
-  return data
+  const downloader = linkDownloader(link)
+
+  try {
+    return await downloader.downloadChunk(chunk, undefined)
+  } finally {
+    downloader.free()
+  }
 }
 
 /**

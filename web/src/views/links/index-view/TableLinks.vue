@@ -106,11 +106,21 @@ const sizes = {
     </div>
 
     <div
-      v-if="props.loading"
+      v-if="props.loading && !items.length"
       class="w-full pt-20 rounded-b-lg bg-brownish-50 dark:bg-brownish-900 h-52 text-center"
     >
       <span class="w-1/2 h-1/2">
         <SpinnerIcon :size="200" />
+      </span>
+    </div>
+    <div
+      v-else-if="!items.length"
+      class="w-full rounded-b-lg bg-brownish-50 dark:bg-brownish-900 py-14 flex flex-col items-center gap-1"
+      data-testid="links-empty"
+    >
+      <span class="text-brownish-300 dark:text-brownish-100">No public links yet</span>
+      <span class="text-xs text-brownish-200 dark:text-brownish-300">
+        Create one from any file's sharing options
       </span>
     </div>
     <div v-else class="flex flex-col rounded-b-lg">

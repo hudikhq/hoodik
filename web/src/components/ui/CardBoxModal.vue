@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { mdiClose } from '@mdi/js'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseButtons from '@/components/ui/BaseButtons.vue'
@@ -43,11 +43,14 @@ const cancel = () => {
   emit('cancel')
 }
 
-window.addEventListener('keydown', (e) => {
+const onKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Escape' && value.value) {
     cancel()
   }
-})
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>

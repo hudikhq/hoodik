@@ -4,6 +4,8 @@ import {
   aes_encrypt,
   aes_decrypt
 } from './node_modules/transfer/transfer.js'
+// @ts-ignore — resolved by the wasm plugin; carries the module's linear memory.
+import { memory as wasmMemory } from './node_modules/transfer/transfer_bg.wasm'
 import * as logger from '!/logger'
 
 import type { ApiTransfer, ErrorResponse } from './services/api'
@@ -33,6 +35,19 @@ onmessage = async (message: MessageEvent<any>) => {
   if (message.data?.type === 'ping') {
     self.__IDENTITY = message.data?.name || undefined
     postMessage({ type: 'pong' })
+  }
+
+  // Debug overlay poll. Linear memory only ever grows, so this doubles as
+  // the worker's high-water mark — the number to watch against the wasm32
+  // 4 GB ceiling on large transfers.
+  if (message.data?.type === 'debug-stats') {
+    postMessage({
+      type: 'debug-stats',
+      response: {
+        name: self.__IDENTITY || message.data?.name || '?',
+        wasmBytes: (wasmMemory as WebAssembly.Memory).buffer.byteLength
+      }
+    })
   }
 
   if (message.data?.type === 'encrypt' || message.data?.type === 'decrypt') {
@@ -213,7 +228,14 @@ async function handleDownloadFile(
       transferableFile.key as Uint8Array
     )
     downloader.set_cipher(cipher)
-    const bytes = await downloader.download(
+
+    // Each chunk becomes its own small Blob the moment it arrives, moving
+    // it into browser-managed blob storage (disk-backed for large files)
+    // and out of both wasm linear memory — which is capped at 4 GB and
+    // never returned once grown — and the JS heap. The final Blob below
+    // only references the parts.
+    const parts: Blob[] = []
+    await downloader.downloadStreaming(
       (progressJson: string) => {
         const progress = JSON.parse(progressJson)
 
@@ -225,23 +247,39 @@ async function handleDownloadFile(
             type: 'download-progress',
             response: {
               transferableFile,
-              chunkBytes: progress.bytes_downloaded
+              chunkBytes: progress.bytes_downloaded,
+              stage: 'downloading'
+            } as DownloadProgressResponseMessage
+          })
+        }
+
+        // The pipeline is done receiving; what remains is the final buffer
+        // copy out of WASM and the blob handoff, which takes real time on
+        // large files. Surface it instead of letting the bar sit at 100%.
+        if (progress.type === 'complete') {
+          postMessage({
+            type: 'download-progress',
+            response: {
+              transferableFile,
+              chunkBytes: transferableFile.size || 0,
+              stage: 'processing'
             } as DownloadProgressResponseMessage
           })
         }
       },
-      (fileId: string) => self.canceled?.download?.includes(fileId) ?? false
+      (fileId: string) => self.canceled?.download?.includes(fileId) ?? false,
+      (chunk: Uint8Array) => parts.push(new Blob([chunk]))
     )
     downloader.free()
     downloader = undefined
 
+    const blob = new Blob(parts)
+
     logger.info(
       `[sw:download] "${transferableFile.name}" completed in ${(performance.now() - t0).toFixed(
         0
-      )}ms, ${bytes.length} bytes`
+      )}ms, ${blob.size} bytes`
     )
-
-    const blob = new Blob([bytes])
 
     postMessage({
       type: 'download-completed',

@@ -214,23 +214,31 @@ describe('Testing links', () => {
       key: file_key
     } as unknown as AppLink
 
-    const requested: string[] = []
-    vi.stubGlobal('fetch', async (url: string) => {
-      requested.push(url)
+    // The wasm pipeline issues the requests itself; serve real Responses and
+    // record what crossed the wire.
+    const requested: { url: string; method: string }[] = []
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input instanceof Request ? input.url : input)
+      const method = input instanceof Request ? input.method : init?.method || 'GET'
+      requested.push({ url, method })
       const match = /chunk=(\d+)/.exec(url)
       const index = match ? Number(match[1]) : 0
-      return {
-        ok: true,
-        arrayBuffer: async () => encryptedChunks[index].slice().buffer
-      } as unknown as Response
+      return new Response(encryptedChunks[index].slice(), { status: 200 })
     })
 
     const data = await links.meta.downloadAndDecrypt(link)
 
-    expect(requested).toHaveLength(2)
-    expect(requested[0]).toContain('chunk=0')
-    expect(requested[1]).toContain('chunk=1')
     expect(new TextDecoder().decode(data)).toBe('first-chunk-second-chunk')
+    expect(requested).toHaveLength(2)
+    const urls = requested.map((r) => r.url).sort()
+    expect(urls[0]).toContain('/api/links/abc?chunk=0')
+    expect(urls[1]).toContain('/api/links/abc?chunk=1')
+    for (const r of requested) {
+      // Anonymous route, POST by design — and nothing derived from the key
+      // may ever appear on the wire.
+      expect(r.method).toBe('POST')
+      expect(r.url).not.toContain(Buffer.from(file_key).toString('hex'))
+    }
   })
 
   it('UNIT: content decrypt refuses to run without the file key', async () => {

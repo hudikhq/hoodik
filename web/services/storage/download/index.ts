@@ -1,4 +1,3 @@
-import { meta } from '..'
 import * as sync from './sync'
 import { defineStore } from 'pinia'
 import * as logger from '!/logger'
@@ -11,11 +10,31 @@ import type {
   AppFile,
   QueueStore
 } from '../../../types'
-import type { KeyPair } from 'types'
 import { errorIntoWorkerError, localDateFromUtcString, utcStringFromLocal, uuidv4 } from '../..'
 import { FILES_DOWNLOADING_AT_ONE_TIME, KEEP_FINISHED_DOWNLOADS_FOR_MINUTES } from '../../constants'
 import { ref } from 'vue'
 import { startFileDownload } from '../workers'
+
+
+// The browser row only needs to track transfer state coarsely — byte-level
+// smoothness lives in the queue UI. Syncing the reactive listing on every
+// chunk event re-sorted the open folder many times a second mid-transfer.
+const lastRowSync = new Map<string, number>()
+
+function shouldSyncRow(id: string, terminal: boolean): boolean {
+  if (terminal) {
+    lastRowSync.delete(id)
+    return true
+  }
+
+  const now = Date.now()
+  if (now - (lastRowSync.get(id) || 0) < 500) {
+    return false
+  }
+
+  lastRowSync.set(id, now)
+  return true
+}
 
 export const store = defineStore('download', () => {
   /**
@@ -68,7 +87,8 @@ export const store = defineStore('download', () => {
     storage: FilesStore,
     file: DownloadAppFile,
     chunkBytes: number,
-    error?: any
+    error?: any,
+    stage?: 'downloading' | 'processing'
   ) {
     if (error) {
       file.error = error
@@ -88,19 +108,24 @@ export const store = defineStore('download', () => {
     const currentFileId = file.file_id || null
     const currentDirId = storage?.dir?.id || null
 
-    if (storage && currentFileId === currentDirId) {
+    if (storage && currentFileId === currentDirId && shouldSyncRow(file.id, !!file.error)) {
       storage.upsertItem(file)
     }
 
     // Remove any existing entry so we can re-insert at the front without duplicates.
     running.value = running.value.filter((f) => f.id !== file.id)
 
-    // `chunkBytes` coming from the worker is `bytes_downloaded` (cumulative decrypted bytes),
+    // `chunkBytes` coming from the worker is `bytes_downloaded` (cumulative received bytes),
     // not a delta. Treat it as an absolute value to avoid double-counting and premature "done".
     file.downloadedBytes = chunkBytes
+    file.stage = stage
 
-    // If the file has been finished, move it to done.
-    if (file.downloadedBytes >= (file.size || 0)) {
+    // Staged (worker) transfers stay in the running list until `finish`
+    // moves them out — bytes reaching the total only means the pipeline
+    // is done receiving, not that the blob has reached the browser. The
+    // stage-less path keeps the old size check as its only completion
+    // signal.
+    if (!stage && file.downloadedBytes >= (file.size || 0)) {
       logger.debug(`File "${file.name}" finished downloading`)
 
       file.finished_downloading_at = utcStringFromLocal(new Date())
@@ -111,6 +136,23 @@ export const store = defineStore('download', () => {
 
     // Keep the active download at the front of the list.
     running.value.unshift(file)
+  }
+
+  /**
+   * The blob has been handed to the browser — the moment the transfer is
+   * genuinely complete for the user.
+   */
+  function finish(file: DownloadAppFile) {
+    if (done.value.some((f) => f.temporaryId === file.temporaryId)) {
+      return
+    }
+
+    running.value = running.value.filter((f) => f.id !== file.id)
+
+    file.stage = undefined
+    file.downloadedBytes = file.size
+    file.finished_downloading_at = utcStringFromLocal(new Date())
+    done.value.push(file)
   }
 
   /**
@@ -205,6 +247,7 @@ export const store = defineStore('download', () => {
   }
 
   return {
+    finish,
     waiting,
     running,
     failed,
@@ -244,19 +287,3 @@ export async function download(
   }
 }
 
-/**
- * Get the file and the files content decrypt the file and its content
- */
-export async function get(file: AppFile | string, kp: KeyPair): Promise<AppFile> {
-  if (typeof file === 'string') {
-    file = await meta.get(kp, file)
-  }
-
-  if (!file.key) {
-    throw new Error("File doesn't have a key, cannot decrypt the data, file is unrecoverable")
-  }
-
-  file.data = await sync.downloadAndDecrypt(file)
-
-  return file
-}
