@@ -5,76 +5,148 @@ on:
     branches:
       - master
 
+# A superseded run has no audience — kill it the moment a newer push
+# arrives instead of letting two full pipelines queue behind each other.
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: lint
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev
+          version: 1.0
+      - uses: extractions/setup-just@v2
+      - name: Clippy
+        run: just clippy
 
+  rust-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Free disk space
-        # The workspace builds a large debug target/ across the integration test
-        # binaries; with the restored rust-cache, Node deps, and Playwright on
-        # top it overran the runner's ~14 GB (ENOSPC during yarn install). Drop
-        # preinstalled SDKs the job never touches (Android alone is ~9 GB).
+        # The workspace's debug target/ plus the restored rust-cache overran
+        # the runner's ~14 GB before the job split; the SDK purge stays as
+        # cheap insurance (Android alone is ~9 GB).
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
             /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
           df -h /
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-unit
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev
+          version: 1.0
+      - uses: extractions/setup-just@v2
+      - name: Rust unit tests
+        run: just test-rust-unit
 
+  rust-integration:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-integration-${{ matrix.shard }}
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev
+          version: 1.0
+      - name: Integration tests (shard ${{ matrix.shard }})
+        # Every file under hoodik/tests/ is a test target; round-robin them
+        # across the shards by index. Deriving the list from the directory
+        # means a newly added suite always runs — there is no hand-kept list
+        # to forget to update. Helper modules compile to zero-test targets,
+        # which is exactly what clippy already proves they can do.
+        run: |
+          args=""
+          i=0
+          for suite in $(ls hoodik/tests/*.rs | xargs -n1 basename | sed 's/\.rs$//' | sort); do
+            if [ $((i % 3)) -eq ${{ matrix.shard }} ]; then
+              args="$args --test $suite"
+            fi
+            i=$((i + 1))
+          done
+          echo "Running:$args"
+          cargo test $args -- --nocapture
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           # Pinned via .nvmrc — transfer WASM uses externref / reference-types
           # which older Node WebAssembly engines reject at parse time.
           node-version-file: '.nvmrc'
-
+          cache: yarn
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: web-wasm
+      - uses: extractions/setup-just@v2
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Install yarn and dependencies
+        run: npm install -g yarn && yarn install
+      - name: Build WASM crates
+        run: just wasm
+      - name: Frontend unit tests
+        run: just test-web
+      - name: Build web
+        run: just build-web
 
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: yarn
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # The release server build lives only in this job's cache line, so
+          # a warm run pays Playwright, not a full optimized recompile.
+          shared-key: e2e-release
       - uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev
           version: 1.0
-
       - uses: extractions/setup-just@v2
-
-      - name: Print versions
-        run: |
-          rustc --version
-          cargo clippy --version
-          just --version
-
-      - name: Clippy
-        run: just clippy
-
-      - name: Rust unit tests
-        run: just test-rust-unit
-
-      - name: Rust integration tests
-        run: just test-rust-integration
-
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-
       - name: Install yarn and dependencies
         run: npm install -g yarn && yarn install
-
       - name: Install Playwright browsers
         run: cd web && npx playwright install --with-deps chromium
-
-      - name: Build WASM crates
-        run: just wasm
-
-      - name: Frontend unit tests
-        run: just test-web
-
-      - name: Build web
-        run: just build-web
-
       - name: E2E tests
         run: just e2e
-
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
         if: failure()
