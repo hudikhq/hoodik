@@ -157,6 +157,24 @@ jobs:
             web/test-results/
           retention-days: 14
 
+  # Branch protection requires a single check named "test". This gate is
+  # that name: it succeeds only when every job above did, so the required
+  # check stays stable no matter how the jobs behind it are re-arranged.
+  test:
+    runs-on: ubuntu-latest
+    needs: [lint, rust-unit, rust-integration, web, e2e]
+    if: always()
+    steps:
+      - name: Verify all jobs passed
+        run: |
+          results="${{ join(needs.*.result, ' ') }}"
+          echo "Job results: $results"
+          for result in $results; do
+            if [ "$result" != "success" ]; then
+              exit 1
+            fi
+          done
+
   s3-aws-integration:
     runs-on: ubuntu-latest
     # GitHub secrets aren't available to forked-PR workflows — skip cleanly
