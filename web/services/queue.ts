@@ -22,6 +22,16 @@ export const store = defineStore('queue', () => {
    * Start all the depending queues and setup worker listeners
    */
   async function start(files: FilesStore, upload: UploadStore, download: DownloadStore) {
+    if ('Worker' in window) {
+      // Dynamic on purpose: the spawn module references worker URLs that
+      // only resolve under Vite, and environments without Worker (tests)
+      // must never load it.
+      const { ensureWorkers } = await import('./worker-spawn')
+      ensureWorkers()
+    } else {
+      logger.warn('[queue] Worker API not available — transfers will run on main thread')
+    }
+
     if (uploadWorkerListenerActive.value === false) {
       if ('UPLOAD' in window) {
         logger.info('[queue] UPLOAD worker found, attaching listener')
@@ -61,7 +71,7 @@ export const store = defineStore('queue', () => {
           }
 
           if (event.data.type === 'download-completed') {
-            await handleDownloadCompletedMessage(event.data.response)
+            await handleDownloadCompletedMessage(download, event.data.response)
           }
         }
 
@@ -180,16 +190,19 @@ async function handleDownloadProgressMessage(
   download: DownloadStore,
   response: DownloadProgressResponseMessage
 ) {
-  const { transferableFile, chunkBytes, error } = response
+  const { transferableFile, chunkBytes, error, stage } = response
 
-  await download.progress(files, transferableFile, chunkBytes, error)
+  await download.progress(files, transferableFile, chunkBytes, error, stage)
 }
 
 /**
  * Handle catching the file stream after it has completed with downloading
  * in the worker and send it to the browser download.
  */
-async function handleDownloadCompletedMessage(response: DownloadCompletedResponseMessage) {
+async function handleDownloadCompletedMessage(
+  download: DownloadStore,
+  response: DownloadCompletedResponseMessage
+) {
   const { transferableFile, blob } = response
 
   const url = window.URL.createObjectURL(blob)
@@ -198,4 +211,7 @@ async function handleDownloadCompletedMessage(response: DownloadCompletedRespons
   anchor.download = transferableFile.name
   anchor.click()
   window.URL.revokeObjectURL(url)
+
+  // Only now has the browser actually received the file.
+  download.finish(transferableFile)
 }

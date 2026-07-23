@@ -34,7 +34,7 @@ import { isMarkdownFile } from '!/preview'
 import * as meta from '!/storage/meta'
 import { onFileTreeChange } from '!/storage/events'
 import * as sharesApi from '!/shares/api'
-import { SHARED_WITH_ME_DIR_ID } from '!/storage'
+import { SHARED_WITH_ME_DIR_ID, store as filesStore } from '!/storage'
 import type { KeyPair } from 'types'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import AsideFileTreeNode from '@/components/ui/AsideFileTreeNode.vue'
@@ -42,6 +42,8 @@ import AsideFileTreeNode from '@/components/ui/AsideFileTreeNode.vue'
 const props = defineProps<{
   keypair: KeyPair
 }>()
+
+const files = filesStore()
 
 const route = useRoute()
 const router = useRouter()
@@ -58,6 +60,14 @@ const activeFolderId = computed(() => {
   return Array.isArray(id) ? id[0] : (id as string | undefined)
 })
 
+function sortListing(items: AppFile[]): AppFile[] {
+  return items.sort((a, b) => {
+    if (a.mime === 'dir' && b.mime !== 'dir') return -1
+    if (a.mime !== 'dir' && b.mime === 'dir') return 1
+    return (a.name || '').localeCompare(b.name || '')
+  })
+}
+
 async function fetchChildren(dirId?: string): Promise<AppFile[]> {
   const params = dirId ? { dir_id: dirId } : {}
   const response = await meta.find(params)
@@ -70,13 +80,7 @@ async function fetchChildren(dirId?: string): Promise<AppFile[]> {
     items.push({ ...item, ...decrypted } as AppFile)
   }
 
-  items.sort((a, b) => {
-    if (a.mime === 'dir' && b.mime !== 'dir') return -1
-    if (a.mime !== 'dir' && b.mime === 'dir') return 1
-    return (a.name || '').localeCompare(b.name || '')
-  })
-
-  return items
+  return sortListing(items)
 }
 
 function toNode(file: AppFile): TreeNode {
@@ -191,10 +195,22 @@ async function loadSharedRoots(): Promise<void> {
 
 async function loadRoot() {
   rootLoading.value = true
-  const [items, incomingShared] = await Promise.all([
-    fetchChildren(undefined),
-    hasIncomingShares()
-  ])
+
+  let items: AppFile[]
+  let incomingShared: boolean
+
+  // First load while the main view is fetching this exact listing (files
+  // route, at root): seed from its rows and its shares probe instead of
+  // racing it with a duplicate request and a second decrypt pass. Every
+  // other route and later reloads keep their own fetch — on other routes
+  // the main view never lists root, so there is nothing to wait for.
+  if (!treeState.loaded && route.name === 'files' && !activeFolderId.value) {
+    const rows = await files.firstRootListing()
+    incomingShared = rows.some((row) => row.id === SHARED_WITH_ME_DIR_ID)
+    items = sortListing(rows.filter((row) => row.id !== SHARED_WITH_ME_DIR_ID))
+  } else {
+    ;[items, incomingShared] = await Promise.all([fetchChildren(undefined), hasIncomingShares()])
+  }
   const nodes = items.map(toNode)
   treeState.rootNodes = incomingShared ? [syntheticSharedNode(), ...nodes] : nodes
   treeState.loaded = true
@@ -220,38 +236,50 @@ async function expandToFolder(folderId: string) {
   const response = await meta.find({ dir_id: folderId })
   const privateKey = props.keypair.wrappingPrivate || (props.keypair.input as string)
 
-  const parents: AppFile[] = []
-  for (const item of response.parents || []) {
-    const decrypted = await meta.decrypt(item, privateKey)
-    parents.push({ ...item, ...decrypted } as AppFile)
-  }
+  const decryptRows = (rows: AppFile[]) =>
+    Promise.all(
+      rows.map(async (item) => {
+        const decrypted = await meta.decrypt(item, privateKey)
+        return { ...item, ...decrypted } as AppFile
+      })
+    )
 
-  // parents come in root-first order from the backend
-  // Expand each ancestor, loading children along the way
+  const parents = await decryptRows((response.parents as AppFile[]) || [])
+
+  // Every unloaded ancestor level fetches concurrently — the walk used to
+  // await one round trip per level of nesting. Insertion below still runs
+  // root-first, because a deeper node only exists once its parent's
+  // children are in the tree.
+  const childrenByParent = new Map<string, AppFile[]>()
+  await Promise.all(
+    parents.map(async (parent) => {
+      const existing = findNode(treeState.rootNodes, parent.id)
+      if (existing?.loaded) return
+      childrenByParent.set(parent.id, await fetchChildren(parent.id))
+    })
+  )
+
   for (const parent of parents) {
-    let node = findNode(treeState.rootNodes, parent.id)
+    const node = findNode(treeState.rootNodes, parent.id)
     if (!node) continue
 
     if (!node.loaded) {
-      node.loading = true
-      const children = await fetchChildren(parent.id)
-      node.children = children.map(toNode)
+      node.children = (childrenByParent.get(parent.id) || []).map(toNode)
       node.loaded = true
-      node.loading = false
     }
 
     treeState.expanded.add(parent.id)
   }
 
-  // Also expand the target folder itself
-  let targetNode = findNode(treeState.rootNodes, folderId)
+  // The target's children arrived with the first response — decrypt those
+  // instead of paying a second request for the same listing.
+  const targetNode = findNode(treeState.rootNodes, folderId)
   if (targetNode) {
     if (!targetNode.loaded) {
-      targetNode.loading = true
-      const children = await fetchChildren(folderId)
-      targetNode.children = children.map(toNode)
+      targetNode.children = sortListing(
+        await decryptRows((response.children as AppFile[]) || [])
+      ).map(toNode)
       targetNode.loaded = true
-      targetNode.loading = false
     }
     treeState.expanded.add(folderId)
   }

@@ -30,7 +30,8 @@ export { meta, upload, download, queue }
  * regular folder. The server never sees this id — the storage store
  * branches on it before any network call.
  */
-export const SHARED_WITH_ME_DIR_ID = '__shared_with_me__'
+import { SHARED_WITH_ME_DIR_ID } from '../constants'
+export { SHARED_WITH_ME_DIR_ID }
 
 /**
  * Whether the caller may write into a folder shared with them. Editors and
@@ -45,6 +46,8 @@ export function canWriteToShared(file: AppFile): boolean {
  * Run sort operations on the given items by the given parameter
  * The results are always in ASC, if you need DESC, just reverse the array
  */
+const collator = new Intl.Collator()
+
 function innerSort(items: AppFile[], parameter: string): AppFile[] {
   return items.sort((a, b) => {
     // @ts-ignore
@@ -56,7 +59,7 @@ function innerSort(items: AppFile[], parameter: string): AppFile[] {
       return aValue - bValue
     }
 
-    return aValue.localeCompare(bValue)
+    return collator.compare(aValue, bValue)
   })
 }
 
@@ -90,6 +93,18 @@ export const store = defineStore('files', () => {
    * All the items regardless of the current directory
    */
   const _items = ref<AppFile[]>([])
+
+  // Resolved once the first root listing has fully landed in `_items` —
+  // rows decrypted and upserted, shares probe done. The sidebar tree seeds
+  // its first render from this instead of racing the main view with a
+  // duplicate root request and a second decrypt pass.
+  let resolveFirstRootListed: (() => void) | null = null
+  const firstRootListed = new Promise<void>((resolve) => (resolveFirstRootListed = resolve))
+
+  async function firstRootListing(): Promise<AppFile[]> {
+    await firstRootListed
+    return _items.value.filter((item) => !item.file_id)
+  }
 
   /**
    * Persistent storage of the sort options
@@ -217,11 +232,18 @@ export const store = defineStore('files', () => {
     return ordered
   })
 
+  let statsFetchedAt = 0
+
   /**
-   * Load the storage stats
+   * Load the storage stats. Every folder click used to refetch these —
+   * two server-side aggregates per navigation for a quota bar that only
+   * moves on writes. The TTL keeps navigation free; writes pass `force`.
    */
-  async function loadStats(): Promise<void> {
+  async function loadStats(force = false): Promise<void> {
+    if (!force && stats.value && Date.now() - statsFetchedAt < 15_000) return
+
     stats.value = await meta.stats()
+    statsFetchedAt = Date.now()
   }
 
   /**
@@ -345,13 +367,15 @@ export const store = defineStore('files', () => {
       }`
     }
 
-    response.parents?.forEach(async (item) => {
-      await replaceItem(item, kp)
-    })
+    const rows = [...(response.parents || []), ...(response.children || [])]
+    const upserts = Promise.all(rows.map((item) => prepareItem(item, kp))).then((prepared) =>
+      upsertMany(prepared)
+    )
 
-    response.children?.forEach(async (item) => {
-      await replaceItem(item, kp)
-    })
+    // The rows are already streaming in — the shares probe below only
+    // decides whether the synthetic "Shared with me" folder appears, so
+    // it must not hold the listing spinner for its own round trip.
+    loading.value = false
 
     if (parentId === undefined) {
       try {
@@ -366,9 +390,13 @@ export const store = defineStore('files', () => {
         // will on the next navigation. We don't want a 5xx on the
         // shares endpoint to block the regular file listing.
       }
-    }
 
-    loading.value = false
+      if (resolveFirstRootListed) {
+        const resolve = resolveFirstRootListed
+        resolveFirstRootListed = null
+        upserts.then(resolve, resolve)
+      }
+    }
   }
 
   /**
@@ -497,20 +525,29 @@ export const store = defineStore('files', () => {
    * so dedupe stays correct across owned/shared navigation.
    */
   async function replaceItem(item: AppFile, kp: KeyPair): Promise<void> {
+    upsertItem(await prepareItem(item, kp))
+  }
+
+  /**
+   * Decrypt/merge a server row into its store-ready shape without writing
+   * it — listings prepare every row first and land them in one mutation,
+   * so the sorted view recomputes once instead of once per row.
+   */
+  async function prepareItem(item: AppFile, kp: KeyPair): Promise<AppFile> {
     const existing = getItem(item.id)
 
     if (existing && existing.key) {
-      return upsertItem(placeForRecipient({
+      return placeForRecipient({
         ...item,
         key: existing.key,
         name: existing.name,
         thumbnail: existing.thumbnail,
         temporaryId: uuidv4()
-      }, existing))
-    } else {
-      const decrypted = await decryptItem({ ...item, temporaryId: uuidv4() }, kp)
-      return upsertItem(existing ? placeForRecipient(decrypted, existing) : decrypted)
+      }, existing)
     }
+
+    const decrypted = await decryptItem({ ...item, temporaryId: uuidv4() }, kp)
+    return existing ? placeForRecipient(decrypted, existing) : decrypted
   }
 
   /**
@@ -589,6 +626,26 @@ export const store = defineStore('files', () => {
   }
 
   /**
+   * Land a whole listing in one reactive mutation — every dependent
+   * computed (the sorted view above all) recomputes once, not per row.
+   */
+  function upsertMany(files: AppFile[]): void {
+    const next = [..._items.value]
+
+    for (const file of files) {
+      const index = next.findIndex((item) => item.id === file.id)
+
+      if (index === -1) {
+        next.push({ ...file, temporaryId: uuidv4() })
+      } else {
+        next.splice(index, 1, file)
+      }
+    }
+
+    _items.value = next
+  }
+
+  /**
    * Get copy of the item from the list
    */
   function getItem(id: string): AppFile | null {
@@ -655,25 +712,6 @@ export const store = defineStore('files', () => {
   }
 
   /**
-   * Download and decrypt file to the local machine
-   */
-  async function get(file: AppFile, kp: KeyPair): Promise<AppFile> {
-    if (!file.id) {
-      throw new Error('Cannot download file without ID')
-    }
-
-    if (file.mime === 'dir') {
-      throw new Error('Cannot download directory')
-    }
-
-    if (!file.key) {
-      throw new Error('Cannot download file without key')
-    }
-
-    return download.get(file, kp)
-  }
-
-  /**
    * Load file metadata, use the inner storage if the file is found, if not, fetch it from the backend.
    *
    * Recipient rows that originated from the `Shared with me` virtual root carry
@@ -700,7 +738,7 @@ export const store = defineStore('files', () => {
     await meta.remove(file.id)
     removeItem(file.id)
 
-    await find(kp, fileId.value)
+    await find(kp, fileId.value, false)
     emitFileTreeChange({ type: 'deleted', folderId: file.file_id || undefined })
   }
 
@@ -710,7 +748,7 @@ export const store = defineStore('files', () => {
   async function removeAll(kp: KeyPair, files: AppFile[]): Promise<void> {
     await meta.removeAll({ ids: files.map((f) => f.id) })
     files.forEach((file) => removeItem(file.id))
-    await find(kp, fileId.value, true)
+    await find(kp, fileId.value, false)
     emitFileTreeChange({ type: 'deleted', folderId: fileId.value || undefined })
   }
 
@@ -728,7 +766,7 @@ export const store = defineStore('files', () => {
       files.forEach((file) => removeItem(file.id))
     }
 
-    await find(kp, fileId.value, true)
+    await find(kp, fileId.value, false)
     emitFileTreeChange({ type: 'moved', folderId: fileId.value || undefined, targetFolderId: file_id || undefined })
   }
 
@@ -748,6 +786,7 @@ export const store = defineStore('files', () => {
     }
 
     const dir = await meta.create(keypair, createFile)
+    upsertItem(dir)
     emitFileTreeChange({ type: 'created', folderId: dir_id })
     return dir
   }
@@ -854,7 +893,7 @@ export const store = defineStore('files', () => {
     dir,
     directories,
     find,
-    get,
+    firstRootListing,
     getItem,
     getSort,
     hasItem,

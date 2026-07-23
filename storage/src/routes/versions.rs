@@ -4,6 +4,7 @@
 //! here, intentionally: history access is metadata + restore, neither of
 //! which the upload/download proxy flow needs.
 
+use actix_web::http::header::ContentEncoding;
 use actix_web::{route, web, HttpRequest, HttpResponse};
 use auth::data::claims::Claims;
 use chrono::Utc;
@@ -77,6 +78,7 @@ pub(crate) async fn download(
         let filename = format!("{}.v{}.tar", file_id, version);
 
         return Ok(HttpResponse::Ok()
+            .insert_header(ContentEncoding::Identity)
             .insert_header(("Content-Type", "application/x-tar"))
             .insert_header(("Content-Length", content_length.to_string()))
             .insert_header((
@@ -88,6 +90,7 @@ pub(crate) async fn download(
 
     let streamer = storage.stream_v(&file, version, chunk).await?;
     Ok(HttpResponse::Ok()
+        .insert_header(ContentEncoding::Identity)
         .insert_header(("Content-Type", "application/octet-stream"))
         .streaming(streamer.stream()))
 }

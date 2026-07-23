@@ -1,11 +1,12 @@
 import { Preview } from '.'
 import { store as FileStore } from '!/storage'
-import { downloadChunk } from '!/storage/download/sync'
+import { downloadAndDecrypt, downloadChunk } from '!/storage/download/sync'
 import type { AppFile, KeyPair } from 'types'
 const store = FileStore()
 
 export class FilePreview extends Preview implements Preview {
   private items?: FilePreview[]
+  private data?: Uint8Array
 
   constructor(public file: AppFile, public keypair: KeyPair) {
     const { id, name, thumbnail, mime, size, file_id, editable } = file
@@ -14,6 +15,22 @@ export class FilePreview extends Preview implements Preview {
 
     this.file = file
     this.keypair = keypair
+  }
+
+  /**
+   * Resolve the thumbnail through the store, which reads the already
+   * decrypted row, then the cached ciphertext, and only then the network.
+   * Listings no longer carry the blob, so without this the preview would
+   * hold a blank frame until the whole file finished downloading.
+   */
+  public async loadThumbnail(): Promise<string | undefined> {
+    if (this.thumbnail) {
+      return this.thumbnail
+    }
+
+    this.thumbnail = await store.loadThumbnail(this.file)
+
+    return this.thumbnail
   }
 
   /**
@@ -98,24 +115,26 @@ export class FilePreview extends Preview implements Preview {
   /**
    * Load the file data.
    *
-   * The cached `this.file.data` short-circuits re-downloads for the
-   * same FilePreview instance, but edits (version restore, fork,
+   * The decrypted content lives on this preview instance only — never on
+   * the shared store row, where it would keep the whole plaintext in
+   * memory long after the preview closes. The cache short-circuits
+   * re-downloads for the same FilePreview; edits (version restore, fork,
    * concurrent save) change what "the current file content" points at
    * while the FilePreview stays the same object. Callers that know a
    * refresh is needed should call [[invalidate]] first.
    */
-  public async load(): Promise<Uint8Array> {
-    if (this.file.data) {
-      return this.file.data
+  public async load(onBytes?: (bytes: number) => void): Promise<Uint8Array> {
+    if (this.data) {
+      return this.data
     }
 
-    this.file = await store.get(this.file, this.keypair)
-
-    if (!this.file.data) {
-      throw new Error('Could not get file data')
+    if (!this.file.key) {
+      throw new Error("File doesn't have a key, cannot decrypt the data, file is unrecoverable")
     }
 
-    return this.file.data
+    this.data = await downloadAndDecrypt(this.file, onBytes)
+
+    return this.data
   }
 
   /**
@@ -124,7 +143,7 @@ export class FilePreview extends Preview implements Preview {
    * newly-flipped active version.
    */
   public invalidate(): void {
-    this.file.data = undefined
+    this.data = undefined
   }
 
   /**
@@ -135,6 +154,7 @@ export class FilePreview extends Preview implements Preview {
   public updateFile(file: AppFile): void {
     // Preserve the symmetric key — it's set by the caller on the
     // original metadata fetch and the restore response drops it.
-    this.file = { ...this.file, ...file, key: file.key || this.file.key, data: undefined }
+    this.file = { ...this.file, ...file, key: file.key || this.file.key }
+    this.data = undefined
   }
 }

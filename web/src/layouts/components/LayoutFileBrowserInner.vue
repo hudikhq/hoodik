@@ -510,6 +510,16 @@ const load = async () => {
   // marking shares seen if the (slower) fetch resolves after a quick exit.
   const target = parentId.value
 
+  // The preview shares this layout but carries no `file_id`, so `target`
+  // reads as root here — listing it would fetch a directory nobody is
+  // looking at, and knock the browser underneath off the folder the user
+  // came from. The preview loads its own siblings for the arrows, which
+  // is the directory that actually matters.
+  if (route.name === 'file-preview') {
+    await Storage.loadStats()
+    return
+  }
+
   // We are not loading when we have hash in the url
   // because that means we already have some files and
   // we want to scroll down to them.
@@ -646,6 +656,7 @@ watch(
       'upload-folder-entries': uploadFolderEntries,
       actions,
       browse,
+      retry: load,
       details,
       directory,
       download,

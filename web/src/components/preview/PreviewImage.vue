@@ -13,6 +13,8 @@ const preview = computed(() => props.modelValue)
 
 const container = ref()
 const imageUrl = ref<string>()
+const thumbnailUrl = ref<string>()
+const loadedBytes = ref(0)
 const imageW = ref(0)
 const imageH = ref(0)
 const scaleW = ref(0)
@@ -25,11 +27,25 @@ const scaleH = ref(0)
  * HEIC/HEIF files are converted to JPEG via heic2any for cross-platform support.
  */
 const load = async () => {
-  if (preview.value.thumbnail) {
-    await fitUrl(preview.value.thumbnail)
+  imageUrl.value = undefined
+  thumbnailUrl.value = undefined
+  loadedBytes.value = 0
+
+  // Paint the thumbnail first and don't let a failure to find one hold up
+  // the real image — it only ever stands in for it.
+  try {
+    thumbnailUrl.value = await preview.value.loadThumbnail()
+    if (thumbnailUrl.value) {
+      await fitUrl(thumbnailUrl.value)
+    }
+  } catch (e) {
+    thumbnailUrl.value = undefined
   }
 
-  let blob = new Blob([await preview.value.load()], { type: preview.value.mime })
+  let blob = new Blob(
+    [await preview.value.load((bytes) => (loadedBytes.value = bytes))],
+    { type: preview.value.mime }
+  )
 
   if (preview.value.mime === 'image/heic' || preview.value.mime === 'image/heif') {
     try {
@@ -104,6 +120,13 @@ const percentage = computed(() => {
   return Math.round((scaleW.value / imageW.value) * 100)
 })
 
+const downloadPercent = computed(() => {
+  const size = preview.value.size
+  if (!size || !loadedBytes.value) return 0
+
+  return Math.min(Math.round((loadedBytes.value / size) * 100), 99)
+})
+
 /**
  * Keydown event handler
  */
@@ -137,7 +160,7 @@ watch(
 </script>
 
 <template>
-  <div ref="container" class="w-[100%] h-[calc(100%+2rem)] image-container">
+  <div ref="container" class="w-full h-full image-container">
     <img
       v-if="imageUrl"
       key="original"
@@ -148,16 +171,29 @@ watch(
       :width="scaleW"
     />
     <img
-      v-else-if="preview.thumbnail"
+      v-else-if="thumbnailUrl"
       key="thumbnail"
       name="loading-thumbnail"
-      :src="preview.thumbnail"
+      :src="thumbnailUrl"
       :alt="preview.name"
       :height="scaleH"
       :width="scaleW"
     />
-    <div v-else class="flex justify-center items-center w-full h-full">
+    <div v-else class="flex flex-col justify-center items-center gap-2 w-full h-full">
       <SpinnerIcon />
+      <span v-if="downloadPercent > 0" class="text-sm text-brownish-100">
+        {{ downloadPercent }}%
+      </span>
+    </div>
+
+    <!-- While the thumbnail stands in, the percent rides on top of it so
+         the viewer can tell the real image is still on its way. -->
+    <div
+      v-if="!imageUrl && downloadPercent > 0 && thumbnailUrl"
+      class="absolute bottom-20 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-sm
+        bg-brownish-800/85 text-brownish-100 border border-brownish-600/60"
+    >
+      {{ downloadPercent }}%
     </div>
   </div>
 
@@ -195,7 +231,30 @@ watch(
   display: grid;
   align-content: center;
   justify-content: center;
-  overflow: scroll;
+  /* auto, not scroll: scroll paints both scrollbar tracks even at fit
+     scale, which reads as white borders around the image on the dark
+     stage. Scrollbars only belong here once the image is zoomed past
+     the viewport, and then they should match the stage. */
+  overflow: auto;
+  scrollbar-color: #393939 transparent;
+}
+
+.image-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.image-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.image-container::-webkit-scrollbar-thumb {
+  background: #393939;
+  border-radius: 4px;
+}
+
+.image-container::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .image-container img {

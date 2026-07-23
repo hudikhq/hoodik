@@ -5,7 +5,6 @@
 #[path = "./helpers.rs"]
 mod helpers;
 
-use actix_web::body::{BoxBody, EitherBody};
 use actix_web::dev::{Service, ServiceResponse};
 use actix_web::{http::StatusCode, test};
 use entity::{opaque_ksf, EntityTrait};
@@ -17,17 +16,21 @@ const PASSWORD: &[u8] = helpers::LEGACY_PASSWORD.as_bytes();
 
 /// The service produced by `test::init_service(server::app(..))`.
 trait TestApp:
-    Service<actix_http::Request, Response = ServiceResponse<EitherBody<BoxBody>>, Error = actix_web::Error>
+    Service<actix_http::Request, Response = ServiceResponse<Self::Body>, Error = actix_web::Error>
 {
+    type Body: actix_web::body::MessageBody;
 }
 
-impl<S> TestApp for S where
+impl<S, B> TestApp for S
+where
+    B: actix_web::body::MessageBody,
     S: Service<
         actix_http::Request,
-        Response = ServiceResponse<EitherBody<BoxBody>>,
+        Response = ServiceResponse<B>,
         Error = actix_web::Error,
-    >
+    >,
 {
+    type Body = B;
 }
 
 /// Seed a legacy RSA account at the data layer and log it in for a session
@@ -55,7 +58,7 @@ async fn seed_and_login_legacy(
 async fn opaque_login(
     app: &impl TestApp,
     password: &[u8],
-) -> Option<ServiceResponse<EitherBody<BoxBody>>> {
+) -> Option<ServiceResponse<impl actix_web::body::MessageBody>> {
     let start = cryptfns::opaque::client_login_start(password).unwrap();
 
     let req = test::TestRequest::post()

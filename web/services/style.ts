@@ -6,7 +6,6 @@ export const store = defineStore('style', {
   state: () => ({
     /* Styles */
     asideStyle: 'basic',
-    asideScrollbarsStyle: 'basic',
     asideBrandStyle: 'basic',
     asideMenuItemStyle: 'basic',
     asideMenuItemActiveStyle: 'basic',
@@ -45,11 +44,9 @@ export const store = defineStore('style', {
       }
 
       if (typeof document !== 'undefined') {
-        document.body.classList[this.darkMode ? 'add' : 'remove']('dark-scrollbars')
-
-        document.documentElement.classList[this.darkMode ? 'add' : 'remove'](
-          'dark-scrollbars-compat'
-        )
+        // Layouts scope their own `dark` class, but the root scrollbar can
+        // only be themed from <html> — stamp it there as well.
+        document.documentElement.classList[this.darkMode ? 'add' : 'remove']('dark')
       }
     }
   }

@@ -7,7 +7,7 @@ use crate::checksum;
 use crate::config::{UploadHashOptions, CHUNK_SIZE_BYTES, MAX_UPLOAD_RETRIES};
 use crate::error::{Error, HttpError, Result};
 use crate::platform::{DataSource, HttpClient, ProgressReporter};
-use crate::types::{Auth, ChunkResponse, FileHashes};
+use crate::types::{Auth, ChunkResponse, DownloadSource, FileHashes};
 use crate::upload::compute_chunk_count;
 
 fn test_auth() -> Auth {
@@ -62,6 +62,7 @@ struct MockHttpClient {
     received_hashes: RefCell<Option<FileHashes>>,
     scripted_upload_tar_responses: RefCell<std::collections::VecDeque<Result<ChunkResponse>>>,
     last_upload_tar_body: RefCell<Option<Vec<u8>>>,
+    requested_urls: RefCell<Vec<String>>,
 }
 
 impl MockHttpClient {
@@ -73,6 +74,7 @@ impl MockHttpClient {
             scripted_download_responses: RefCell::new(std::collections::VecDeque::new()),
             received_hashes: RefCell::new(None),
             scripted_upload_tar_responses: RefCell::new(std::collections::VecDeque::new()),
+            requested_urls: RefCell::new(Vec::new()),
             last_upload_tar_body: RefCell::new(None),
         }
     }
@@ -132,33 +134,50 @@ impl HttpClient for MockHttpClient {
         Box::pin(async move { Ok(resp) })
     }
 
-    fn download_chunk(
-        &self,
+    fn download_chunk<'a>(
+        &'a self,
         _auth: &Auth,
-        _file_id: &str,
+        source: DownloadSource<'_>,
         chunk_index: u64,
-    ) -> Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + '_>> {
+        on_bytes: Box<dyn Fn(u64) + 'a>,
+    ) -> Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + 'a>> {
+        self.requested_urls
+            .borrow_mut()
+            .push(source.chunk_url("", chunk_index));
         let scripted = self.scripted_download_responses.borrow_mut().pop_front();
 
         if let Some(result) = scripted {
-            return Box::pin(async move { result });
+            return Box::pin(async move {
+                // Mirror a streaming body: half the bytes land before the
+                // request completes, so pipeline tests can observe progress
+                // from a chunk that hasn't finished.
+                if let Ok(ref data) = result {
+                    on_bytes(data.len() as u64 / 2);
+                    on_bytes(data.len() as u64);
+                }
+                result
+            });
         }
 
         let data = self.stored_chunks.borrow().get(&chunk_index).cloned();
         Box::pin(async move {
-            data.ok_or(Error::Http(HttpError {
+            let data = data.ok_or(Error::Http(HttpError {
                 status: 404,
                 message: format!("chunk {chunk_index} not found"),
                 validation: None,
-            }))
+            }))?;
+            on_bytes(data.len() as u64 / 2);
+            on_bytes(data.len() as u64);
+            Ok(data)
         })
     }
 
-    fn download_all_chunks(
-        &self,
+    fn download_all_chunks<'a>(
+        &'a self,
         _auth: &Auth,
         _file_id: &str,
-    ) -> Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + '_>> {
+        on_bytes: Box<dyn Fn(u64) + 'a>,
+    ) -> Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + 'a>> {
         let stored = self.stored_chunks.borrow();
         let mut indices: Vec<u64> = stored.keys().copied().collect();
         indices.sort();
@@ -168,7 +187,10 @@ impl HttpClient for MockHttpClient {
             .filter_map(|idx| stored.get(&idx).map(|d| (format!("{:06}.enc", idx), d.clone())))
             .collect();
         let archive = crate::tar::build_tar(&entries);
-        Box::pin(async move { Ok(archive) })
+        Box::pin(async move {
+            on_bytes(archive.len() as u64);
+            Ok(archive)
+        })
     }
 
     fn upload_chunks_tar(
@@ -813,6 +835,138 @@ async fn upload_single_chunk_matches_legacy_ciphertext() {
     assert_eq!(http.stored_chunks.borrow()[&0], legacy);
 }
 
+#[test]
+fn byte_tally_reports_from_partial_chunks_and_survives_restart() {
+    use crate::download::ByteTally;
+    let mut tally = ByteTally::new();
+    let total = 10 * 1024 * 1024;
+
+    // Below the emission delta: recorded, not reported.
+    assert_eq!(tally.record(0, 100 * 1024, total), None);
+
+    // A second in-flight chunk pushes the sum over the threshold — progress
+    // exists before either chunk has finished.
+    assert_eq!(tally.record(1, 200 * 1024, total), Some(300 * 1024));
+
+    // Growth below the delta since the last report stays quiet.
+    assert_eq!(tally.record(0, 150 * 1024, total), None);
+
+    // A restarted chunk overwrites its own entry instead of double
+    // counting: chunk 1 drops from 200 KiB back to 10 KiB.
+    assert_eq!(tally.record(1, 10 * 1024, total), None);
+
+    // The next report reflects the corrected sum (crossing the delta again).
+    assert_eq!(
+        tally.record(0, 700 * 1024, total),
+        Some(710 * 1024)
+    );
+}
+
+#[test]
+fn byte_tally_never_reports_completion_early() {
+    use crate::download::ByteTally;
+    let mut tally = ByteTally::new();
+    let total = 400 * 1024;
+
+    // Received ciphertext can exceed the plaintext total; the report is
+    // capped one byte short so only the pipeline's final event completes
+    // the bar.
+    assert_eq!(tally.record(0, 500 * 1024, total), Some(total - 1));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn download_reports_progress_before_first_chunk_completes() {
+    let cs = CHUNK_SIZE_BYTES as usize;
+    let data = vec![0x42u8; cs + 500];
+
+    let source = MockDataSource::new(data.clone());
+    let http = MockHttpClient::new();
+    let up = MockProgressReporter::new();
+
+    crate::upload::upload_file(&http, &source, &up, &test_auth(), "stream", &test_key(), &[], UploadHashOptions::default(), None, cryptfns::cipher::DEFAULT)
+        .await
+        .unwrap();
+
+    let dl = MockProgressReporter::new();
+    let chunk_count = compute_chunk_count(data.len() as u64);
+    let downloaded = crate::download::download_file(
+        &http,
+        &dl,
+        &test_auth(),
+        "stream",
+        data.len() as u64,
+        chunk_count,
+        &test_key(),
+        cryptfns::cipher::DEFAULT,
+    )
+    .await
+    .unwrap();
+    assert_eq!(downloaded, data);
+
+    let byte_events: Vec<(u64, u64)> = dl
+        .events()
+        .iter()
+        .filter_map(|e| match e {
+            ProgressEvent::ChunkDownloaded { bytes, total_bytes } => Some((*bytes, *total_bytes)),
+            _ => None,
+        })
+        .collect();
+
+    // The mock streams each chunk in two reads, so at least one report
+    // lands mid-chunk — strictly between zero and the full size.
+    assert!(
+        byte_events.iter().any(|(b, _)| *b > 0 && *b < data.len() as u64),
+        "expected a mid-transfer progress report, got {byte_events:?}"
+    );
+
+    // Nothing claims completion before the final exact report...
+    let (last, rest) = byte_events.split_last().unwrap();
+    assert!(rest.iter().all(|(b, _)| *b < data.len() as u64));
+
+    // ...which carries the assembled plaintext size against the same total.
+    assert_eq!(*last, (data.len() as u64, data.len() as u64));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn download_streaming_emits_ordered_chunks() {
+    let cs = CHUNK_SIZE_BYTES as usize;
+    let mut data = Vec::with_capacity(cs * 2 + 300);
+    data.extend(vec![0x11u8; cs]);
+    data.extend(vec![0x22u8; cs]);
+    data.extend(vec![0x33u8; 300]);
+
+    let source = MockDataSource::new(data.clone());
+    let http = MockHttpClient::new();
+    let up = MockProgressReporter::new();
+
+    crate::upload::upload_file(&http, &source, &up, &test_auth(), "sink", &test_key(), &[], UploadHashOptions::default(), None, cryptfns::cipher::DEFAULT)
+        .await
+        .unwrap();
+
+    let dl = MockProgressReporter::new();
+    let chunk_count = compute_chunk_count(data.len() as u64);
+    let mut emitted: Vec<Vec<u8>> = Vec::new();
+    crate::download::download_file_streaming(
+        &http,
+        &dl,
+        &test_auth(),
+        DownloadSource::Storage("sink"),
+        data.len() as u64,
+        chunk_count,
+        &test_key(),
+        cryptfns::cipher::DEFAULT,
+        &mut |chunk| emitted.push(chunk),
+    )
+    .await
+    .unwrap();
+
+    // One emission per chunk, in file order, reassembling exactly — the
+    // sink sees what the buffering path would have returned.
+    assert_eq!(emitted.len(), chunk_count as usize);
+    assert_eq!(emitted.concat(), data);
+    assert!(matches!(dl.events().last(), Some(ProgressEvent::Complete)));
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn download_cancelled_before_any_work() {
     let http = MockHttpClient::new();
@@ -886,7 +1040,7 @@ async fn download_all_chunks_tar_roundtrip() {
 
     // Download as tar archive and extract entries.
     let tar_data = http
-        .download_all_chunks(&test_auth(), "tar_rt")
+        .download_all_chunks(&test_auth(), "tar_rt", Box::new(|_| {}))
         .await
         .unwrap();
     let entries = crate::tar::extract_tar(&tar_data).unwrap();
@@ -929,7 +1083,7 @@ async fn download_all_chunks_tar_multi_chunk() {
     .unwrap();
 
     let tar_data = http
-        .download_all_chunks(&test_auth(), "tar_mc")
+        .download_all_chunks(&test_auth(), "tar_mc", Box::new(|_| {}))
         .await
         .unwrap();
     let entries = crate::tar::extract_tar(&tar_data).unwrap();
@@ -1043,4 +1197,71 @@ async fn upload_tar_cancellation() {
         http.take_last_tar_body().is_none(),
         "cancelled upload must not have hit the HTTP client"
     );
+}
+
+#[test]
+fn download_source_maps_route_and_method() {
+    let storage = DownloadSource::Storage("f-1");
+    assert_eq!(storage.id(), "f-1");
+    assert_eq!(storage.method(), "GET");
+    assert_eq!(
+        storage.chunk_url("https://h.example", 3),
+        "https://h.example/api/storage/f-1?chunk=3"
+    );
+
+    let link = DownloadSource::PublicLink("l-1");
+    assert_eq!(link.id(), "l-1");
+    assert_eq!(link.method(), "POST");
+    assert_eq!(
+        link.chunk_url("https://h.example", 0),
+        "https://h.example/api/links/l-1?chunk=0"
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn public_link_download_hits_link_route_and_roundtrips() {
+    let original = b"public link content, decrypted only by the recipient".to_vec();
+    let source = MockDataSource::new(original.clone());
+    let http = MockHttpClient::new();
+    let up_progress = MockProgressReporter::new();
+
+    crate::upload::upload_file(
+        &http,
+        &source,
+        &up_progress,
+        &test_auth(),
+        "pl",
+        &test_key(),
+        &[],
+        UploadHashOptions::default(),
+        None,
+        cryptfns::cipher::DEFAULT,
+    )
+    .await
+    .unwrap();
+
+    let dl_progress = MockProgressReporter::new();
+    let chunk_count = compute_chunk_count(original.len() as u64);
+    let downloaded = crate::download::download_file_from(
+        &http,
+        &dl_progress,
+        &test_auth(),
+        DownloadSource::PublicLink("link-uuid"),
+        original.len() as u64,
+        chunk_count,
+        &test_key(),
+        cryptfns::cipher::DEFAULT,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(downloaded, original);
+    let urls = http.requested_urls.borrow();
+    assert!(!urls.is_empty());
+    for url in urls.iter() {
+        assert!(
+            url.starts_with("/api/links/link-uuid?chunk="),
+            "expected link route, got {url}"
+        );
+    }
 }

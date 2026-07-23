@@ -5,7 +5,7 @@
 //! and endpoint Request and Response structs.
 
 use actix_web::{
-    body::{BoxBody, EitherBody},
+    body::MessageBody,
     dev::{ServiceFactory, ServiceRequest, ServiceResponse},
     middleware::Logger,
     web, App, HttpServer,
@@ -33,7 +33,7 @@ pub fn app(
     impl ServiceFactory<
         ServiceRequest,
         Config = (),
-        Response = ServiceResponse<EitherBody<BoxBody>>,
+        Response = ServiceResponse<impl MessageBody>,
         Error = actix_web::Error,
         InitError = (),
     >,
@@ -45,6 +45,13 @@ pub fn app(
             (fs::MAX_CHUNK_SIZE_BYTES as f32 * 1.1) as usize,
         ))
         .app_data(web::Data::new(context))
+        // Compresses the SPA assets and JSON responses when the client
+        // asks for it — the wasm bundle alone drops from 3.7 MB to under
+        // half of that, which decides whether a slow connection boots in
+        // seconds or minutes. The ciphertext streams opt out with an
+        // identity encoding: encrypted bytes don't compress, and the CPU
+        // spent trying would tax the hottest path in the server.
+        .wrap(actix_web::middleware::Compress::default())
         .wrap(cors::setup())
         .configure(configure)
         .route("/api/liveness", web::get().to(|| liveness("GET")))

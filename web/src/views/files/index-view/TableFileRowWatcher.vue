@@ -2,11 +2,11 @@
 import TableFileRow from './TableFileRow.vue'
 import scrollMonitor from 'scrollmonitor'
 import type { AppFile } from 'types'
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps<{
   file: AppFile
-  checkedRows: Partial<AppFile>[]
+  checkedIds: Set<string>
   hideDelete?: boolean
   share?: boolean
   hideCheckbox?: boolean
@@ -38,8 +38,10 @@ const emits = defineEmits<{
 const referenceObject = ref()
 const visible = ref(false)
 
+let elementWatcher: ReturnType<typeof scrollMonitor.create> | undefined
+
 onMounted(() => {
-  const elementWatcher = scrollMonitor.create(referenceObject.value, 2000)
+  elementWatcher = scrollMonitor.create(referenceObject.value, 2000)
   elementWatcher.enterViewport(() => {
     visible.value = true
   }, false)
@@ -47,6 +49,13 @@ onMounted(() => {
   elementWatcher.exitViewport(() => {
     visible.value = false
   }, false)
+})
+
+// scrollMonitor keeps every watcher in a global array it walks on each
+// scroll event — an undestroyed one outlives its row, pointing at detached
+// DOM and slowing every future scroll.
+onUnmounted(() => {
+  elementWatcher?.destroy()
 })
 </script>
 
@@ -67,7 +76,7 @@ onMounted(() => {
     <TableFileRow
       v-else
       :file="props.file"
-      :checked-rows="props.checkedRows"
+      :checked-ids="props.checkedIds"
       :hide-delete="props.hideDelete"
       :share="props.share"
       :hide-checkbox="props.hideCheckbox"

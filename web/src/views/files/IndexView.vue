@@ -81,6 +81,7 @@ watch(fileId, (v) => {
         :parents="Storage.parents"
         :parentId="parentId"
         :items="Storage.items"
+        :error="Storage.error"
         :sortOptions="Storage.sortOptions"
         :dir="Storage.dir || null"
         :hide-checkbox="false"

@@ -68,20 +68,6 @@ export const store = defineStore('links', () => {
   /**
    * Remove item from the list
    */
-  function takeItem(id: string): AppLink | null {
-    const index = items.value.findIndex((item) => item.id === id)
-    const item = items.value[index] || null
-
-    if (item) {
-      items.value = items.value.filter((item) => item.id !== id)
-    }
-
-    return item
-  }
-
-  /**
-   * Remove item from the list
-   */
   function hasItem(id: string): boolean {
     return items.value.findIndex((item) => item.id === id) !== -1
   }
@@ -144,7 +130,7 @@ export const store = defineStore('links', () => {
   /**
    * Remove all the links on the selected list
    */
-  async function removeAll(kp: KeyPair, links: AppLink[]) {
+  async function removeAll(_kp: KeyPair, links: AppLink[]) {
     await Promise.all(
       links.map(async (link) => {
         await Api.delete(`/api/links/${link.id}`)
@@ -152,10 +138,7 @@ export const store = defineStore('links', () => {
       })
     )
 
-    items.value = []
     selected.value = []
-
-    await find(kp)
   }
 
   /**
@@ -168,7 +151,7 @@ export const store = defineStore('links', () => {
       expires_at = Math.floor(expiresAt.valueOf() / 1000)
     }
 
-    const link = takeItem(id)
+    const link = getItem(id)
 
     if (!link) {
       throw new Error('Failed to update link')
@@ -178,9 +161,10 @@ export const store = defineStore('links', () => {
       expires_at
     })
 
-    addItem({ ...link, expires_at })
+    const updated = { ...link, expires_at }
+    upsertItem(updated)
 
-    return { ...link, expires_at }
+    return updated
   }
 
   /**
@@ -290,9 +274,13 @@ export const store = defineStore('links', () => {
    * comes from the URL fragment and never leaves the browser; the server only
    * ever streams ciphertext.
    */
-  async function download(id: string, key: string): Promise<Uint8Array> {
+  async function download(
+    id: string,
+    key: string,
+    onBytes?: (bytes: number) => void
+  ): Promise<Uint8Array> {
     const link = await get(id, key)
-    return await meta.downloadAndDecrypt(link)
+    return await meta.downloadAndDecrypt(link, onBytes)
   }
 
   /**
@@ -320,7 +308,6 @@ export const store = defineStore('links', () => {
     removeItem,
     selectAll,
     selectOne,
-    takeItem,
     updateItem,
     upsertItem,
     deselectAll,

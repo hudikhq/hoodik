@@ -11,4 +11,8 @@ import { dirname, join } from 'node:path'
 const pkgPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'pkg', 'package.json')
 const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
 pkg.sideEffects = ['./transfer.js', './transfer_bg.js', './transfer_bg.wasm', './snippets/*']
+// wasm-pack only emits "module"; Vitest resolves packages in node mode, which
+// wants "main" — without it any service importing `transfer` fails to load
+// under test.
+pkg.main = 'transfer.js'
 writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n')

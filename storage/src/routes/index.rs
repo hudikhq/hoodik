@@ -26,10 +26,20 @@ pub(crate) async fn index(
 
     for file in response.children.iter_mut() {
         if file.is_file() {
-            let chunks = Fs::new(&context.config).get_uploaded_chunks(file).await?;
+            // A finished upload has every chunk by definition — only files
+            // still uploading need the storage backend consulted. Without
+            // this split every listing paid one backend enumeration per
+            // row, which on object storage is a network call per file.
+            if file.finished_upload_at.is_some() {
+                let chunks = file.chunks.unwrap_or(0);
+                file.chunks_stored = Some(chunks);
+                file.uploaded_chunks = Some((0..chunks).collect());
+            } else {
+                let chunks = Fs::new(&context.config).get_uploaded_chunks(file).await?;
 
-            file.chunks_stored = Some(chunks.len() as i64);
-            file.uploaded_chunks = Some(chunks);
+                file.chunks_stored = Some(chunks.len() as i64);
+                file.uploaded_chunks = Some(chunks);
+            }
         }
     }
 

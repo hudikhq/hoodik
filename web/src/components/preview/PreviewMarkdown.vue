@@ -388,7 +388,11 @@ defineExpose({ exportPdf: handleExportPdf })
       Are you sure you want to delete '{{ preview.name }}'?
     </CardBoxModal>
 
+    <!-- Mounted on demand: the picker starts listing and decrypting folders
+         the moment it exists, which is wasted work on every preview and a
+         crash on public links, where there is no keypair to decrypt with. -->
     <CardBoxModal
+      v-if="showMoveModal"
       :model-value="showMoveModal"
       title="Move to folder"
       button="info"

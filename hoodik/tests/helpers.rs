@@ -172,22 +172,22 @@ pub(crate) async fn seed_owned_files<C: entity::ConnectionTrait>(
 pub(crate) trait TestApp:
     actix_web::dev::Service<
     actix_http::Request,
-    Response = actix_web::dev::ServiceResponse<
-        actix_web::body::EitherBody<actix_web::body::BoxBody>,
-    >,
+    Response = actix_web::dev::ServiceResponse<Self::Body>,
     Error = actix_web::Error,
 >
 {
+    type Body: actix_web::body::MessageBody;
 }
-impl<S> TestApp for S where
+impl<S, B> TestApp for S
+where
+    B: actix_web::body::MessageBody,
     S: actix_web::dev::Service<
         actix_http::Request,
-        Response = actix_web::dev::ServiceResponse<
-            actix_web::body::EitherBody<actix_web::body::BoxBody>,
-        >,
+        Response = actix_web::dev::ServiceResponse<B>,
         Error = actix_web::Error,
-    >
+    >,
 {
+    type Body = B;
 }
 
 /// A Curve25519 + OPAQUE account created through the real register endpoint.

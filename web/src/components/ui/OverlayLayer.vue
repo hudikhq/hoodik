@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { store as style } from '!/style.js'
-import { watch } from 'vue'
+import { onUnmounted, watch } from 'vue'
 const styleStore = style()
 
 const props = defineProps({
@@ -25,6 +25,12 @@ watch(
     }
   }
 )
+
+// A route change can unmount the host mid-display — without this the page
+// stays scroll-locked with no overlay left to dismiss.
+onUnmounted(() => {
+  document.body.style.overflow = 'auto'
+})
 
 const emit = defineEmits(['overlay-click'])
 

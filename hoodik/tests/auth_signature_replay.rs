@@ -36,7 +36,7 @@ async fn post_signature(
     app: &impl helpers::TestApp,
     body: &Signature,
     ip: &str,
-) -> actix_web::dev::ServiceResponse<actix_web::body::EitherBody<actix_web::body::BoxBody>> {
+) -> actix_web::dev::ServiceResponse<impl actix_web::body::MessageBody> {
     let req = test::TestRequest::post()
         .uri("/api/auth/signature")
         .insert_header(("cf-connecting-ip", ip))

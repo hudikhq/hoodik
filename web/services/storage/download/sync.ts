@@ -1,38 +1,62 @@
-import * as cryptfns from '../../cryptfns'
 import Api from '../../api'
-import * as meta from '../meta'
+import { TransferDownloader } from 'transfer'
 
 import type { DownloadProgressFunction, AppFile } from '../../../types'
 
 /**
- * Create an Api instance that uses a download transfer token for the given file.
+ * Build a wasm downloader for an authenticated storage file. The crate owns
+ * the whole transfer — HTTP, retries, ordering, decryption — so nothing
+ * derived from the plaintext ever exists outside it until the result is
+ * handed back. Callers must `free()` it (or go through the helpers below).
  */
-async function transferApi(file: AppFile): Promise<Api> {
-  const { token } = await meta.requestTransferToken(file.id, 'download')
-  return new Api({ ...new Api().toJson(), jwtToken: token, refreshToken: undefined })
+function fileDownloader(file: AppFile): TransferDownloader {
+  if (!file.key) {
+    throw new Error('Cannot download file without key')
+  }
+
+  const { apiUrl, jwtToken, refreshToken } = new Api().toJson()
+  const downloader = new TransferDownloader(
+    file.id,
+    file.size || 0,
+    file.chunks,
+    apiUrl || '',
+    jwtToken || undefined,
+    refreshToken || undefined,
+    file.key as Uint8Array
+  )
+  downloader.set_cipher(file.cipher)
+
+  return downloader
+}
+
+/**
+ * Adapt the crate's JSON progress protocol to a plain byte callback.
+ */
+function bytesFromProgress(onBytes?: (bytes: number) => void): (progressJson: string) => void {
+  return (progressJson: string) => {
+    if (!onBytes) return
+
+    const progress = JSON.parse(progressJson)
+    if (progress.type === 'download' && typeof progress.bytes_downloaded === 'number') {
+      onBytes(progress.bytes_downloaded)
+    }
+  }
 }
 
 /**
  * Download the file content
  */
-export async function downloadAndDecrypt(file: AppFile): Promise<Uint8Array> {
-  if (!file.key) {
-    throw new Error('Cannot download file without key')
+export async function downloadAndDecrypt(
+  file: AppFile,
+  onBytes?: (bytes: number) => void
+): Promise<Uint8Array> {
+  const downloader = fileDownloader(file)
+
+  try {
+    return await downloader.download(bytesFromProgress(onBytes), () => false)
+  } finally {
+    downloader.free()
   }
-
-  const api = await transferApi(file)
-  let data = new Uint8Array(0)
-
-  for (let i = 0; i < file.chunks; i++) {
-    const encrypted = await downloadEncryptedChunk(file, i, undefined, api)
-    const chunk = await cryptfns.cipher.decrypt(file.cipher, encrypted, file.key, i)
-    const tg4 = new Uint8Array(data.length + chunk.length)
-    tg4.set(data, 0)
-    tg4.set(chunk, data.length)
-    data = tg4
-  }
-
-  return data
 }
 
 /**
@@ -40,7 +64,6 @@ export async function downloadAndDecrypt(file: AppFile): Promise<Uint8Array> {
  * to download of the browser
  */
 export async function downloadAndDecryptStream(file: AppFile, progress?: DownloadProgressFunction) {
-  const api = await transferApi(file)
   const chunks = [...new Array(file.chunks)].map((_, i) => i)
 
   const stream = new ReadableStream({
@@ -57,7 +80,7 @@ export async function downloadAndDecryptStream(file: AppFile, progress?: Downloa
         return
       }
 
-      const data = await downloadChunk(file, chunk as number, undefined, api)
+      const data = await downloadChunk(file, chunk as number)
       if (data) {
         if (progress) {
           await progress(file, data.length)
@@ -82,62 +105,18 @@ export async function downloadAndDecryptStream(file: AppFile, progress?: Downloa
 /**
  * Download single file chunk and decrypt it
  */
-export async function downloadChunk(file: AppFile, chunk: number, signal?: AbortSignal, api?: Api): Promise<Uint8Array> {
-  if (!file.key) {
-    throw new Error('Cannot download file without key')
+export async function downloadChunk(file: AppFile, chunk: number, signal?: AbortSignal): Promise<Uint8Array> {
+  // The wasm fetch can't be aborted mid-chunk; progressive consumers call
+  // per chunk, so honouring the signal between chunks is where it counts.
+  if (signal?.aborted) {
+    throw new DOMException('Download aborted', 'AbortError')
   }
 
-  if (!api) {
-    api = await transferApi(file)
+  const downloader = fileDownloader(file)
+
+  try {
+    return await downloader.downloadChunk(chunk, undefined)
+  } finally {
+    downloader.free()
   }
-
-  const data = await downloadEncryptedChunk(file, chunk, signal, api)
-  return cryptfns.cipher.decrypt(file.cipher, data, file.key, chunk)
-}
-
-/**
- * Download a single chunk of the file and return it without decrypting it
- */
-export async function downloadEncryptedChunk(file: AppFile, chunk: number, signal?: AbortSignal, api?: Api): Promise<Uint8Array> {
-  const response = await getResponse(file, chunk, signal, api)
-
-  if (!response.body) {
-    throw new Error(`Couldn't download file ${file.id}, chunk: ${chunk}`)
-  }
-
-  const reader = response.body.getReader()
-  let data = new Uint8Array(0)
-  let downloaded = false
-
-  // @eslint-ignore-next-line
-  while (!downloaded) {
-    const { done, value } = await reader.read()
-
-    if (value) {
-      const tg4 = new Uint8Array(data.length + value.length)
-      tg4.set(data, 0)
-      tg4.set(value, data.length)
-      data = tg4
-    }
-
-    if (!value && !done) {
-      throw new Error("Couldn't download file")
-    }
-
-    if (done) {
-      downloaded = true
-      return data
-    }
-  }
-
-  throw new Error(`Couldn't download file ${file.id}, chunk: ${chunk}`)
-}
-
-/**
- * Get the file download response
- */
-async function getResponse(file: AppFile | number, chunk: number, signal?: AbortSignal, api?: Api): Promise<Response> {
-  const id = typeof file === 'number' ? file : file.id
-
-  return await (api || new Api()).download(`/api/storage/${id}?chunk=${chunk}`, undefined, undefined, signal)
 }

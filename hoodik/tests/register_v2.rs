@@ -2,7 +2,6 @@
 //! driven end to end through the real routes with `cryptfns` as the client.
 //! No migration is involved — the account is born `security_version = 1`.
 
-use actix_web::body::{BoxBody, EitherBody};
 use actix_web::dev::{Service, ServiceResponse};
 use actix_web::{http::StatusCode, test};
 use entity::{ColumnTrait, EntityTrait, QueryFilter};
@@ -12,16 +11,20 @@ use serde_json::{json, Value};
 const PASSWORD: &str = "not-4-weak-password-for-god-sakes!";
 
 trait TestApp:
-    Service<actix_http::Request, Response = ServiceResponse<EitherBody<BoxBody>>, Error = actix_web::Error>
+    Service<actix_http::Request, Response = ServiceResponse<Self::Body>, Error = actix_web::Error>
 {
+    type Body: actix_web::body::MessageBody;
 }
-impl<S> TestApp for S where
+impl<S, B> TestApp for S
+where
+    B: actix_web::body::MessageBody,
     S: Service<
         actix_http::Request,
-        Response = ServiceResponse<EitherBody<BoxBody>>,
+        Response = ServiceResponse<B>,
         Error = actix_web::Error,
-    >
+    >,
 {
+    type Body = B;
 }
 
 /// Run the client half of a v2 signup: generate the curve keys, complete OPAQUE
@@ -32,7 +35,7 @@ async fn signup_v2(
     app: &impl TestApp,
     email: &str,
     password: &str,
-) -> (ServiceResponse<EitherBody<BoxBody>>, String) {
+) -> (ServiceResponse<impl actix_web::body::MessageBody>, String) {
     let ed_private = cryptfns::ed25519::private::generate().unwrap();
     let ed_public = cryptfns::ed25519::public::from_private(&ed_private).unwrap();
     let fingerprint = cryptfns::spki::fingerprint(&ed_public).unwrap();

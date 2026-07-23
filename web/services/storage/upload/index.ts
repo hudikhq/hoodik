@@ -32,6 +32,27 @@ import {
   type UploadIntoSharedFolderProgress
 } from '../../shares/editable'
 
+
+// The browser row only needs to track transfer state coarsely — byte-level
+// smoothness lives in the queue UI. Syncing the reactive listing on every
+// chunk event re-sorted the open folder many times a second mid-transfer.
+const lastRowSync = new Map<string, number>()
+
+function shouldSyncRow(id: string, terminal: boolean): boolean {
+  if (terminal) {
+    lastRowSync.delete(id)
+    return true
+  }
+
+  const now = Date.now()
+  if (now - (lastRowSync.get(id) || 0) < 500) {
+    return false
+  }
+
+  lastRowSync.set(id, now)
+  return true
+}
+
 export const store = defineStore('upload', () => {
   /**
    * Start processing queue while its not stopped
@@ -123,7 +144,12 @@ export const store = defineStore('upload', () => {
     const currentDirId = storage?.dir?.id || null
 
     // Upsert the item in the storage
-    if (!file.cancel && storage && currentFileId === currentDirId) {
+    if (
+      !file.cancel &&
+      storage &&
+      currentFileId === currentDirId &&
+      shouldSyncRow(file.id, isDone || !!error)
+    ) {
       storage.upsertItem(file)
     }
 

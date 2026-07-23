@@ -2,7 +2,7 @@
 import { formatSize } from '!'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
-import { computed } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import {
   mdiClose,
   mdiCheck,
@@ -40,11 +40,51 @@ const titleText = computed(() => {
   return `${props.type.split(':')[0]}: ${name.value} (${size.value})`
 })
 
+// Upload progress only ticks when a whole chunk lands: fetch() has no
+// upload-progress API, so completed chunks are the only truth the wire
+// gives us. Between events the bar advances at the measured average rate,
+// capped below the next chunk boundary so it can never overtake reality —
+// every real event snaps it forward, never back.
+const now = ref(Date.now())
+let ticker: number | undefined
+
+watch(
+  () => props.type,
+  (type) => {
+    window.clearInterval(ticker)
+    ticker =
+      type === 'upload:running'
+        ? window.setInterval(() => (now.value = Date.now()), 250)
+        : undefined
+  },
+  { immediate: true }
+)
+
+onUnmounted(() => window.clearInterval(ticker))
+
+const lastChunkAt = ref(Date.now())
+
+watch(
+  () => props.file.uploaded_chunks?.length || 0,
+  () => (lastChunkAt.value = Date.now())
+)
+
 const percentage = computed(() => {
   if (isUpload.value) {
     const stored = props.file.uploaded_chunks?.length || 0
-    if (!stored) return '0%'
-    return Math.round((stored / props.file.chunks) * 100) + '%'
+    if (!stored || !props.file.chunks) return '0%'
+
+    const real = stored / props.file.chunks
+    if (real >= 1) return '100%'
+
+    const started = (props.file as UploadAppFile).started_upload_at
+    const elapsed = started ? now.value - new Date(started).valueOf() : 0
+    if (elapsed <= 0) return Math.round(real * 100) + '%'
+
+    const estimated = real + (real / elapsed) * (now.value - lastChunkAt.value)
+    const capped = Math.min(estimated, real + 0.95 / props.file.chunks, 0.99)
+
+    return Math.round(capped * 100) + '%'
   }
   const downloadedBytes = (props.file as DownloadAppFile).downloadedBytes || 0
   if (!props.file.size) return '0%'
@@ -63,6 +103,10 @@ const speed = computed(() => {
     const uploaded = (stored / props.file.chunks) * (props.file.size || 0)
     return formatSize(uploaded / seconds) + '/s'
   } else {
+    // Between the last received byte and the blob reaching the browser a
+    // speed readout would be a fiction — name the work instead.
+    if ((props.file as DownloadAppFile).stage === 'processing') return 'Preparing…'
+
     const started = (props.file as DownloadAppFile).started_download_at
     if (!started) return '0 B/s'
     const seconds = (Date.now() - new Date(started).valueOf()) / 1000

@@ -6,7 +6,6 @@
 #[path = "./helpers.rs"]
 mod helpers;
 
-use actix_web::body::{BoxBody, EitherBody};
 use actix_web::dev::{Service, ServiceResponse};
 use actix_web::{http::StatusCode, test};
 use auth::data::{authenticated::Authenticated, signature::Signature};
@@ -21,16 +20,20 @@ const EMAIL: &str = "migrate@example.com";
 const PASSWORD: &[u8] = helpers::LEGACY_PASSWORD.as_bytes();
 
 trait TestApp:
-    Service<actix_http::Request, Response = ServiceResponse<EitherBody<BoxBody>>, Error = actix_web::Error>
+    Service<actix_http::Request, Response = ServiceResponse<Self::Body>, Error = actix_web::Error>
 {
+    type Body: actix_web::body::MessageBody;
 }
-impl<S> TestApp for S where
+impl<S, B> TestApp for S
+where
+    B: actix_web::body::MessageBody,
     S: Service<
         actix_http::Request,
-        Response = ServiceResponse<EitherBody<BoxBody>>,
+        Response = ServiceResponse<B>,
         Error = actix_web::Error,
-    >
+    >,
 {
+    type Body = B;
 }
 
 struct LegacyUser {
@@ -314,7 +317,7 @@ async fn migrate(
     app: &impl TestApp,
     user: &LegacyUser,
 ) -> (
-    ServiceResponse<EitherBody<BoxBody>>,
+    ServiceResponse<impl actix_web::body::MessageBody>,
     String,
     Vec<u8>,
     Vec<(entity::Uuid, String)>,

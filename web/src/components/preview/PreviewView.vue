@@ -128,7 +128,7 @@ onUnmounted(() => {
   <Suspense>
     <div
       v-if="preview"
-      class="fixed top-0 left-0 flex flex-col items-center justify-center w-full h-full dark:bg-brownish-950 pt-12"
+      class="fixed top-0 left-0 flex flex-col items-center justify-center w-full h-full bg-brownish-950 text-brownish-100 pt-12"
       :class="{
         'pb-20': previewType !== 'pdf' && previewType !== 'markdown'
       }"

@@ -37,7 +37,27 @@ pub(crate) async fn thumbnail(
         .get(file_id)
         .await?;
 
-    Ok(HttpResponse::Ok().json(ThumbnailResponse {
-        encrypted_thumbnail: file.encrypted_thumbnail,
-    }))
+    // The blob is immutable for a given (file, version) pair, so a matching
+    // validator answers with an empty 304 instead of re-sending it. The
+    // ciphertext itself is multi-KB; the revalidation round trip is not.
+    let etag = format!("\"{}-{}\"", file.id, file.active_version);
+
+    if let Some(candidate) = req
+        .headers()
+        .get("If-None-Match")
+        .and_then(|value| value.to_str().ok())
+    {
+        if candidate == etag {
+            return Ok(HttpResponse::NotModified()
+                .insert_header(("ETag", etag))
+                .finish());
+        }
+    }
+
+    Ok(HttpResponse::Ok()
+        .insert_header(("ETag", etag))
+        .insert_header(("Cache-Control", "private, no-cache"))
+        .json(ThumbnailResponse {
+            encrypted_thumbnail: file.encrypted_thumbnail,
+        }))
 }

@@ -6,6 +6,14 @@ import viteConfig from './vite.config'
 export default mergeConfig(
   viteConfig,
   defineConfig({
+    // Tests exercise the wasm pipeline straight from the build output, so
+    // they never depend on the copy step that syncs node_modules/transfer
+    // for the dev server (and never run against a stale copy).
+    resolve: {
+      alias: {
+        transfer: fileURLToPath(new URL('../transfer/pkg', import.meta.url))
+      }
+    },
     test: {
       // RSA-2048 keypair generation runs in the transfer WASM and is markedly
       // slower on CI than on dev hardware. The share fan-out suites mint several

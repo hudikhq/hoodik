@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::types::{Auth, ChunkResponse, FileHashes};
+use crate::types::{Auth, ChunkResponse, DownloadSource, FileHashes};
 
 /// Platform-agnostic HTTP client for upload/download chunk requests.
 pub trait HttpClient {
@@ -14,20 +14,32 @@ pub trait HttpClient {
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ChunkResponse>> + '_>>;
 
     /// Download a single encrypted chunk as raw bytes.
-    fn download_chunk(
-        &self,
+    ///
+    /// `on_bytes` is invoked with the number of bytes received *so far for
+    /// this chunk* as the response body streams in — starting from the first
+    /// read, not from chunk completion. Implementations that cannot stream
+    /// call it once with the full length; a restarted request starts the
+    /// count over, which is what lets the caller keep an accurate cumulative
+    /// total across retries.
+    fn download_chunk<'a>(
+        &'a self,
         auth: &Auth,
-        file_id: &str,
+        source: DownloadSource<'_>,
         chunk_index: u64,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + '_>>;
+        on_bytes: Box<dyn Fn(u64) + 'a>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + 'a>>;
 
     /// Download all chunks as a tar archive containing individual encrypted chunk files.
     /// Each entry is named `{chunk_index:06}.enc`. Returns the raw tar bytes.
-    fn download_all_chunks(
-        &self,
+    ///
+    /// `on_bytes` follows the same contract as [`Self::download_chunk`],
+    /// counting the tar body itself.
+    fn download_all_chunks<'a>(
+        &'a self,
         auth: &Auth,
         file_id: &str,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + '_>>;
+        on_bytes: Box<dyn Fn(u64) + 'a>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + 'a>>;
 
     /// Upload multiple chunks in a single request as a tar archive.
     ///

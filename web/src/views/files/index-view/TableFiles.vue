@@ -36,12 +36,14 @@ const props = defineProps<{
   share?: boolean
   showActions?: boolean
   loading?: boolean
+  error?: string | null
   sortOptions: { parameter: string; order: string }
 }>()
 
 const emits = defineEmits<{
   (event: 'actions', file: AppFile): void
   (event: 'browse'): void
+  (event: 'retry'): void
   (event: 'deselect-all'): void
   (event: 'details', file: AppFile): void
   (event: 'directory'): void
@@ -74,10 +76,10 @@ const dirId = computed<string | undefined>(() => {
   return undefined
 })
 
+const checkedIds = computed(() => new Set(props.selected.map((file) => file.id)))
+
 const checkedRows = computed(() => {
-  return props.items.filter((item) => {
-    return props.selected.find((file) => file.id === item.id)
-  })
+  return props.items.filter((item) => checkedIds.value.has(item.id))
 })
 
 const showDeleteAll = computed(() => {
@@ -396,11 +398,33 @@ const sizes = {
     </div>
 
     <div
-      v-if="props.loading"
+      v-if="props.error"
+      class="w-full rounded-b-lg bg-brownish-50 dark:bg-brownish-900 py-10 flex flex-col items-center gap-3"
+      data-testid="files-error"
+    >
+      <span class="text-sm text-brownish-300 dark:text-brownish-100 px-6 text-center">
+        {{ props.error }}
+      </span>
+      <BaseButton color="info" small label="Retry" @click="emits('retry')" />
+    </div>
+    <!-- Cached rows for the target folder render immediately; the spinner
+         only covers a folder we know nothing about yet. -->
+    <div
+      v-else-if="props.loading && !props.items.length"
       class="w-full pt-20 rounded-b-lg bg-brownish-50 dark:bg-brownish-900 h-52 text-center"
     >
       <span class="w-1/2 h-1/2">
         <SpinnerIcon :size="200" />
+      </span>
+    </div>
+    <div
+      v-else-if="!props.items.length"
+      class="w-full rounded-b-lg bg-brownish-50 dark:bg-brownish-900 py-14 flex flex-col items-center gap-1"
+      data-testid="files-empty"
+    >
+      <span class="text-brownish-300 dark:text-brownish-100">This folder is empty</span>
+      <span class="text-xs text-brownish-200 dark:text-brownish-300">
+        Drop files here or use the upload button to add some
       </span>
     </div>
     <div v-else class="flex flex-col rounded-b-lg">
@@ -408,7 +432,7 @@ const sizes = {
         <TableFileRowWatcher
           :file="file"
           :sizes="sizes"
-          :checkedRows="checkedRows"
+          :checkedIds="checkedIds"
           :hideCheckbox="props.hideCheckbox"
           :hideDelete="props.hideDelete"
           :share="props.share"

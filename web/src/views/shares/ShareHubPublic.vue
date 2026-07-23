@@ -42,6 +42,7 @@ function removeAll(): void {
     <TableLinks
       :items="Links.items"
       :selected="Links.selected"
+      :loading="Links.loading"
       @link="link"
       @remove-all="removeAll"
       @select-one="Links.selectOne"

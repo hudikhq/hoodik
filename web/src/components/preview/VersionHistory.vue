@@ -76,14 +76,16 @@ async function decryptVersionBytes(v: FileVersion): Promise<Uint8Array> {
 
   // Fetch every chunk and concatenate. Versioned downloads use the
   // owner's session cookie — no transfer token needed because history
-  // access is owner-only.
+  // access is owner-only. Chunks land in parallel; order comes from the
+  // index, not arrival.
   const cipher = props.file.cipher
-  const buffers: Uint8Array[] = []
-  for (let i = 0; i < v.chunks; i++) {
-    const encrypted = await versions.downloadChunk(props.file.id, v.version, i)
-    const decrypted = await cryptfns.cipher.decrypt(cipher, encrypted, props.file.key, i)
-    buffers.push(decrypted)
-  }
+  const key = props.file.key
+  const buffers = await Promise.all(
+    [...new Array(v.chunks)].map(async (_, i) => {
+      const encrypted = await versions.downloadChunk(props.file.id, v.version, i)
+      return cryptfns.cipher.decrypt(cipher, encrypted, key, i)
+    })
+  )
   const total = buffers.reduce((sum, b) => sum + b.length, 0)
   const out = new Uint8Array(total)
   let offset = 0

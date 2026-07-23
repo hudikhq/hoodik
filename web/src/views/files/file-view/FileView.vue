@@ -4,6 +4,7 @@ export default { inheritAttrs: false }
 
 <script setup lang="ts">
 import PreviewView from '@/components/preview/PreviewView.vue'
+import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { FilesStore, KeyPair, AppFile } from 'types'
 import { ref, watch } from 'vue'
@@ -48,21 +49,33 @@ watch(
   async (id: string[] | string) => {
     if (!id) return
 
-    preview.value = undefined
-
     const fileId = Array.isArray(id) ? id[0] : id
 
-    file.value = await props.Storage.metadata(fileId, props.kp)
+    // The browser has usually already decrypted this row, and it carries
+    // everything a preview needs. Mounting from it puts the frame and the
+    // thumbnail on screen straight away instead of holding a blank view
+    // for the round trip; a deep link with nothing cached still waits.
+    const cached = props.Storage.getItem(fileId)
+
+    if (cached?.key) {
+      file.value = cached
+      preview.value = new FilePreview(cached, props.kp)
+    } else {
+      preview.value = undefined
+      file.value = await props.Storage.metadata(fileId, props.kp)
+      preview.value = new FilePreview(file.value, props.kp)
+    }
 
     title.value = `${file.value.name} -- ${window.defaultDocumentTitle}`
 
     props.Storage.deselectAll()
     props.Storage.selectOne(true, file.value)
 
-    const p = new FilePreview(file.value, props.kp)
-    await p.loadItems()
-
-    preview.value = p
+    // Siblings only feed the previous/next arrows, so this listing runs
+    // alongside the image rather than in front of it.
+    preview.value.loadItems().catch(() => {
+      // Navigation stays on the current file; nothing else depends on it.
+    })
   },
   { immediate: true }
 )
@@ -88,8 +101,16 @@ const cancel = (preview: Preview) => {
 }
 </script>
 <template>
+  <!-- The stage appears the moment the route does; a deep link is still
+       fetching metadata at this point and would otherwise show nothing. -->
+  <div
+    v-if="!preview"
+    class="fixed top-0 left-0 flex items-center justify-center w-full h-full bg-brownish-950 text-brownish-100"
+  >
+    <SpinnerIcon />
+  </div>
   <PreviewView
-    v-if="preview"
+    v-else
     v-model="preview"
     :hideDelete="false"
     :hidePreviousAndNext="false"

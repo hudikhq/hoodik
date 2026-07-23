@@ -24,7 +24,7 @@ const isDropZone = ref(false)
 
 const props = defineProps<{
   file: AppFile
-  checkedRows: Partial<AppFile>[]
+  checkedIds: Set<string>
   hideDelete?: boolean
   share?: boolean
   hideCheckbox?: boolean
@@ -58,7 +58,7 @@ const selectOne = (value: boolean) => {
 }
 
 const checked = computed({
-  get: () => !!props.checkedRows.find((item) => item.id === props.file.id),
+  get: () => props.checkedIds.has(props.file.id),
   set: (v) => selectOne(v)
 })
 

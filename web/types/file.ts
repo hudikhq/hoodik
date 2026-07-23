@@ -24,6 +24,9 @@ export interface DownloadAppFile extends AppFile {
   error?: WorkerErrorType
   cancel?: boolean
   downloadedBytes?: number
+
+  /** See DownloadProgressResponseMessage — drives the transfer row label. */
+  stage?: 'downloading' | 'processing'
 }
 
 export interface AppFile extends EncryptedAppFile, AppFileUnencryptedPart {

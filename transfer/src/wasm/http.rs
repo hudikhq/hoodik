@@ -1,8 +1,9 @@
 use crate::error::{Error, HttpError, Result};
 use crate::platform::HttpClient;
-use crate::types::{Auth, ChunkResponse, FileHashes};
+use crate::types::{Auth, ChunkResponse, DownloadSource, FileHashes};
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Headers, RequestInit, RequestMode, RequestCredentials, Response};
 
@@ -26,6 +27,56 @@ impl WasmHttpClient {
                 .map_err(|e| Error::Io(format!("{e:?}")))?;
         }
         Ok(headers)
+    }
+
+
+    /// Collect a response body by pulling its `ReadableStream`, reporting the
+    /// running byte count after every read so download progress moves with
+    /// the wire instead of jumping when the body completes. Bodies without a
+    /// stream (older engines, opaque responses) fall back to one buffered
+    /// read with a single final report.
+    async fn read_streaming(resp: &Response, on_bytes: &dyn Fn(u64)) -> Result<Vec<u8>> {
+        let Some(body) = resp.body() else {
+            let ab_promise = resp.array_buffer().map_err(|e| Error::Io(format!("{e:?}")))?;
+            let array_buffer = JsFuture::from(ab_promise)
+                .await
+                .map_err(|e| Error::Io(format!("{e:?}")))?;
+            let data = js_sys::Uint8Array::new(&array_buffer).to_vec();
+            on_bytes(data.len() as u64);
+            return Ok(data);
+        };
+
+        let reader: web_sys::ReadableStreamDefaultReader = body
+            .get_reader()
+            .dyn_into()
+            .map_err(|e| Error::Io(format!("{e:?}")))?;
+
+        let mut data: Vec<u8> = Vec::new();
+
+        loop {
+            let result = JsFuture::from(reader.read())
+                .await
+                .map_err(|e| Error::Io(format!("{e:?}")))?;
+
+            let done = js_sys::Reflect::get(&result, &JsValue::from_str("done"))
+                .ok()
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
+
+            if done {
+                break;
+            }
+
+            let value = js_sys::Reflect::get(&result, &JsValue::from_str("value"))
+                .map_err(|e| Error::Io(format!("{e:?}")))?;
+            let piece = js_sys::Uint8Array::new(&value);
+            let start = data.len();
+            data.resize(start + piece.length() as usize, 0);
+            piece.copy_to(&mut data[start..]);
+            on_bytes(data.len() as u64);
+        }
+
+        Ok(data)
     }
 
     async fn do_fetch(opts: &RequestInit, url: &str) -> Result<Response> {
@@ -112,25 +163,22 @@ impl HttpClient for WasmHttpClient {
         })
     }
 
-    fn download_chunk(
-        &self,
+    fn download_chunk<'a>(
+        &'a self,
         auth: &Auth,
-        file_id: &str,
+        source: DownloadSource<'_>,
         chunk_index: u64,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + '_>> {
+        on_bytes: Box<dyn Fn(u64) + 'a>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + 'a>> {
         let auth = auth.clone();
-        let file_id = file_id.to_string();
+        let url = source.chunk_url(&auth.base_url, chunk_index);
+        let method = source.method();
 
         Box::pin(async move {
             let headers = Self::build_headers(&auth)?;
 
-            let url = format!(
-                "{}/api/storage/{}?chunk={}",
-                auth.base_url, file_id, chunk_index
-            );
-
             let opts = RequestInit::new();
-            opts.set_method("GET");
+            opts.set_method(method);
             opts.set_headers(&headers);
             opts.set_mode(RequestMode::Cors);
             opts.set_credentials(RequestCredentials::Include);
@@ -152,24 +200,16 @@ impl HttpClient for WasmHttpClient {
                 }));
             }
 
-            let ab_promise = resp
-                .array_buffer()
-                .map_err(|e| Error::Io(format!("{e:?}")))?;
-
-            let array_buffer = JsFuture::from(ab_promise)
-                .await
-                .map_err(|e| Error::Io(format!("{e:?}")))?;
-
-            let uint8_array = js_sys::Uint8Array::new(&array_buffer);
-            Ok(uint8_array.to_vec())
+            Self::read_streaming(&resp, &on_bytes).await
         })
     }
 
-    fn download_all_chunks(
-        &self,
+    fn download_all_chunks<'a>(
+        &'a self,
         auth: &Auth,
         file_id: &str,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + '_>> {
+        on_bytes: Box<dyn Fn(u64) + 'a>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + 'a>> {
         let auth = auth.clone();
         let file_id = file_id.to_string();
 
@@ -204,16 +244,7 @@ impl HttpClient for WasmHttpClient {
                 }));
             }
 
-            let ab_promise = resp
-                .array_buffer()
-                .map_err(|e| Error::Io(format!("{e:?}")))?;
-
-            let array_buffer = JsFuture::from(ab_promise)
-                .await
-                .map_err(|e| Error::Io(format!("{e:?}")))?;
-
-            let uint8_array = js_sys::Uint8Array::new(&array_buffer);
-            Ok(uint8_array.to_vec())
+            Self::read_streaming(&resp, &on_bytes).await
         })
     }
 

@@ -1,10 +1,16 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import { capabilitiesStore } from '!/shares'
-import { SHARED_WITH_ME_DIR_ID } from '!/storage'
+import { SHARED_WITH_ME_DIR_ID } from '!/constants'
 
 const router = createRouter({
   history: createWebHistory(`/`),
+  scrollBehavior(_to, _from, savedPosition) {
+    // Back/forward restores where the user was; forward navigation into a
+    // new view starts at the top. Hash targets (row highlighting) are
+    // handled by the file browser itself, because rows render lazily and
+    // may not exist when navigation settles.
+    return savedPosition || { top: 0 }
+  },
   routes: [
     /**
      * File routes
@@ -237,6 +243,10 @@ const router = createRouter({
  */
 router.beforeEach(async (to) => {
   if (to.meta?.requiresSharing !== true) return true
+  // Lazy on purpose: this guard is the only entry-graph consumer of the
+  // shares barrel, and a static import would drag the whole storage +
+  // shares + crypto wire layer into the boot chunk.
+  const { capabilitiesStore } = await import('!/shares')
   const caps = capabilitiesStore()
   if (caps.lastFetchedAt === null) {
     try {

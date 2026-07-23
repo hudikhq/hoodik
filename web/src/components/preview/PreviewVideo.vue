@@ -233,13 +233,13 @@ onUnmounted(cleanup)
   <!-- Full-download loading state: shown until blob URL is ready -->
   <div v-if="!blobUrl && !error" class="flex flex-col items-center justify-center w-full h-full gap-4">
     <SpinnerIcon />
-    <div class="text-sm text-gray-400">Loading… {{ progress }}%</div>
-    <div class="w-64 h-2 bg-gray-700 rounded-full overflow-hidden">
-      <div class="h-full bg-blue-500 transition-all" :style="{ width: `${progress}%` }" />
+    <div class="text-sm text-brownish-100">Loading… {{ progress }}%</div>
+    <div class="w-64 h-2 bg-brownish-700 rounded-full overflow-hidden">
+      <div class="h-full bg-greeny-400 transition-all" :style="{ width: `${progress}%` }" />
     </div>
   </div>
 
-  <div v-else-if="error" class="flex flex-col items-center justify-center w-full h-full gap-2 text-red-400">
+  <div v-else-if="error" class="flex flex-col items-center justify-center w-full h-full gap-2 text-redish-300">
     <span>Could not load video: {{ error }}</span>
   </div>
 
@@ -247,8 +247,8 @@ onUnmounted(cleanup)
   <div v-else class="flex flex-col items-center w-full h-full">
     <video :src="blobUrl" controls autoplay class="max-w-full max-h-[calc(100%-2.5rem)]" />
     <!-- Progress bar shown while MSE is still streaming remaining chunks -->
-    <div v-if="progress < 100" class="w-64 h-2 bg-gray-700 rounded-full overflow-hidden mt-2">
-      <div class="h-full bg-blue-500 transition-all" :style="{ width: `${progress}%` }" />
+    <div v-if="progress < 100" class="w-64 h-2 bg-brownish-700 rounded-full overflow-hidden mt-2">
+      <div class="h-full bg-greeny-400 transition-all" :style="{ width: `${progress}%` }" />
     </div>
   </div>
 </template>

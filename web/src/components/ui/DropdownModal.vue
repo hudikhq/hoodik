@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import OverlayLayer from '@/components/ui/OverlayLayer.vue'
 import type { FormType } from '../form'
@@ -26,11 +26,14 @@ const cancel = () => {
   emit('cancel')
 }
 
-window.addEventListener('keydown', (e) => {
+const onKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Escape' && value.value) {
     cancel()
   }
-})
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>

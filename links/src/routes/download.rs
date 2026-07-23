@@ -1,3 +1,4 @@
+use actix_web::http::header::ContentEncoding;
 use actix_web::{
     route,
     web,
@@ -60,6 +61,7 @@ pub(crate) async fn download(
     // The name lives in the link's encrypted metadata; the client decrypts it
     // and renames the saved blob itself, so a generic disposition is enough.
     Ok(HttpResponse::Ok()
+        .insert_header(ContentEncoding::Identity)
         .insert_header(("Content-Type", link.file_mime))
         .insert_header((
             "Content-Disposition",

@@ -8,7 +8,6 @@
 //! requires when an async helper takes the app by reference.
 #![allow(dead_code)]
 
-use actix_web::body::{BoxBody, EitherBody};
 use actix_web::dev::{Service, ServiceResponse};
 use actix_web::test;
 use auth::data::create_user::CreateUser;
@@ -86,18 +85,22 @@ impl TestUser {
 pub trait TestApp:
     Service<
     actix_http::Request,
-    Response = ServiceResponse<EitherBody<BoxBody>>,
+    Response = ServiceResponse<Self::Body>,
     Error = actix_web::Error,
 >
 {
+    type Body: actix_web::body::MessageBody;
 }
-impl<S> TestApp for S where
+impl<S, B> TestApp for S
+where
+    B: actix_web::body::MessageBody,
     S: Service<
         actix_http::Request,
-        Response = ServiceResponse<EitherBody<BoxBody>>,
+        Response = ServiceResponse<B>,
         Error = actix_web::Error,
-    >
+    >,
 {
+    type Body = B;
 }
 
 const CURVE_TEST_PASSWORD: &[u8] = b"not-4-weak-password-for-god-sakes!";

@@ -111,6 +111,33 @@ describe('download store — progress()', () => {
     expect(dl.done.find((f: DownloadAppFile) => f.id === 'file-c')).toBeDefined()
   })
 
+  it('keeps a staged file in running when its bytes reach the total', async () => {
+    const download = useDownload()
+    const file = makeFile('f1', 'staged.bin')
+
+    await download.progress(mockStorage, file, file.size as number, undefined, 'processing')
+
+    // The pipeline finished receiving, but the blob hasn't reached the
+    // browser — the row stays visible as running with its stage set.
+    expect(download.done).toHaveLength(0)
+    expect(download.running).toHaveLength(1)
+    expect((download.running[0] as DownloadAppFile).stage).toBe('processing')
+  })
+
+  it('finish() moves a staged file to done exactly once', async () => {
+    const download = useDownload()
+    const file = makeFile('f1', 'staged.bin')
+
+    await download.progress(mockStorage, file, file.size as number, undefined, 'processing')
+    download.finish(file)
+    download.finish(file)
+
+    expect(download.running).toHaveLength(0)
+    expect(download.done).toHaveLength(1)
+    expect((download.done[0] as DownloadAppFile).stage).toBeUndefined()
+    expect((download.done[0] as DownloadAppFile).finished_downloading_at).toBeTruthy()
+  })
+
   it('moves a file to failed on error and does not touch other running files', async () => {
     const dl = useDownload()
 
