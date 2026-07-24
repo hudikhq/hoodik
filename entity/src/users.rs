@@ -32,6 +32,7 @@ pub struct Model {
     pub created_at: i64,
     pub updated_at: i64,
     pub share_notifications_enabled: bool,
+    pub locale: Option<String>,
 }
 
 impl Model {
@@ -87,6 +88,7 @@ mod test {
             created_at: 0,
             updated_at: 0,
             share_notifications_enabled: true,
+            locale: None,
         };
 
         let mut user2 = user.clone();

@@ -93,6 +93,7 @@ async fn main() {
         created_at: ActiveValue::Set(now),
         updated_at: ActiveValue::Set(now),
         share_notifications_enabled: ActiveValue::Set(true),
+        locale: ActiveValue::NotSet,
     })
     .exec_without_returning(&db)
     .await

@@ -34,7 +34,7 @@ pub(crate) async fn register(
 
     if data.invitation_id.is_none() {
         auth.can_register_or_else(&email, || {
-            Err(Error::as_validation("email", "not allowed to register"))
+            Err(Error::as_validation("email", "registration_not_allowed"))
         })
         .await?;
     }

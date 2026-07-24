@@ -34,6 +34,7 @@ pub(crate) mod m20260710_000001_create_migration_rewrap_staging;
 pub(crate) mod m20260710_000002_alter_key_transitions_new_keys;
 pub(crate) mod m20260715_000001_alter_user_files_member_signed_at;
 pub(crate) mod m20260716_000001_create_used_nonces;
+pub(crate) mod m20260724_000001_alter_users_locale;
 
 #[cfg(test)]
 mod share_events_rebuild_test;
@@ -78,6 +79,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260710_000002_alter_key_transitions_new_keys::Migration),
             Box::new(m20260715_000001_alter_user_files_member_signed_at::Migration),
             Box::new(m20260716_000001_create_used_nonces::Migration),
+            Box::new(m20260724_000001_alter_users_locale::Migration),
         ]
     }
 }

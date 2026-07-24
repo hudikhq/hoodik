@@ -22,6 +22,8 @@ pub struct CreateUser {
     /// required and a plaintext-`password` field is refused.
     pub opaque_registration_upload: Option<String>,
     pub invitation_id: Option<Uuid>,
+    /// Preferred email language; optional so older clients keep registering.
+    pub locale: Option<String>,
 }
 
 impl Validation for CreateUser {
@@ -82,6 +84,13 @@ impl Validation for CreateUser {
                     }
                 }
             }),
+            Rule::new("locale", |obj: &Self, error| {
+                if let Some(v) = &obj.locale {
+                    if !util::locale::is_supported(v) {
+                        error.add("invalid_locale");
+                    }
+                }
+            }),
         ]
     }
 
@@ -89,6 +98,15 @@ impl Validation for CreateUser {
         vec![
             modifier_trim!(email),
             modifier_lowercase!(email),
+            modifier_trim!(locale),
+            modifier_lowercase!(locale),
+            Modifier::new("locale", |obj: &mut Self| {
+                if let Some(locale) = &obj.locale {
+                    if locale.is_empty() {
+                        obj.locale = None;
+                    }
+                }
+            }),
             Modifier::new("secret", |obj: &mut Self| {
                 if let Some(secret) = &obj.secret {
                     if secret.is_empty() {
@@ -140,6 +158,7 @@ impl CreateUser {
             created_at: ActiveValue::Set(Utc::now().timestamp()),
             updated_at: ActiveValue::Set(Utc::now().timestamp()),
             share_notifications_enabled: ActiveValue::Set(true),
+            locale: ActiveValue::Set(data.locale),
         })
     }
 }

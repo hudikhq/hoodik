@@ -208,6 +208,7 @@ pub fn make_create_user(email: &str, public_pem: &str, fingerprint: &str) -> Cre
         wrapping_pubkey: None,
         opaque_registration_upload: None,
         invitation_id: None,
+        locale: None,
     }
 }
 

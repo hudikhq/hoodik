@@ -119,7 +119,7 @@ where
             .into_model::<User>()
             .one(self.repository.connection())
             .await?
-            .ok_or_else(|| Error::NotFound("User not found".to_string()))?;
+            .ok_or_else(|| Error::NotFound("user_not_found".to_string()))?;
 
         Ok(user)
     }
@@ -134,7 +134,7 @@ where
             .into_model::<User>()
             .one(self.repository.connection())
             .await?
-            .ok_or_else(|| Error::NotFound("User not found".to_string()))?;
+            .ok_or_else(|| Error::NotFound("user_not_found".to_string()))?;
 
         let active_model = users::ActiveModel {
             id: ActiveValue::Set(user.id),
@@ -164,7 +164,7 @@ where
         let user = users::Entity::find_by_id(user_id)
             .one(self.repository.connection())
             .await?
-            .ok_or_else(|| Error::NotFound("User not found".to_string()))?;
+            .ok_or_else(|| Error::NotFound("user_not_found".to_string()))?;
 
         let now = chrono::Utc::now().timestamp();
         shares::pre_emit_for_user_delete(self.repository.connection(), user_id, now).await?;
@@ -186,7 +186,7 @@ where
         let user = users::Entity::find_by_id(user_id)
             .one(self.repository.connection())
             .await?
-            .ok_or_else(|| Error::NotFound("User not found".to_string()))?;
+            .ok_or_else(|| Error::NotFound("user_not_found".to_string()))?;
 
         users::Entity::update(users::ActiveModel {
             id: ActiveValue::Set(user.id),

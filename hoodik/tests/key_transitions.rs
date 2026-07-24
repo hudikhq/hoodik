@@ -51,6 +51,7 @@ async fn test_key_transition_certificate_persists() {
         created_at: ActiveValue::Set(Utc::now().timestamp()),
         updated_at: ActiveValue::Set(Utc::now().timestamp()),
         share_notifications_enabled: ActiveValue::Set(true),
+        locale: ActiveValue::NotSet,
     })
     .exec_without_returning(&context.db)
     .await
@@ -149,6 +150,7 @@ async fn test_old_fingerprint_is_unique() {
         created_at: ActiveValue::Set(Utc::now().timestamp()),
         updated_at: ActiveValue::Set(Utc::now().timestamp()),
         share_notifications_enabled: ActiveValue::Set(true),
+        locale: ActiveValue::NotSet,
     })
     .exec_without_returning(&context.db)
     .await

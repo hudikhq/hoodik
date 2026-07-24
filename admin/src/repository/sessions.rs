@@ -89,7 +89,7 @@ where
         let session = sessions::Entity::find_by_id(id)
             .one(self.repository.connection())
             .await?
-            .ok_or_else(|| error::Error::NotFound("Session not found".to_string()))?;
+            .ok_or_else(|| error::Error::NotFound("session_not_found".to_string()))?;
 
         let active_model = ActiveModel {
             id: ActiveValue::Set(session.id),
