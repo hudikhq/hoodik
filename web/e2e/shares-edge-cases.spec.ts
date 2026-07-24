@@ -68,11 +68,14 @@ test.describe('Sharing edge cases', () => {
 
     await openSharedWithMe(page)
     // The intercept corrupts items[0] of every /api/shares/mine call.
-    // The endpoint orders by `shared_at DESC, created_at DESC`, so the
-    // most recent share (test-image2.png) lands at items[0]; the older
-    // test-image.png decrypts cleanly and renders with its plaintext
-    // name.
-    const goodRow = page.getByTestId('file-row-test-image.png')
+    // Which share sits at items[0] depends on `shared_at DESC` — and both
+    // shares can land within the same second, making the tie-break (and
+    // therefore the corrupted row) environment-dependent. The assertions
+    // are order-agnostic: whichever row survived renders its plaintext
+    // name, the other falls back to its file id below.
+    const goodRow = page
+      .getByTestId('file-row-test-image.png')
+      .or(page.getByTestId('file-row-test-image2.png'))
     await expect(goodRow).toBeVisible({ timeout: 15_000 })
 
     // The corrupted row renders the file id as a name fallback (the
