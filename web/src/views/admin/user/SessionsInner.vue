@@ -76,17 +76,17 @@ watch(query, find, { deep: true, immediate: true })
 </script>
 <template>
   <CardBox>
-    <CardBoxComponentHeader :title="`Sessions (${total})`">
+    <CardBoxComponentHeader :title="$t('admin.sessions.title', { total })">
       <div class="flex flex-wrap items-center gap-2 px-4 py-3">
         <UniversalCheckbox
           name="with_expired"
-          label="With Expired"
+          :label="$t('admin.withExpired')"
           v-model="query.with_expired"
         />
         <BaseButtonConfirm
           color="danger"
-          label="Revoke all"
-          confirm-label="Yes, revoke all"
+          :label="$t('admin.sessions.revokeAll')"
+          :confirm-label="$t('admin.sessions.confirmRevokeAll')"
           @confirm="killAll"
           :icon="mdiShieldOffOutline"
           :disabled="total === 0"
@@ -96,7 +96,7 @@ watch(query, find, { deep: true, immediate: true })
           <input
             type="text"
             v-model="search"
-            placeholder="Search by IP or device"
+            :placeholder="$t('admin.sessions.searchPlaceholder')"
             @keyup.enter="query.search = search"
             class="h-[34px] w-44 sm:w-56 pl-3 pr-8 text-sm rounded-lg transition duration-150 ease-in-out bg-white dark:bg-brownish-800 border border-brownish-50 dark:border-brownish-600 text-brownish-900 dark:text-white placeholder-brownish-100/60 dark:placeholder-brownish-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-redish-400/60 dark:focus:ring-redish-500/50"
           />
@@ -104,7 +104,7 @@ watch(query, find, { deep: true, immediate: true })
             type="button"
             @click="query.search = search"
             class="absolute right-2 top-1/2 -translate-y-1/2 text-brownish-400 hover:text-brownish-900 dark:hover:text-white transition-colors"
-            aria-label="Search"
+            :aria-label="$t('common.search')"
           >
             <BaseIcon :path="mdiSearchWeb" :size="15" />
           </button>
@@ -116,13 +116,13 @@ watch(query, find, { deep: true, immediate: true })
       <table class="w-full">
         <thead>
           <tr>
-            <th><SortableName label="Email" name="email" v-model="query" /></th>
-            <th>IP Address</th>
-            <th>Device</th>
-            <th><SortableName label="Signed in" name="created_at" v-model="query" /></th>
-            <th><SortableName label="Last seen" name="updated_at" v-model="query" /></th>
-            <th><SortableName label="Expires" name="expires_at" v-model="query" /></th>
-            <th>Status</th>
+            <th><SortableName :label="$t('common.email')" name="email" v-model="query" /></th>
+            <th>{{ $t('admin.sessions.ipAddress') }}</th>
+            <th>{{ $t('admin.sessions.device') }}</th>
+            <th><SortableName :label="$t('admin.sessions.signedIn')" name="created_at" v-model="query" /></th>
+            <th><SortableName :label="$t('admin.sessions.lastSeen')" name="updated_at" v-model="query" /></th>
+            <th><SortableName :label="$t('admin.expires')" name="expires_at" v-model="query" /></th>
+            <th>{{ $t('admin.status') }}</th>
             <th></th>
           </tr>
         </thead>
@@ -137,9 +137,9 @@ watch(query, find, { deep: true, immediate: true })
       </table>
 
       <div class="flex items-center justify-between px-4 py-3 border-t border-brownish-100 dark:border-brownish-700/50">
-        <BaseButton label="← Previous" @click="previousPage" :disabled="disablePreviousPage" :small="true" />
-        <span class="text-xs text-brownish-400">{{ rangeStart }}–{{ rangeEnd }} of {{ total }}</span>
-        <BaseButton label="Next →" @click="nextPage" :disabled="disableNextPage" :small="true" />
+        <BaseButton :label="$t('admin.pagination.previous')" @click="previousPage" :disabled="disablePreviousPage" :small="true" />
+        <span class="text-xs text-brownish-400">{{ $t('admin.pagination.range', { start: rangeStart, end: rangeEnd, total }) }}</span>
+        <BaseButton :label="$t('admin.pagination.next')" @click="nextPage" :disabled="disableNextPage" :small="true" />
       </div>
     </div>
     <PuppyLoader v-else />

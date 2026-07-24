@@ -7,10 +7,13 @@ import type { ErrorResponse } from '!/api'
 import { disableTwoFactor } from '!/account'
 import type { User } from 'types'
 import * as logger from '!/logger'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   modelValue: User
 }>()
+
+const { t } = useI18n()
 const emit = defineEmits(['update:modelValue', 'cancel', 'confirm'])
 
 const user = computed({
@@ -31,7 +34,7 @@ const init = async () => {
       token: ''
     } as Values,
     validationSchema: yup.object().shape({
-      token: yup.string().required('Two factor token is required')
+      token: yup.string().required(t('account.tfa.tokenRequired'))
     }),
     onSubmit: async (values: Values, ctx: any) => {
       logger.debug(values)
@@ -56,18 +59,18 @@ init()
   <AppForm v-if="config" :config="config" v-slot="{ form }">
     <CardBoxModal
       :modelValue="true"
-      title="Disable two factor authentication"
+      :title="$t('account.tfa.disableTitle')"
       button="danger"
-      buttonLabel="Disable"
+      :buttonLabel="$t('account.tfa.disable')"
       has-cancel
       @cancel="$emit('cancel')"
       :form="form"
     >
       <AppField
         :form="form"
-        label="Enter your two factor token"
+        :label="$t('account.tfa.tokenLabel')"
         name="token"
-        help="If you have lost access to your two factor account, contact the app admin"
+        :help="$t('account.tfa.lostAccessHelp')"
       />
 
       <p v-if="errorMessage" class="text-sm text-redish-900 dark:text-redish-200">

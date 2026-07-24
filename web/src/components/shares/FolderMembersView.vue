@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   mdiCheckCircle,
   mdiAlertCircle,
@@ -36,6 +37,8 @@ const emit = defineEmits<{
   (e: 'change-role', payload: { email: string; role: ShareRole }): void
 }>()
 
+const { t } = useI18n()
+
 const response = ref<FolderMembersResponse | null>(null)
 const signatureStatus = ref<Record<string, 'verified' | 'failed' | 'unsigned'>>({})
 const loading = ref(false)
@@ -56,7 +59,7 @@ async function refresh(): Promise<void> {
     response.value = await sharesApi.getFolderMembers(props.folder.id)
     await verifySignatures(response.value)
   } catch (err) {
-    loadError.value = (err as Error).message || 'Failed to load folder members'
+    loadError.value = (err as Error).message || t('shares.members.loadFailed')
   } finally {
     loading.value = false
   }
@@ -134,11 +137,11 @@ function roleBadgeClass(role: ShareRole): string {
 function roleBadgeTitle(role: ShareRole): string {
   switch (role) {
     case 'reader':
-      return 'Reader · view only, cannot add new files'
+      return t('shares.members.roleReaderTitle')
     case 'editor':
-      return 'Editor · can view, edit, and add new files'
+      return t('shares.members.roleEditorTitle')
     case 'co-owner':
-      return 'Co-owner · full access, can re-share and add new files'
+      return t('shares.members.roleCoOwnerTitle')
   }
 }
 
@@ -160,9 +163,9 @@ function abbreviatedFingerprint(fp: string): string {
 
 function addedByLabel(member: FolderMember): string | null {
   if (member.is_owner) return null
-  if (!member.signed_by_user_id) return 'Added by unknown'
-  if (member.signed_by_user_id === ownerId.value) return 'Added by owner'
-  return 'Added by Co-owner'
+  if (!member.signed_by_user_id) return t('shares.members.addedByUnknown')
+  if (member.signed_by_user_id === ownerId.value) return t('shares.members.addedByOwner')
+  return t('shares.members.addedByCoOwner')
 }
 
 /**
@@ -180,11 +183,11 @@ function cascadeImpactFor(member: FolderMember): number {
 
 async function performRevoke(member: FolderMember): Promise<void> {
   if (!props.keypair.input) {
-    errorNotification('Cannot revoke without an active session.')
+    errorNotification(t('shares.members.noSession'))
     return
   }
   if (!response.value) {
-    errorNotification('Member list not loaded; refresh and try again.')
+    errorNotification(t('shares.members.notLoaded'))
     return
   }
   try {
@@ -208,8 +211,8 @@ async function performRevoke(member: FolderMember): Promise<void> {
       members_list_signature: listSig
     })
     notification(
-      'Share revoked',
-      `${member.email ?? member.user_id} can no longer access this folder.`,
+      t('shares.revokedTitle'),
+      t('shares.members.revokedBody', { name: member.email ?? member.user_id }),
       'success'
     )
     emit('changed')
@@ -291,14 +294,14 @@ function cancelRevoke(): void {
   <div data-testid="folder-members-view">
     <div class="flex items-center justify-between gap-3 mb-2">
       <span class="text-xs uppercase tracking-wider text-brownish-300 min-w-0 truncate">
-        Members ({{ members.length }})
+        {{ $t('shares.members.heading', { count: members.length }) }}
       </span>
       <BaseButton
         class="shrink-0"
         color="dark"
         small
         outline
-        label="Refresh"
+        :label="$t('common.refresh')"
         :disabled="loading"
         data-testid="folder-members-view-refresh"
         @click.prevent="refresh"
@@ -306,7 +309,7 @@ function cancelRevoke(): void {
     </div>
 
     <p v-if="loading" class="text-xs text-brownish-300" data-testid="folder-members-view-loading">
-      Loading members…
+      {{ $t('shares.members.loading') }}
     </p>
     <p
       v-else-if="loadError"
@@ -355,17 +358,17 @@ function cancelRevoke(): void {
             <span
               v-if="member.share_role !== 'reader' && !member.is_owner"
               class="text-[11px] text-brownish-500 dark:text-brownish-300 shrink-0"
-              :title="`Can add new files to ${folder.name}`"
+              :title="$t('shares.members.canUploadTitle', { folder: folder.name })"
               :data-testid="`folder-members-view-row-${member.user_id}-can-upload`"
             >
-              +upload
+              {{ $t('shares.members.canUpload') }}
             </span>
             <span
               v-if="member.is_owner"
               class="text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-greeny-200 text-greeny-900 dark:bg-greeny-800 dark:text-greeny-100"
               :data-testid="`folder-members-view-row-${member.user_id}-owner-badge`"
             >
-              owner
+              {{ $t('shares.members.ownerBadge') }}
             </span>
           </div>
           <div class="flex items-center gap-2 text-xs text-brownish-300 mt-0.5">
@@ -388,7 +391,7 @@ function cancelRevoke(): void {
                 v-if="signatureStatus[member.user_id] === 'verified'"
                 class="inline-flex items-center text-greeny-600 dark:text-greeny-300 shrink-0"
                 :data-testid="`folder-members-view-row-${member.user_id}-sig-verified`"
-                title="Signature verified"
+                :title="$t('shares.members.sigVerified')"
               >
                 <BaseIcon :path="mdiCheckCircle" :size="12" />
               </span>
@@ -396,7 +399,7 @@ function cancelRevoke(): void {
                 v-else-if="signatureStatus[member.user_id] === 'failed'"
                 class="inline-flex items-center text-redish-600 dark:text-redish-200 shrink-0"
                 :data-testid="`folder-members-view-row-${member.user_id}-sig-failed`"
-                title="Signature did not verify"
+                :title="$t('shares.members.sigFailed')"
               >
                 <BaseIcon :path="mdiAlertCircle" :size="12" />
               </span>
@@ -404,7 +407,7 @@ function cancelRevoke(): void {
                 v-else
                 class="inline-flex items-center text-brownish-400 shrink-0"
                 :data-testid="`folder-members-view-row-${member.user_id}-sig-unsigned`"
-                title="Legacy row (no signature)"
+                :title="$t('shares.members.sigLegacy')"
               >
                 <BaseIcon :path="mdiHelpCircleOutline" :size="12" />
               </span>
@@ -416,8 +419,8 @@ function cancelRevoke(): void {
           class="flex items-center justify-end gap-1.5 shrink-0"
         >
           <BaseButton
-            :title="member.email ? 'Change role' : 'Email unknown — cannot change role'"
-            label="Change"
+            :title="member.email ? $t('shares.members.changeRole') : $t('shares.members.changeRoleNoEmail')"
+            :label="$t('shares.change')"
             color="dark"
             small
             :disabled="!member.email"
@@ -429,7 +432,7 @@ function cancelRevoke(): void {
             color="danger"
             small
             rounded-full
-            title="Revoke access"
+            :title="$t('shares.revokeAccess')"
             :data-testid="`folder-members-view-row-${member.user_id}-revoke`"
             @click.prevent="onRevokeClick(member)"
           />

@@ -63,13 +63,13 @@ watch(query, find, { deep: true, immediate: true })
 <template>
   <div class="flex" :class="props.class">
     <CardBox class="flex w-full">
-      <CardBoxComponentHeader :title="`Users (${total})`">
+      <CardBoxComponentHeader :title="$t('admin.users.title', { total })">
         <div class="flex flex-wrap items-center gap-2 px-4 py-3">
           <div class="relative">
             <input
               type="text"
               v-model="search"
-              placeholder="Search by ID or email"
+              :placeholder="$t('admin.users.searchPlaceholder')"
               @keyup.enter="query.search = search"
               class="h-[34px] w-48 sm:w-60 pl-3 pr-8 text-sm rounded-lg transition duration-150 ease-in-out bg-white dark:bg-brownish-800 border border-brownish-50 dark:border-brownish-600 text-brownish-900 dark:text-white placeholder-brownish-100/60 dark:placeholder-brownish-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-redish-400/60 dark:focus:ring-redish-500/50"
             />
@@ -77,7 +77,7 @@ watch(query, find, { deep: true, immediate: true })
               type="button"
               @click="query.search = search"
               class="absolute right-2 top-1/2 -translate-y-1/2 text-brownish-400 hover:text-brownish-900 dark:hover:text-white transition-colors"
-              aria-label="Search"
+              :aria-label="$t('common.search')"
             >
               <BaseIcon :path="mdiSearchWeb" :size="15" />
             </button>
@@ -89,12 +89,12 @@ watch(query, find, { deep: true, immediate: true })
         <table class="w-full">
           <thead>
             <tr>
-              <th><SortableName label="Email" name="email" v-model="query" /></th>
-              <th>TFA</th>
-              <th>Role</th>
-              <th>Email Verified</th>
-              <th><SortableName label="Joined" name="created_at" v-model="query" /></th>
-              <th>Last Active</th>
+              <th><SortableName :label="$t('common.email')" name="email" v-model="query" /></th>
+              <th>{{ $t('admin.users.tfa') }}</th>
+              <th>{{ $t('admin.role') }}</th>
+              <th>{{ $t('admin.users.emailVerified') }}</th>
+              <th><SortableName :label="$t('admin.users.joined')" name="created_at" v-model="query" /></th>
+              <th>{{ $t('admin.users.lastActive') }}</th>
               <th></th>
             </tr>
           </thead>
@@ -104,9 +104,9 @@ watch(query, find, { deep: true, immediate: true })
         </table>
 
         <div class="flex items-center justify-between px-4 py-3 border-t border-brownish-100 dark:border-brownish-700/50">
-          <BaseButton label="← Previous" @click="previousPage" :disabled="disablePreviousPage" :small="true" />
-          <span class="text-xs text-brownish-400">{{ rangeStart }}–{{ rangeEnd }} of {{ total }}</span>
-          <BaseButton label="Next →" @click="nextPage" :disabled="disableNextPage" :small="true" />
+          <BaseButton :label="$t('admin.pagination.previous')" @click="previousPage" :disabled="disablePreviousPage" :small="true" />
+          <span class="text-xs text-brownish-400">{{ $t('admin.pagination.range', { start: rangeStart, end: rangeEnd, total }) }}</span>
+          <BaseButton :label="$t('admin.pagination.next')" @click="nextPage" :disabled="disableNextPage" :small="true" />
         </div>
       </div>
       <PuppyLoader v-else />

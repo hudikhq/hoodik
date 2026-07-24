@@ -186,20 +186,20 @@ watch(
         v-if="isExpired"
         class="px-3 py-2 rounded-lg bg-redish-100 dark:bg-redish-900/40 text-redish-700 dark:text-redish-200 text-sm"
       >
-        This link has expired. Extend its expiry below, or delete it.
+        {{ $t('links.panel.expiredNotice') }}
       </div>
 
       <div v-if="linkUrl" class="space-y-1.5" data-testid="sharing-link-url">
         <AppField
           name="link"
-          label="Public URL"
+          :label="$t('links.panel.publicUrl')"
           v-model="linkUrl"
           :allow-copy="true"
         />
         <div class="flex flex-wrap items-center gap-2">
           <BaseButton
-            title="Open the link in a new tab"
-            label="Open"
+            :title="$t('links.panel.openNewTab')"
+            :label="$t('common.open')"
             :icon="mdiOpenInNew"
             color="dark"
             small
@@ -208,10 +208,10 @@ watch(
             name="links-view"
           />
           <BaseButtonConfirm
-            title="Delete public link"
-            label="Delete link"
-            confirm-label="Confirm"
-            cancel-label="Cancel"
+            :title="$t('links.panel.deleteLinkTitle')"
+            :label="$t('links.panel.deleteLink')"
+            :confirm-label="$t('common.confirm')"
+            :cancel-label="$t('common.cancel')"
             :icon="mdiTrashCan"
             color="danger"
             small
@@ -226,27 +226,27 @@ watch(
         class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 px-3 py-3 rounded-lg bg-brownish-50 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700 text-sm"
       >
         <div class="flex justify-between sm:flex-col gap-1">
-          <dt class="text-xs uppercase tracking-wider text-brownish-300">Name</dt>
+          <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('common.name') }}</dt>
           <dd class="truncate text-right sm:text-left" :title="link.name">{{ link.name }}</dd>
         </div>
         <div class="flex justify-between sm:flex-col gap-1">
-          <dt class="text-xs uppercase tracking-wider text-brownish-300">Type</dt>
+          <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('common.type') }}</dt>
           <dd class="truncate text-right sm:text-left">{{ link.file_mime }}</dd>
         </div>
         <div class="flex justify-between sm:flex-col gap-1">
-          <dt class="text-xs uppercase tracking-wider text-brownish-300">Size</dt>
+          <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('common.size') }}</dt>
           <dd class="text-right sm:text-left">{{ size }}</dd>
         </div>
         <div class="flex justify-between sm:flex-col gap-1">
-          <dt class="text-xs uppercase tracking-wider text-brownish-300">Downloads</dt>
+          <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('links.panel.downloads') }}</dt>
           <dd class="text-right sm:text-left">{{ downloads }}</dd>
         </div>
         <div class="flex justify-between sm:flex-col gap-1">
-          <dt class="text-xs uppercase tracking-wider text-brownish-300">File created</dt>
+          <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('links.panel.fileCreated') }}</dt>
           <dd class="text-right sm:text-left">{{ created }}</dd>
         </div>
         <div class="flex justify-between sm:flex-col gap-1">
-          <dt class="text-xs uppercase tracking-wider text-brownish-300">Link created</dt>
+          <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('links.panel.linkCreated') }}</dt>
           <dd class="text-right sm:text-left">{{ fileModifiedAt }}</dd>
         </div>
       </dl>
@@ -256,12 +256,12 @@ watch(
         v-if="!editExpire"
       >
         <div class="min-w-0">
-          <div class="text-xs uppercase tracking-wider text-brownish-300">Expires</div>
-          <div class="text-sm truncate">{{ linkExpiresAt || 'No expiry set' }}</div>
+          <div class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('links.expires') }}</div>
+          <div class="text-sm truncate">{{ linkExpiresAt || $t('links.panel.noExpiry') }}</div>
         </div>
         <div class="flex gap-1.5 shrink-0">
           <BaseButton
-            title="Remove expiry"
+            :title="$t('links.panel.removeExpiry')"
             :icon="mdiDelete"
             color="dark"
             small
@@ -270,7 +270,7 @@ watch(
             @click.prevent="updateExpiry(undefined)"
           />
           <BaseButton
-            title="Edit expiry"
+            :title="$t('links.panel.editExpiry')"
             :icon="mdiPencil"
             color="dark"
             small
@@ -294,7 +294,7 @@ watch(
         </div>
         <div class="flex justify-end gap-1.5">
           <BaseButton
-            title="Save changes"
+            :title="$t('links.panel.saveChanges')"
             :icon="mdiCheck"
             color="dark"
             small
@@ -303,7 +303,7 @@ watch(
             @click.prevent="updateExpiry(expiresAt)"
           />
           <BaseButton
-            title="Remove expiry"
+            :title="$t('links.panel.removeExpiry')"
             :icon="mdiDelete"
             color="dark"
             small
@@ -312,7 +312,7 @@ watch(
             @click.prevent="updateExpiry(undefined)"
           />
           <BaseButton
-            title="Cancel editing"
+            :title="$t('links.panel.cancelEditing')"
             :icon="mdiClose"
             color="dark"
             small
@@ -325,11 +325,11 @@ watch(
     </div>
     <div v-else class="space-y-4 px-3 py-4 rounded-lg bg-brownish-50 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700">
       <p class="text-sm text-brownish-700 dark:text-brownish-200">
-        This file doesn't have a public link yet. Create one to share it with anyone over a URL.
+        {{ $t('links.panel.noLinkYet') }}
       </p>
       <BaseButton
-        title="Create link"
-        label="Create link"
+        :title="$t('links.panel.createLink')"
+        :label="$t('links.panel.createLink')"
         color="info"
         small
         data-testid="sharing-link-create"

@@ -130,7 +130,7 @@ watch(
               focus:outline-none focus:ring-2 focus:ring-offset-0
               focus:ring-redish-400/60 dark:focus:ring-redish-500/50
               focus:border-redish-400/50 dark:focus:border-redish-500/40"
-            placeholder="Search files..."
+            :placeholder="$t('files.search.placeholder')"
             @input="debounced"
           />
         </div>
@@ -143,7 +143,7 @@ watch(
           class="rounded border-brownish-600 bg-brownish-800 text-orangy-500 focus:ring-orangy-500 focus:ring-offset-0"
         />
         <BaseIcon :path="mdiFileDocumentOutline" :size="14" />
-        Notes only
+        {{ $t('files.search.notesOnly') }}
       </label>
     </AppForm>
 
@@ -173,7 +173,7 @@ watch(
     >
       <BaseIcon :path="searched ? mdiFileSearchOutline : mdiMagnify" :size="28" />
       <span class="text-sm">
-        {{ searched ? 'No files match that search' : 'Start typing to search' }}
+        {{ searched ? $t('files.search.noMatches') : $t('files.search.startTyping') }}
       </span>
     </div>
     <div class="w-full max-h-72 overflow-y-auto mt-4" v-else>

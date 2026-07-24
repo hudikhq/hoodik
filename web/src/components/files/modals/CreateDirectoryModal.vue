@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import { AppForm, AppField } from '@/components/form'
 import * as yup from 'yup'
@@ -14,6 +15,8 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:modelValue', 'cancel', 'confirm'])
 
+const { t } = useI18n()
+
 const config = ref()
 const errorMessage = ref()
 
@@ -23,7 +26,7 @@ const init = () => {
       name: ''
     },
     validationSchema: yup.object().shape({
-      name: yup.string().required('Directory name is required')
+      name: yup.string().required(t('files.createDirectory.nameRequired'))
     }),
     onSubmit: async (values: { name: string }, ctx: any) => {
       try {
@@ -49,9 +52,9 @@ init()
     <CardBoxModal
       :modelValue="props.modelValue"
       @update:modelValue="$emit('update:modelValue', $event)"
-      title="Create a directory"
+      :title="$t('files.createDirectory.title')"
       button="info"
-      buttonLabel="Create"
+      :buttonLabel="$t('common.create')"
       has-cancel
       @cancel="$emit('cancel')"
       :form="form"
@@ -60,7 +63,13 @@ init()
         {{ errorMessage }}
       </p>
 
-      <AppField :form="form" label="Directory name" name="name" placeholder="Documents" autofocus />
+      <AppField
+        :form="form"
+        :label="$t('files.createDirectory.nameLabel')"
+        name="name"
+        :placeholder="$t('files.createDirectory.namePlaceholder')"
+        autofocus
+      />
     </CardBoxModal>
   </AppForm>
 </template>

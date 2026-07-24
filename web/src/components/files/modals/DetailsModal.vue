@@ -73,23 +73,23 @@ const cancel = () => {
     </CardBoxComponentTitle>
 
     <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
-      <div class="flex flex-col w-1/2">Name</div>
+      <div class="flex flex-col w-1/2">{{ $t('common.name') }}</div>
       <div class="flex flex-col w-1/2">{{ file.name }}</div>
     </div>
     <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
-      <div class="flex flex-col w-1/2">Type</div>
+      <div class="flex flex-col w-1/2">{{ $t('common.type') }}</div>
       <div class="flex flex-col w-1/2">{{ file.mime }}</div>
     </div>
     <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
-      <div class="flex flex-col w-1/2">Size</div>
+      <div class="flex flex-col w-1/2">{{ $t('common.size') }}</div>
       <div class="flex flex-col w-1/2">{{ size }}</div>
     </div>
     <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
-      <div class="flex flex-col w-1/2">Modified</div>
+      <div class="flex flex-col w-1/2">{{ $t('common.modified') }}</div>
       <div class="flex flex-col w-1/2">{{ modified }}</div>
     </div>
     <div v-if="!isDir" class="flex flex-row p-2 border-b-[1px] border-brownish-700">
-      <div class="flex flex-col w-1/2">Uploaded</div>
+      <div class="flex flex-col w-1/2">{{ $t('files.details.uploaded') }}</div>
       <div class="flex flex-col w-1/2">{{ fileFinishedUploadAt || percentage }}</div>
     </div>
     <div v-if="!isDir && file.md5" class="flex flex-row p-2 border-b-[1px] border-brownish-700">

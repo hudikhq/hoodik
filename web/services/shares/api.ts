@@ -546,6 +546,7 @@ export async function renameGroup(groupId: string, name: string): Promise<AppSha
  */
 export async function patchMe(payload: {
   share_notifications_enabled?: boolean
+  locale?: string
 }): Promise<{ id: string; share_notifications_enabled: boolean }> {
   const response = await new Api().withRefresh().make<typeof payload, {
     id: string

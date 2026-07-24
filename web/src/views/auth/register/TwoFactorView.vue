@@ -7,6 +7,7 @@ import { store as cryptoStore } from '!/crypto'
 import { getTwoFactorSecret } from '!/account'
 import { useRouter } from 'vue-router'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ErrorResponse } from '!/api'
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
@@ -19,6 +20,7 @@ const register = store()
 const login = loginStore()
 const crypto = cryptoStore()
 const router = useRouter()
+const { t } = useI18n()
 
 const config = ref()
 
@@ -45,8 +47,8 @@ const init = async () => {
     },
     initialErrors,
     validationSchema: yup.object().shape({
-      secret: yup.string().required('Secret is required'),
-      token: yup.string().required('Two factor token is required')
+      secret: yup.string().required(t('auth.validation.secretRequired')),
+      token: yup.string().required(t('auth.validation.twoFactorRequired'))
     }),
     onSubmit: async (values: Partial<CreateUser>) => {
       logger.debug(values)
@@ -86,11 +88,11 @@ init()
   <LayoutGuest>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass">
-        <h1 class="text-2xl text-white">Two Factor Authentication</h1>
+        <h1 class="text-2xl text-white">{{ $t('auth.twoFactor.title') }}</h1>
 
         <div class="flex items-start" v-if="!config">
           <div class="flex items-center h-5">
-            <p class="text-sm text-white">We are generating your two factor secret...</p>
+            <p class="text-sm text-white">{{ $t('auth.twoFactor.generating') }}</p>
           </div>
         </div>
 
@@ -98,8 +100,7 @@ init()
           <div class="flex items-start">
             <div class="flex items-center h-5">
               <p class="text-sm dark:text-white">
-                Scan the QR code with your two factor application, or simply copy and paste the
-                secret code below
+                {{ $t('auth.twoFactor.scanQr') }}
               </p>
             </div>
           </div>
@@ -115,10 +116,17 @@ init()
             />
           </Suspense>
 
-          <AppField :form="form" label="Your two factor secret" name="secret" :allow-copy="true" />
-          <AppField :form="form" label="Enter your two factor token" name="token" />
+          <AppField
+            :form="form"
+            :label="$t('auth.twoFactor.secretLabel')"
+            name="secret"
+            :allow-copy="true"
+          />
+          <AppField :form="form" :label="$t('auth.twoFactor.tokenLabel')" name="token" />
 
-          <AppButton color="info" type="submit"> Register with Two Factor </AppButton>
+          <AppButton color="info" type="submit">
+            {{ $t('auth.twoFactor.registerButton') }}
+          </AppButton>
 
           <AppButton
             color="light"
@@ -126,15 +134,15 @@ init()
             @click="() => config.onSubmit(form.values)"
             class="float-right"
           >
-            Skip
+            {{ $t('auth.twoFactor.skip') }}
           </AppButton>
 
           <div class="text-sm font-medium text-brownish-500 dark:text-brownish-100">
-            Already have an account?
+            {{ $t('auth.alreadyHaveAccount') }}
             <router-link
               :to="{ name: 'login' }"
               class="text-primary-700 hover:underline dark:text-primary-500"
-              >Login</router-link
+              >{{ $t('common.login') }}</router-link
             >
           </div>
         </AppForm>

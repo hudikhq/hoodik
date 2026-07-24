@@ -55,14 +55,14 @@ defineExpose({ closeDropdown })
 
 <template>
   <template v-if="editable">
-    <BaseButton color="dark" :icon="mdiUndo" xs title="Undo (Ctrl+Z)" name="md-undo" @mousedown.prevent @click="$emit('command', 'Undo')" />
-    <BaseButton color="dark" :icon="mdiRedo" xs title="Redo (Ctrl+Shift+Z)" name="md-redo" @mousedown.prevent @click="$emit('command', 'Redo')" />
+    <BaseButton color="dark" :icon="mdiUndo" xs :title="$t('notes.toolbar.undo')" name="md-undo" @mousedown.prevent @click="$emit('command', 'Undo')" />
+    <BaseButton color="dark" :icon="mdiRedo" xs :title="$t('notes.toolbar.redo')" name="md-redo" @mousedown.prevent @click="$emit('command', 'Redo')" />
 
     <span class="md-toolbar-divider" />
 
-    <BaseButton color="dark" :icon="mdiFormatBold" xs title="Bold (Ctrl+B)" name="md-bold" @mousedown.prevent @click="$emit('command', 'ToggleStrong')" />
-    <BaseButton color="dark" :icon="mdiFormatItalic" xs title="Italic (Ctrl+I)" name="md-italic" @mousedown.prevent @click="$emit('command', 'ToggleEmphasis')" />
-    <BaseButton color="dark" :icon="mdiFormatStrikethrough" xs title="Strikethrough" name="md-strikethrough" @mousedown.prevent @click="$emit('command', 'ToggleStrikeThrough')" />
+    <BaseButton color="dark" :icon="mdiFormatBold" xs :title="$t('notes.toolbar.bold')" name="md-bold" @mousedown.prevent @click="$emit('command', 'ToggleStrong')" />
+    <BaseButton color="dark" :icon="mdiFormatItalic" xs :title="$t('notes.toolbar.italic')" name="md-italic" @mousedown.prevent @click="$emit('command', 'ToggleEmphasis')" />
+    <BaseButton color="dark" :icon="mdiFormatStrikethrough" xs :title="$t('notes.toolbar.strikethrough')" name="md-strikethrough" @mousedown.prevent @click="$emit('command', 'ToggleStrikeThrough')" />
 
     <span class="md-toolbar-divider" />
 
@@ -71,7 +71,7 @@ defineExpose({ closeDropdown })
         color="dark"
         :icon="mdiFormatHeader1"
         xs
-        title="Headings"
+        :title="$t('notes.toolbar.headings')"
         name="md-headings"
         @mousedown.prevent
         @click.stop="showHeadingDropdown = !showHeadingDropdown"
@@ -86,42 +86,41 @@ defineExpose({ closeDropdown })
           @mousedown.prevent
           @click="insertHeading(level)"
         >
-          <span :class="['font-semibold', level <= 2 ? 'text-base' : level <= 4 ? 'text-sm' : 'text-xs']">
-            H{{ level }}
-          </span>
+          <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->
+          <span :class="['font-semibold', level <= 2 ? 'text-base' : level <= 4 ? 'text-sm' : 'text-xs']">H{{ level }}</span>
         </button>
       </div>
     </div>
 
     <span class="md-toolbar-divider" />
 
-    <BaseButton color="dark" :icon="mdiFormatListBulleted" xs title="Bullet list" name="md-bullet-list" @mousedown.prevent @click="$emit('command', 'WrapInBulletList')" />
-    <BaseButton color="dark" :icon="mdiFormatListNumbered" xs title="Ordered list" name="md-ordered-list" @mousedown.prevent @click="$emit('command', 'WrapInOrderedList')" />
-    <BaseButton color="dark" :icon="mdiFormatQuoteClose" xs title="Blockquote" name="md-blockquote" @mousedown.prevent @click="$emit('command', 'WrapInBlockquote')" />
+    <BaseButton color="dark" :icon="mdiFormatListBulleted" xs :title="$t('notes.toolbar.bulletList')" name="md-bullet-list" @mousedown.prevent @click="$emit('command', 'WrapInBulletList')" />
+    <BaseButton color="dark" :icon="mdiFormatListNumbered" xs :title="$t('notes.toolbar.orderedList')" name="md-ordered-list" @mousedown.prevent @click="$emit('command', 'WrapInOrderedList')" />
+    <BaseButton color="dark" :icon="mdiFormatQuoteClose" xs :title="$t('notes.toolbar.blockquote')" name="md-blockquote" @mousedown.prevent @click="$emit('command', 'WrapInBlockquote')" />
 
     <span class="md-toolbar-divider" />
 
-    <BaseButton color="dark" :icon="mdiCodeTags" xs title="Code block" name="md-code-block" @mousedown.prevent @click="$emit('command', 'CreateCodeBlock')" />
-    <BaseButton color="dark" :icon="mdiLinkVariant" xs title="Link (Ctrl+K)" name="md-link" @mousedown.prevent @click="$emit('command', 'ToggleLink')" />
-    <BaseButton color="dark" :icon="mdiTable" xs title="Insert table" name="md-table" @mousedown.prevent @click="$emit('command', 'InsertTable')" />
+    <BaseButton color="dark" :icon="mdiCodeTags" xs :title="$t('notes.toolbar.codeBlock')" name="md-code-block" @mousedown.prevent @click="$emit('command', 'CreateCodeBlock')" />
+    <BaseButton color="dark" :icon="mdiLinkVariant" xs :title="$t('notes.toolbar.link')" name="md-link" @mousedown.prevent @click="$emit('command', 'ToggleLink')" />
+    <BaseButton color="dark" :icon="mdiTable" xs :title="$t('notes.toolbar.insertTable')" name="md-table" @mousedown.prevent @click="$emit('command', 'InsertTable')" />
   </template>
 
   <span class="flex-1" />
 
   <!-- Save status + button (edit mode only) -->
   <template v-if="editable">
-    <span v-if="saveStatus === 'saving'" class="md-save-status text-brownish-200">Saving...</span>
+    <span v-if="saveStatus === 'saving'" class="md-save-status text-brownish-200">{{ $t('notes.toolbar.saving') }}</span>
     <span v-else-if="saveStatus === 'saved'" class="md-save-status text-greeny-300 flex items-center gap-1">
       <BaseIcon :path="mdiCheck" :size="14" />
-      Saved
+      {{ $t('notes.toolbar.saved') }}
     </span>
     <span v-else-if="saveStatus === 'conflict'" class="md-save-status text-orangy-400 flex items-center gap-1">
       <BaseIcon :path="mdiAlertCircleOutline" :size="14" />
-      Conflict — another edit in progress
+      {{ $t('notes.toolbar.conflict') }}
     </span>
     <span v-else-if="saveStatus === 'error'" class="md-save-status text-redish-400 flex items-center gap-1">
       <BaseIcon :path="mdiAlertCircleOutline" :size="14" />
-      Save failed
+      {{ $t('notes.toolbar.saveFailed') }}
     </span>
 
     <BaseButton
@@ -129,7 +128,7 @@ defineExpose({ closeDropdown })
       :icon="mdiContentSave"
       xs
       :disabled="!isDirty || isSaving"
-      title="Save (Ctrl+S)"
+      :title="$t('notes.toolbar.save')"
       name="md-save"
       @click="$emit('save')"
     />
@@ -139,7 +138,7 @@ defineExpose({ closeDropdown })
       :color="isHistoryOpen ? 'info' : 'dark'"
       :icon="mdiHistory"
       xs
-      title="Version history"
+      :title="$t('notes.toolbar.versionHistory')"
       name="md-history"
       @click="emit('toggle-history')"
     />

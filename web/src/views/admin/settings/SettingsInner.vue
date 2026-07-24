@@ -6,6 +6,9 @@ import UserSettings from './UserSettings.vue'
 import EmailSettings from './EmailSettings.vue'
 import type { ErrorResponse } from '!/api'
 import { notify } from '@kyvg/vue3-notification'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const loading = ref(false)
 const settings = ref<Data>()
@@ -28,7 +31,7 @@ const save = async () => {
 
   try {
     settings.value = await updateInner(settings.value)
-    notify({ text: 'Settings saved', type: 'success' })
+    notify({ text: t('admin.settings.saved'), type: 'success' })
   } catch (err) {
     const error = err as ErrorResponse<unknown>
     updateError.value = error.description
@@ -41,7 +44,7 @@ await init()
 </script>
 <template>
   <div class="mb-8">
-    <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">Application Settings</h2>
+    <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">{{ $t('admin.settings.title') }}</h2>
     <div class="flex flex-col lg:flex-row gap-6">
       <UserSettings
         :class="mailerTestDisabled ? 'w-full' : 'w-full lg:w-7/12'"

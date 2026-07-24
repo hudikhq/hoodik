@@ -60,22 +60,22 @@ defineExpose({ closeDropdown })
       color="dark"
       :icon="mdiDotsVertical"
       xs
-      title="More actions"
+      :title="$t('notes.actions.more')"
       name="md-actions"
       @click.stop="showMenu = !showMenu"
     />
     <div v-if="showMenu" class="md-actions-dropdown">
       <button class="md-actions-option" @click="action('details')">
         <BaseIcon :path="mdiInformationSlabCircleOutline" :size="16" />
-        Details
+        {{ $t('notes.actions.details') }}
       </button>
       <button class="md-actions-option" @click="action('rename')">
         <BaseIcon :path="mdiPencilOutline" :size="16" />
-        Rename
+        {{ $t('common.rename') }}
       </button>
       <button class="md-actions-option" @click="action('download')">
         <BaseIcon :path="mdiDownload" :size="16" />
-        Download
+        {{ $t('common.download') }}
       </button>
       <button
         class="md-actions-option"
@@ -83,11 +83,11 @@ defineExpose({ closeDropdown })
         @click="openSharing"
       >
         <BaseIcon :path="mdiShareVariantOutline" :size="16" />
-        Sharing
+        {{ $t('notes.actions.sharing') }}
       </button>
       <button class="md-actions-option" @click="action('export-pdf')">
         <BaseIcon :path="mdiFilePdfBox" :size="16" />
-        Export PDF
+        {{ $t('notes.actions.exportPdf') }}
       </button>
       <button class="md-actions-option" @click="action('toggle-raw')">
         <BaseIcon :path="showRaw ? mdiEye : mdiEyeOff" :size="16" />
@@ -95,15 +95,15 @@ defineExpose({ closeDropdown })
       </button>
       <button v-if="canConvertToNote" class="md-actions-option md-actions-convert" @click="action('convert')">
         <BaseIcon :path="mdiNotePlusOutline" :size="16" />
-        Convert to note
+        {{ $t('notes.actions.convertToNote') }}
       </button>
       <button class="md-actions-option" @click="action('move')">
         <BaseIcon :path="mdiFileMove" :size="16" />
-        Move to...
+        {{ $t('notes.actions.moveTo') }}
       </button>
       <button class="md-actions-option md-actions-danger" @click="action('delete')">
         <BaseIcon :path="mdiDeleteOutline" :size="16" />
-        Delete
+        {{ $t('common.delete') }}
       </button>
     </div>
   </div>

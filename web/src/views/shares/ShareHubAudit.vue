@@ -61,7 +61,7 @@ onMounted(refresh)
     />
 
     <p v-if="loading" class="text-sm text-brownish-300" data-testid="share-hub-audit-loading">
-      Loading events…
+      {{ $t('shares.audit.loading') }}
     </p>
 
     <!-- Filter banner — the chain-walk skips paging gaps inside the
@@ -74,7 +74,7 @@ onMounted(refresh)
       data-testid="share-hub-audit-filter-banner"
     >
       <BaseIcon :path="mdiAlertCircleOutline" :size="16" class="shrink-0 mt-0.5" />
-      <span>Filtered view — chain verification limited to visible rows.</span>
+      <span>{{ $t('shares.audit.filteredBanner') }}</span>
     </div>
 
     <ul
@@ -103,7 +103,7 @@ onMounted(refresh)
       class="p-6 rounded-lg bg-brownish-50 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700 text-sm text-brownish-300"
       data-testid="share-hub-audit-empty"
     >
-      No events match the current filters.
+      {{ $t('shares.audit.empty') }}
     </p>
   </div>
 </template>

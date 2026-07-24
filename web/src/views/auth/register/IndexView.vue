@@ -5,6 +5,7 @@ import { isStrongPassword } from '@/utils/password'
 import { store } from '!/auth/register'
 import { useRoute, useRouter } from 'vue-router'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
@@ -15,6 +16,7 @@ import * as logger from '!/logger'
 const register = store()
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
 const config = ref()
 const working = ref(false)
@@ -39,19 +41,22 @@ const init = () => {
     initialValues: initialValues,
     initialErrors,
     validationSchema: yup.object().shape({
-      email: yup.string().required('Email is required').email('Email is invalid'),
+      email: yup
+        .string()
+        .required(t('auth.validation.emailRequired'))
+        .email(t('auth.validation.emailInvalid')),
       password: yup
         .string()
-        .required('Password is required')
+        .required(t('auth.validation.passwordRequired'))
         .test(
           'weak-password',
-          'Password used is too weak',
+          t('auth.validation.passwordTooWeak'),
           (value: string | undefined) => isStrongPassword(value)
         ),
       confirm_password: yup
         .string()
-        .required('Please confirm your password')
-        .oneOf([yup.ref('password')], 'Passwords do not match')
+        .required(t('auth.validation.confirmPasswordRequired'))
+        .oneOf([yup.ref('password')], t('auth.validation.passwordsDoNotMatch'))
     }),
     onSubmit: async (values: Partial<CreateUser>) => {
       logger.debug(values)
@@ -69,16 +74,20 @@ init()
   <LayoutGuest>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass">
-        <h1 class="text-2xl text-white">Create Account</h1>
+        <h1 class="text-2xl text-white">{{ $t('auth.register.title') }}</h1>
 
         <div v-if="registrationDisabled" class="mt-8 space-y-6" data-testid="registration-disabled">
           <p class="text-sm text-dirty-white">
-            Registration is disabled by the server administrator.
+            {{ $t('auth.register.disabled') }}
           </p>
           <p class="text-sm text-brownish-300">
-            If you were invited, please use the invitation link you received.
+            {{ $t('auth.register.useInvitation') }}
           </p>
-          <BaseButton :to="{ name: 'login' }" color="info" label="Back to login" />
+          <BaseButton
+            :to="{ name: 'login' }"
+            color="info"
+            :label="$t('auth.register.backToLogin')"
+          />
         </div>
 
         <AppForm
@@ -90,15 +99,15 @@ init()
         >
           <AppField
             :form="form"
-            label="Your email"
+            :label="$t('auth.yourEmail')"
             name="email"
-            placeholder="your@email.com"
+            :placeholder="$t('auth.emailPlaceholder')"
             :disabled="form.values.invitation_id"
           />
           <AppField
             type="password"
             :form="form"
-            label="Your password"
+            :label="$t('auth.yourPassword')"
             name="password"
             placeholder="*********"
           />
@@ -106,18 +115,18 @@ init()
             :allow-copy="false"
             type="password"
             :form="form"
-            label="Confirm your password"
+            :label="$t('auth.register.confirmPassword')"
             name="confirm_password"
             placeholder="*********"
           />
-          <AppButton color="info" type="submit">Next</AppButton>
+          <AppButton color="info" type="submit">{{ $t('common.next') }}</AppButton>
 
           <div class="text-sm font-medium text-brownish-500 dark:text-brownish-100">
-            Already have an account?
+            {{ $t('auth.alreadyHaveAccount') }}
             <router-link
               :to="{ name: 'login' }"
               class="text-primary-700 hover:underline dark:text-primary-500"
-              >Login</router-link
+              >{{ $t('common.login') }}</router-link
             >
           </div>
         </AppForm>

@@ -23,23 +23,23 @@ const lastActiveAt = computed(() => {
 </script>
 <template>
   <tr>
-    <td data-label="Email">{{ user.email }}</td>
-    <td data-label="TFA">
-      <span v-if="user.secret" class="text-greeny-500 dark:text-greeny-400">enabled</span>
-      <span v-else class="text-brownish-400">off</span>
+    <td :data-label="$t('common.email')">{{ user.email }}</td>
+    <td :data-label="$t('admin.users.tfa')">
+      <span v-if="user.secret" class="text-greeny-500 dark:text-greeny-400">{{ $t('admin.users.tfaEnabled') }}</span>
+      <span v-else class="text-brownish-400">{{ $t('admin.users.tfaOff') }}</span>
     </td>
-    <td data-label="Role">
+    <td :data-label="$t('admin.role')">
       <span v-if="user.role" class="text-xs font-medium uppercase tracking-wider text-orangy-400">{{ user.role }}</span>
       <span v-else class="text-brownish-400">—</span>
     </td>
-    <td data-label="Email Activated">
+    <td :data-label="$t('admin.users.emailActivated')">
       <span v-if="emailVerifiedAt" class="text-greeny-500 dark:text-greeny-400">{{ emailVerifiedAt }}</span>
-      <span v-else class="text-redish-500">unverified</span>
+      <span v-else class="text-redish-500">{{ $t('admin.users.unverified') }}</span>
     </td>
-    <td data-label="Created">{{ createdAt }}</td>
-    <td data-label="Last Active">
+    <td :data-label="$t('common.created')">{{ createdAt }}</td>
+    <td :data-label="$t('admin.users.lastActive')">
       <span v-if="lastActiveAt">{{ lastActiveAt }}</span>
-      <span v-else class="text-brownish-400">never</span>
+      <span v-else class="text-brownish-400">{{ $t('common.never') }}</span>
     </td>
     <td class="text-right">
       <BaseButton

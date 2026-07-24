@@ -215,7 +215,7 @@ onUnmounted(() => {
           <BaseIcon :path="mdiFileOutline" :size="75" h="h-75" w="w-75" />
         </div>
         <div class="text-center">
-          <span> No preview available 🥲 </span>
+          <span>{{ $t('preview.noPreview') }}</span>
         </div>
       </div>
     </div>

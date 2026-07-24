@@ -8,6 +8,7 @@ import { store as linksStore } from '!/links'
 import { mdiOpenInNew, mdiDownload } from '@mdi/js'
 import type { AppLink } from 'types'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   link: AppLink
@@ -33,6 +34,7 @@ const selectOne = (value: boolean) => {
   emits('select-one', value, props.link)
 }
 
+const { t } = useI18n()
 const Links = linksStore()
 const thumbnail = ref<string | undefined>(props.link.thumbnail)
 const thumbnailLoading = ref(false)
@@ -78,7 +80,7 @@ const fileCreatedAt = computed(() => {
 })
 
 const linkExpiresAt = computed(() => {
-  return props.link.expires_at ? formatPrettyDate(props.link.expires_at) : 'never'
+  return props.link.expires_at ? formatPrettyDate(props.link.expires_at) : t('common.never')
 })
 
 const isExpired = computed(() => {
@@ -181,18 +183,18 @@ const singleClick = () => {
       <TruncatedSpan :text="linkSize || '-'" />
     </div>
 
-    <div :class="sizes.createdAt" :title="`File created: ${fileCreatedAt}`">
+    <div :class="sizes.createdAt" :title="$t('links.table.fileCreated', { date: fileCreatedAt })">
       <TruncatedSpan :text="linkCreatedAt" />
     </div>
 
     <div :class="sizes.expiresAt" :title="linkExpiresAt">
-      <span v-if="isExpired" class="inline-block text-redish-200">expired</span>
+      <span v-if="isExpired" class="inline-block text-redish-200">{{ $t('links.table.expired') }}</span>
       <TruncatedSpan v-else :text="linkExpiresAt" />
     </div>
 
     <div :class="sizes.buttons">
       <BaseButton
-        title="View link"
+        :title="$t('links.table.viewLink')"
         :icon="mdiOpenInNew"
         color="dark"
         small

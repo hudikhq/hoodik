@@ -34,15 +34,18 @@ const confirmRemove = async () => {
 
 <template>
   <CardBoxModal
-    title="Delete"
+    :title="$t('common.delete')"
     button="danger"
     :model-value="!!props.modelValue"
-    button-label="Yes, delete"
+    :button-label="$t('files.delete.confirmLabel')"
     :has-cancel="true"
     @cancel="emits('update:modelValue', undefined)"
     @confirm="confirmRemove"
   >
-    Are you sure you want to delete forever '{{ props.modelValue?.name }}'
-    <span v-if="props.modelValue?.mime === 'dir'"> directory</span>?
+    {{
+      props.modelValue?.mime === 'dir'
+        ? $t('files.delete.confirmDirectory', { name: props.modelValue?.name })
+        : $t('files.delete.confirmFile', { name: props.modelValue?.name })
+    }}
   </CardBoxModal>
 </template>

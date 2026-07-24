@@ -63,12 +63,12 @@ const cancel = () => {
           :size="24"
           class="shrink-0 text-brownish-300 dark:text-brownish-200"
         />
-        <h2 class="text-lg sm:text-xl font-semibold truncate">Public link</h2>
+        <h2 class="text-lg sm:text-xl font-semibold truncate">{{ $t('links.modal.title') }}</h2>
       </div>
       <button
         type="button"
         class="shrink-0 w-11 h-11 inline-flex items-center justify-center rounded-full text-brownish-400 hover:text-brownish-100 hover:bg-brownish-100 dark:hover:bg-brownish-800 transition-colors"
-        title="Close"
+        :title="$t('common.close')"
         @click.prevent="cancel"
       >
         <BaseIcon :path="mdiClose" :size="20" />
@@ -77,8 +77,8 @@ const cancel = () => {
 
     <div v-if="link && sharingEnabled" class="mb-3">
       <BaseButton
-        title="Share with a Hoodik account instead"
-        label="Share with a Hoodik account"
+        :title="$t('links.modal.shareAccountTitle')"
+        :label="$t('links.modal.shareAccount')"
         :icon="mdiAccountPlus"
         color="dark"
         small

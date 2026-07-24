@@ -1,5 +1,6 @@
 import { computed, ref, watch } from 'vue'
 import type { Ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import {
@@ -13,18 +14,18 @@ import { errorNotification } from '!/index'
 
 import type { AuditEventAction, KeyPair, ShareEvent, ShareRole } from 'types'
 
-export const ACTION_LABELS: Record<AuditEventAction, string> = {
-  grant: 'Shared',
-  revoke: 'Revoked',
-  role_change: 'Changed role',
-  shared_folder_upload: 'Uploaded into shared folder',
-  fork: 'Forked',
-  shared_by_co_owner: 'Re-shared as co-owner',
-  shared_folder_edit: 'Edited shared file',
-  shared_folder_restore: 'Restored shared version',
-  shared_folder_evict: 'Cascade revoked',
-  shared_folder_move_out: 'Moved out of shared folder',
-  key_rotation: 'Key rotation'
+export const ACTION_LABEL_KEYS: Record<AuditEventAction, string> = {
+  grant: 'shares.audit.actions.grant',
+  revoke: 'shares.audit.actions.revoke',
+  role_change: 'shares.audit.actions.roleChange',
+  shared_folder_upload: 'shares.audit.actions.sharedFolderUpload',
+  fork: 'shares.audit.actions.fork',
+  shared_by_co_owner: 'shares.audit.actions.sharedByCoOwner',
+  shared_folder_edit: 'shares.audit.actions.sharedFolderEdit',
+  shared_folder_restore: 'shares.audit.actions.sharedFolderRestore',
+  shared_folder_evict: 'shares.audit.actions.sharedFolderEvict',
+  shared_folder_move_out: 'shares.audit.actions.sharedFolderMoveOut',
+  key_rotation: 'shares.audit.actions.keyRotation'
 }
 
 /**
@@ -62,11 +63,12 @@ function asString(value: unknown): string {
 }
 
 function parseActionQuery(value: string): 'all' | AuditEventAction {
-  if (value && value in ACTION_LABELS) return value as AuditEventAction
+  if (value && value in ACTION_LABEL_KEYS) return value as AuditEventAction
   return 'all'
 }
 
 export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
+  const { t } = useI18n()
   const route = useRoute()
   const router = useRouter()
   const shares = sharesStoreFactory()
@@ -174,7 +176,7 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
   })
 
   function senderEmail(row: ShareEvent): string {
-    if (!row.sender_id) return 'system'
+    if (!row.sender_id) return t('shares.audit.systemSender')
     return shares.eventUsers[row.sender_id]?.email ?? row.sender_id.slice(0, 8)
   }
 
@@ -184,7 +186,11 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
   }
 
   function formatRole(role: ShareRole): string {
-    return role === 'co-owner' ? 'Co-owner' : role.charAt(0).toUpperCase() + role.slice(1)
+    return role === 'co-owner'
+      ? t('shares.roles.coOwner')
+      : role === 'editor'
+        ? t('shares.roles.editor')
+        : t('shares.roles.reader')
   }
 
   /**
@@ -257,38 +263,65 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
     const recipient = recipientEmail(row)
     const decryptedName = row.file_id ? decryptedNames.value.get(row.file_id) : undefined
     const fileLabel =
-      decryptedName ?? (row.file_id ? `file ${row.file_id.slice(0, 8)}…` : 'a file')
+      decryptedName ??
+      (row.file_id
+        ? t('shares.audit.sentence.fileId', { id: row.file_id.slice(0, 8) })
+        : t('shares.audit.sentence.aFile'))
     const roleAfter = row.share_role_after ? formatRole(row.share_role_after) : null
     const roleBefore = row.share_role_before ? formatRole(row.share_role_before) : null
 
     switch (row.action) {
       case 'grant':
-        return `${sender} shared ${fileLabel} with ${recipient}${roleAfter ? ` as ${roleAfter}` : ''}`
+        return roleAfter
+          ? t('shares.audit.sentence.grantAs', { sender, file: fileLabel, recipient, role: roleAfter })
+          : t('shares.audit.sentence.grant', { sender, file: fileLabel, recipient })
       case 'shared_by_co_owner':
-        return `${sender} re-shared ${fileLabel} with ${recipient}${roleAfter ? ` as ${roleAfter}` : ''}`
+        return roleAfter
+          ? t('shares.audit.sentence.reshareAs', { sender, file: fileLabel, recipient, role: roleAfter })
+          : t('shares.audit.sentence.reshare', { sender, file: fileLabel, recipient })
       case 'revoke':
-        return `${sender} revoked ${recipient || 'access'} from ${fileLabel}`
+        return t('shares.audit.sentence.revoke', {
+          sender,
+          recipient: recipient || t('shares.audit.sentence.access'),
+          file: fileLabel
+        })
       case 'role_change':
         if (roleBefore && roleAfter) {
-          return `${sender} changed ${recipient || 'recipient'}'s role on ${fileLabel} from ${roleBefore} to ${roleAfter}`
+          return t('shares.audit.sentence.roleChange', {
+            sender,
+            recipient: recipient || t('shares.audit.sentence.recipient'),
+            file: fileLabel,
+            before: roleBefore,
+            after: roleAfter
+          })
         }
-        return `${sender} changed ${recipient || 'recipient'}'s role on ${fileLabel}`
+        return t('shares.audit.sentence.roleChangeShort', {
+          sender,
+          recipient: recipient || t('shares.audit.sentence.recipient'),
+          file: fileLabel
+        })
       case 'fork':
-        return `${sender} forked ${fileLabel} into their drive`
+        return t('shares.audit.sentence.fork', { sender, file: fileLabel })
       case 'shared_folder_upload':
-        return `${sender} uploaded into shared folder ${fileLabel}`
+        return t('shares.audit.sentence.upload', { sender, file: fileLabel })
       case 'shared_folder_edit':
-        return `${sender} edited shared file ${fileLabel}`
+        return t('shares.audit.sentence.edit', { sender, file: fileLabel })
       case 'shared_folder_restore':
-        return `${sender} restored a previous version of shared file ${fileLabel}`
+        return t('shares.audit.sentence.restore', { sender, file: fileLabel })
       case 'shared_folder_evict':
-        return `${recipient || 'A recipient'} lost access to ${fileLabel} (cascade)`
+        return t('shares.audit.sentence.evict', {
+          recipient: recipient || t('shares.audit.sentence.aRecipient'),
+          file: fileLabel
+        })
       case 'shared_folder_move_out':
-        return `${sender} moved ${fileLabel} out of a shared folder`
+        return t('shares.audit.sentence.moveOut', { sender, file: fileLabel })
       case 'key_rotation':
-        return `${sender} rotated their account encryption keys`
+        return t('shares.audit.sentence.keyRotation', { sender })
       default:
-        return `${ACTION_LABELS[row.action] ?? row.action} on ${fileLabel}`
+        return t('shares.audit.sentence.fallback', {
+          action: ACTION_LABEL_KEYS[row.action] ? t(ACTION_LABEL_KEYS[row.action]) : row.action,
+          file: fileLabel
+        })
     }
   }
 
@@ -344,15 +377,15 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
     const rowIndex = shares.events.indexOf(row)
     const chainStatus = rowIndex >= 0 ? rowChainStatus(rowIndex) : undefined
     if (!computeSigOk(row)) {
-      return 'Signature failed verification on this event.'
+      return t('shares.audit.tampered.signature')
     }
     if (chainStatus === 'self-hash-mismatch') {
-      return 'Row content does not match its stored hash.'
+      return t('shares.audit.tampered.selfHash')
     }
     if (chainStatus === 'link-broken') {
-      return 'Chain link to the previous visible event is broken.'
+      return t('shares.audit.tampered.chainLink')
     }
-    return 'Tamper indicator on this event.'
+    return t('shares.audit.tampered.generic')
   }
 
   /**
@@ -373,23 +406,23 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
     let senderSigStatus: string | null = null
     if (state !== 'system' && row.sender_id) {
       if (!row.sender_signature) {
-        senderSigStatus = 'Sender signature missing — this row should not exist'
+        senderSigStatus = t('shares.audit.disclosure.sigMissing')
       } else if (sigChecks.value[row.id] === true) {
-        senderSigStatus = 'Verified against sender pubkey'
+        senderSigStatus = t('shares.audit.disclosure.sigVerified')
       } else if (sigChecks.value[row.id] === false) {
-        senderSigStatus = 'Failed verification against sender pubkey'
+        senderSigStatus = t('shares.audit.disclosure.sigFailed')
       } else {
-        senderSigStatus = 'Pending verification'
+        senderSigStatus = t('shares.audit.disclosure.sigPending')
       }
     }
 
     let chainCopy: string | null = null
     if (chainStatus === 'page-boundary') {
-      chainCopy = 'Earlier event in this chain is on another page'
+      chainCopy = t('shares.audit.disclosure.pageBoundary')
     } else if (chainStatus === 'self-hash-mismatch') {
-      chainCopy = 'Row content does not match its stored hash'
+      chainCopy = t('shares.audit.disclosure.selfHash')
     } else if (chainStatus === 'link-broken') {
-      chainCopy = 'Chain link to the previous visible event is broken'
+      chainCopy = t('shares.audit.disclosure.chainLink')
     }
 
     return {
@@ -509,24 +542,24 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
       if (err instanceof DiscoverUserError) {
         switch (err.kind) {
           case 'not_found':
-            senderError.value = "We couldn't find a Hoodik account for that email."
+            senderError.value = t('shares.discover.notFound')
             break
           case 'self':
-            senderError.value = "That's your own account — pick another email."
+            senderError.value = t('shares.audit.senderSelf')
             break
           case 'rate_limited':
             senderError.value = err.retryAfterSeconds
-              ? `Too many lookups — try again in ${err.retryAfterSeconds}s.`
-              : 'Too many lookups — slow down and retry.'
+              ? t('shares.audit.senderRateLimitedRetry', { seconds: err.retryAfterSeconds })
+              : t('shares.audit.senderRateLimited')
             break
           case 'feature_disabled':
-            senderError.value = 'Account discovery is disabled on this server.'
+            senderError.value = t('shares.audit.senderDisabled')
             break
           default:
-            senderError.value = 'Could not resolve that email right now.'
+            senderError.value = t('shares.audit.senderResolveFailed')
         }
       } else {
-        senderError.value = 'Could not resolve that email right now.'
+        senderError.value = t('shares.audit.senderResolveFailed')
       }
     } finally {
       senderResolving.value = false

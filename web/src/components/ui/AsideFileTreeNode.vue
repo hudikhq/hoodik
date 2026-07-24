@@ -87,7 +87,7 @@ async function fetchAndExpand(node: TreeNode) {
 
   <template v-if="node.file.mime === 'dir' && expanded.has(node.file.id)">
     <li v-if="node.loading" class="py-1 text-brownish-500" :style="`padding-left: ${(depth + 1) * 16 + 24}px`">
-      Loading...
+      {{ $t('common.loading') }}
     </li>
     <template v-else>
       <AsideFileTreeNode
@@ -107,7 +107,7 @@ async function fetchAndExpand(node: TreeNode) {
         class="py-1 text-brownish-500 italic"
         :style="`padding-left: ${(depth + 1) * 16 + 24}px`"
       >
-        Empty
+        {{ $t('ui.fileTree.empty') }}
       </li>
     </template>
   </template>

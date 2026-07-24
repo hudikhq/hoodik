@@ -47,7 +47,7 @@ const selected = computed({
         :disabled="disabled"
         :data-testid="`${testidPrefix}-reader`"
       />
-      <span>Reader</span>
+      <span>{{ $t('shares.roles.reader') }}</span>
     </label>
     <label :class="chipClass('editor')">
       <input
@@ -58,7 +58,7 @@ const selected = computed({
         :disabled="disabled"
         :data-testid="`${testidPrefix}-editor`"
       />
-      <span>Editor</span>
+      <span>{{ $t('shares.roles.editor') }}</span>
     </label>
     <label :class="chipClass('co-owner', disableCoOwner)">
       <input
@@ -69,7 +69,7 @@ const selected = computed({
         :disabled="disabled || disableCoOwner"
         :data-testid="`${testidPrefix}-coowner`"
       />
-      <span>Co-owner</span>
+      <span>{{ $t('shares.roles.coOwner') }}</span>
     </label>
   </div>
 </template>

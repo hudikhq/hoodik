@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 
 const props = defineProps<{
@@ -18,15 +19,18 @@ const emits = defineEmits<{
   (event: 'cancel'): void
 }>()
 
-const itemSummary = computed(() =>
-  props.itemCount === 1 ? '1 item' : `${props.itemCount} items`
-)
+const { t } = useI18n()
+
+const itemSummary = computed(() => t('files.moveShare.itemCount', props.itemCount))
 
 const memberSummary = computed(() => {
   const labels = props.memberLabels
-  if (labels.length === 0) return 'its members'
+  if (labels.length === 0) return t('files.moveShare.itsMembers')
   if (labels.length <= 3) return labels.join(', ')
-  return `${labels.slice(0, 3).join(', ')} and ${labels.length - 3} more`
+  return t('files.moveShare.andMore', {
+    names: labels.slice(0, 3).join(', '),
+    count: labels.length - 3
+  })
 })
 
 const progressPercent = computed(() =>
@@ -36,18 +40,24 @@ const progressPercent = computed(() =>
 
 <template>
   <CardBoxModal
-    title="Move and share folder?"
+    :title="$t('files.moveShare.title')"
     button="info"
     :model-value="props.modelValue"
-    button-label="Move and share"
+    :button-label="$t('files.moveShare.confirmLabel')"
     :has-cancel="true"
     @update:model-value="emits('update:modelValue', $event)"
     @cancel="emits('cancel')"
     @confirm="emits('confirm')"
   >
     <p data-testid="move-share-confirm-message">
-      Moving '{{ folderName }}' into '{{ destinationName }}' will share it and its
-      {{ itemSummary }} with {{ memberSummary }}.
+      {{
+        $t('files.moveShare.message', {
+          folder: folderName,
+          destination: destinationName,
+          items: itemSummary,
+          members: memberSummary
+        })
+      }}
     </p>
 
     <div
@@ -61,7 +71,7 @@ const progressPercent = computed(() =>
           :style="{ width: `${progressPercent}%` }"
         />
       </div>
-      <p class="mt-1 text-sm">Preparing {{ progressPercent }}%</p>
+      <p class="mt-1 text-sm">{{ $t('files.moveShare.preparing', { percent: progressPercent }) }}</p>
     </div>
   </CardBoxModal>
 </template>

@@ -36,24 +36,31 @@ function goToRecoveryKey() {
 <template>
   <CardBoxModal
     v-model="show"
-    title="Your account security was upgraded"
+    :title="$t('account.migration.title')"
     button="success"
-    button-label="Got it"
+    :button-label="$t('account.migration.gotIt')"
     @confirm="acknowledge"
   >
     <div class="flex items-start gap-3">
       <BaseIcon :path="mdiShieldCheck" size="32" class="text-greeny-500 shrink-0 mt-1" />
       <div class="space-y-3 text-sm">
         <p>
-          Your files are now protected with post-quantum encryption, and from now on you sign in
-          without your password ever leaving this device.
+          {{ $t('account.migration.body1') }}
         </p>
-        <p>
-          Because this generated new keys for your account, please save a fresh copy of your
-          <strong>recovery key</strong>. It's the only way back in if you forget your password, and
-          it's always available under <strong>Account &rarr; Recovery key</strong>.
-        </p>
-        <AppButton type="button" label="Get my recovery key" color="info" @click="goToRecoveryKey" />
+        <i18n-t keypath="account.migration.body2" tag="p" scope="global">
+          <template #recoveryKey>
+            <strong>{{ $t('account.migration.recoveryKeyTerm') }}</strong>
+          </template>
+          <template #location>
+            <strong>{{ $t('account.migration.recoveryKeyLocation') }}</strong>
+          </template>
+        </i18n-t>
+        <AppButton
+          type="button"
+          :label="$t('account.migration.getRecoveryKey')"
+          color="info"
+          @click="goToRecoveryKey"
+        />
       </div>
     </div>
   </CardBoxModal>

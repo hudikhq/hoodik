@@ -60,7 +60,7 @@ const {
 <template>
   <div class="space-y-3" data-testid="share-dialog-target">
     <div v-if="!file">
-      <p class="text-sm">No file selected.</p>
+      <p class="text-sm">{{ $t('shares.add.noFile') }}</p>
     </div>
     <p
       v-else-if="showFolderHint"
@@ -73,24 +73,24 @@ const {
     <div>
       <AppField
         name="recipient-email"
-        label="Add a recipient"
+        :label="$t('shares.add.recipientLabel')"
         v-model="email"
         :disabled="submitting || readOnly"
         @confirm="discover"
-        placeholder="someone@example.com"
+        :placeholder="$t('shares.add.emailPlaceholder')"
       />
       <div class="flex justify-between items-center mt-2 flex-wrap gap-2">
         <BaseButton
           color="dark"
           small
-          label="Find user"
+          :label="$t('shares.add.findUser')"
           :icon="mdiAccountPlus"
           :disabled="submitting || readOnly || !email.trim()"
           data-testid="share-dialog-discover"
           @click.prevent="discover"
         />
         <div v-if="recentRecipients.length" class="text-xs text-brownish-300 flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
-          <span class="opacity-70 shrink-0">Recent:</span>
+          <span class="opacity-70 shrink-0">{{ $t('shares.add.recent') }}</span>
           <button
             v-for="value in recentRecipients.slice(0, 3)"
             :key="value"
@@ -165,14 +165,14 @@ const {
 
     <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
       <BaseButton
-        label="Cancel"
+        :label="$t('common.cancel')"
         color="info"
         outline
         :disabled="submitting"
         @click.prevent="cancel"
       />
       <BaseButton
-        label="Share"
+        :label="$t('common.share')"
         color="info"
         :disabled="confirmDisabled"
         data-testid="share-dialog-submit"
@@ -218,7 +218,7 @@ const {
             data-testid="share-dialog-submit-overlay-cancel"
             @click.prevent="abortWalk"
           >
-            Cancel
+            {{ $t('common.cancel') }}
           </button>
         </div>
       </div>

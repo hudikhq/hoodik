@@ -26,7 +26,7 @@ const opacity = computed(() => {
     <SpinnerIcon :size="24" />
 
     <slot>
-      <span class="text-sm">Working…</span>
+      <span class="text-sm">{{ $t('ui.working') }}</span>
     </slot>
   </div>
 </template>

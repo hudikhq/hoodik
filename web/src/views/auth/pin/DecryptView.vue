@@ -9,12 +9,14 @@ import { store as cryptoStore } from '!/crypto'
 import { pk, popIntendedRoute } from '!/auth'
 import { useRouter } from 'vue-router'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ErrorResponse } from '!/api'
 import type { Credentials } from 'types'
 
 const login = loginStore()
 const router = useRouter()
 const crypto = cryptoStore()
+const { t } = useI18n()
 
 const config = ref()
 const authenticationError = ref<string | null>(null)
@@ -45,7 +47,7 @@ const init = () => {
       password: ''
     },
     validationSchema: yup.object().shape({
-      password: yup.string().required('Password is required')
+      password: yup.string().required(t('auth.validation.passwordRequired'))
     }),
     onSubmit: async (values: Credentials) => {
       try {
@@ -67,20 +69,20 @@ init()
   <LayoutGuest>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass" v-if="config">
-        <h1 class="text-2xl text-white mb-5">Unlock Your Account</h1>
+        <h1 class="text-2xl text-white mb-5">{{ $t('auth.decrypt.title') }}</h1>
         <p>
-          You are about to unlock an account of <strong>{{ email }}</strong> if this isn't you,
-          please go to
-          <router-link :to="{ name: 'login' }" @click="forget" class="regular-link"
-            >login.</router-link
-          >
+          {{ $t('auth.decrypt.aboutToUnlock') }} <strong>{{ email }}</strong>
+          {{ $t('auth.decrypt.notYou') }}
+          <router-link :to="{ name: 'login' }" @click="forget" class="regular-link">{{
+            $t('auth.decrypt.loginLink')
+          }}</router-link>
         </p>
 
         <AppForm :config="config" class="mt-8 space-y-6" v-slot="{ form }">
           <AppField
             type="password"
             :form="form"
-            label="Your password"
+            :label="$t('auth.yourPassword')"
             name="password"
             placeholder="********"
             :autofocus="true"
@@ -90,7 +92,7 @@ init()
             {{ authenticationError }}
           </p>
 
-          <AppButton color="info" :form="form" type="submit">Unlock</AppButton>
+          <AppButton color="info" :form="form" type="submit">{{ $t('auth.unlock') }}</AppButton>
         </AppForm>
       </CardBox>
     </SectionFullScreen>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import {
   mdiAccountArrowRight,
   mdiAlertCircle,
@@ -11,7 +13,7 @@ import BaseIcon from '@/components/ui/BaseIcon.vue'
 
 import { formatRelative } from '!/index'
 
-import { ACTION_LABELS } from './useShareHubAudit'
+import { ACTION_LABEL_KEYS } from './useShareHubAudit'
 import type { RowDisclosure, RowVerificationState } from './useShareHubAudit'
 
 import type { ShareEvent } from 'types'
@@ -32,8 +34,11 @@ const emit = defineEmits<{
   export: [row: ShareEvent]
 }>()
 
+const { t } = useI18n()
+
 function actionLabel(row: ShareEvent): string {
-  return ACTION_LABELS[row.action] ?? row.action
+  const key = ACTION_LABEL_KEYS[row.action]
+  return key ? t(key) : row.action
 }
 
 function formatTimestamp(unixSeconds: number): string {
@@ -99,15 +104,15 @@ function formatTimestamp(unixSeconds: number): string {
           v-if="state === 'system'"
           class="inline-flex items-center text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-brownish-200 dark:bg-brownish-700 text-brownish-700 dark:text-brownish-200"
           :data-testid="`share-hub-audit-row-${row.id}-system`"
-          :title="row.sender_id ? `Parent: ${row.sender_id}` : 'System cascade event'"
+          :title="row.sender_id ? $t('shares.audit.row.parentTitle', { id: row.sender_id }) : $t('shares.audit.row.systemCascade')"
         >
           <BaseIcon :path="mdiCogOutline" :size="12" class="mr-1" />
-          System
+          {{ $t('shares.audit.row.system') }}
         </span>
         <button
           type="button"
           class="inline-flex items-center text-brownish-300 hover:text-brownish-100 transition"
-          :title="expanded ? 'Hide verification details' : 'Show verification details'"
+          :title="expanded ? $t('shares.audit.row.hideDetails') : $t('shares.audit.row.showDetails')"
           :data-testid="`share-hub-audit-row-${row.id}-toggle`"
           @click="emit('toggle', row.id)"
         >
@@ -135,7 +140,7 @@ function formatTimestamp(unixSeconds: number): string {
         <BaseIcon :path="mdiAlertCircle" :size="20" class="shrink-0 mt-0.5" />
         <div class="flex-1 min-w-0">
           <p class="font-semibold text-sm">{{ tamperedHeadline }}</p>
-          <p class="text-xs mt-0.5">Export the row below and share it with the project maintainer.</p>
+          <p class="text-xs mt-0.5">{{ $t('shares.audit.row.exportHint') }}</p>
           <button
             type="button"
             class="mt-1 inline-flex items-center gap-1 text-xs underline hover:no-underline"
@@ -143,7 +148,7 @@ function formatTimestamp(unixSeconds: number): string {
             @click="emit('export', row)"
           >
             <BaseIcon :path="mdiContentCopy" :size="12" />
-            Export this row for review
+            {{ $t('shares.audit.row.exportCta') }}
           </button>
         </div>
       </div>
@@ -158,23 +163,23 @@ function formatTimestamp(unixSeconds: number): string {
       :data-testid="`share-hub-audit-row-${row.id}-disclosure`"
     >
       <p>
-        <span class="text-brownish-400 dark:text-brownish-300">row id</span>
+        <span class="text-brownish-400 dark:text-brownish-300">{{ $t('shares.audit.row.rowId') }}</span>
         <span class="ml-2">…{{ disclosure.rowIdShort }}</span>
       </p>
       <p>
-        <span class="text-brownish-400 dark:text-brownish-300">this hash</span>
+        <span class="text-brownish-400 dark:text-brownish-300">{{ $t('shares.audit.row.thisHash') }}</span>
         <span class="ml-2">…{{ disclosure.thisHashTail }}</span>
       </p>
       <p>
-        <span class="text-brownish-400 dark:text-brownish-300">prev hash</span>
+        <span class="text-brownish-400 dark:text-brownish-300">{{ $t('shares.audit.row.prevHash') }}</span>
         <span class="ml-2">…{{ disclosure.prevHashTail }}</span>
       </p>
       <p v-if="disclosure.senderSigStatus">
-        <span class="text-brownish-400 dark:text-brownish-300">signature</span>
+        <span class="text-brownish-400 dark:text-brownish-300">{{ $t('shares.audit.row.signature') }}</span>
         <span class="ml-2">{{ disclosure.senderSigStatus }}</span>
       </p>
       <p v-if="disclosure.chainStatus">
-        <span class="text-brownish-400 dark:text-brownish-300">chain</span>
+        <span class="text-brownish-400 dark:text-brownish-300">{{ $t('shares.audit.row.chain') }}</span>
         <span class="ml-2">{{ disclosure.chainStatus }}</span>
       </p>
     </div>

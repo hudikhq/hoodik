@@ -106,7 +106,7 @@ const copy = () => {
           :class="{ 'text-greeny-400 dark:text-greeny-300': copied }"
           @click.prevent="copy"
         >
-          {{ copied ? 'Saved in clipboard' : 'Copy to clipboard' }}
+          {{ copied ? $t('nav.clipboard.saved') : $t('nav.clipboard.copy') }}
         </button>
       </div>
     </div>

@@ -233,14 +233,14 @@ onUnmounted(cleanup)
   <!-- Full-download loading state: shown until blob URL is ready -->
   <div v-if="!blobUrl && !error" class="flex flex-col items-center justify-center w-full h-full gap-4">
     <SpinnerIcon />
-    <div class="text-sm text-brownish-100">Loading… {{ progress }}%</div>
+    <div class="text-sm text-brownish-100">{{ $t('preview.video.loading', { progress }) }}</div>
     <div class="w-64 h-2 bg-brownish-700 rounded-full overflow-hidden">
       <div class="h-full bg-greeny-400 transition-all" :style="{ width: `${progress}%` }" />
     </div>
   </div>
 
   <div v-else-if="error" class="flex flex-col items-center justify-center w-full h-full gap-2 text-redish-300">
-    <span>Could not load video: {{ error }}</span>
+    <span>{{ $t('preview.video.loadError', { error }) }}</span>
   </div>
 
   <!-- Video visible: in MSE mode this appears immediately; in fallback mode after full download -->

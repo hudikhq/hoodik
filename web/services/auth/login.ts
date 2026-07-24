@@ -14,6 +14,7 @@ import { ref, computed } from 'vue'
 import type { Authenticated, Credentials, CryptoStore, KeyPair, PrivateKeyLogin, User } from 'types'
 import { useRouter } from 'vue-router'
 import { notify } from '@kyvg/vue3-notification'
+import { i18n } from '@/i18n'
 import * as logger from '!/logger'
 
 export interface LoginStartResponse {
@@ -363,8 +364,8 @@ export const store = defineStore('login', () => {
         logger.error('[auth] auto-migration ceremony failed (user stays legacy)', e)
         notify({
           type: 'error',
-          title: "Encryption upgrade didn't finish",
-          text: "You're signed in and everything works. We'll try upgrading your account again next time you log in."
+          title: i18n.global.t('auth.migration.failedTitle'),
+          text: i18n.global.t('auth.migration.failedText')
         })
       }
     }

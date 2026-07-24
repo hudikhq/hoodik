@@ -40,14 +40,14 @@ onMounted(refresh)
 <template>
   <div :class="props.class">
     <CardBox class="flex w-full">
-      <CardBoxComponentHeader title="Storage Overview" :button-icon="mdiRefresh" @button-click="refresh" />
+      <CardBoxComponentHeader :title="$t('admin.stats.storageOverview')" :button-icon="mdiRefresh" @button-click="refresh" />
 
       <div class="-mx-4 -mb-4">
         <!-- Usage bar -->
         <div class="px-4 py-3 border-b border-brownish-100 dark:border-brownish-700/50">
           <div class="flex justify-between items-baseline mb-1.5">
-            <span class="text-sm font-medium">{{ usedSpace }} used</span>
-            <span class="text-xs text-brownish-400">of {{ availableSpace }}</span>
+            <span class="text-sm font-medium">{{ $t('admin.stats.used', { size: usedSpace }) }}</span>
+            <span class="text-xs text-brownish-400">{{ $t('admin.stats.ofTotal', { size: availableSpace }) }}</span>
           </div>
           <div class="h-2 bg-brownish-100 dark:bg-brownish-700 rounded-full overflow-hidden">
             <div
@@ -56,7 +56,7 @@ onMounted(refresh)
               :style="{ width: usagePercent + '%' }"
             />
           </div>
-          <p class="text-xs text-brownish-400 mt-1.5">{{ usagePercent }}% of capacity used</p>
+          <p class="text-xs text-brownish-400 mt-1.5">{{ $t('admin.stats.capacityUsed', { percent: usagePercent }) }}</p>
         </div>
 
         <!-- Breakdown by type -->

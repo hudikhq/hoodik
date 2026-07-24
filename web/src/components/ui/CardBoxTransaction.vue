@@ -67,6 +67,7 @@ const icon = computed((): { icon: any; type: ColorType } => {
         <div class="text-center space-y-1 md:text-left md:mr-6">
           <h4 class="text-xl">${{ amount }}</h4>
           <p class="text-brownish-500 dark:text-brownish-100">
+            <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->
             <b>{{ date }}</b> via {{ business }}
           </p>
         </div>

@@ -10,6 +10,7 @@ import {
   mdiAlertCircleOutline
 } from '@mdi/js'
 import { MilkdownProvider } from '@milkdown/vue'
+import { useI18n } from 'vue-i18n'
 import MilkdownEditorInner from '@/components/editor/MilkdownEditorInner.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
@@ -29,6 +30,8 @@ const props = defineProps<{
   file: AppFile
   keypair: KeyPair
 }>()
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   (event: 'close'): void
@@ -66,9 +69,9 @@ async function load() {
 watch(() => props.file.id, load, { immediate: true })
 
 function authorLabel(v: FileVersion): string {
-  if (v.is_anonymous) return 'Anonymous'
-  if (v.user_id === props.file.user_id) return 'You'
-  return 'Another collaborator'
+  if (v.is_anonymous) return t('preview.versionHistory.authorAnonymous')
+  if (v.user_id === props.file.user_id) return t('preview.versionHistory.authorYou')
+  return t('preview.versionHistory.authorOther')
 }
 
 async function decryptVersionBytes(v: FileVersion): Promise<Uint8Array> {
@@ -206,11 +209,11 @@ async function purgeAll() {
 <template>
   <aside class="vh-panel">
     <header class="vh-header">
-      <h3 class="vh-title">Version history</h3>
-      <BaseButton color="dark" :icon="mdiClose" xs title="Close" name="vh-close" @click="emit('close')" />
+      <h3 class="vh-title">{{ $t('preview.versionHistory.title') }}</h3>
+      <BaseButton color="dark" :icon="mdiClose" xs :title="$t('common.close')" name="vh-close" @click="emit('close')" />
     </header>
 
-    <div v-if="loading" class="vh-empty">Loading versions…</div>
+    <div v-if="loading" class="vh-empty">{{ $t('preview.versionHistory.loading') }}</div>
 
     <div v-else-if="loadError" class="vh-error">
       <BaseIcon :path="mdiAlertCircleOutline" :size="14" />
@@ -218,27 +221,28 @@ async function purgeAll() {
     </div>
 
     <div v-else-if="!list.length" class="vh-empty">
-      No history yet. Edit the note to start building one.
+      {{ $t('preview.versionHistory.empty') }}
     </div>
 
     <ul v-else class="vh-list">
       <li v-for="v in list" :key="v.id" class="vh-item">
         <div class="vh-item-head">
+          <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->
           <span class="vh-item-version">v{{ v.version }}</span>
           <span class="vh-item-date">{{ formatPrettyDate(v.created_at) }}</span>
         </div>
         <div class="vh-item-meta">
           <span>{{ authorLabel(v) }}</span>
           <span class="vh-dot">·</span>
-          <span>{{ v.chunks }} chunk{{ v.chunks === 1 ? '' : 's' }}</span>
+          <span>{{ $t('preview.versionHistory.chunks', v.chunks) }}</span>
         </div>
         <div class="vh-item-actions">
-          <BaseButton color="dark" :icon="mdiEye" xs title="Preview" name="vh-preview" @click="openPreview(v)" />
+          <BaseButton color="dark" :icon="mdiEye" xs :title="$t('files.actions.preview')" name="vh-preview" @click="openPreview(v)" />
           <BaseButton
             color="dark"
             :icon="mdiRestore"
             xs
-            title="Restore in place"
+            :title="$t('preview.versionHistory.restoreInPlace')"
             name="vh-restore"
             :disabled="busyVersion === v.version"
             @click="askRestore(v)"
@@ -247,7 +251,7 @@ async function purgeAll() {
             color="dark"
             :icon="mdiContentDuplicate"
             xs
-            title="Restore as new note"
+            :title="$t('preview.versionHistory.restoreAsNew')"
             name="vh-fork"
             :disabled="busyVersion === v.version"
             @click="forkAsNew(v)"
@@ -256,7 +260,7 @@ async function purgeAll() {
             color="danger"
             :icon="mdiTrashCan"
             xs
-            title="Delete this version"
+            :title="$t('preview.versionHistory.deleteVersion')"
             name="vh-delete"
             :disabled="busyVersion === v.version"
             @click="askDelete(v)"
@@ -270,7 +274,7 @@ async function purgeAll() {
         color="danger"
         :icon="mdiDeleteSweep"
         xs
-        label="Clear all history"
+        :label="$t('preview.versionHistory.clearAll')"
         name="vh-purge-all"
         @click="confirmingPurgeAll = true"
       />
@@ -285,7 +289,7 @@ async function purgeAll() {
         class="vh-preview-card shadow-lg max-h-modal w-11/12 lg:w-5/6 xl:w-3/4 z-50"
         is-modal
       >
-        <CardBoxComponentTitle :title="previewVersion ? `Preview v${previewVersion.version}` : ''" />
+        <CardBoxComponentTitle :title="previewVersion ? $t('preview.versionHistory.previewTitle', { version: previewVersion.version }) : ''" />
         <div v-if="previewError" class="vh-error">{{ previewError }}</div>
         <div v-else-if="previewBytes !== null" class="vh-preview milkdown-wrapper">
           <!-- Reuse the live editor in read-only mode so a previewed
@@ -297,56 +301,58 @@ async function purgeAll() {
             <MilkdownEditorInner :content="previewBytes" :editable="false" />
           </MilkdownProvider>
         </div>
-        <div v-else class="vh-empty">Decrypting…</div>
+        <div v-else class="vh-empty">{{ $t('preview.versionHistory.decrypting') }}</div>
         <template #footer>
-          <BaseButton color="info" label="Close" @click="closePreview" />
+          <BaseButton color="info" :label="$t('common.close')" @click="closePreview" />
         </template>
       </CardBox>
     </OverlayLayer>
 
     <CardBoxModal
       :model-value="!!confirmingRestore"
-      title="Restore this version?"
+      :title="$t('preview.versionHistory.restoreTitle')"
       button="warning"
-      button-label="Yes, restore"
+      :button-label="$t('preview.versionHistory.restoreConfirmLabel')"
       has-cancel
       @cancel="confirmingRestore = null"
       @confirm="restore"
     >
-      <p>
-        This replaces the current content with v{{ confirmingRestore?.version }} from
-        {{ confirmingRestore ? formatPrettyDate(confirmingRestore.created_at) : '' }}. Your current version stays
-        in history, so you can undo the restore later.
+      <p v-if="confirmingRestore">
+        {{ $t('preview.versionHistory.restoreBody', {
+          version: confirmingRestore.version,
+          date: formatPrettyDate(confirmingRestore.created_at)
+        }) }}
       </p>
     </CardBoxModal>
 
     <CardBoxModal
       :model-value="!!confirmingDelete"
-      title="Delete this version?"
+      :title="$t('preview.versionHistory.deleteTitle')"
       button="danger"
-      button-label="Delete forever"
+      :button-label="$t('preview.versionHistory.deleteConfirmLabel')"
       has-cancel
       @cancel="confirmingDelete = null"
       @confirm="confirmDelete"
     >
-      <p>
-        v{{ confirmingDelete?.version }} from
-        {{ confirmingDelete ? formatPrettyDate(confirmingDelete.created_at) : '' }} will be removed permanently.
-        This cannot be undone.
+      <p v-if="confirmingDelete">
+        {{ $t('preview.versionHistory.deleteBody', {
+          version: confirmingDelete.version,
+          date: formatPrettyDate(confirmingDelete.created_at)
+        }) }}
       </p>
     </CardBoxModal>
 
     <CardBoxModal
       :model-value="confirmingPurgeAll"
-      title="Clear all history?"
+      :title="$t('preview.versionHistory.clearAllTitle')"
       button="danger"
-      button-label="Delete all"
+      :button-label="$t('preview.versionHistory.clearAllConfirmLabel')"
       has-cancel
       @cancel="confirmingPurgeAll = false"
       @confirm="purgeAll"
     >
       <p>
-        Every historical version will be permanently deleted. The current note stays.
+        {{ $t('preview.versionHistory.clearAllBody') }}
       </p>
     </CardBoxModal>
   </aside>

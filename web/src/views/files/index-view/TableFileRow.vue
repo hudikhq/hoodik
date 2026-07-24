@@ -14,11 +14,13 @@ import {
 } from '@mdi/js'
 import type { AppFile } from 'types'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { isPreviewable, isMarkdownFile } from '!/preview'
 import { SHARED_WITH_ME_DIR_ID } from '!/storage'
 
 const router = useRouter()
+const { t } = useI18n()
 
 const isDropZone = ref(false)
 
@@ -127,11 +129,9 @@ const isSharedOut = computed(() => {
   return (props.file.shared_with_count ?? 0) > 0
 })
 
-const sharedOutTitle = computed(() => {
-  const n = props.file.shared_with_count ?? 0
-  if (n === 1) return 'Shared with 1 other account'
-  return `Shared with ${n} other accounts`
-})
+const sharedOutTitle = computed(() =>
+  t('files.row.sharedWith', props.file.shared_with_count ?? 0)
+)
 
 /**
  * The synthetic "Shared with me" root is rendered as an injected
@@ -310,14 +310,14 @@ const drop = (e: DragEvent) => {
       <span
         v-if="file.pending_version != null"
         class="ml-2 inline-flex items-center text-orangy-400"
-        title="Another session is saving this note"
+        :title="$t('files.row.savingInAnotherSession')"
       >
         <BaseIcon :path="mdiCloudSyncOutline" :size="14" />
       </span>
       <span
         v-if="ownerBadgeEmail"
         class="ml-2 inline-flex items-center max-w-[10rem] truncate px-2 py-0.5 rounded-full text-[11px] uppercase tracking-wider bg-brownish-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200"
-        :title="`Owned by ${ownerBadgeEmail}`"
+        :title="$t('files.row.ownedBy', { email: ownerBadgeEmail })"
         data-testid="shared-by-badge"
       >
         {{ ownerBadgeEmail }}

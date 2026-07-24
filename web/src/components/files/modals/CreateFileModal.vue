@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import { AppForm, AppField } from '@/components/form'
 import * as yup from 'yup'
@@ -18,6 +19,8 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:modelValue', 'cancel', 'confirm'])
 
+const { t } = useI18n()
+
 const router = useRouter()
 const config = ref()
 const errorMessage = ref()
@@ -28,7 +31,7 @@ const init = () => {
       name: 'Untitled.md'
     },
     validationSchema: yup.object().shape({
-      name: yup.string().required('File name is required')
+      name: yup.string().required(t('files.createFile.nameRequired'))
     }),
     onSubmit: async (values: { name: string }, ctx: any) => {
       try {
@@ -67,9 +70,9 @@ init()
     <CardBoxModal
       :modelValue="props.modelValue"
       @update:modelValue="$emit('update:modelValue', $event)"
-      title="Create a new file"
+      :title="$t('files.createFile.title')"
       button="info"
-      buttonLabel="Create"
+      :buttonLabel="$t('common.create')"
       has-cancel
       @cancel="$emit('cancel')"
       :form="form"
@@ -78,7 +81,13 @@ init()
         {{ errorMessage }}
       </p>
 
-      <AppField :form="form" label="File name" name="name" placeholder="Untitled.md" autofocus />
+      <AppField
+        :form="form"
+        :label="$t('files.createFile.nameLabel')"
+        name="name"
+        placeholder="Untitled.md"
+        autofocus
+      />
     </CardBoxModal>
   </AppForm>
 </template>

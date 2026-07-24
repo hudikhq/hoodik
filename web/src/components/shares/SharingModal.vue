@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   mdiAccountMultipleOutline,
   mdiClose,
@@ -63,6 +64,7 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
+const { t } = useI18n()
 const grants = grantsStore()
 const sharesState = sharesStoreFactory()
 
@@ -152,11 +154,11 @@ const fileOwnerId = computed<string | undefined>(() => {
 const callerRoleLabel = computed(() => {
   const f = props.file
   if (!f) return ''
-  if (f.is_owner) return 'Owner'
+  if (f.is_owner) return t('common.owner')
   switch (f.share_role) {
-    case 'co-owner': return 'Co-owner'
-    case 'editor': return 'Editor'
-    case 'reader': return 'Reader'
+    case 'co-owner': return t('shares.roles.coOwner')
+    case 'editor': return t('shares.roles.editor')
+    case 'reader': return t('shares.roles.reader')
     default: return ''
   }
 })
@@ -165,12 +167,12 @@ const readOnlyExplanation = computed(() => {
   if (canWrite.value) return ''
   if (!props.file) return ''
   if (props.file.share_role === 'editor') {
-    return 'Editors can view and edit, but only the owner or a Co-owner can change sharing.'
+    return t('shares.modal.readOnlyEditor')
   }
   if (props.file.share_role === 'reader') {
-    return 'Readers cannot change sharing on this file.'
+    return t('shares.modal.readOnlyReader')
   }
-  return 'You do not have rights to change sharing on this file.'
+  return t('shares.modal.readOnlyGeneric')
 })
 
 const titleIcon = computed(() => {
@@ -255,9 +257,9 @@ function abbreviatedFingerprint(grant: UserGrant): string {
 
 function roleLabel(role: ShareRole): string {
   switch (role) {
-    case 'reader': return 'Reader'
-    case 'editor': return 'Editor'
-    case 'co-owner': return 'Co-owner'
+    case 'reader': return t('shares.roles.reader')
+    case 'editor': return t('shares.roles.editor')
+    case 'co-owner': return t('shares.roles.coOwner')
     default: return role
   }
 }
@@ -299,8 +301,8 @@ async function revokeUser(grant: UserGrant): Promise<void> {
       timestamp
     })
     notification(
-      'Share revoked',
-      `${grant.user.recipient_email} can no longer access ${props.file.name}.`,
+      t('shares.revokedTitle'),
+      t('shares.modal.revokedBody', { name: grant.user.recipient_email, file: props.file.name }),
       'success'
     )
   } catch (err) {
@@ -338,9 +340,9 @@ function onPeopleCancel(): void {
           <div class="min-w-0">
             <h2
               class="text-lg sm:text-xl font-semibold leading-tight truncate"
-              :title="props.file?.name ?? 'Sharing'"
+              :title="props.file?.name ?? $t('shares.modal.title')"
             >
-              {{ props.file?.name ?? 'Sharing' }}
+              {{ props.file?.name ?? $t('shares.modal.title') }}
             </h2>
             <span
               v-if="callerRoleLabel"
@@ -354,7 +356,7 @@ function onPeopleCancel(): void {
         <button
           type="button"
           class="shrink-0 -mt-1 -mr-1 w-11 h-11 inline-flex items-center justify-center rounded-full text-brownish-400 hover:text-brownish-100 hover:bg-brownish-100 dark:hover:bg-brownish-800 transition-colors"
-          title="Close"
+          :title="$t('common.close')"
           data-testid="sharing-modal-close"
           @click.prevent="close"
         >
@@ -381,7 +383,7 @@ function onPeopleCancel(): void {
           @click.prevent="tab = 'people'"
         >
           <BaseIcon :path="mdiAccountMultipleOutline" :size="16" />
-          <span>People</span>
+          <span>{{ $t('shares.modal.tabPeople') }}</span>
           <span class="text-xs opacity-70">{{ userGrants.length }}</span>
         </button>
         <button
@@ -394,7 +396,7 @@ function onPeopleCancel(): void {
           @click.prevent="tab = 'link'"
         >
           <BaseIcon :path="mdiLink" :size="16" />
-          <span>Public link</span>
+          <span>{{ $t('shares.modal.tabLink') }}</span>
           <span class="text-xs opacity-70">{{ linkCount }}</span>
         </button>
       </div>
@@ -441,21 +443,21 @@ function onPeopleCancel(): void {
         <div data-testid="sharing-modal-people-list">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs uppercase tracking-wider text-brownish-300">
-              Recipients ({{ userGrants.length }})
+              {{ $t('shares.modal.recipients', { count: userGrants.length }) }}
             </span>
           </div>
           <p
             v-if="loadingGrants && userGrants.length === 0"
             class="text-xs text-brownish-300"
           >
-            Loading…
+            {{ $t('common.loading') }}
           </p>
           <p
             v-else-if="userGrants.length === 0"
             class="text-sm text-brownish-300 px-3 py-3 rounded-lg bg-brownish-50 dark:bg-brownish-800/40"
             data-testid="sharing-modal-people-empty"
           >
-            No accounts have access yet.
+            {{ $t('shares.modal.peopleEmpty') }}
           </p>
           <ul v-else class="space-y-1.5">
             <li
@@ -482,21 +484,21 @@ function onPeopleCancel(): void {
                 </span>
                 <BaseButton
                   v-if="canWrite"
-                  title="Change role"
-                  label="Change"
+                  :title="$t('shares.members.changeRole')"
+                  :label="$t('shares.change')"
                   color="dark"
                   small
                   :data-testid="`sharing-modal-change-role-${grant.recipient_id}`"
                   @click.prevent="changeRole(grant)"
                 />
                 <BaseButtonConfirm
-                  title="Revoke access"
+                  :title="$t('shares.revokeAccess')"
                   :icon="mdiTrashCan"
                   color="danger"
                   small
                   rounded-full
-                  confirm-label="Revoke"
-                  cancel-label="Cancel"
+                  :confirm-label="$t('shares.revoke')"
+                  :cancel-label="$t('common.cancel')"
                   :disabled="!canWrite"
                   :data-testid="`sharing-modal-revoke-${grant.recipient_id}`"
                   @confirm="() => revokeUser(grant)"

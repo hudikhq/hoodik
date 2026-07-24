@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { Stats } from 'types/admin/files'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { formatSize } from '!/index'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   data: Stats
@@ -10,7 +13,7 @@ const props = defineProps<{
 
 const label = computed(() => {
   const mime = props.data.mime
-  if (!mime) return 'Unknown'
+  if (!mime) return t('common.unknown')
   const parts = mime.split('/')
   if (parts.length !== 2) return mime
   const [type, subtype] = parts
@@ -31,8 +34,9 @@ const label = computed(() => {
 
   const prettySubtype = subtypeMap[subtype] ?? subtype.split(/[+.-]/).pop()?.toUpperCase() ?? subtype.toUpperCase()
   const typeLabels: Record<string, string> = {
-    'image': 'Images', 'video': 'Videos', 'audio': 'Audio',
-    'text': 'Text', 'application': '', 'font': 'Fonts'
+    'image': t('files.stats.images'), 'video': t('files.stats.videos'),
+    'audio': t('files.stats.audio'), 'text': t('files.stats.text'),
+    'application': '', 'font': t('files.stats.fonts')
   }
   const typeLabel = typeLabels[type] ?? type
   return typeLabel ? `${prettySubtype} ${typeLabel}` : prettySubtype
@@ -45,12 +49,12 @@ const percentage = computed(() => {
   return Math.min(100, Math.round((props.data.size / props.max) * 100))
 })
 const percentageStr = computed(() => `${percentage.value}%`)
-const maxSize = computed(() => props.max ? formatSize(props.max) : 'unlimited')
+const maxSize = computed(() => (props.max ? formatSize(props.max) : t('files.stats.unlimited')))
 </script>
 <template>
   <div
     class="py-2 border-b border-brownish-100 dark:border-brownish-700/50 last:border-0"
-    :title="`${percentageStr} of ${maxSize}`"
+    :title="$t('files.stats.ofMax', { percent: percentageStr, max: maxSize })"
   >
     <div class="flex items-center gap-2">
       <span class="flex-1 min-w-0 truncate text-sm">{{ label }}</span>

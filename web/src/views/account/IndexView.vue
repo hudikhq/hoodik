@@ -4,6 +4,7 @@ import SectionMain from '@/components/ui/SectionMain.vue'
 import MyDetails from './index/MyDetails.vue'
 import StorageStats from './index/StorageStats.vue'
 import SharingPreferences from './index/SharingPreferences.vue'
+import LanguagePreferences from './index/LanguagePreferences.vue'
 import RecoveryKey from './index/RecoveryKey.vue'
 import EnableTfaModal from '@/components/modals/EnableTfaModal.vue'
 import DisableTfaModal from '@/components/modals/DisableTfaModal.vue'
@@ -30,7 +31,7 @@ const enableTfaModal = ref(false)
     <Suspense>
       <SectionMain v-if="authenticated">
         <div class="mb-8">
-          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">Profile</h2>
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">{{ $t('account.sections.profile') }}</h2>
           <div class="flex flex-col lg:flex-row gap-6">
             <MyDetails
               class="w-full lg:w-7/12"
@@ -43,17 +44,22 @@ const enableTfaModal = ref(false)
         </div>
 
         <div class="mb-8">
-          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">Security</h2>
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">{{ $t('account.sections.security') }}</h2>
           <RecoveryKey class="w-full" />
         </div>
 
         <div class="mb-8">
-          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">Sharing</h2>
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">{{ $t('account.sections.sharing') }}</h2>
           <SharingPreferences :user="authenticated.user" class="w-full" />
         </div>
 
+        <div class="mb-8">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">{{ $t('account.preferences') }}</h2>
+          <LanguagePreferences class="w-full" />
+        </div>
+
         <div>
-          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">Sessions</h2>
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">{{ $t('account.sections.sessions') }}</h2>
           <ActivityInner class="w-full" />
         </div>
       </SectionMain>

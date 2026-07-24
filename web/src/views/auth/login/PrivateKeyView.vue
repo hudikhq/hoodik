@@ -11,6 +11,7 @@ import { store as cryptoStore } from '!/crypto'
 import { popIntendedRoute } from '!/auth'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ErrorResponse } from '!/api'
 import * as cryptfns from '!/cryptfns'
 import type { PrivateKeyLogin } from 'types'
@@ -21,6 +22,7 @@ const login = store()
 const register = registerStore()
 const router = useRouter()
 const crypto = cryptoStore()
+const { t } = useI18n()
 
 const config = ref()
 const authenticationError = ref<string | null>(null)
@@ -33,10 +35,10 @@ const init = () => {
     validationSchema: yup.object().shape({
       privateKey: yup
         .string()
-        .required('Private key is required')
+        .required(t('auth.validation.privateKeyRequired'))
         .test({
           name: 'privateKey',
-          message: 'Invalid private key',
+          message: t('auth.validation.privateKeyInvalid'),
           test: async (value) => {
             // A v2 account pastes its recovery bundle (`v1|ed:|x:`); a legacy
             // account pastes its RSA PEM. Accept either shape.
@@ -74,29 +76,29 @@ init()
   <LayoutGuest>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass">
-        <h1 class="text-2xl text-white">Access Your Files</h1>
+        <h1 class="text-2xl text-white">{{ $t('auth.login.title') }}</h1>
         <AppForm v-if="config" :config="config" class="mt-8 space-y-6" v-slot="{ form }">
           <AppField
             textarea
             :rows="10"
             :form="form"
-            label="Your private key"
+            :label="$t('auth.privateKey.label')"
             name="privateKey"
-            placeholder="Paste your private key here"
-            help="Your private key will never be sent to the server, we will only use it to generate fingerprint and sign your requests to try and authenticate you"
+            :placeholder="$t('auth.privateKey.placeholder')"
+            :help="$t('auth.privateKey.help')"
           />
-          <AppCheckbox label="Remember me" :form="form" name="remember" />
+          <AppCheckbox :label="$t('auth.rememberMe')" :form="form" name="remember" />
 
           <p v-if="authenticationError" class="text-sm text-redish-400">
             {{ authenticationError }}
           </p>
 
-          <AppButton color="info" :form="form" type="submit">Login</AppButton>
+          <AppButton color="info" :form="form" type="submit">{{ $t('common.login') }}</AppButton>
 
           <BaseButton
             :to="{ name: 'login' }"
             color="light"
-            label="Login With Email and Password"
+            :label="$t('auth.privateKey.withCredentials')"
             class="float-right"
           />
 
@@ -104,11 +106,11 @@ init()
             v-if="register.allowRegister !== false"
             class="text-sm font-medium text-brownish-500 dark:text-brownish-100"
           >
-            Don't have an account yet?
+            {{ $t('auth.noAccountYet') }}
             <router-link
               :to="{ name: 'register' }"
               class="text-primary-700 hover:underline dark:text-primary-500"
-              >Create an Account</router-link
+              >{{ $t('auth.createAnAccount') }}</router-link
             >
           </div>
         </AppForm>

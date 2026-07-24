@@ -212,10 +212,10 @@ const sizes = {
       v-if="checkedRows.length"
       data-testid="files-selected-count"
       class="self-center text-sm text-brownish-700 dark:text-brownish-200"
-    >{{ checkedRows.length }} selected</span>
+    >{{ $t('files.browser.selectedCount', { count: checkedRows.length }) }}</span>
 
     <BaseButton
-      title="Delete"
+      :title="$t('common.delete')"
       :iconSize="20"
       :xs="true"
       :icon="mdiTrashCanOutline"
@@ -225,7 +225,7 @@ const sizes = {
     />
 
     <BaseButton
-      title="Add to download queue"
+      :title="$t('files.browser.addToDownloadQueue')"
       :iconSize="20"
       :xs="true"
       :icon="mdiDownloadMultiple"
@@ -235,7 +235,7 @@ const sizes = {
     />
 
     <BaseButton
-      title="Move"
+      :title="$t('common.move')"
       data-testid="move-selected"
       :iconSize="20"
       :xs="true"
@@ -248,7 +248,7 @@ const sizes = {
     <span class="p-1" v-if="showMoveAll && singleSelected">|</span>
 
     <BaseButton
-      title="Rename file or folder"
+      :title="$t('files.browser.renameTitle')"
       :iconSize="20"
       :xs="true"
       :icon="mdiPencil"
@@ -258,7 +258,7 @@ const sizes = {
     />
 
     <BaseButton
-      title="Preview"
+      :title="$t('files.actions.preview')"
       :iconSize="20"
       :xs="true"
       :icon="mdiEye"
@@ -268,7 +268,7 @@ const sizes = {
     />
 
     <BaseButton
-      title="Details"
+      :title="$t('files.actions.details')"
       :iconSize="20"
       :xs="true"
       :icon="mdiInformationOutline"
@@ -278,7 +278,7 @@ const sizes = {
     />
 
     <BaseButton
-      title="Sharing"
+      :title="$t('files.actions.sharing')"
       :iconSize="20"
       :xs="true"
       :icon="mdiShareVariantOutline"
@@ -299,7 +299,7 @@ const sizes = {
 
     <BaseButton
       name="create-dir"
-      title="Create directory"
+      :title="$t('files.browser.createDirectory')"
       :iconSize="20"
       :xs="true"
       :icon="mdiFolderPlusOutline"
@@ -310,7 +310,7 @@ const sizes = {
 
     <BaseButton
       name="create-file"
-      title="New file"
+      :title="$t('files.browser.newFile')"
       :iconSize="20"
       :xs="true"
       :icon="mdiFileDocumentPlusOutline"
@@ -321,7 +321,7 @@ const sizes = {
 
     <BaseButton
       name="browse"
-      title="Upload files"
+      :title="$t('files.browser.uploadFiles')"
       :iconSize="20"
       :xs="true"
       :icon="mdiFilePlusOutline"
@@ -332,7 +332,7 @@ const sizes = {
 
     <BaseButton
       name="browse-folder"
-      title="Upload folder"
+      :title="$t('files.browser.uploadFolder')"
       :iconSize="20"
       :xs="true"
       :icon="mdiFolderArrowUpOutline"
@@ -361,7 +361,7 @@ const sizes = {
       <div :class="`${sizes.name}`">
         <SortableName
           name="name"
-          label="Name"
+          :label="$t('common.name')"
           :sort-options="sortOptions"
           @sort="(v: string) => emits('set-sort-simple', v)"
         />
@@ -370,7 +370,7 @@ const sizes = {
       <div :class="`${sizes.size} ${borderClass}`">
         <SortableName
           name="size"
-          label="Size"
+          :label="$t('common.size')"
           :sort-options="sortOptions"
           @sort="(v: string) => emits('set-sort-simple', v)"
         />
@@ -379,7 +379,7 @@ const sizes = {
       <div :class="`${sizes.type} ${borderClass}`">
         <SortableName
           name="mime"
-          label="Type"
+          :label="$t('common.type')"
           :sort-options="sortOptions"
           @sort="(v: string) => emits('set-sort-simple', v)"
         />
@@ -388,7 +388,7 @@ const sizes = {
       <div :class="`${sizes.modifiedAt} ${borderClass}`">
         <SortableName
           name="file_modified_at"
-          label="Modified"
+          :label="$t('common.modified')"
           :sort-options="sortOptions"
           @sort="(v: string) => emits('set-sort-simple', v)"
         />
@@ -405,7 +405,7 @@ const sizes = {
       <span class="text-sm text-brownish-300 dark:text-brownish-100 px-6 text-center">
         {{ props.error }}
       </span>
-      <BaseButton color="info" small label="Retry" @click="emits('retry')" />
+      <BaseButton color="info" small :label="$t('common.retry')" @click="emits('retry')" />
     </div>
     <!-- Cached rows for the target folder render immediately; the spinner
          only covers a folder we know nothing about yet. -->
@@ -422,9 +422,11 @@ const sizes = {
       class="w-full rounded-b-lg bg-brownish-50 dark:bg-brownish-900 py-14 flex flex-col items-center gap-1"
       data-testid="files-empty"
     >
-      <span class="text-brownish-300 dark:text-brownish-100">This folder is empty</span>
+      <span class="text-brownish-300 dark:text-brownish-100">{{
+        $t('files.browser.emptyFolder')
+      }}</span>
       <span class="text-xs text-brownish-200 dark:text-brownish-300">
-        Drop files here or use the upload button to add some
+        {{ $t('files.browser.emptyFolderHint') }}
       </span>
     </div>
     <div v-else class="flex flex-col rounded-b-lg">

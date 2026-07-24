@@ -29,6 +29,7 @@ import * as meta from '!/storage/meta'
 import { computed, ref, watch } from 'vue'
 import { useTitle } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   parentId?: string
@@ -42,6 +43,7 @@ const props = defineProps<{
 const title = useTitle()
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const parentId = computed(() => {
   if (props.parentId) {
     return props.parentId
@@ -171,7 +173,7 @@ const fork = async (file: AppFile) => {
   actionFile.value = undefined
   const user = props.authenticated.user
   if (!Crypto.keypair?.input || !Crypto.keypair?.publicKey) {
-    errorNotification('Cannot save without an active session.')
+    errorNotification(t('nav.fork.noSession'))
     return
   }
   try {
@@ -198,8 +200,8 @@ const fork = async (file: AppFile) => {
       }
     )
     notification(
-      'Saved to your drive',
-      `"${source.name}" is now your own file.`,
+      t('nav.fork.savedTitle'),
+      t('nav.fork.savedText', { name: source.name }),
       'success'
     )
     try {
@@ -211,7 +213,7 @@ const fork = async (file: AppFile) => {
     router.push({ name: 'files' }).catch(() => {})
   } catch (err) {
     if (err instanceof ForkAbortedError) {
-      notification('Save cancelled', 'The fork was cancelled before it completed.', 'info')
+      notification(t('nav.fork.cancelledTitle'), t('nav.fork.cancelledText'), 'info')
     } else {
       errorNotification(err)
     }
@@ -246,7 +248,7 @@ const confirmLeave = async () => {
   if (!file) return
   const userId = props.authenticated.user.id
   if (!Crypto.keypair?.input) {
-    errorNotification('Cannot remove yourself without an active session.')
+    errorNotification(t('nav.leave.noSession'))
     return
   }
   const role = file.share_role ?? 'reader'
@@ -266,7 +268,7 @@ const confirmLeave = async () => {
     )
     await Shares.revoke(file.id, userId, { event_signature: signature, timestamp })
     Storage.removeItem(file.id)
-    notification('Removed from share', 'You no longer see this file.', 'success')
+    notification(t('nav.leave.removedTitle'), t('nav.leave.removedText'), 'success')
   } catch (err) {
     errorNotification(err)
   }
@@ -314,7 +316,7 @@ const uploadMany = async (files?: FileList, dirId?: string) => {
       try {
         await files[i].slice(0, 1).arrayBuffer()
       } catch (err) {
-        errorNotification(`File ${files[i].name} is a directory`)
+        errorNotification(t('nav.upload.fileIsDirectory', { name: files[i].name }))
         continue
       }
 
@@ -620,7 +622,7 @@ watch(
   >
     <div class="flex items-center gap-2">
       <span>
-        Saving to your drive · {{ forkProgress.phase }} ·
+        {{ $t('nav.fork.progress') }} · {{ forkProgress.phase }} ·
         {{
           Math.round(
             (forkProgress.bytesProcessed / Math.max(forkProgress.totalBytes, 1)) * 100
@@ -632,7 +634,7 @@ watch(
         class="underline text-redish-500"
         data-testid="fork-progress-cancel"
         @click.prevent="cancelFork"
-      >Cancel</button>
+      >{{ $t('common.cancel') }}</button>
     </div>
   </div>
 

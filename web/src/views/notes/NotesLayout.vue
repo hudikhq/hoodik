@@ -54,9 +54,9 @@ watch(
 <template>
   <div class="h-[calc(100vh-4rem)]">
     <div v-if="loadError" class="flex flex-col items-center justify-center h-full text-brownish-400">
-      <p class="text-sm">Failed to load note. It may have been deleted or you don't have access.</p>
+      <p class="text-sm">{{ $t('notes.loadError') }}</p>
       <router-link :to="{ name: 'notes' }" class="mt-3 text-sm text-orangy-400 hover:text-orangy-300 underline">
-        Back to notes
+        {{ $t('notes.backToNotes') }}
       </router-link>
     </div>
     <NotesEditor v-else-if="fileId" :preview="preview" />

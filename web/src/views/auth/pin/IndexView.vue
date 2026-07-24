@@ -77,9 +77,7 @@ handle()
       <CardBox :class="`${cardClass} text-center`">
         <div class="h-5 text-center">
           <p class="text-sm">
-            An account for the user with email {{ email }} has been locked on this browser all other
-            data has been removed. If you are not the owner of this account, you can forget the
-            account and login or register yourself.
+            {{ $t('auth.lock.description', { email }) }}
           </p>
         </div>
 
@@ -87,10 +85,10 @@ handle()
           <BaseIcon :path="mdiLock" size="150" w="w-50" h="h-50" class="text-greeny-400" />
         </div>
 
-        <BaseButton :to="{ name: 'decrypt' }" class="float-left" label="Unlock" />
+        <BaseButton :to="{ name: 'decrypt' }" class="float-left" :label="$t('auth.unlock')" />
 
         <AppButton @click="forget" type="button" class="float-right" color="danger">
-          Forget account
+          {{ $t('auth.lock.forgetAccount') }}
         </AppButton>
       </CardBox>
     </SectionFullScreen>

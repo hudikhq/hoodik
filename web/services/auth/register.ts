@@ -6,6 +6,7 @@ import * as envelope from '../cryptfns/envelope'
 import * as ed25519 from '../cryptfns/ed25519'
 import { encodeBundle } from './bundle'
 import { default as Api, type InnerValidationErrors } from '../api'
+import { currentLocale } from '@/i18n'
 import type { Authenticated, CreateUser, CryptoStore, KeyPair, LoginStore, User } from 'types'
 import type { RouteLocation } from 'vue-router'
 
@@ -176,7 +177,8 @@ export const store = defineStore('register', () => {
       opaque_registration_upload: regFinish.message,
       secret: data.secret,
       token: data.token,
-      invitation_id: data.invitation_id
+      invitation_id: data.invitation_id,
+      locale: currentLocale()
     }
     // The server forbids `password` on a curve account; only OPAQUE proves it.
     delete (payload as Partial<CreateUser>).password

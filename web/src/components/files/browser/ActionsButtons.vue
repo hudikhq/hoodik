@@ -120,7 +120,7 @@ const canDelete = computed(() => {
     v-if="canDetails"
     :icon="mdiEye"
     @click="emits('details', file)"
-    label="Details"
+    :label="$t('files.actions.details')"
     name="details"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
   />
@@ -132,7 +132,7 @@ const canDelete = computed(() => {
       name: 'file-preview',
       params: { id: file.id }
     }"
-    label="Preview"
+    :label="$t('files.actions.preview')"
     name="preview"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
   />
@@ -141,7 +141,7 @@ const canDelete = computed(() => {
     :icon="mdiDownload"
     @click="emits('download', file)"
     v-if="hasDownload"
-    label="Download"
+    :label="$t('common.download')"
     name="download"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
   />
@@ -150,7 +150,7 @@ const canDelete = computed(() => {
     v-if="canSharing"
     :icon="mdiShareVariantOutline"
     @click="emits('sharing', file)"
-    label="Sharing"
+    :label="$t('files.actions.sharing')"
     name="sharing"
     data-testid="actions-share-account"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
@@ -160,8 +160,8 @@ const canDelete = computed(() => {
     v-if="canFork"
     :icon="mdiContentSave"
     @click="emits('fork', file)"
-    label="Fork"
-    title="Save an independent copy to your drive — survives revocation"
+    :label="$t('files.actions.fork')"
+    :title="$t('files.actions.forkTitle')"
     name="fork"
     data-testid="actions-fork"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
@@ -171,7 +171,7 @@ const canDelete = computed(() => {
     v-if="canLeave"
     :icon="mdiAccountArrowLeft"
     @click="emits('leave', file)"
-    label="Remove"
+    :label="$t('common.remove')"
     name="leave"
     data-testid="actions-leave"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
@@ -181,7 +181,7 @@ const canDelete = computed(() => {
     v-if="canDelete"
     :icon="mdiTrashCan"
     @click="emits('remove', file)"
-    label="Delete"
+    :label="$t('common.delete')"
     name="delete"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
   />
@@ -190,7 +190,7 @@ const canDelete = computed(() => {
     v-if="canRename"
     :icon="mdiPencil"
     @click="emits('rename', file)"
-    label="Rename"
+    :label="$t('common.rename')"
     name="rename"
     class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
   />

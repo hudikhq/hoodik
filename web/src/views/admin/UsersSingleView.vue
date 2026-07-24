@@ -141,7 +141,7 @@ watch(
       <div class="mb-4">
         <BaseButton
           :icon="mdiChevronLeft"
-          label="All Users"
+          :label="$t('admin.user.allUsers')"
           :small="true"
           :to="{ name: 'manage-users' }"
           class="mb-3"
@@ -156,30 +156,30 @@ watch(
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
                   <h1 class="text-lg font-semibold truncate">{{ user.email }}</h1>
-                  <BaseButton :icon="mdiRefresh" :xs="true" @click="get" title="Refresh" />
+                  <BaseButton :icon="mdiRefresh" :xs="true" @click="get" :title="$t('common.refresh')" />
                 </div>
                 <div class="flex flex-wrap items-center gap-2 mt-2">
                   <span v-if="user.role" class="inline-flex items-center text-xs font-semibold uppercase tracking-wider bg-orangy-400/15 text-orangy-400 px-2 py-0.5 rounded-full">
                     {{ user.role }}
                   </span>
                   <span v-else class="inline-flex text-xs bg-brownish-100 dark:bg-brownish-700 text-brownish-400 dark:text-brownish-300 px-2 py-0.5 rounded-full">
-                    user
+                    {{ $t('admin.user.userBadge') }}
                   </span>
                   <span v-if="emailVerifiedAt" class="inline-flex items-center gap-1 text-xs text-greeny-500 dark:text-greeny-400">
                     <BaseIcon :path="mdiShieldCheck" :size="13" />
-                    email verified
+                    {{ $t('admin.user.emailVerified') }}
                   </span>
                   <span v-else class="inline-flex items-center gap-1 text-xs text-redish-500">
                     <BaseIcon :path="mdiAlertCircleOutline" :size="13" />
-                    email unverified
+                    {{ $t('admin.user.emailUnverified') }}
                   </span>
                   <span v-if="user.secret" class="inline-flex items-center gap-1 text-xs text-greeny-500 dark:text-greeny-400">
                     <BaseIcon :path="mdiShieldCheck" :size="13" />
-                    TFA on
+                    {{ $t('admin.user.tfaOn') }}
                   </span>
                   <span class="text-xs text-brownish-400">
-                    · joined {{ createdAt }}
-                    <span v-if="lastActiveAt"> · last active {{ lastActiveAt }}</span>
+                    · {{ $t('admin.user.joined', { date: createdAt }) }}
+                    <span v-if="lastActiveAt"> · {{ $t('admin.user.lastActive', { date: lastActiveAt }) }}</span>
                   </span>
                 </div>
               </div>
@@ -192,9 +192,9 @@ watch(
       <div class="flex flex-col sm:flex-row gap-4 mb-4">
         <!-- Left: Storage -->
         <CardBox class="w-full sm:w-1/2">
-          <CardBoxComponentHeader title="Storage">
+          <CardBoxComponentHeader :title="$t('admin.user.storage')">
             <div v-if="!editQuota" class="flex items-center px-4 py-3">
-              <BaseButton :icon="mdiPencil" :small="true" label="Edit quota" @click="openQuotaEdit" />
+              <BaseButton :icon="mdiPencil" :small="true" :label="$t('admin.user.editQuota')" @click="openQuotaEdit" />
             </div>
           </CardBoxComponentHeader>
 
@@ -203,18 +203,18 @@ watch(
             <div class="px-4 py-4 border-b border-brownish-100 dark:border-brownish-700/50">
               <div v-if="!editQuota" class="flex items-center justify-between">
                 <div>
-                  <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-0.5">Storage Quota</p>
-                  <p class="text-sm">{{ quota ?? 'default' }}</p>
+                  <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-0.5">{{ $t('admin.user.storageQuota') }}</p>
+                  <p class="text-sm">{{ quota ?? $t('admin.user.quotaDefault') }}</p>
                 </div>
               </div>
               <div v-else class="space-y-3">
-                <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100">Edit Storage Quota</p>
+                <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('admin.user.editStorageQuota') }}</p>
                 <QuotaSlider v-model="user.quota" />
                 <div class="flex items-center gap-2 pt-1">
                   <BaseButtonConfirm
                     :small="true"
-                    label="Save quota"
-                    confirm-label="Confirm"
+                    :label="$t('admin.user.saveQuota')"
+                    :confirm-label="$t('common.confirm')"
                     @confirm="updateQuota"
                   />
                   <BaseButton
@@ -222,7 +222,7 @@ watch(
                     :small="true"
                     @click="closeQuotaEdit"
                     color="danger"
-                    label="Cancel"
+                    :label="$t('common.cancel')"
                   />
                 </div>
               </div>
@@ -230,7 +230,7 @@ watch(
 
             <!-- Storage breakdown -->
             <div class="px-4 py-3">
-              <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3">Storage Breakdown</p>
+              <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3">{{ $t('admin.user.storageBreakdown') }}</p>
               <StatsTable :data="data.stats" />
             </div>
           </div>
@@ -240,16 +240,16 @@ watch(
         <div class="w-full sm:w-1/2 flex flex-col gap-4">
           <!-- Account controls -->
           <CardBox>
-            <CardBoxComponentHeader title="Account Controls" />
+            <CardBoxComponentHeader :title="$t('admin.user.accountControls')" />
 
             <div class="-mx-4 -mb-4">
               <!-- Two-factor auth -->
               <div class="flex items-center justify-between px-4 py-4 border-b border-brownish-100 dark:border-brownish-700/50">
                 <div>
-                  <p class="text-sm font-medium">Two-Factor Auth</p>
+                  <p class="text-sm font-medium">{{ $t('admin.user.twoFactorAuth') }}</p>
                   <p class="text-xs mt-0.5">
-                    <span v-if="user.secret" class="text-greeny-500 dark:text-greeny-400">Enabled</span>
-                    <span v-else class="text-brownish-400">Not enabled</span>
+                    <span v-if="user.secret" class="text-greeny-500 dark:text-greeny-400">{{ $t('admin.user.tfaEnabled') }}</span>
+                    <span v-else class="text-brownish-400">{{ $t('admin.user.tfaNotEnabled') }}</span>
                   </p>
                 </div>
                 <BaseButtonConfirm
@@ -257,8 +257,8 @@ watch(
                   :icon="mdiShieldOff"
                   color="danger"
                   :small="true"
-                  label="Disable TFA"
-                  confirm-label="Yes, disable"
+                  :label="$t('admin.user.disableTfa')"
+                  :confirm-label="$t('admin.user.confirmDisable')"
                   @confirm="disableTfa"
                 />
                 <span v-else class="text-xs text-brownish-400 italic">—</span>
@@ -267,10 +267,10 @@ watch(
               <!-- Role management -->
               <div class="flex items-center justify-between px-4 py-4">
                 <div>
-                  <p class="text-sm font-medium">Role</p>
+                  <p class="text-sm font-medium">{{ $t('admin.role') }}</p>
                   <p class="text-xs mt-0.5">
                     <span v-if="user.role" class="font-semibold uppercase tracking-wider text-orangy-400">{{ user.role }}</span>
-                    <span v-else class="text-brownish-400">Regular user</span>
+                    <span v-else class="text-brownish-400">{{ $t('admin.user.regularUser') }}</span>
                   </p>
                 </div>
                 <div class="flex items-center gap-2">
@@ -278,8 +278,8 @@ watch(
                     v-if="!user.role"
                     :icon="mdiHuman"
                     :small="true"
-                    label="Make admin"
-                    confirm-label="Yes, promote"
+                    :label="$t('admin.user.makeAdmin')"
+                    :confirm-label="$t('admin.user.confirmPromote')"
                     @confirm="setRole('admin')"
                   />
                   <BaseButtonConfirm
@@ -287,8 +287,8 @@ watch(
                     :icon="mdiDelete"
                     color="danger"
                     :small="true"
-                    label="Remove role"
-                    confirm-label="Yes, demote"
+                    :label="$t('admin.user.removeRole')"
+                    :confirm-label="$t('admin.user.confirmDemote')"
                     @confirm="setRole()"
                   />
                 </div>
@@ -298,10 +298,10 @@ watch(
 
           <!-- Encryption keys -->
           <CardBox>
-            <CardBoxComponentHeader title="Encryption Keys" />
+            <CardBoxComponentHeader :title="$t('admin.user.encryptionKeys')" />
             <div class="-mx-4 -mb-4 px-4 py-3 space-y-3">
               <div>
-                <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-1">Public Key</p>
+                <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-1">{{ $t('admin.user.publicKey') }}</p>
                 <div class="flex items-start gap-2">
                   <code class="flex-1 font-mono text-xs break-all text-brownish-400 dark:text-brownish-300 leading-relaxed">{{ user.pubkey }}</code>
                   <button @click="copyToClipboard(user.pubkey, 'pubkey')" class="shrink-0 mt-0.5 text-brownish-400 hover:text-white transition-colors">
@@ -310,7 +310,7 @@ watch(
                 </div>
               </div>
               <div class="pb-1">
-                <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-1">Fingerprint</p>
+                <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-1">{{ $t('admin.user.fingerprint') }}</p>
                 <div class="flex items-start gap-2">
                   <code class="flex-1 font-mono text-xs break-all text-brownish-400 dark:text-brownish-300">{{ user.fingerprint }}</code>
                   <button @click="copyToClipboard(user.fingerprint, 'fingerprint')" class="shrink-0 mt-0.5 text-brownish-400 hover:text-white transition-colors">
@@ -327,20 +327,20 @@ watch(
               <div class="px-4 py-3 border-b border-redish-500/20 bg-redish-500/5">
                 <div class="flex items-center gap-2">
                   <BaseIcon :path="mdiAlertCircleOutline" :size="16" class="text-redish-500 shrink-0" />
-                  <p class="text-sm font-semibold text-redish-500">Danger Zone</p>
+                  <p class="text-sm font-semibold text-redish-500">{{ $t('admin.user.dangerZone') }}</p>
                 </div>
               </div>
               <div class="px-4 py-4 flex items-center justify-between gap-4">
                 <div>
-                  <p class="text-sm font-medium">Delete this account</p>
-                  <p class="text-xs text-brownish-400 mt-0.5">Permanently deletes the user and all their files. This cannot be undone.</p>
+                  <p class="text-sm font-medium">{{ $t('admin.user.deleteAccount') }}</p>
+                  <p class="text-xs text-brownish-400 mt-0.5">{{ $t('admin.user.deleteAccountWarning') }}</p>
                 </div>
                 <BaseButtonConfirm
                   :icon="mdiDelete"
                   color="danger"
                   :small="true"
-                  label="Delete user"
-                  confirm-label="Yes, delete"
+                  :label="$t('admin.user.deleteUser')"
+                  :confirm-label="$t('admin.user.confirmDelete')"
                   @confirm="remove"
                   class="shrink-0"
                 />

@@ -10,6 +10,7 @@ export interface CreateUser {
   encrypted_private_key?: string
   opaque_registration_upload?: string
   invitation_id?: string
+  locale?: string
 
   /**
    * Ed25519 identity private key (PKCS#8 PEM), generated on the key screen.

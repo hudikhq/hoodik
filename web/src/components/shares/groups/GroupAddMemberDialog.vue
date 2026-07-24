@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { mdiCheckCircleOutline, mdiShieldKeyOutline, mdiAlertCircleOutline } from '@mdi/js'
 
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
@@ -36,6 +37,7 @@ const emit = defineEmits<{
   (e: 'cancel'): void
 }>()
 
+const { t } = useI18n()
 const trusted = trustedFingerprintsStore()
 
 const open = computed({
@@ -79,7 +81,7 @@ watch(
 async function discover(): Promise<void> {
   const trimmed = email.value.trim()
   if (!trimmed) {
-    errorText.value = 'Enter the member email first.'
+    errorText.value = t('shares.groups.enterMemberEmail')
     return
   }
   errorText.value = null
@@ -112,16 +114,16 @@ async function discover(): Promise<void> {
     if (err instanceof DiscoverUserError) {
       switch (err.kind) {
         case 'not_found':
-          errorText.value = "We couldn't find a Hoodik account for that email."
+          errorText.value = t('shares.discover.notFound')
           break
         case 'self':
-          errorText.value = 'That email is your own — you can\'t add yourself.'
+          errorText.value = t('shares.groups.selfEmail')
           break
         case 'rate_limited':
-          errorText.value = 'Too many lookups. Wait a minute, then try again.'
+          errorText.value = t('shares.groups.rateLimited')
           break
         case 'feature_disabled':
-          errorText.value = 'Sharing is currently disabled on this server.'
+          errorText.value = t('shares.discover.disabled')
           break
         default:
           errorText.value = err.message
@@ -145,14 +147,14 @@ async function submit(): Promise<void> {
     })
     trusted.trustFingerprint(recipient.value.user_id, fingerprintHex.value, 'silent')
     notification(
-      'Member added',
-      `${recipient.value.email} is now part of "${props.groupName}".`,
+      t('shares.groups.memberAddedTitle'),
+      t('shares.groups.memberAddedBody', { email: recipient.value.email, group: props.groupName }),
       'success'
     )
     emit('added', recipient.value)
     open.value = false
   } catch (err) {
-    errorText.value = err instanceof Error ? err.message : 'Failed to add the member'
+    errorText.value = err instanceof Error ? err.message : t('shares.groups.addFailed')
     errorNotification(err)
   } finally {
     submitting.value = false
@@ -198,7 +200,7 @@ const showUnknownPill = computed(
 <template>
   <CardBoxModal
     v-if="open"
-    :title="`Add member to ${groupName}`"
+    :title="$t('shares.groups.addMemberTitle', { group: groupName })"
     :model-value="open"
     has-cancel
     hide-submit
@@ -209,17 +211,17 @@ const showUnknownPill = computed(
       <div>
         <AppField
           name="group-add-email"
-          label="Member email"
+          :label="$t('shares.groups.memberEmail')"
           v-model="email"
           :disabled="submitting"
-          placeholder="someone@example.com"
+          :placeholder="$t('shares.add.emailPlaceholder')"
           @confirm="discover"
         />
         <div class="mt-2">
           <BaseButton
             color="dark"
             small
-            label="Find user"
+            :label="$t('shares.add.findUser')"
             :disabled="submitting || !email.trim()"
             data-testid="group-add-member-discover"
             @click.prevent="discover"
@@ -239,13 +241,13 @@ const showUnknownPill = computed(
         class="border border-brownish-200 dark:border-brownish-700 rounded-lg p-3 space-y-3"
       >
         <div>
-          <div class="text-xs uppercase tracking-wider text-brownish-300">Member</div>
+          <div class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('shares.groups.memberHeading') }}</div>
           <div class="text-sm truncate" data-testid="group-add-member-email">
             {{ recipient.email }}
           </div>
         </div>
         <div>
-          <div class="text-xs uppercase tracking-wider text-brownish-300">Public-key fingerprint</div>
+          <div class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('shares.groups.fingerprintHeading') }}</div>
           <div
             class="text-xs font-mono break-all text-brownish-700 dark:text-brownish-200"
             data-testid="group-add-member-fingerprint"
@@ -255,11 +257,10 @@ const showUnknownPill = computed(
         </div>
         <div class="space-y-1.5">
           <div class="text-xs uppercase tracking-wider text-brownish-300">
-            Group role
+            {{ $t('shares.groups.roleHeading') }}
           </div>
           <p class="text-xs text-brownish-300">
-            What this member may do to the group. Sharing a file to the group
-            reaches every member regardless of this role.
+            {{ $t('shares.groups.roleNote') }}
           </p>
           <label class="flex gap-2 items-center text-sm min-h-[2rem] cursor-pointer">
             <input
@@ -269,7 +270,7 @@ const showUnknownPill = computed(
               :disabled="submitting"
               data-testid="group-add-member-role-reader"
             />
-            <span>Reader — receives shares; can't manage the group.</span>
+            <span>{{ $t('shares.groups.roleReaderDesc') }}</span>
           </label>
           <label class="flex gap-2 items-center text-sm min-h-[2rem] cursor-pointer">
             <input
@@ -279,7 +280,7 @@ const showUnknownPill = computed(
               :disabled="submitting"
               data-testid="group-add-member-role-editor"
             />
-            <span>Editor — can share files into the group.</span>
+            <span>{{ $t('shares.groups.roleEditorDesc') }}</span>
           </label>
           <label
             v-if="canGrantCoOwner"
@@ -292,7 +293,7 @@ const showUnknownPill = computed(
               :disabled="submitting"
               data-testid="group-add-member-role-coowner"
             />
-            <span>Co-owner — can also manage the roster.</span>
+            <span>{{ $t('shares.groups.roleCoOwnerDesc') }}</span>
           </label>
         </div>
         <div
@@ -301,7 +302,7 @@ const showUnknownPill = computed(
           data-testid="group-add-member-trusted"
         >
           <BaseIcon :path="mdiCheckCircleOutline" :size="14" class="mt-0.5 shrink-0" />
-          <span>The fingerprint matches what we have on file for this member.</span>
+          <span>{{ $t('shares.groups.fingerprintMatches') }}</span>
         </div>
         <div
           v-if="showUnknownPill"
@@ -310,8 +311,7 @@ const showUnknownPill = computed(
         >
           <BaseIcon :path="mdiShieldKeyOutline" :size="14" class="mt-0.5 shrink-0" />
           <span>
-            First time adding this member. Compare the fingerprint out of band if you want
-            to be certain — we'll warn loudly if it ever changes.
+            {{ $t('shares.groups.firstTimeMember') }}
           </span>
         </div>
         <div
@@ -321,7 +321,7 @@ const showUnknownPill = computed(
         >
           <BaseIcon :path="mdiAlertCircleOutline" :size="14" class="mt-0.5 shrink-0" />
           <span>
-            This member's key has changed since you last verified it. Resolve the mismatch before adding.
+            {{ $t('shares.groups.keyChanged') }}
           </span>
         </div>
       </div>
@@ -329,13 +329,13 @@ const showUnknownPill = computed(
 
     <template #buttons>
       <BaseButton
-        label="Add member"
+        :label="$t('shares.groups.addMember')"
         color="info"
         :disabled="submitDisabled"
         data-testid="group-add-member-submit"
         @click.prevent="submit"
       />
-      <BaseButton label="Cancel" color="info" outline @click.prevent="cancel" />
+      <BaseButton :label="$t('common.cancel')" color="info" outline @click.prevent="cancel" />
     </template>
   </CardBoxModal>
 

@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import * as index from '!'
 import { mdiMagnify } from '@mdi/js'
+
+const { t } = useI18n()
 
 const emits = defineEmits<{
   (event: 'search'): void
@@ -11,7 +14,7 @@ const emits = defineEmits<{
 const label = computed(() => {
   const os = index.os()
 
-  let label = 'Search'
+  let label = t('common.search')
 
   if (os === 'macos') {
     label += ' (⌘K)'

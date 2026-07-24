@@ -70,7 +70,7 @@ const sizes = {
 <template>
   <div class="w-full p-2 mb-2 flex rounded-t-md bg-brownish-100 dark:bg-brownish-900 gap-4">
     <BaseButton
-      title="Delete selected links and folders"
+      :title="$t('links.table.deleteSelected')"
       :iconSize="20"
       :xs="true"
       :icon="mdiTrashCanOutline"
@@ -87,19 +87,19 @@ const sizes = {
       </div>
 
       <div :class="`${sizes.name}`">
-        <span>Name</span>
+        <span>{{ $t('common.name') }}</span>
       </div>
 
       <div :class="`${sizes.size} ${borderClass}`">
-        <span>Size</span>
+        <span>{{ $t('common.size') }}</span>
       </div>
 
       <div :class="`${sizes.createdAt} ${borderClass}`">
-        <span>Created</span>
+        <span>{{ $t('common.created') }}</span>
       </div>
 
       <div :class="`${sizes.expiresAt} ${borderClass}`">
-        <span>Expires</span>
+        <span>{{ $t('links.expires') }}</span>
       </div>
 
       <div :class="`${sizes.buttons}`"></div>
@@ -118,9 +118,9 @@ const sizes = {
       class="w-full rounded-b-lg bg-brownish-50 dark:bg-brownish-900 py-14 flex flex-col items-center gap-1"
       data-testid="links-empty"
     >
-      <span class="text-brownish-300 dark:text-brownish-100">No public links yet</span>
+      <span class="text-brownish-300 dark:text-brownish-100">{{ $t('links.table.empty') }}</span>
       <span class="text-xs text-brownish-200 dark:text-brownish-300">
-        Create one from any file's sharing options
+        {{ $t('links.table.emptyHint') }}
       </span>
     </div>
     <div v-else class="flex flex-col rounded-b-lg">

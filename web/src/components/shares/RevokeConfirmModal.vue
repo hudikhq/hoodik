@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseButtons from '@/components/ui/BaseButtons.vue'
@@ -27,14 +28,16 @@ const emit = defineEmits<{
   (event: 'cancel'): void
 }>()
 
+const { t } = useI18n()
+
 const title = (): string => {
-  if (props.isSelfRemove) return 'Remove yourself from this share?'
-  return 'Revoke this share?'
+  if (props.isSelfRemove) return t('shares.revokeModal.selfTitle')
+  return t('shares.revokeModal.title')
 }
 
 const buttonLabel = (): string => {
-  if (props.isSelfRemove) return 'Leave'
-  return 'Revoke'
+  if (props.isSelfRemove) return t('shares.revokeModal.leave')
+  return t('shares.revoke')
 }
 </script>
 
@@ -58,7 +61,7 @@ const buttonLabel = (): string => {
           @click="emit('confirm')"
         />
         <BaseButton
-          label="Cancel"
+          :label="$t('common.cancel')"
           color="info"
           outline
           data-testid="revoke-confirm-modal-cancel"
@@ -67,30 +70,40 @@ const buttonLabel = (): string => {
       </BaseButtons>
     </template>
     <div data-testid="revoke-confirm-modal">
-      <p v-if="isSelfRemove" data-testid="revoke-confirm-modal-self">
-        You will lose access to
-        <strong>{{ itemLabel ?? 'this share' }}</strong>
-        on future reads. Anything you've already downloaded stays with you —
-        end-to-end encryption can't recall plaintext after it's been decrypted
-        on your device.
-      </p>
-      <p v-else data-testid="revoke-confirm-modal-body">
-        <strong>{{ recipientLabel }}</strong> will lose access to
-        <strong>{{ itemLabel ?? 'this share' }}</strong>
-        on future reads. Anything they've already downloaded is outside our
-        reach — end-to-end encryption can't unshare plaintext after it has
-        been decrypted on their device.
-      </p>
-      <p
+      <i18n-t
+        v-if="isSelfRemove"
+        tag="p"
+        keypath="shares.revokeModal.selfBody"
+        scope="global"
+        data-testid="revoke-confirm-modal-self"
+      >
+        <template #item>
+          <strong>{{ itemLabel ?? $t('shares.revokeModal.thisShare') }}</strong>
+        </template>
+      </i18n-t>
+      <i18n-t
+        v-else
+        tag="p"
+        keypath="shares.revokeModal.body"
+        scope="global"
+        data-testid="revoke-confirm-modal-body"
+      >
+        <template #recipient><strong>{{ recipientLabel }}</strong></template>
+        <template #item>
+          <strong>{{ itemLabel ?? $t('shares.revokeModal.thisShare') }}</strong>
+        </template>
+      </i18n-t>
+      <i18n-t
         v-if="!isSelfRemove && cascadeCount && cascadeCount > 0"
+        tag="p"
+        keypath="shares.revokeModal.cascade"
+        :plural="cascadeCount"
+        scope="global"
         class="mt-2"
         data-testid="revoke-confirm-modal-cascade"
       >
-        They are a Co-owner — revoking them also drops
-        <strong>{{ cascadeCount }}</strong>
-        downstream grant{{ cascadeCount === 1 ? '' : 's' }} they made under
-        this folder.
-      </p>
+        <template #count><strong>{{ cascadeCount }}</strong></template>
+      </i18n-t>
     </div>
   </CardBoxModal>
 </template>

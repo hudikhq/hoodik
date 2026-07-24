@@ -1,5 +1,6 @@
 import type { WorkerErrorType } from '../types'
 import * as lscache from 'lscache'
+import { translateErrorCode } from '@/i18n'
 
 
 export type Query = {
@@ -88,7 +89,7 @@ export class ErrorResponse<B> extends Error {
    * Try to extract the message that backend has returned
    */
   _description(): string {
-    return this.body?.message || 'Unknown error'
+    return translateErrorCode(this.body?.message)
   }
 
   /**
@@ -118,7 +119,9 @@ export class ErrorResponse<B> extends Error {
         Array.isArray(validationErrors[key].errors) &&
         validationErrors[key].errors.length
       ) {
-        compiledErrors[key as string] = validationErrors[key].errors.join(', ')
+        compiledErrors[key as string] = validationErrors[key].errors
+          .map((code: string) => translateErrorCode(code))
+          .join(', ')
       }
     }
 
