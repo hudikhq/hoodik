@@ -13,7 +13,7 @@ test.describe('Share hub navigation', () => {
     await loginAsUser(page, user.email, user.password)
 
     await page.locator('aside').waitFor({ state: 'visible', timeout: 10_000 })
-    await page.locator('aside').locator(':text-is("Share")').first().click()
+    await page.locator('aside').locator(':text-is("Sharing")').first().click()
     await page.waitForURL(/\/share\/public(?:\/|$|\?)/, { timeout: 15_000 })
 
     const tabs = page.getByTestId('share-hub-subtabs')

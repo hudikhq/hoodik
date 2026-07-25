@@ -32,7 +32,7 @@ async function addMemberWithRole(
 async function gotoGroups(page: E2EPage): Promise<void> {
   await page.keyboard.press('Escape')
   await page.keyboard.press('Escape')
-  await page.locator('aside').locator(':text-is("Share")').first().click()
+  await page.locator('aside').locator(':text-is("Sharing")').first().click()
   await page.waitForURL(/\/share/, { timeout: 15_000 })
   await page.locator('[data-testid="share-hub-tab-groups"]').first().click({ timeout: 15_000 })
   await expect(page.getByTestId('share-hub-groups')).toBeVisible({ timeout: 15_000 })

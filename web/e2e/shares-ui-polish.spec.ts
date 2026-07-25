@@ -104,7 +104,7 @@ test.describe('Share hub: tab strip chrome', () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await createUser(page, randomEmail(), randomPassword())
 
-    await page.locator('aside').locator(':text-is("Share")').first().click()
+    await page.locator('aside').locator(':text-is("Sharing")').first().click()
     await page.waitForURL(/\/share/, { timeout: 15_000 })
 
     const nav = page.getByTestId('share-hub-subtabs')

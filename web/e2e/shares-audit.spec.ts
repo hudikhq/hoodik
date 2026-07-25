@@ -9,7 +9,7 @@ const imageFixture = path.join(__dirname, 'fixtures', 'test-image.png')
 async function gotoAudit(page: Parameters<typeof createUser>[0]): Promise<void> {
   await page.keyboard.press('Escape')
   await page.keyboard.press('Escape')
-  await page.locator('aside').locator(':text-is("Share")').first().click()
+  await page.locator('aside').locator(':text-is("Sharing")').first().click()
   await page.waitForURL(/\/share/, { timeout: 15_000 })
   // Mount the hub layout once so the capability composable runs;
   // then a programmatic goto inside the same SPA session traverses
