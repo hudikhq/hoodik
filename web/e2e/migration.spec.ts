@@ -49,7 +49,7 @@ test.describe('Legacy → Curve25519 auto-migration', () => {
     // name — the guard for the shipped bug where migration never re-wrapped
     // links.encrypted_link_key, stranding every pre-migration link. Navigate
     // client-side: an in-memory-only session loses its keypair on a full reload.
-    await page.getByRole('listitem').filter({ hasText: 'Share' }).click()
+    await page.getByRole('listitem').filter({ hasText: 'Sharing' }).click()
     const table = page.getByTestId('share-hub-public-table')
     await expect(table.locator('.link-row-separator', { hasText: FILE_NAME })).toBeVisible()
 
