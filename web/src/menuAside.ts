@@ -7,6 +7,7 @@ import {
   mdiFileDocumentOutline
 } from '@mdi/js'
 import type { RouteLocation } from 'vue-router'
+import { i18n } from '@/i18n'
 
 export interface AsideMenuItemType {
   to: RouteLocation
@@ -20,34 +21,34 @@ export default [
   {
     to: { name: 'files' },
     icon: mdiMonitor,
-    label: 'Files',
+    label: i18n.global.t('nav.menu.files'),
     expandable: true
   },
   {
     to: { name: 'notes' },
     icon: mdiFileDocumentOutline,
-    label: 'Notes'
+    label: i18n.global.t('nav.menu.notes')
   },
   {
     to: { name: 'share' },
     icon: mdiShareVariantOutline,
-    label: 'Share'
+    label: i18n.global.t('nav.menu.share')
   },
   {
     to: { name: 'account' },
     icon: mdiHuman,
-    label: 'Account'
+    label: i18n.global.t('nav.menu.account')
   },
   {
     to: { name: 'manage-users' },
     icon: mdiHumanMaleFemale,
-    label: 'Users',
+    label: i18n.global.t('nav.menu.users'),
     roles: ['admin']
   },
   {
     to: { name: 'manage-settings' },
     icon: mdiCog,
-    label: 'Settings',
+    label: i18n.global.t('common.settings'),
     roles: ['admin']
   }
 ] as AsideMenuItemType[]

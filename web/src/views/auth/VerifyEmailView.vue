@@ -2,6 +2,7 @@
 import { store } from '!/auth/register'
 import { useRoute, useRouter } from 'vue-router'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
@@ -13,6 +14,7 @@ import { mdiCheckCircleOutline, mdiAlertOutline } from '@mdi/js'
 const register = store()
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
 const working = ref(true)
 const error = ref()
@@ -27,7 +29,7 @@ const verify = async () => {
   }
 
   if (!token) {
-    error.value = 'Invalid token'
+    error.value = t('auth.verifyEmail.invalidToken')
     working.value = false
     return
   }
@@ -56,7 +58,7 @@ verify()
       <CardBox :class="`${cardClass} h-[450px] text-center`">
         <PuppyLoader v-model="working" />
 
-        <h1 class="text-2xl text-white">Attempting to verify your email</h1>
+        <h1 class="text-2xl text-white">{{ $t('auth.verifyEmail.title') }}</h1>
 
         <BaseIcon
           v-if="!error && !working"
@@ -77,17 +79,17 @@ verify()
         />
 
         <p class="dark:text-white text-brownish-900" v-if="!working && !error">
-          <span class="text-greeny-400">Verification successful!</span> <br />
-          You will be redirected to login page in a moment.
+          <span class="text-greeny-400">{{ $t('auth.verifyEmail.success') }}</span> <br />
+          {{ $t('auth.verifyEmail.redirecting') }}
         </p>
 
         <p class="dark:text-white text-brownish-900" v-if="error && !working">
-          Email verification failed: <br />
+          {{ $t('auth.verifyEmail.failed') }} <br />
           <span class="text-redish-400">{{ error }}</span>
         </p>
 
         <router-link :to="{ name: 'files' }" class="underline hover:no-underline">
-          Go home.
+          {{ $t('auth.verifyEmail.goHome') }}
         </router-link>
       </CardBox>
     </SectionFullScreen>

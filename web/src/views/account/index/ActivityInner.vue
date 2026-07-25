@@ -75,20 +75,20 @@ watch(query, find, { deep: true, immediate: true })
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2">
           <BaseIcon :path="mdiHistory" :size="14" class="text-brownish-400 dark:text-brownish-100" />
-          <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">Login Sessions</p>
+          <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('account.activity.title') }}</p>
           <span v-if="total" class="text-xs font-medium bg-brownish-100 dark:bg-brownish-700 text-brownish-400 dark:text-brownish-300 px-2 py-0.5 rounded-full">{{ total }}</span>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
           <UniversalCheckbox
             name="with_expired"
-            label="Show expired"
+            :label="$t('account.activity.showExpired')"
             v-model="query.with_expired"
           />
           <BaseButtonConfirm
             color="danger"
-            label="Revoke all"
-            confirm-label="Yes, revoke all"
+            :label="$t('account.activity.revokeAll')"
+            :confirm-label="$t('account.activity.revokeAllConfirm')"
             @confirm="revokeAll"
             :icon="mdiShieldOffOutline"
             :disabled="total === 0"
@@ -98,7 +98,7 @@ watch(query, find, { deep: true, immediate: true })
             <input
               type="text"
               v-model="search"
-              placeholder="Search by IP or device"
+              :placeholder="$t('account.activity.searchPlaceholder')"
               @keyup.enter="query.search = search"
               class="h-[34px] w-44 sm:w-56 pl-3 pr-8 text-sm rounded-lg transition duration-150 ease-in-out bg-white dark:bg-brownish-800 border border-brownish-50 dark:border-brownish-600 text-brownish-900 dark:text-white placeholder-brownish-100/60 dark:placeholder-brownish-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-redish-400/60 dark:focus:ring-redish-500/50"
             />
@@ -106,7 +106,7 @@ watch(query, find, { deep: true, immediate: true })
               type="button"
               @click="query.search = search"
               class="absolute right-2 top-1/2 -translate-y-1/2 text-brownish-400 hover:text-brownish-900 dark:hover:text-white transition-colors"
-              aria-label="Search"
+              :aria-label="$t('common.search')"
             >
               <BaseIcon :path="mdiSearchWeb" :size="15" />
             </button>
@@ -119,12 +119,30 @@ watch(query, find, { deep: true, immediate: true })
       <table v-if="paginated.data.length" class="w-full">
         <thead>
           <tr>
-            <th>IP Address</th>
-            <th>Device</th>
-            <th><SortableName label="Signed in" name="created_at" v-model="query" /></th>
-            <th><SortableName label="Last seen" name="updated_at" v-model="query" /></th>
-            <th><SortableName label="Expires" name="expires_at" v-model="query" /></th>
-            <th>Status</th>
+            <th>{{ $t('account.activity.ipAddress') }}</th>
+            <th>{{ $t('account.activity.device') }}</th>
+            <th>
+              <SortableName
+                :label="$t('account.activity.signedIn')"
+                name="created_at"
+                v-model="query"
+              />
+            </th>
+            <th>
+              <SortableName
+                :label="$t('account.activity.lastSeen')"
+                name="updated_at"
+                v-model="query"
+              />
+            </th>
+            <th>
+              <SortableName
+                :label="$t('account.activity.expires')"
+                name="expires_at"
+                v-model="query"
+              />
+            </th>
+            <th>{{ $t('account.activity.status') }}</th>
             <th></th>
           </tr>
         </thead>
@@ -141,13 +159,25 @@ watch(query, find, { deep: true, immediate: true })
 
       <div v-else class="px-6 py-16 text-center">
         <BaseIcon :path="mdiHistory" :size="32" class="text-brownish-300 dark:text-brownish-600 mx-auto mb-3" />
-        <p class="text-sm text-brownish-400">No sessions found</p>
+        <p class="text-sm text-brownish-400">{{ $t('account.activity.empty') }}</p>
       </div>
 
       <div v-if="paginated.data.length" class="flex items-center justify-between px-4 py-3 border-t border-brownish-100 dark:border-brownish-700/50">
-        <BaseButton label="← Previous" @click="previousPage" :disabled="disablePreviousPage" :small="true" />
-        <span class="text-xs text-brownish-400">{{ rangeStart }}–{{ rangeEnd }} of {{ total }}</span>
-        <BaseButton label="Next →" @click="nextPage" :disabled="disableNextPage" :small="true" />
+        <BaseButton
+          :label="$t('account.activity.previous')"
+          @click="previousPage"
+          :disabled="disablePreviousPage"
+          :small="true"
+        />
+        <span class="text-xs text-brownish-400">
+          {{ $t('account.activity.range', { start: rangeStart, end: rangeEnd, total }) }}
+        </span>
+        <BaseButton
+          :label="$t('account.activity.next')"
+          @click="nextPage"
+          :disabled="disableNextPage"
+          :small="true"
+        />
       </div>
     </div>
     <PuppyLoader v-else />

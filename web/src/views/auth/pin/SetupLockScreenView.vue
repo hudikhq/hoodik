@@ -10,11 +10,13 @@ import { store as loginStore } from '!/auth/login'
 import { store as cryptoStore } from '!/crypto'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import * as logger from '!/logger'
 
 const login = loginStore()
 const router = useRouter()
 const crypto = cryptoStore()
+const { t } = useI18n()
 const config = ref()
 
 if (pk.hasPin()) {
@@ -27,11 +29,11 @@ config.value = {
     confirm_password: ''
   },
   validationSchema: yup.object().shape({
-    password: yup.string().required('Password is required').min(4),
+    password: yup.string().required(t('auth.validation.passwordRequired')).min(4),
     confirm_password: yup
       .string()
-      .required('Please confirm your password')
-      .oneOf([yup.ref('password')], 'Passwords do not match')
+      .required(t('auth.validation.confirmPasswordRequired'))
+      .oneOf([yup.ref('password')], t('auth.validation.passwordsDoNotMatch'))
   }),
   onSubmit: async (values: { password: string; logout: boolean }) => {
     logger.debug(values)
@@ -56,12 +58,11 @@ config.value = {
   <LayoutAuthenticatedWithLoader clear>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass">
-        <h1 class="text-2xl text-white mb-5">Setup Lock Screen</h1>
+        <h1 class="text-2xl text-white mb-5">{{ $t('auth.lockSetup.title') }}</h1>
         <div class="flex items-start">
           <div class="flex items-center">
             <p class="text-sm">
-              Your private key will be encrypted and stored locally so the next time you come back
-              you can decrypt it and access your files with a simple pin/password.
+              {{ $t('auth.lockSetup.description') }}
             </p>
           </div>
         </div>
@@ -70,7 +71,7 @@ config.value = {
             type="password"
             :rows="10"
             :form="form"
-            label="Set password or pin"
+            :label="$t('auth.lockSetup.passwordLabel')"
             name="password"
             placeholder="******"
           />
@@ -78,12 +79,12 @@ config.value = {
             type="password"
             :rows="10"
             :form="form"
-            label="Confirm"
+            :label="$t('common.confirm')"
             name="confirm_password"
             placeholder="******"
           />
 
-          <AppButton :form="form" type="submit">Encrypt and store</AppButton>
+          <AppButton :form="form" type="submit">{{ $t('auth.lockSetup.submit') }}</AppButton>
         </AppForm>
       </CardBox>
     </SectionFullScreen>

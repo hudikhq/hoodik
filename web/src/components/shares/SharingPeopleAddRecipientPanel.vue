@@ -70,7 +70,7 @@ const folderEditable = computed({
     </div>
 
     <div>
-      <span class="block text-xs uppercase tracking-wider text-brownish-300 mb-1.5">Role</span>
+      <span class="block text-xs uppercase tracking-wider text-brownish-300 mb-1.5">{{ $t('shares.add.roleHeading') }}</span>
       <SharingPeopleAddRoleChips
         v-model="role"
         testid-prefix="share-dialog-role"
@@ -84,7 +84,7 @@ const folderEditable = computed({
           class="block mt-0.5"
           data-testid="share-dialog-coowner-disabled-hint"
         >
-          Only the file's owner can grant Co-owner.
+          {{ $t('shares.add.coOwnerOwnerOnly') }}
         </span>
       </p>
     </div>
@@ -103,13 +103,13 @@ const folderEditable = computed({
         data-testid="share-dialog-folder-editable-toggle"
       />
       <span class="min-w-0">
-        Allow them to add new files
+        {{ $t('shares.add.allowAddFiles') }}
         <span
           v-if="role === 'reader'"
           class="block text-xs text-brownish-300"
           data-testid="share-dialog-folder-editable-disabled-hint"
         >
-          Pick Editor or Co-owner to enable
+          {{ $t('shares.add.pickEditorHint') }}
         </span>
       </span>
     </label>
@@ -120,7 +120,7 @@ const folderEditable = computed({
       data-testid="share-dialog-trusted"
     >
       <BaseIcon :path="mdiCheckCircleOutline" :size="14" class="mt-0.5 shrink-0" />
-      <span>{{ lastVerifiedLabel }} The fingerprint still matches.</span>
+      <span>{{ lastVerifiedLabel }} {{ $t('shares.add.fingerprintMatches') }}</span>
     </div>
 
     <div
@@ -130,8 +130,7 @@ const folderEditable = computed({
     >
       <BaseIcon :path="mdiShieldKeyOutline" :size="14" class="mt-0.5 shrink-0" />
       <span>
-        First time sharing with this account. Compare the fingerprint out of band if you
-        want to be certain — we'll warn loudly if it ever changes.
+        {{ $t('shares.add.firstTime') }}
       </span>
     </div>
 
@@ -158,7 +157,7 @@ const folderEditable = computed({
           data-testid="share-dialog-progress-cancel"
           @click.prevent="emit('abort-walk')"
         >
-          Cancel
+          {{ $t('common.cancel') }}
         </button>
       </div>
       <div

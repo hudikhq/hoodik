@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { mdiFolder, mdiArrowLeft } from '@mdi/js'
 import * as meta from '!/storage/meta'
 import type { KeyPair, AppFile } from 'types'
@@ -15,10 +16,12 @@ const emit = defineEmits<{
   (e: 'navigate', payload: { id?: string; name: string }): void
 }>()
 
+const { t } = useI18n()
+
 const folders = ref<AppFile[]>([])
 const loading = ref(false)
 const currentId = ref<string | undefined>(props.startId)
-const currentName = ref(props.startName || 'Root')
+const currentName = ref(props.startName || t('ui.folderPicker.root'))
 const stack = ref<{ id?: string; name: string }[]>([])
 
 async function loadFolders(dirId?: string) {
@@ -84,7 +87,9 @@ onMounted(() => loadFolders(currentId.value))
       <span class="text-brownish-600 dark:text-brownish-300 truncate">{{ currentName }}</span>
     </div>
 
-    <div v-if="loading" class="px-3 py-4 text-center text-sm text-brownish-400">Loading...</div>
+    <div v-if="loading" class="px-3 py-4 text-center text-sm text-brownish-400">
+      {{ $t('common.loading') }}
+    </div>
 
     <ul v-else-if="folders.length" class="max-h-40 overflow-y-auto">
       <li
@@ -98,6 +103,8 @@ onMounted(() => loadFolders(currentId.value))
       </li>
     </ul>
 
-    <div v-else class="px-3 py-3 text-center text-xs text-brownish-400">No subfolders</div>
+    <div v-else class="px-3 py-3 text-center text-xs text-brownish-400">
+      {{ $t('ui.folderPicker.noSubfolders') }}
+    </div>
   </div>
 </template>

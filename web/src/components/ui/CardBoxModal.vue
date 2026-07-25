@@ -90,7 +90,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             />
             <BaseButton
               v-if="hasCancel"
-              label="Cancel"
+              :label="$t('common.cancel')"
               :color="button || 'info'"
               outline
               @click="cancel"

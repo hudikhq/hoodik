@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { mdiFileDocumentOutline, mdiPlus, mdiMagnify } from '@mdi/js'
 import { formatSize } from '!'
 import { search } from '!/storage'
@@ -20,6 +21,7 @@ const login = loginStore()
 const authenticatedUserId = computed(() => login.authenticated?.user.id)
 
 const router = useRouter()
+const { t } = useI18n()
 const notes = ref<AppFile[]>([])
 const loading = ref(true)
 const query = ref('')
@@ -82,9 +84,9 @@ function formatDate(timestamp: number): string {
   const diff = now.getTime() - date.getTime()
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
 
-  if (days === 0) return 'Today'
-  if (days === 1) return 'Yesterday'
-  if (days < 7) return `${days} days ago`
+  if (days === 0) return t('notes.landing.today')
+  if (days === 1) return t('notes.landing.yesterday')
+  if (days < 7) return t('notes.landing.daysAgo', { days })
 
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
@@ -103,10 +105,10 @@ onUnmounted(() => {
 <template>
   <div class="h-full flex flex-col p-6 max-w-4xl mx-auto">
     <div class="flex items-center justify-between mb-6">
-      <h1 class="text-xl font-semibold dark:text-brownish-100">Notes</h1>
+      <h1 class="text-xl font-semibold dark:text-brownish-100">{{ $t('notes.landing.title') }}</h1>
       <BaseButton
         :icon="mdiPlus"
-        label="New Note"
+        :label="$t('notes.create.title')"
         color="info"
         small
         @click="showCreateModal = true"
@@ -122,21 +124,21 @@ onUnmounted(() => {
       <input
         v-model="query"
         type="text"
-        placeholder="Search notes..."
+        :placeholder="$t('notes.landing.searchPlaceholder')"
         class="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-brownish-200 dark:border-brownish-700 bg-white dark:bg-brownish-800 dark:text-brownish-100 focus:outline-none focus:ring-1 focus:ring-orangy-500 focus:border-orangy-500"
       />
     </div>
 
     <div v-if="loading" class="flex-1 flex items-center justify-center text-brownish-400">
-      <p class="text-sm">Loading notes...</p>
+      <p class="text-sm">{{ $t('notes.landing.loading') }}</p>
     </div>
 
     <div v-else-if="!notes.length && !query" class="flex-1 flex flex-col items-center justify-center text-brownish-400">
       <BaseIcon :path="mdiFileDocumentOutline" :size="64" />
-      <p class="mt-4 text-sm">No notes yet</p>
+      <p class="mt-4 text-sm">{{ $t('notes.landing.empty') }}</p>
       <BaseButton
         :icon="mdiPlus"
-        label="Create your first note"
+        :label="$t('notes.landing.createFirst')"
         color="info"
         small
         class="mt-4"
@@ -145,7 +147,7 @@ onUnmounted(() => {
     </div>
 
     <div v-else-if="!notes.length && query" class="flex-1 flex items-center justify-center text-brownish-400">
-      <p class="text-sm">No notes matching "{{ query }}"</p>
+      <p class="text-sm">{{ $t('notes.landing.noMatches', { query }) }}</p>
     </div>
 
     <ul v-else class="flex-1 overflow-y-auto space-y-1">

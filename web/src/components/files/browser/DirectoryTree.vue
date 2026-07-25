@@ -161,14 +161,14 @@ watch(
       <div class="flex flex-shrink">
         <div class="w-full cursor-pointer prevent-select" @click="opened = !opened">
           <BaseIcon :path="opened ? mdiChevronDown : mdiChevronUp" size="20" w="w-6" h="h-6" />
-          {{ parent?.name || 'Root' }}
+          {{ parent?.name || $t('files.tree.root') }}
         </div>
         <div class="text-right whitespace-nowrap">
           <BaseButtonConfirm
             :icon="mdiFolderMove"
             @confirm="select(parent)"
-            label="Move"
-            confirm-label="Confirm"
+            :label="$t('common.move')"
+            :confirm-label="$t('common.confirm')"
             :xs="true"
             :disabled="disabled"
           />
@@ -202,7 +202,7 @@ watch(
             h="h-6"
           />
           <BaseIcon :path="mdiFolderAccount" size="18" w="w-6" h="h-6" />
-          Shared with me
+          {{ $t('files.sharedWithMe') }}
         </div>
       </li>
       <li class="pl-4" v-if="sharedOpened">
@@ -243,7 +243,9 @@ watch(
           class="grow text-ellipsis line-clamp-1"
           @click.stop
         >
-          <span :class="[isActive ? styleStore.asideMenuItemActiveStyle : '']">My Files</span>
+          <span :class="[isActive ? styleStore.asideMenuItemActiveStyle : '']">{{
+            $t('files.myFiles')
+          }}</span>
         </RouterLink>
       </div>
     </li>

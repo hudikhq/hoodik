@@ -3,6 +3,7 @@ import { formatSize } from '!'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import { computed, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   mdiClose,
   mdiCheck,
@@ -20,6 +21,8 @@ const props = defineProps<{
 
 const emits = defineEmits(['remove'])
 
+const { t } = useI18n()
+
 const isUpload = computed(() => props.type.startsWith('upload'))
 
 const size = computed(() => formatSize(props.file.size || 0))
@@ -31,7 +34,7 @@ const error = computed(() => {
   if (props.file.error.context && typeof props.file.error.context === 'string') {
     return props.file.error.context
   }
-  if (props.file.error.context) return 'Something went wrong'
+  if (props.file.error.context) return t('files.transfers.somethingWentWrong')
   return `${props.file.error}`
 })
 
@@ -99,13 +102,13 @@ const speed = computed(() => {
     if (!started) return '0 B/s'
     const seconds = (Date.now() - new Date(started).valueOf()) / 1000
     const stored = props.file.uploaded_chunks?.length || 0
-    if (!stored) return 'Preparing...'
+    if (!stored) return t('files.transfers.preparing')
     const uploaded = (stored / props.file.chunks) * (props.file.size || 0)
     return formatSize(uploaded / seconds) + '/s'
   } else {
     // Between the last received byte and the blob reaching the browser a
     // speed readout would be a fiction — name the work instead.
-    if ((props.file as DownloadAppFile).stage === 'processing') return 'Preparing…'
+    if ((props.file as DownloadAppFile).stage === 'processing') return t('files.transfers.preparing')
 
     const started = (props.file as DownloadAppFile).started_download_at
     if (!started) return '0 B/s'
@@ -167,7 +170,11 @@ const showProgress = computed(
       <div class="flex items-center shrink-0 -ml-1">
         <button
           class="min-h-[36px] min-w-[36px] flex items-center justify-center rounded hover:bg-brownish-200 dark:hover:bg-brownish-700 transition-colors"
-          :title="props.type.endsWith('running') ? 'Cancel transfer' : 'Remove from list'"
+          :title="
+            props.type.endsWith('running')
+              ? $t('files.transfers.cancelTransfer')
+              : $t('files.transfers.removeFromList')
+          "
           @click="emits('remove', file, props.type)"
         >
           <BaseIcon :path="mdiClose" h="h-4" w="w-4" />

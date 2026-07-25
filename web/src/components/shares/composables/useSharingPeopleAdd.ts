@@ -1,4 +1,5 @@
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import {
   api as sharesApi,
@@ -68,6 +69,7 @@ interface ProgressState {
 }
 
 export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingPeopleAddEmit) {
+  const { t } = useI18n()
   const trusted = trustedFingerprintsStore()
   const shares = sharesStoreFactory()
   const capabilities = capabilitiesStore()
@@ -242,7 +244,7 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
   async function discover(): Promise<void> {
     const trimmed = email.value.trim()
     if (!trimmed) {
-      discoverError.value = 'Enter the recipient email first.'
+      discoverError.value = t('shares.add.enterEmailFirst')
       return
     }
     // If the input matches a shareable group name exactly, switch to group
@@ -269,7 +271,7 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
     try {
       const user = await sharesApi.discoverUser(trimmed)
       if (props.ownerId && user.user_id === props.ownerId) {
-        discoverError.value = 'That account already owns this file.'
+        discoverError.value = t('shares.add.alreadyOwner')
         progress.value = { ...progress.value, phase: 'idle' }
         return
       }
@@ -308,22 +310,22 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
       if (err instanceof DiscoverUserError) {
         switch (err.kind) {
           case 'not_found':
-            discoverError.value = "We couldn't find a Hoodik account for that email."
+            discoverError.value = t('shares.discover.notFound')
             break
           case 'self':
-            discoverError.value = "That's your email."
+            discoverError.value = t('shares.add.selfEmail')
             break
           case 'rate_limited':
-            discoverError.value = 'Slow down — too many lookups in the last minute.'
+            discoverError.value = t('shares.add.rateLimited')
             break
           case 'feature_disabled':
-            discoverError.value = 'Sharing is currently disabled on this server.'
+            discoverError.value = t('shares.discover.disabled')
             break
           default:
             discoverError.value = err.message
         }
       } else {
-        discoverError.value = (err as Error).message || 'Failed to discover recipient'
+        discoverError.value = (err as Error).message || t('shares.add.discoverFailed')
       }
     } finally {
       if (progress.value.phase === 'discovering') {
@@ -391,9 +393,9 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
     if (!entry) return ''
     const ageSeconds = Math.floor(Date.now() / 1000) - entry.lastVerifiedAt
     const days = Math.floor(ageSeconds / (24 * 60 * 60))
-    if (days <= 0) return 'Last verified today.'
-    if (days === 1) return 'Last verified yesterday.'
-    return `Last verified ${days} days ago.`
+    if (days <= 0) return t('shares.add.lastVerifiedToday')
+    if (days === 1) return t('shares.add.lastVerifiedYesterday')
+    return t('shares.add.lastVerifiedDaysAgo', { count: days })
   })
 
   async function collectSubtree(): Promise<AppFile[]> {
@@ -466,8 +468,13 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
       trusted.trustFingerprint(target.user_id, recipientFingerprintHex.value, 'silent')
 
       progress.value = { ...progress.value, phase: 'done' }
-      const itemLabel = entries.length > 1 ? `${entries.length} files` : root.name
-      notification(`Shared ${itemLabel} with ${target.email}`, `Role: ${role.value}`, 'success')
+      const itemLabel =
+        entries.length > 1 ? t('shares.add.filesCount', { count: entries.length }) : root.name
+      notification(
+        t('shares.add.sharedTitle', { item: itemLabel, recipient: target.email }),
+        t('shares.add.roleBody', { role: role.value }),
+        'success'
+      )
       emit('ok', created)
       resetForm()
     } catch (err) {
@@ -476,9 +483,8 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
       } else if (err instanceof SubtreeCapExceeded) {
         progress.value = { ...progress.value, phase: 'idle', capExceeded: true }
         notification(
-          'Folder too large to share',
-          `This folder has more than ${SUBTREE_HARD_CAP.toLocaleString('en-US')} files. ` +
-            'Please share a sub-folder, or split the share.',
+          t('shares.add.tooLargeTitle'),
+          t('shares.add.tooLargeBody', { count: SUBTREE_HARD_CAP.toLocaleString('en-US') }),
           'error'
         )
       } else {
@@ -524,8 +530,13 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
       }
     })
     progress.value = { ...progress.value, phase: 'done' }
-    const itemLabel = subtree.length > 1 ? `${subtree.length} files` : root.name
-    notification(`Shared ${itemLabel} with ${group.name}`, `Role: ${role.value}`, 'success')
+    const itemLabel =
+      subtree.length > 1 ? t('shares.add.filesCount', { count: subtree.length }) : root.name
+    notification(
+      t('shares.add.sharedTitle', { item: itemLabel, recipient: group.name }),
+      t('shares.add.roleBody', { role: role.value }),
+      'success'
+    )
     emit('ok', [])
     resetForm()
   }
@@ -594,9 +605,9 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
     const walked = progress.value.walked
     if (walked === 0) return ''
     if (walked < SUBTREE_DETERMINATE_THRESHOLD) {
-      return `Discovered ${walked} files so far…`
+      return t('shares.add.discoveredSoFar', { count: walked })
     }
-    return `Discovered ${walked.toLocaleString('en-US')} files. This may take a few seconds.`
+    return t('shares.add.discoveredMany', { count: walked.toLocaleString('en-US') })
   })
 
   const showFolderHint = computed(() => {
@@ -620,11 +631,11 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
   const roleDescription = computed(() => {
     switch (role.value) {
       case 'reader':
-        return 'Reader — can view only.'
+        return t('shares.add.roleReaderDesc')
       case 'editor':
-        return 'Editor — can view and edit. No re-share.'
+        return t('shares.add.roleEditorDesc')
       case 'co-owner':
-        return 'Co-owner — can view, edit, re-share, and save copies.'
+        return t('shares.add.roleCoOwnerDesc')
       default:
         return ''
     }
@@ -633,13 +644,16 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
   const progressLabel = computed(() => {
     switch (progress.value.phase) {
       case 'discovering':
-        return 'Looking up recipient…'
+        return t('shares.add.lookingUp')
       case 'walking':
-        return `Walking subtree (${progress.value.walked.toLocaleString('en-US')} files found)`
+        return t('shares.add.walking', { count: progress.value.walked.toLocaleString('en-US') })
       case 'preparing':
-        return `Encrypting access (${progress.value.current.toLocaleString('en-US')} / ${progress.value.total.toLocaleString('en-US')})`
+        return t('shares.add.encrypting', {
+          current: progress.value.current.toLocaleString('en-US'),
+          total: progress.value.total.toLocaleString('en-US')
+        })
       case 'submitting':
-        return 'Submitting to server…'
+        return t('shares.add.submitting')
       default:
         return ''
     }
@@ -653,12 +667,12 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
    */
   const overlayStatus = computed(() => {
     if (selectedGroup.value) {
-      return `Sharing with ${selectedGroup.value.name}…`
+      return t('shares.add.sharingWith', { name: selectedGroup.value.name })
     }
     if (recipient.value) {
-      return `Sharing with ${recipient.value.email}…`
+      return t('shares.add.sharingWith', { name: recipient.value.email })
     }
-    return 'Sharing…'
+    return t('shares.add.sharing')
   })
 
   const determinate = computed(() => {
@@ -672,10 +686,7 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
 
   const capMessage = computed(() => {
     if (!progress.value.capExceeded) return ''
-    return (
-      `This folder has more than ${SUBTREE_HARD_CAP.toLocaleString('en-US')} files. ` +
-      'Please share a sub-folder, or split the share.'
-    )
+    return t('shares.add.tooLargeBody', { count: SUBTREE_HARD_CAP.toLocaleString('en-US') })
   })
 
   return {

@@ -11,7 +11,7 @@ import ChangePasswordForm from '@/components/account/ChangePasswordForm.vue'
       <SectionMain v-if="authenticated">
         <div class="flex justify-center">
           <CardBox class="w-full sm:w-1/2">
-            <CardBoxComponentHeader title="Change my password" />
+            <CardBoxComponentHeader :title="$t('account.changePassword.title')" />
 
             <ChangePasswordForm :email="authenticated.user.email" :keypair="keypair" />
           </CardBox>

@@ -5,6 +5,7 @@ import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { testEmail } from '!/admin/settings'
 import { ref } from 'vue'
 import { notify } from '@kyvg/vue3-notification'
+import { useI18n } from 'vue-i18n'
 import type { ErrorResponse } from '!/api'
 import { mdiEmailCheckOutline, mdiEmail } from '@mdi/js'
 
@@ -12,6 +13,8 @@ const props = defineProps<{
   loading: boolean
   class?: string
 }>()
+
+const { t } = useI18n()
 
 const testingEmail = ref(false)
 const testError = ref<string>()
@@ -28,7 +31,7 @@ const sendTestEmail = async () => {
     notify({ text: response.message, type: 'success' })
   } catch (err) {
     const error = err as ErrorResponse<unknown>
-    testError.value = error.description || 'Failed to send test email'
+    testError.value = error.description || t('admin.email.testFailed')
     notify({ text: testError.value, type: 'error' })
   }
 
@@ -40,10 +43,10 @@ const sendTestEmail = async () => {
     <div class="-mx-4 -mt-4 px-6 py-5 border-b border-brownish-100 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex items-center gap-2 mb-3">
         <BaseIcon :path="mdiEmail" :size="14" class="text-brownish-400 dark:text-brownish-100" />
-        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">Email Configuration</p>
+        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('admin.email.configuration') }}</p>
       </div>
       <p class="text-sm text-brownish-400 dark:text-brownish-100 leading-relaxed">
-        Verify your SMTP configuration by sending a test email to your account address.
+        {{ $t('admin.email.description') }}
       </p>
     </div>
 
@@ -59,18 +62,18 @@ const sendTestEmail = async () => {
       <div class="p-3 rounded-xl bg-brownish-50/50 dark:bg-brownish-700/20 border border-brownish-100/50 dark:border-brownish-700/30">
         <div class="flex items-center justify-between gap-4">
           <div class="min-w-0">
-            <p class="text-sm font-medium">Test Email</p>
-            <p class="text-xs text-brownish-400 dark:text-brownish-100 mt-0.5">Sends to your registered account address</p>
+            <p class="text-sm font-medium">{{ $t('admin.email.testEmail') }}</p>
+            <p class="text-xs text-brownish-400 dark:text-brownish-100 mt-0.5">{{ $t('admin.email.sendsToAccount') }}</p>
           </div>
           <div class="flex items-center gap-3 shrink-0">
-            <span v-if="testingEmail" class="text-xs text-brownish-400 animate-pulse">Sending…</span>
+            <span v-if="testingEmail" class="text-xs text-brownish-400 animate-pulse">{{ $t('admin.email.sending') }}</span>
             <BaseButton
               color="info"
               :small="true"
               :disabled="props.loading || testingEmail"
               @click="sendTestEmail"
               :icon="mdiEmailCheckOutline"
-              :label="testingEmail ? 'Sending…' : 'Send Test'"
+              :label="testingEmail ? $t('admin.email.sending') : $t('admin.email.sendTest')"
             />
           </div>
         </div>

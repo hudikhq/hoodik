@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RouterLink, RouterView } from 'vue-router'
 
 import LayoutAuthenticatedWithLoader from '@/layouts/LayoutAuthenticatedWithLoader.vue'
@@ -7,6 +8,7 @@ import SectionMain from '@/components/ui/SectionMain.vue'
 import { useCapability } from '@/composables/useCapability'
 import { store as sharesStoreFactory, capabilitiesStore } from '!/shares'
 
+const { t } = useI18n()
 const { sharingEnabled } = useCapability()
 const caps = capabilitiesStore()
 const shares = sharesStoreFactory()
@@ -22,18 +24,18 @@ interface SubTab {
 }
 
 const subTabs = computed<SubTab[]>(() => [
-  { name: 'share-public', to: { name: 'share-public' }, label: 'Public links', testid: 'share-hub-tab-public' },
+  { name: 'share-public', to: { name: 'share-public' }, label: t('shares.hub.tabPublic'), testid: 'share-hub-tab-public' },
   {
     name: 'share-activity',
     to: { name: 'share-activity' },
-    label: 'Activity',
+    label: t('shares.hub.tabActivity'),
     testid: 'share-hub-tab-activity',
     hidden: !sharingEnabled.value || !caps.auditLog
   },
   {
     name: 'share-groups',
     to: { name: 'share-groups' },
-    label: 'Groups',
+    label: t('shares.hub.tabGroups'),
     testid: 'share-hub-tab-groups',
     hidden: !sharingEnabled.value || !caps.shareGroups
   }
@@ -61,13 +63,13 @@ onMounted(() => {
     <SectionMain v-if="authenticated">
       <div class="flex flex-col gap-4">
         <header class="flex items-center justify-between gap-3">
-          <h1 class="text-xl sm:text-2xl font-semibold">Share</h1>
+          <h1 class="text-xl sm:text-2xl font-semibold">{{ $t('common.share') }}</h1>
           <div
             v-if="unreadCount > 0"
             class="text-xs px-2.5 py-1 rounded-full bg-redish-500 text-white font-medium"
             data-testid="share-hub-unread-badge"
           >
-            {{ unreadCount }} new
+            {{ $t('shares.hub.newBadge', { count: unreadCount }) }}
           </div>
         </header>
 

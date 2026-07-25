@@ -5,6 +5,7 @@ import { store } from '!/auth/register'
 import { encodeBundle } from '!/auth/bundle'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ed25519, wrapping } from '!/cryptfns'
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
@@ -14,6 +15,7 @@ import * as logger from '!/logger'
 
 const register = store()
 const router = useRouter()
+const { t } = useI18n()
 
 const config = ref()
 
@@ -51,15 +53,15 @@ const init = async () => {
     initialValues,
     initialErrors,
     validationSchema: yup.object().shape({
-      pubkey: yup.string().required('Public key is required'),
-      fingerprint: yup.string().required('Fingerprint is required'),
+      pubkey: yup.string().required(t('auth.validation.pubkeyRequired')),
+      fingerprint: yup.string().required(t('auth.validation.fingerprintRequired')),
       recovery_bundle: yup.string(),
       store_private_key: yup.bool().default(true),
       i_have_stored_my_private_key: yup
         .bool()
         .default(false)
-        .required('You must confirm that you have stored your recovery key')
-        .oneOf([true], 'You must confirm that you have stored your recovery key')
+        .required(t('auth.validation.mustConfirmStoredKey'))
+        .oneOf([true], t('auth.validation.mustConfirmStoredKey'))
     }),
     onSubmit: (values: Partial<CreateUser>) => {
       logger.debug(values)
@@ -75,20 +77,19 @@ init()
   <LayoutGuest>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass">
-        <h1 class="text-2xl text-white">Your Recovery Key</h1>
+        <h1 class="text-2xl text-white">{{ $t('auth.registerKey.title') }}</h1>
 
         <div class="flex items-start" v-if="!config">
           <div class="flex items-center h-5">
-            <p class="text-sm text-white">...is being generated, please wait...</p>
+            <p class="text-sm text-white">{{ $t('auth.registerKey.generating') }}</p>
           </div>
         </div>
         <AppForm v-else :config="config" class="mt-8 space-y-6" v-slot="{ form }">
           <div class="flex items-start">
             <div class="flex items-center h-5">
               <p class="text-sm text-redish-500 dark:text-redish-400">
-                <strong>This is the last time we'll show you your recovery key!</strong> Store it
-                somewhere safe. You will need this to login or recover your account if you forget
-                your password.
+                <strong>{{ $t('auth.registerKey.lastTimeWarning') }}</strong>
+                {{ $t('auth.registerKey.storeSafe') }}
               </p>
             </div>
           </div>
@@ -96,26 +97,26 @@ init()
             textarea
             :rows="12"
             :form="form"
-            label="Your recovery key"
+            :label="$t('auth.registerKey.label')"
             name="recovery_bundle"
             class-add="text-xs"
             :allow-copy="true"
           />
           <AppCheckbox
-            label="I have stored my private key"
+            :label="$t('auth.registerKey.confirmStored')"
             :form="form"
             name="i_have_stored_my_private_key"
           />
           <AppButton type="submit" :disabled="!form.values.i_have_stored_my_private_key">
-            Next
+            {{ $t('common.next') }}
           </AppButton>
 
           <div class="text-sm font-medium text-brownish-500 dark:text-brownish-100">
-            Already have an account?
+            {{ $t('auth.alreadyHaveAccount') }}
             <router-link
               :to="{ name: 'login' }"
               class="text-primary-700 hover:underline dark:text-primary-500"
-              >Login</router-link
+              >{{ $t('common.login') }}</router-link
             >
           </div>
         </AppForm>

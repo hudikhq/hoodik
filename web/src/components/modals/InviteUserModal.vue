@@ -7,10 +7,13 @@ import * as yup from 'yup'
 import type { ErrorResponse } from '!/api'
 import { create } from '!/admin/invitations'
 import type { Create } from 'types/admin/invitations'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   modelValue?: boolean | undefined
 }>()
+
+const { t } = useI18n()
 
 const emit = defineEmits(['update:modelValue', 'cancel', 'confirm'])
 
@@ -26,7 +29,7 @@ const init = () => {
       role: undefined
     } as Create,
     validationSchema: yup.object().shape({
-      email: yup.string().email().required('Email is required'),
+      email: yup.string().email().required(t('account.invite.emailRequired')),
       quota: yup.number().min(0)
     }),
     onSubmit: async (values: Create, ctx: any) => {
@@ -52,9 +55,9 @@ init()
     <CardBoxModal
       :modelValue="props.modelValue"
       @update:modelValue="$emit('update:modelValue', $event)"
-      title="Invite user"
+      :title="$t('account.invite.title')"
       button="info"
-      buttonLabel="Invite"
+      :buttonLabel="$t('account.invite.submit')"
       has-cancel
       @cancel="$emit('cancel')"
       :form="form"
@@ -63,13 +66,18 @@ init()
         {{ errorMessage }}
       </p>
 
-      <AppField :form="form" label="Email" name="email" autofocus />
-      <AppField :form="form" label="Message" name="message" :textarea="true" />
+      <AppField :form="form" :label="$t('common.email')" name="email" autofocus />
+      <AppField
+        :form="form"
+        :label="$t('account.invite.messageLabel')"
+        name="message"
+        :textarea="true"
+      />
 
       <QuotaSlider
         :model-value="form.values.quota"
         @update:model-value="(v) => form.setValues({ quota: v })"
-        title="Storage quota"
+        :title="$t('account.invite.quotaTitle')"
       />
     </CardBoxModal>
   </AppForm>

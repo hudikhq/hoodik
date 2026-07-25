@@ -7,8 +7,11 @@ import { AppButton } from '@/components/form'
 import { store as crypto } from '!/crypto'
 import { recoveryKeyFor } from '!/auth/bundle'
 import { notify } from '@kyvg/vue3-notification'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ class?: string }>()
+
+const { t } = useI18n()
 
 const cryptoStore = crypto()
 const revealed = ref(false)
@@ -29,7 +32,7 @@ function download() {
 
 async function copy() {
   await navigator.clipboard.writeText(recoveryKey.value)
-  notify({ type: 'success', title: 'Copied', text: 'Your recovery key is on the clipboard.' })
+  notify({ type: 'success', title: t('common.copied'), text: t('account.recoveryKey.copiedText') })
 }
 </script>
 
@@ -37,25 +40,42 @@ async function copy() {
   <CardBox :class="props.class" v-if="recoveryKey">
     <div class="flex items-center gap-2 mb-2">
       <BaseIcon :path="mdiKeyChain" />
-      <h2 class="text-xl">Recovery key</h2>
+      <h2 class="text-xl">{{ $t('account.recoveryKey.title') }}</h2>
     </div>
 
-    <p class="text-sm text-brownish-600 dark:text-dirty-white/70">
-      This is the credential that recovers your account if you ever forget your password. Keep a
-      copy somewhere safe and private &mdash; anyone who has it can sign in as you. To use it, pick
-      <strong>Log in with your key</strong> on the sign-in page.
-    </p>
+    <i18n-t
+      keypath="account.recoveryKey.body"
+      tag="p"
+      scope="global"
+      class="text-sm text-brownish-600 dark:text-dirty-white/70"
+    >
+      <template #loginWithKey>
+        <strong>{{ $t('account.recoveryKey.loginWithKey') }}</strong>
+      </template>
+    </i18n-t>
 
     <div class="mt-4 flex flex-wrap gap-2">
       <AppButton
         type="button"
         :icon="revealed ? mdiEyeOff : mdiEye"
-        :label="revealed ? 'Hide' : 'Reveal'"
+        :label="revealed ? $t('account.recoveryKey.hide') : $t('account.recoveryKey.reveal')"
         color="info"
         @click="revealed = !revealed"
       />
-      <AppButton type="button" :icon="mdiDownload" label="Download" color="success" @click="download" />
-      <AppButton type="button" :icon="mdiContentCopy" label="Copy" color="info" @click="copy" />
+      <AppButton
+        type="button"
+        :icon="mdiDownload"
+        :label="$t('common.download')"
+        color="success"
+        @click="download"
+      />
+      <AppButton
+        type="button"
+        :icon="mdiContentCopy"
+        :label="$t('common.copy')"
+        color="info"
+        @click="copy"
+      />
     </div>
 
     <pre

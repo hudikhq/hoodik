@@ -53,9 +53,9 @@ watch(
     :hide-submit="true"
     @cancel="cancel"
   >
-    <CardBoxComponentTitle :icon="mdiLink" title="Link details">
+    <CardBoxComponentTitle :icon="mdiLink" :title="$t('links.details.title')">
       <BaseButton
-        title="Close modal"
+        :title="$t('links.details.closeModal')"
         :icon="mdiClose"
         color="dark"
         small
@@ -68,16 +68,15 @@ watch(
       <div class="flex flex-row p-2 border-b-[1px] border-brownish-700" v-if="loading">
         <div class="flex w-full">
           <SpinnerIcon class="w-6 h-6 mr-2" />
-          <span>Verifying signature...</span>
+          <span>{{ $t('links.details.verifyingSignature') }}</span>
         </div>
       </div>
       <div class="flex flex-row p-2 border-b-[1px] border-brownish-700" v-else>
         <div class="flex flex-col w-full text-greeny-400" v-if="signatureValid">
-          This link has been signed by the owner, {{ link.owner_email }}.
+          {{ $t('links.details.signatureValid', { email: link.owner_email }) }}
         </div>
         <div class="flex flex-col w-full text-redish-400" v-else>
-          The signature of this link could not be verified and may be invalid, please proceed
-          cautiously.
+          {{ $t('links.details.signatureInvalid') }}
         </div>
       </div>
 
@@ -87,7 +86,7 @@ watch(
             name="owner_pubkey"
             type="text"
             v-model="link.file_id"
-            label="File ID"
+            :label="$t('links.details.fileId')"
             :allow-copy="true"
             :disabled="true"
           />
@@ -99,7 +98,7 @@ watch(
             name="owner_pubkey"
             :textarea="true"
             v-model="link.owner_pubkey"
-            label="Owner Public Key"
+            :label="$t('links.details.ownerPublicKey')"
             :allow-copy="true"
             :disabled="true"
           />
@@ -111,7 +110,7 @@ watch(
             name="signature"
             :textarea="true"
             v-model="link.signature"
-            label="Owner signature"
+            :label="$t('links.details.ownerSignature')"
             :allow-copy="true"
             :disabled="true"
           />

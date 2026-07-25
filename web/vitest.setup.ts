@@ -1,4 +1,10 @@
 import { vi } from 'vitest'
+import { config } from '@vue/test-utils'
+import { i18n } from './src/i18n'
+
+// Components resolve `$t` through the app-level i18n plugin; mounts in tests
+// need the same plugin or every template using a translation would throw.
+config.global.plugins = [...(config.global.plugins ?? []), i18n]
 
 // vue-clipboard3 ships a CJS bundle inside a `type: module` package. Node
 // refuses to evaluate the CJS file as ESM, so any AppField mount in jsdom

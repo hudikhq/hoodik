@@ -2,10 +2,11 @@ import * as api from './api'
 import * as auth from './auth'
 import * as crypto from './cryptfns'
 export { auth, crypto, api }
-import { parseISO, format as f } from 'date-fns'
+import { parseISO, format as f, formatDistanceStrict } from 'date-fns'
 import type { WorkerErrorType } from '../types'
 import type { ErrorResponse } from './api'
 import { notify } from '@kyvg/vue3-notification'
+import { i18n, currentDateFnsLocale, currentLocale } from '@/i18n'
 
 const DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
 
@@ -14,7 +15,15 @@ const DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
  */
 export function errorNotification(error: string | Error | ErrorResponse<any> | unknown) {
   if (typeof error === 'string') {
-    return notification(error ?? 'Something went wrong', undefined, 'error')
+    return notification(error ?? i18n.global.t('errors.unknown'), undefined, 'error')
+  }
+
+  if ((error as ErrorResponse<any>).kind === 'ErrorResponse') {
+    return notification(
+      i18n.global.t('errors.requestFailed'),
+      (error as ErrorResponse<any>).description,
+      'error'
+    )
   }
 
   notification((error as Error).message, (error as ErrorResponse<any>).description, 'error')
@@ -127,7 +136,7 @@ export function format(date: Date | string | number, formatString?: string): str
     date = localDateFromUtcString(date)
   }
 
-  return f(date, formatString || DATE_FORMAT)
+  return f(date, formatString || DATE_FORMAT, { locale: currentDateFnsLocale() })
 }
 
 /**
@@ -150,20 +159,23 @@ export function formatPrettyDate(date: Date | string | number): string {
  */
 export function formatRelative(unixSeconds: number, now: number = Date.now() / 1000): string {
   const delta = Math.max(0, now - unixSeconds)
-  if (delta < 60) return 'just now'
-  if (delta < 3600) {
-    const m = Math.round(delta / 60)
-    return `${m} minute${m === 1 ? '' : 's'} ago`
-  }
-  if (delta < 86400) {
-    const h = Math.round(delta / 3600)
-    return `${h} hour${h === 1 ? '' : 's'} ago`
-  }
+  if (delta < 60) return i18n.global.t('time.justNow')
   if (delta < 7 * 86400) {
-    const d = Math.round(delta / 86400)
-    return `${d} day${d === 1 ? '' : 's'} ago`
+    return formatDistanceStrict(new Date(unixSeconds * 1000), new Date(now * 1000), {
+      addSuffix: true,
+      locale: currentDateFnsLocale()
+    })
   }
   return formatPrettyDate(unixSeconds)
+}
+
+function sized(value: number, unit: 'B' | 'KB' | 'MB' | 'GB'): string {
+  const formatted = new Intl.NumberFormat(currentLocale(), {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value)
+
+  return `${formatted} ${i18n.global.t(`size.${unit}`)}`
 }
 
 /**
@@ -179,12 +191,12 @@ export function formatSize(b?: number | string, unit?: 'B' | 'KB' | 'MB' | 'GB')
     }
 
     if (typeof sizes[unit] !== 'undefined') {
-      return `${(sizes[unit] as number).toFixed(2)} ${unit}`
+      return sized(sizes[unit] as number, unit)
     }
   }
 
   if (b === undefined || b === null) {
-    return '0 B'
+    return `0 ${i18n.global.t('size.B')}`
   }
 
   if (typeof b === 'string') {
@@ -192,24 +204,22 @@ export function formatSize(b?: number | string, unit?: 'B' | 'KB' | 'MB' | 'GB')
   }
 
   if (b < 1024) {
-    return `${b.toFixed(2)} B`
+    return sized(b, 'B')
   }
 
   const kb = b / 1024
 
   if (kb < 1024) {
-    return `${kb.toFixed(2)} KB`
+    return sized(kb, 'KB')
   }
 
   const mb = b / 1024 / 1024
 
   if (mb < 1024) {
-    return `${mb.toFixed(2)} MB`
+    return sized(mb, 'MB')
   }
 
-  const gb = b / 1024 / 1024 / 1024
-
-  return `${gb.toFixed(2)} GB`
+  return sized(b / 1024 / 1024 / 1024, 'GB')
 }
 
 /**

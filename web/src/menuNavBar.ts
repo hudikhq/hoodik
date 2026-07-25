@@ -1,5 +1,6 @@
 import { mdiLock } from '@mdi/js'
 import type { RouteLocation } from 'vue-router'
+import { i18n } from '@/i18n'
 
 export interface NavBarItem {
   icon?: string
@@ -19,7 +20,7 @@ export interface NavBarItem {
 export default [
   {
     icon: mdiLock,
-    label: 'Lock',
+    label: i18n.global.t('nav.menu.lock'),
     isDesktopNoLabel: true,
     to: { name: 'lock' }
   }

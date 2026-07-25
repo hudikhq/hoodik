@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -19,6 +20,8 @@ const emit = defineEmits<{
   (e: 'created', group: AppShareGroup): void
   (e: 'cancel'): void
 }>()
+
+const { t } = useI18n()
 
 const open = computed({
   get: () => props.modelValue,
@@ -43,19 +46,19 @@ watch(
 async function submit(): Promise<void> {
   const trimmed = name.value.trim()
   if (!trimmed) {
-    errorText.value = 'Give the group a name.'
+    errorText.value = t('shares.groups.nameRequired')
     return
   }
   submitting.value = true
   try {
     const group = await shareGroups.createGroup(trimmed)
-    notification('Group created', `"${group.name}" is ready to receive members.`, 'success')
+    notification(t('shares.groups.createdTitle'), t('shares.groups.createdBody', { name: group.name }), 'success')
     emit('created', group)
     open.value = false
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to create the group'
+    const message = err instanceof Error ? err.message : t('shares.groups.createFailed')
     errorText.value = /409|conflict|taken/i.test(message)
-      ? 'A group with that name already exists.'
+      ? t('shares.groups.nameExists')
       : message
     errorNotification(err)
   } finally {
@@ -72,7 +75,7 @@ function cancel(): void {
 <template>
   <CardBoxModal
     v-if="open"
-    title="New share group"
+    :title="$t('shares.groups.createTitle')"
     :model-value="open"
     has-cancel
     hide-submit
@@ -82,10 +85,10 @@ function cancel(): void {
     <div class="space-y-3">
       <AppField
         name="group-name"
-        label="Group name"
+        :label="$t('shares.groups.nameLabel')"
         v-model="name"
         :disabled="submitting"
-        placeholder="e.g. Marketing team"
+        :placeholder="$t('shares.groups.namePlaceholder')"
         @confirm="submit"
       />
       <p
@@ -96,20 +99,19 @@ function cancel(): void {
         {{ errorText }}
       </p>
       <p class="text-xs text-brownish-300">
-        Groups are a saved recipient list, so you can share a file with
-        everyone in the group at once instead of adding each person by hand.
+        {{ $t('shares.groups.createNote') }}
       </p>
     </div>
 
     <template #buttons>
       <BaseButton
-        label="Create"
+        :label="$t('common.create')"
         color="info"
         :disabled="submitting || !name.trim()"
         data-testid="group-create-submit"
         @click.prevent="submit"
       />
-      <BaseButton label="Cancel" color="info" outline @click.prevent="cancel" />
+      <BaseButton :label="$t('common.cancel')" color="info" outline @click.prevent="cancel" />
     </template>
   </CardBoxModal>
 </template>

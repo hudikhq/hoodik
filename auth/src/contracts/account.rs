@@ -205,6 +205,7 @@ mod tests {
             created_at: 0,
             updated_at: 0,
             share_notifications_enabled: true,
+            locale: None,
         }
     }
 

@@ -20,7 +20,7 @@ const router = createRouter({
       name: 'files',
       meta: {
         files: true,
-        title: 'My files'
+        title: 'nav.title.myFiles'
       },
       component: () => import('../views/files/IndexView.vue')
     },
@@ -29,7 +29,7 @@ const router = createRouter({
       name: 'file-preview',
       meta: {
         files: true,
-        title: 'File Preview'
+        title: 'nav.title.filePreview'
       },
       component: () => import('../views/files/FileView.vue')
     },
@@ -38,7 +38,7 @@ const router = createRouter({
       name: 'notes',
       meta: {
         files: true,
-        title: 'Notes'
+        title: 'nav.title.notes'
       },
       component: () => import('../views/notes/NotesView.vue')
     },
@@ -55,7 +55,7 @@ const router = createRouter({
      */
     {
       path: '/share',
-      meta: { title: 'Share', files: true },
+      meta: { title: 'common.share', files: true },
       component: () => import('../views/shares/ShareHub.vue'),
       children: [
         {
@@ -67,7 +67,7 @@ const router = createRouter({
           path: 'public',
           name: 'share-public',
           component: () => import('../views/shares/ShareHubPublic.vue'),
-          meta: { title: 'Public links' }
+          meta: { title: 'nav.title.publicLinks' }
         },
         {
           path: 'with-me',
@@ -85,13 +85,13 @@ const router = createRouter({
           path: 'activity',
           name: 'share-activity',
           component: () => import('../views/shares/ShareHubAudit.vue'),
-          meta: { title: 'Activity', requiresSharing: true, requiresAuditLog: true }
+          meta: { title: 'nav.title.activity', requiresSharing: true, requiresAuditLog: true }
         },
         {
           path: 'groups',
           name: 'share-groups',
           component: () => import('../views/shares/ShareHubGroups.vue'),
-          meta: { title: 'Groups', requiresSharing: true, requiresGroups: true }
+          meta: { title: 'nav.title.groups', requiresSharing: true, requiresGroups: true }
         }
       ]
     },
@@ -116,7 +116,7 @@ const router = createRouter({
       name: 'links-view',
       meta: {
         files: true,
-        title: 'File Link'
+        title: 'nav.title.fileLink'
       },
       component: () => import('../views/links/LinkView.vue')
     },
@@ -127,13 +127,13 @@ const router = createRouter({
     {
       path: '/account',
       name: 'account',
-      meta: { title: 'My Account' },
+      meta: { title: 'nav.title.myAccount' },
       component: () => import('../views/account/IndexView.vue')
     },
     {
       path: '/account/change-password',
       name: 'account-change-password',
-      meta: { title: 'Change my password' },
+      meta: { title: 'nav.title.changePassword' },
       component: () => import('../views/account/ChangePasswordView.vue')
     },
 
@@ -143,19 +143,19 @@ const router = createRouter({
     {
       path: '/manage/users',
       name: 'manage-users',
-      meta: { title: 'Manage Users' },
+      meta: { title: 'nav.title.manageUsers' },
       component: () => import('../views/admin/IndexView.vue')
     },
     {
       path: '/manage/users/:id',
       name: 'manage-users-single',
-      meta: { title: 'Manage User' },
+      meta: { title: 'nav.title.manageUser' },
       component: () => import('../views/admin/UsersSingleView.vue')
     },
     {
       path: '/manage/settings',
       name: 'manage-settings',
-      meta: { title: 'Manage Settings' },
+      meta: { title: 'nav.title.manageSettings' },
       component: () => import('../views/admin/SettingsView.vue')
     },
 
@@ -165,67 +165,67 @@ const router = createRouter({
     {
       path: '/auth/pin/lock',
       name: 'lock',
-      meta: { title: 'Account Locked' },
+      meta: { title: 'nav.title.accountLocked' },
       component: () => import('../views/auth/pin/IndexView.vue')
     },
     {
       path: '/auth/pin/setup-lock-screen',
       name: 'setup-lock-screen',
-      meta: { title: 'Setup Lock Screen' },
+      meta: { title: 'nav.title.setupLockScreen' },
       component: () => import('../views/auth/pin/SetupLockScreenView.vue')
     },
     {
       path: '/auth/decrypt',
       name: 'decrypt',
-      meta: { title: 'Decrypt Private Key' },
+      meta: { title: 'nav.title.decryptPrivateKey' },
       component: () => import('../views/auth/pin/DecryptView.vue')
     },
     {
       path: '/auth/login',
       name: 'login',
-      meta: { title: 'Login - Credentials' },
+      meta: { title: 'nav.title.loginCredentials' },
       component: () => import('../views/auth/login/IndexView.vue')
     },
     {
       path: '/auth/login/private-key',
       name: 'login-private-key',
-      meta: { title: 'Login' },
+      meta: { title: 'common.login' },
       component: () => import('../views/auth/login/PrivateKeyView.vue')
     },
     {
       path: '/auth/forgot-password',
       name: 'forgot-password',
-      meta: { title: 'Recover your password' },
+      meta: { title: 'nav.title.forgotPassword' },
       component: () => import('../views/auth/ForgotPasswordView.vue')
     },
     {
       path: '/auth/register',
       name: 'register',
-      meta: { title: 'Create Account - Credentials' },
+      meta: { title: 'nav.title.registerCredentials' },
       component: () => import('../views/auth/register/IndexView.vue')
     },
     {
       path: '/auth/register/key',
       name: 'register-key',
-      meta: { title: 'Create Account - Your Private Key' },
+      meta: { title: 'nav.title.registerKey' },
       component: () => import('../views/auth/register/KeyView.vue')
     },
     {
       path: '/auth/register/two-factor',
       name: 'register-two-factor',
-      meta: { title: 'Create Account - Two Factor Authentication' },
+      meta: { title: 'nav.title.registerTwoFactor' },
       component: () => import('../views/auth/register/TwoFactorView.vue')
     },
     {
       path: '/auth/register/resend',
       name: 'register-resend-activation',
-      meta: { title: 'Create Account - Resend Activation Email' },
+      meta: { title: 'nav.title.registerResend' },
       component: () => import('../views/auth/register/ResendActivation.vue')
     },
     {
       path: '/auth/activate-email/:token',
       name: 'activate-email',
-      meta: { title: 'Create Account - Verify Email' },
+      meta: { title: 'nav.title.verifyEmail' },
       component: () => import('../views/auth/VerifyEmailView.vue')
     }
   ]

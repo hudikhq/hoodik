@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import CardBox from '@/components/ui/CardBox.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
@@ -17,6 +18,7 @@ const props = defineProps<{
 }>()
 
 const login = loginStore()
+const { t } = useI18n()
 
 const enabled = ref<boolean>(props.user.share_notifications_enabled ?? true)
 const saving = ref(false)
@@ -42,10 +44,8 @@ async function toggle(): Promise<void> {
       })
     }
     notification(
-      'Sharing notifications updated',
-      enabled.value
-        ? 'You will receive an email when someone shares a file with you.'
-        : 'You will no longer receive sharing emails.',
+      t('account.sharing.updatedTitle'),
+      enabled.value ? t('account.sharing.enabledText') : t('account.sharing.disabledText'),
       'success'
     )
   } catch (err) {
@@ -56,7 +56,7 @@ async function toggle(): Promise<void> {
 }
 
 const label = computed(() =>
-  enabled.value ? 'You will receive sharing emails.' : 'Sharing emails are off.'
+  enabled.value ? t('account.sharing.statusOn') : t('account.sharing.statusOff')
 )
 </script>
 
@@ -65,7 +65,7 @@ const label = computed(() =>
     <div class="flex items-center gap-2 mb-4">
       <BaseIcon :path="mdiEmailFastOutline" :size="14" class="text-brownish-400 dark:text-brownish-100" />
       <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">
-        Sharing notifications
+        {{ $t('account.sharing.title') }}
       </p>
     </div>
 
@@ -79,7 +79,7 @@ const label = computed(() =>
         @change="toggle"
       />
       <span>
-        <span class="text-sm font-medium">Email me when someone shares a file with me</span>
+        <span class="text-sm font-medium">{{ $t('account.sharing.toggleLabel') }}</span>
         <span class="block text-xs text-brownish-400 mt-1" data-testid="account-share-notifications-label">
           {{ label }}
         </span>

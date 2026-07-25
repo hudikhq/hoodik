@@ -28,7 +28,7 @@ test.describe('Share routing', () => {
     await page.waitForURL('**/auth/login')
     await loginAsUser(page, user.email, user.password)
     await page.locator('aside').waitFor({ state: 'visible', timeout: 10_000 })
-    await expect(page.locator('aside :text-is("Share")').first()).toBeVisible()
+    await expect(page.locator('aside :text-is("Sharing")').first()).toBeVisible()
     await expect(page.locator('aside :text-is("Links")')).toHaveCount(0)
   })
 
@@ -39,7 +39,7 @@ test.describe('Share routing', () => {
     await page.locator('button:has-text("Logout"), a:has-text("Logout")').first().click()
     await page.waitForURL('**/auth/login')
     await loginAsUser(page, user.email, user.password)
-    await page.locator('aside').locator(':text-is("Share")').first().click()
+    await page.locator('aside').locator(':text-is("Sharing")').first().click()
     await page.waitForURL(/\/share/, { timeout: 15_000 })
     await expect(page.getByTestId('share-hub-rename-tooltip')).toHaveCount(0)
     await page.reload()

@@ -8,10 +8,13 @@ import { enableTwoFactor, getTwoFactorSecret } from '!/account'
 import type { User } from 'types'
 import QRCodeComponent from 'qrcode.vue'
 import * as logger from '!/logger'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   modelValue: User
 }>()
+
+const { t } = useI18n()
 const emit = defineEmits(['update:modelValue', 'cancel', 'confirm'])
 
 const user = computed({
@@ -43,8 +46,8 @@ const init = async () => {
       secret: secret.value
     } as Values,
     validationSchema: yup.object().shape({
-      secret: yup.string().required('Secret is required'),
-      token: yup.string().required('Two factor token is required')
+      secret: yup.string().required(t('account.tfa.secretRequired')),
+      token: yup.string().required(t('account.tfa.tokenRequired'))
     }),
     onSubmit: async (values: Values, ctx: any) => {
       logger.debug(values)
@@ -69,9 +72,9 @@ init()
   <AppForm v-if="config" :config="config" v-slot="{ form }">
     <CardBoxModal
       :modelValue="true"
-      title="Enable two factor authentication"
+      :title="$t('account.tfa.enableTitle')"
       button="info"
-      buttonLabel="Enable"
+      :buttonLabel="$t('account.tfa.enable')"
       has-cancel
       @cancel="$emit('cancel')"
       :form="form"
@@ -79,8 +82,7 @@ init()
       <div class="flex items-start mb-2">
         <div class="flex items-center h-5">
           <p class="text-sm dark:text-white">
-            Scan the QR code with your two factor application, or simply copy and paste the secret
-            code below
+            {{ $t('account.tfa.scanQr') }}
           </p>
         </div>
       </div>
@@ -98,8 +100,13 @@ init()
         </Suspense>
       </div>
 
-      <AppField :form="form" label="Your two factor secret" name="secret" :allow-copy="true" />
-      <AppField :form="form" label="Enter your two factor token" name="token" />
+      <AppField
+        :form="form"
+        :label="$t('account.tfa.secretLabel')"
+        name="secret"
+        :allow-copy="true"
+      />
+      <AppField :form="form" :label="$t('account.tfa.tokenLabel')" name="token" />
 
       <p v-if="errorMessage" class="text-sm text-redish-900 dark:text-redish-200">
         {{ errorMessage }}

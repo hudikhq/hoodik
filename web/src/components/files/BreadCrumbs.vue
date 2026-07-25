@@ -2,7 +2,10 @@
 import type { AppFile } from 'types'
 import BaseButton from '../ui/BaseButton.vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { SHARED_WITH_ME_DIR_ID } from '!/storage'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   parents: AppFile[]
@@ -27,11 +30,11 @@ const inSharedContent = computed<boolean>(() => {
 const rootCrumb = computed(() =>
   inSharedContent.value
     ? {
-        label: 'Shared with me',
+        label: t('files.sharedWithMe'),
         to: { name: 'files', params: { file_id: SHARED_WITH_ME_DIR_ID } }
       }
     : {
-        label: 'My Files',
+        label: t('files.myFiles'),
         to: { name: 'files' }
       }
 )
@@ -56,7 +59,7 @@ const skipIndexes = computed<number[]>(() => {
 </script>
 
 <template>
-  <nav aria-label="Breadcrumb">
+  <nav :aria-label="$t('files.breadcrumbs')">
     <ol class="flex mb-2">
       <li>
         <BaseButton

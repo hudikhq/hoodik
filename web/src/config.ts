@@ -1,5 +1,7 @@
 export const lightModeKey = 'lightMode'
 
+export const localeKey = 'locale'
+
 export const styleKey = 'style'
 
 export const containerMaxW = ''

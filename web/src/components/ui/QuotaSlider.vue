@@ -39,7 +39,7 @@ const defaultQuota = computed({
   <div class="flex w-full">
     <div class="pr-2">
       <UniversalCheckbox
-        :label="!defaultQuota ? displayQuota : 'default'"
+        :label="!defaultQuota ? displayQuota : $t('ui.quotaSlider.default')"
         name="default_quota"
         v-model="defaultQuota"
         :disabled="disabled"

@@ -5,6 +5,7 @@ import { createPinia } from '!/init'
 import { store as style } from '!/style'
 import { lightModeKey, styleKey } from '@/config'
 import { greeting } from '!/logger'
+import { i18n, currentLocale } from '@/i18n'
 import Notifications, { notify } from '@kyvg/vue3-notification'
 import './css/main.css'
 
@@ -12,7 +13,7 @@ greeting()
 
 window.addEventListener('unhandledrejection', function (event) {
   notify({
-    title: event.reason.message || 'Something went wrong',
+    title: event.reason.message || i18n.global.t('errors.unknown'),
     text: event.reason.description,
     type: 'error'
   })
@@ -20,8 +21,10 @@ window.addEventListener('unhandledrejection', function (event) {
 
 const pinia = createPinia()
 
+document.documentElement.setAttribute('lang', currentLocale())
+
 /* Create Vue app */
-createApp(App).use(Notifications).use(router).use(pinia).mount('#app')
+createApp(App).use(i18n).use(Notifications).use(router).use(pinia).mount('#app')
 
 /* Init Pinia stores */
 const styleStore = style(pinia)
@@ -43,6 +46,6 @@ window.defaultDocumentTitle = import.meta.env.APP_NAME || 'Hoodik'
 /* Set document title from route meta */
 router.afterEach((to) => {
   document.title = to.meta?.title
-    ? `${to.meta.title} — ${window.defaultDocumentTitle}`
+    ? `${i18n.global.t(to.meta.title as string)} — ${window.defaultDocumentTitle}`
     : window.defaultDocumentTitle
 })

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { mdiClose, mdiLogout, mdiCellphoneLink } from '@mdi/js'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { store as style } from '!/style'
 import { store as login } from '!/auth/login'
 import { store as crypto } from '!/crypto'
@@ -19,6 +20,7 @@ const props = defineProps<{
 const loginStore = login()
 const cryptoStore = crypto()
 const router = useRouter()
+const { t } = useI18n()
 
 const EXPANDED_KEY = 'hoodik:sidebar:expandedKey'
 const expandedKey = ref<string | null>(sessionStorage.getItem(EXPANDED_KEY))
@@ -57,14 +59,14 @@ const emit = defineEmits(['menu-click', 'aside-lg-close-click'])
 const styleStore = style()
 
 const lockAccountItem = computed(() => ({
-  label: 'Logout',
+  label: t('common.logout'),
   icon: mdiLogout,
   color: 'info',
   isLogout: true
 }))
 
 const getAppsItem = computed(() => ({
-  label: 'Get the apps',
+  label: t('ui.aside.getApps'),
   icon: mdiCellphoneLink,
   href: 'https://hoodik.io/apps?utm_source=hoodik-server',
   target: '_blank',

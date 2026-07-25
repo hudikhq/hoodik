@@ -12,6 +12,29 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 'latest'
   },
+  overrides: [
+    {
+      files: ['src/**/*.vue'],
+      extends: ['plugin:@intlify/vue-i18n/base'],
+      rules: {
+        // Keep hardcoded UI copy out of templates now that everything runs
+        // through the locale catalogs. Symbols, numbers and punctuation-only
+        // text are fine.
+        '@intlify/vue-i18n/no-raw-text': [
+          'error',
+          {
+            ignorePattern: '^[-–—#:()\\[\\]&+;.,·…*/\\s\\d%$€?°×↓↑|]+$'
+          }
+        ]
+      }
+    }
+  ],
+  settings: {
+    'vue-i18n': {
+      localeDir: './src/locales/*.json',
+      messageSyntaxVersion: '^9.0.0'
+    }
+  },
   ignorePatterns: [
     'dist/',
     'node_modules/',

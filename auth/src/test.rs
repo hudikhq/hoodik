@@ -47,6 +47,7 @@ async fn seed_legacy_user(lib: &Auth<'_>, email: &str, password: &str) -> users:
         created_at: ActiveValue::Set(now),
         updated_at: ActiveValue::Set(now),
         share_notifications_enabled: ActiveValue::Set(true),
+        locale: ActiveValue::NotSet,
     })
     .await
     .unwrap()
@@ -86,6 +87,7 @@ fn create_curve25519_user(email: &str, password: &str) -> CreateUser {
         encrypted_private_key: Some("encrypted-gibberish".to_string()),
         opaque_registration_upload: Some(reg_finish.message),
         invitation_id: None,
+        locale: None,
     }
 }
 

@@ -6,10 +6,12 @@ import { AppForm, AppField, AppButton } from '@/components/form'
 import * as yup from 'yup'
 import { store as registerStore } from '!/auth/register'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ErrorResponse } from '!/api'
 import { notify } from '@kyvg/vue3-notification'
 
 const register = registerStore()
+const { t } = useI18n()
 
 const config = ref()
 const resendError = ref<string | null>(null)
@@ -30,12 +32,12 @@ const init = () => {
       email: ''
     },
     validationSchema: yup.object().shape({
-      email: yup.string().email().required('Email is required')
+      email: yup.string().email().required(t('auth.validation.emailRequired'))
     }),
     onSubmit: async (values: { email: string }, ctx: any) => {
       try {
         await register.resendActivation(values.email)
-        notify("We've sent you an activation email")
+        notify(t('auth.resend.sentNotification'))
         ctx.resetForm()
         count.value = 60
       } catch (err) {
@@ -54,36 +56,34 @@ init()
   <LayoutGuest>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass" v-if="config">
-        <h1 class="text-2xl text-white mb-5">Activation pending</h1>
+        <h1 class="text-2xl text-white mb-5">{{ $t('auth.resend.title') }}</h1>
         <div class="flex items-start">
           <div class="flex items-center h-5">
             <p class="text-sm dark:text-white">
-              We have sent you an activation email that contains link you have to visit in order to
-              active your account.<br />
-              In case you haven't received an email, you can request another one by filling out the
-              form below.
+              {{ $t('auth.resend.description1') }}<br />
+              {{ $t('auth.resend.description2') }}
             </p>
           </div>
         </div>
 
         <AppForm :config="config" class="mt-8 space-y-6" v-slot="{ form }">
-          <AppField :form="form" label="Your email" name="email" :autofocus="true" />
+          <AppField :form="form" :label="$t('auth.yourEmail')" name="email" :autofocus="true" />
 
           <p v-if="resendError" class="text-sm text-redish-400">
             {{ resendError }}
           </p>
 
           <AppButton color="info" :form="form" type="submit" :disabled="disabled">
-            <span v-if="disabled"> Re-send ({{ count }}) </span>
-            <span v-else> Re-send </span>
+            <span v-if="disabled"> {{ $t('auth.resend.resendCount', { count }) }} </span>
+            <span v-else> {{ $t('auth.resend.resend') }} </span>
           </AppButton>
 
           <div class="text-sm font-medium text-brownish-500 dark:text-brownish-100">
-            Already activated an account?
+            {{ $t('auth.resend.alreadyActivated') }}
             <router-link
               :to="{ name: 'login' }"
               class="text-primary-700 hover:underline dark:text-primary-500"
-              >Login</router-link
+              >{{ $t('common.login') }}</router-link
             >
           </div>
         </AppForm>

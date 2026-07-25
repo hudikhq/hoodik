@@ -4,6 +4,16 @@
 
 
 import type Api from './stores/api'
+import type { ComposerTranslation } from 'vue-i18n'
+
+// vue-i18n 9 augments 'vue', which Vue 3.3 does not pick up for template
+// type-checking; mirror the augmentation on '@vue/runtime-core' so `$t`
+// resolves in SFC templates without per-component imports.
+declare module '@vue/runtime-core' {
+  interface ComponentCustomProperties {
+    $t: ComposerTranslation
+  }
+}
 
 declare global {
   interface Window {

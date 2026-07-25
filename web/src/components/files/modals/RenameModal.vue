@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import { AppForm, AppField } from '@/components/form'
 import * as yup from 'yup'
@@ -13,6 +14,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['update:modelValue', 'cancel', 'confirm'])
+
+const { t } = useI18n()
 
 const file = computed({
   get() {
@@ -32,7 +35,7 @@ const init = () => {
       name: file.value?.name
     },
     validationSchema: yup.object().shape({
-      name: yup.string().required('New name is required')
+      name: yup.string().required(t('files.rename.nameRequired'))
     }),
     onSubmit: async (values: { name: string }, ctx: any) => {
       try {
@@ -59,9 +62,11 @@ watch(() => props.modelValue, init, { immediate: true })
     <CardBoxModal
       :modelValue="!!file"
       @update:modelValue="$emit('update:modelValue', $event ? file : undefined)"
-      :title="`Rename a ${file?.mime === 'dir' ? 'directory' : 'file'}`"
+      :title="
+        file?.mime === 'dir' ? $t('files.rename.directoryTitle') : $t('files.rename.fileTitle')
+      "
       button="info"
-      buttonLabel="Rename"
+      :buttonLabel="$t('common.rename')"
       has-cancel
       @cancel="$emit('cancel')"
       :form="form"
@@ -70,7 +75,13 @@ watch(() => props.modelValue, init, { immediate: true })
         {{ errorMessage }}
       </p>
 
-      <AppField :form="form" label="Name" name="name" placeholder="new name" autofocus />
+      <AppField
+        :form="form"
+        :label="$t('common.name')"
+        name="name"
+        :placeholder="$t('files.rename.namePlaceholder')"
+        autofocus
+      />
     </CardBoxModal>
   </AppForm>
 </template>

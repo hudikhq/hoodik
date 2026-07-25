@@ -50,7 +50,7 @@ const usageTextColor = computed(() => {
     <div class="-mx-4 -mt-4 px-6 py-6 border-b border-brownish-100 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex items-center gap-2 mb-4">
         <BaseIcon :path="mdiDatabase" :size="14" class="text-brownish-400 dark:text-brownish-100" />
-        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">Storage Usage</p>
+        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('account.storage.title') }}</p>
       </div>
 
       <div class="flex items-end justify-between mb-3">
@@ -58,7 +58,7 @@ const usageTextColor = computed(() => {
           <span class="text-2xl font-bold" :class="usageTextColor">{{ usedSpace }}</span>
           <span class="text-sm text-brownish-400 ml-1">
             <span v-if="quota">/ {{ quota }}</span>
-            <span v-else>/ unlimited</span>
+            <span v-else>/ {{ $t('account.storage.unlimited') }}</span>
           </span>
         </div>
         <span v-if="quota" class="text-sm font-semibold" :class="usageTextColor">{{ usagePercent }}%</span>
@@ -77,7 +77,7 @@ const usageTextColor = computed(() => {
       <div class="px-6 pt-4 pb-1">
         <div class="flex items-center gap-2 mb-2">
           <BaseIcon :path="mdiChartDonut" :size="14" class="text-brownish-400 dark:text-brownish-100" />
-          <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">By File Type</p>
+          <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('account.storage.byFileType') }}</p>
         </div>
       </div>
       <div class="px-4 pb-4">

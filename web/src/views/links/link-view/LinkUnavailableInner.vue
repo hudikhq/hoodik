@@ -15,10 +15,9 @@ import { mdiLinkOff } from '@mdi/js'
           >
             <BaseIcon :path="mdiLinkOff" :size="32" />
           </span>
-          <h1 class="text-2xl font-semibold">Link expired or removed</h1>
+          <h1 class="text-2xl font-semibold">{{ $t('links.unavailable.title') }}</h1>
           <p class="text-sm text-brownish-500 dark:text-brownish-200 max-w-sm">
-            This share link is no longer active. Ask the owner for a new link if you
-            still need access to the file.
+            {{ $t('links.unavailable.description') }}
           </p>
         </div>
       </CardBox>

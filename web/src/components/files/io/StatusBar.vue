@@ -6,6 +6,7 @@ import { store as downloadStore } from '!/storage/download'
 import SingleFile from '@/components/files/io/SingleFile.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { computed, ref, watch, onBeforeMount } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { mdiChevronDown, mdiChevronUp } from '@mdi/js'
 import type { DownloadAppFile, UploadAppFile, QueueItemActionType } from 'types'
 
@@ -13,6 +14,8 @@ type InnerFileList = {
   file: UploadAppFile | DownloadAppFile
   type: QueueItemActionType
 }
+
+const { t } = useI18n()
 
 const queue = queueStore()
 const files = filesStore()
@@ -93,8 +96,8 @@ const headerLabel = computed(() => {
     if (dl) parts.push(`↓ ${dl}`)
     return parts.join(' · ')
   }
-  if (failed) return `${failed} failed`
-  if (doneItems.value) return `${doneItems.value} done`
+  if (failed) return t('files.transfers.failedCount', { count: failed })
+  if (doneItems.value) return t('files.transfers.doneCount', { count: doneItems.value })
   return ''
 })
 
@@ -110,11 +113,11 @@ const showStandaloneCount = computed(() => {
 const currentTab = computed(() => tab.value ?? 'all')
 
 const tabs = computed(() => [
-  { key: 'all', label: 'All', count: totalItems.value },
-  { key: 'running', label: 'Active', count: activeItems.value },
-  { key: 'waiting', label: 'Pending', count: pendingItems.value },
-  { key: 'done', label: 'Done', count: doneItems.value },
-  { key: 'failed', label: 'Failed', count: failedItems.value }
+  { key: 'all', label: t('files.transfers.all'), count: totalItems.value },
+  { key: 'running', label: t('files.transfers.active'), count: activeItems.value },
+  { key: 'waiting', label: t('files.transfers.pending'), count: pendingItems.value },
+  { key: 'done', label: t('common.done'), count: doneItems.value },
+  { key: 'failed', label: t('files.transfers.failed'), count: failedItems.value }
 ])
 
 watch(
@@ -186,7 +189,7 @@ window.addEventListener('keydown', (e) => {
         'bg-brownish-100 dark:bg-brownish-600': totalItems === 0
       }"
     >
-      <span class="text-xs font-medium">{{ headerLabel || 'Transfers' }}</span>
+      <span class="text-xs font-medium">{{ headerLabel || $t('files.transfers.title') }}</span>
       <div class="flex items-center gap-2">
         <span class="text-xs tabular-nums" v-if="showStandaloneCount">{{ totalItems }}</span>
         <BaseIcon :path="showTable ? mdiChevronDown : mdiChevronUp" w="w-4" h="h-4" />
@@ -224,7 +227,7 @@ window.addEventListener('keydown', (e) => {
 
         <template v-if="!displaying.length">
           <div class="text-center pb-3 pt-4 text-sm text-brownish-500 dark:text-brownish-100">
-            No activity in progress
+            {{ $t('files.transfers.noActivity') }}
           </div>
         </template>
       </div>

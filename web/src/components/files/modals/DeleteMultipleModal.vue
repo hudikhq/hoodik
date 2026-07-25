@@ -23,23 +23,25 @@ const confirmRemoveAll = async () => {
 
 <template>
   <CardBoxModal
-    title="Delete selected"
+    :title="$t('files.delete.selectedTitle')"
     button="danger"
     :model-value="props.modelValue"
-    button-label="Yes, delete"
+    :button-label="$t('files.delete.confirmLabel')"
     :has-cancel="true"
     @cancel="emits('update:modelValue', false)"
     @confirm="confirmRemoveAll"
   >
     <template v-if="Storage.selected && Storage.selected.length > 1">
-      <p>Are you sure you want to delete {{ Storage.selected.length }} items?</p>
+      <p>{{ $t('files.delete.confirmMany', { count: Storage.selected.length }) }}</p>
     </template>
 
     <template v-else v-for="file in Storage.selected" :key="file.id">
       <p>
-        Are you sure you want to delete forever '{{ file?.name }}'
-        <span v-if="file?.mime === 'dir'"> directory</span>
-        ?
+        {{
+          file?.mime === 'dir'
+            ? $t('files.delete.confirmDirectory', { name: file?.name })
+            : $t('files.delete.confirmFile', { name: file?.name })
+        }}
       </p>
     </template>
   </CardBoxModal>

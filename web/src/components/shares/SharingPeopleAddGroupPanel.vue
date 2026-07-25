@@ -34,14 +34,14 @@ const role = computed({
         class="text-xs text-brownish-300 shrink-0"
         data-testid="share-dialog-group-member-count"
       >
-        {{ group.memberCount }} member{{ group.memberCount === 1 ? '' : 's' }}
+        {{ $t('shares.groups.memberCount', group.memberCount ?? 0) }}
       </span>
     </div>
     <p class="text-xs text-brownish-300" data-testid="share-dialog-group-note">
-      Every member of this group receives the share at the role you pick.
+      {{ $t('shares.add.groupNote') }}
     </p>
     <div>
-      <span class="block text-xs uppercase tracking-wider text-brownish-300 mb-1.5">Access</span>
+      <span class="block text-xs uppercase tracking-wider text-brownish-300 mb-1.5">{{ $t('shares.add.accessHeading') }}</span>
       <SharingPeopleAddRoleChips
         v-model="role"
         testid-prefix="share-dialog-group-role"

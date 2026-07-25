@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseButtons from '@/components/ui/BaseButtons.vue'
@@ -23,22 +24,24 @@ const emit = defineEmits<{
   (event: 'cancel'): void
 }>()
 
+const { t } = useI18n()
+
 const verifiedAgeLabel = computed(() => {
   const ageSeconds = Math.floor(Date.now() / 1000) - props.lastVerifiedAt
   const days = Math.floor(ageSeconds / (24 * 60 * 60))
-  if (days <= 0) return 'today'
-  if (days === 1) return 'yesterday'
-  if (days < 30) return `${days} days ago`
+  if (days <= 0) return t('shares.fingerprint.today')
+  if (days === 1) return t('shares.fingerprint.yesterday')
+  if (days < 30) return t('shares.fingerprint.daysAgo', { count: days })
   const months = Math.floor(days / 30)
-  if (months < 12) return `${months} month${months === 1 ? '' : 's'} ago`
+  if (months < 12) return t('shares.fingerprint.monthsAgo', months)
   const years = Math.floor(days / 365)
-  return `${years} year${years === 1 ? '' : 's'} ago`
+  return t('shares.fingerprint.yearsAgo', years)
 })
 </script>
 
 <template>
   <CardBoxModal
-    title="Recipient's fingerprint changed"
+    :title="$t('shares.fingerprint.title')"
     button="danger"
     :has-cancel="true"
     :model-value="modelValue"
@@ -49,13 +52,13 @@ const verifiedAgeLabel = computed(() => {
     <template #buttons>
       <BaseButtons>
         <BaseButton
-          label="Accept new fingerprint"
+          :label="$t('shares.fingerprint.accept')"
           color="danger"
           data-testid="fingerprint-mismatch-accept"
           @click="emit('accept')"
         />
         <BaseButton
-          label="Cancel"
+          :label="$t('common.cancel')"
           color="info"
           outline
           data-testid="fingerprint-mismatch-cancel"
@@ -65,20 +68,17 @@ const verifiedAgeLabel = computed(() => {
     </template>
 
     <div data-testid="fingerprint-mismatch-modal" class="space-y-3 text-sm">
+      <i18n-t tag="p" keypath="shares.fingerprint.changed" scope="global">
+        <template #email><strong>{{ recipientEmail }}</strong></template>
+        <template #age><strong>{{ verifiedAgeLabel }}</strong></template>
+      </i18n-t>
       <p>
-        The public-key fingerprint <strong>{{ recipientEmail }}</strong> presents now
-        is different from the one you verified <strong>{{ verifiedAgeLabel }}</strong>.
-      </p>
-      <p>
-        This happens when the recipient legitimately rotates their key (new
-        device, password reset, account recovery) — but it is also exactly
-        what a key-substitution attack looks like. The server cannot tell the
-        two apart; only you can, by verifying out of band.
+        {{ $t('shares.fingerprint.explanation') }}
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
         <div>
           <div class="text-xs uppercase tracking-wider text-brownish-300">
-            Fingerprint you verified
+            {{ $t('shares.fingerprint.cachedLabel') }}
           </div>
           <div
             class="font-mono text-xs break-all"
@@ -89,7 +89,7 @@ const verifiedAgeLabel = computed(() => {
         </div>
         <div>
           <div class="text-xs uppercase tracking-wider text-redish-600">
-            Fingerprint the server returned
+            {{ $t('shares.fingerprint.newLabel') }}
           </div>
           <div
             class="font-mono text-xs break-all"
@@ -100,8 +100,7 @@ const verifiedAgeLabel = computed(() => {
         </div>
       </div>
       <p class="mt-2 text-brownish-300">
-        Accept only after confirming with {{ recipientEmail }} through a
-        channel that does not flow through this Hoodik server.
+        {{ $t('shares.fingerprint.confirmHint', { email: recipientEmail }) }}
       </p>
     </div>
   </CardBoxModal>

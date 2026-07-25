@@ -133,6 +133,7 @@ describe('Register store — request body', () => {
         'fingerprint',
         'invitation_id',
         'key_type',
+        'locale',
         'opaque_registration_upload',
         'pubkey',
         'secret',
@@ -141,6 +142,7 @@ describe('Register store — request body', () => {
       ].sort()
     )
     expect(body).not.toHaveProperty('password')
+    expect(body.locale).toBe('en')
     expect(body.key_type).toBe('curve25519')
     expect(body.pubkey).toBe(edPub)
     expect(body.wrapping_pubkey).toBe(xPub)

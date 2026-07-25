@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { MilkdownProvider } from '@milkdown/vue'
 import { mdiNotePlusOutline } from '@mdi/js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
@@ -33,6 +34,8 @@ const props = defineProps<{
   modelValue: Preview
   readonly?: boolean
 }>()
+
+const { t } = useI18n()
 
 const preview = computed(() => props.modelValue)
 const isOwnedFile = computed(() => preview.value instanceof FilePreview)
@@ -72,7 +75,7 @@ const sharingInitialTab = ref<'people' | 'link'>('people')
 const confirmingDelete = ref(false)
 const showMoveModal = ref(false)
 const moveFolderId = ref<string | undefined>()
-const moveFolderName = ref('Root')
+const moveFolderName = ref(t('ui.folderPicker.root'))
 
 const Storage = storageStore()
 const Crypto = cryptoStore()
@@ -178,7 +181,7 @@ async function deleteNote() {
 
 function openMove() {
   moveFolderId.value = undefined
-  moveFolderName.value = 'Root'
+  moveFolderName.value = t('ui.folderPicker.root')
   showMoveModal.value = true
 }
 
@@ -378,14 +381,14 @@ defineExpose({ exportPdf: handleExportPdf })
 
     <CardBoxModal
       :model-value="confirmingDelete"
-      title="Delete note"
+      :title="$t('preview.markdown.deleteTitle')"
       button="danger"
-      button-label="Yes, delete"
+      :button-label="$t('files.delete.confirmLabel')"
       has-cancel
       @cancel="confirmingDelete = false"
       @confirm="deleteNote"
     >
-      Are you sure you want to delete '{{ preview.name }}'?
+      {{ $t('preview.markdown.deleteConfirm', { name: preview.name }) }}
     </CardBoxModal>
 
     <!-- Mounted on demand: the picker starts listing and decrypting folders
@@ -394,9 +397,9 @@ defineExpose({ exportPdf: handleExportPdf })
     <CardBoxModal
       v-if="showMoveModal"
       :model-value="showMoveModal"
-      title="Move to folder"
+      :title="$t('preview.markdown.moveTitle')"
       button="info"
-      button-label="Move here"
+      :button-label="$t('preview.markdown.moveConfirmLabel')"
       has-cancel
       @cancel="showMoveModal = false"
       @confirm="confirmMove"
@@ -405,17 +408,18 @@ defineExpose({ exportPdf: handleExportPdf })
         :keypair="Crypto.keypair"
         @navigate="({ id, name }) => { moveFolderId = id; moveFolderName = name }"
       />
-      <p class="mt-2 text-xs text-brownish-400">
-        Move '{{ preview.name }}' to <strong>{{ moveFolderName }}</strong>
-      </p>
+      <i18n-t keypath="preview.markdown.moveDestination" tag="p" scope="global" class="mt-2 text-xs text-brownish-400">
+        <template #name>{{ preview.name }}</template>
+        <template #folder><strong>{{ moveFolderName }}</strong></template>
+      </i18n-t>
     </CardBoxModal>
 
     <!-- Convert to note banner -->
     <div v-if="canConvertToNote" class="md-convert-banner">
       <BaseIcon :path="mdiNotePlusOutline" :size="16" />
-      <span>This markdown file is read-only.</span>
+      <span>{{ $t('preview.markdown.readOnly') }}</span>
       <button class="md-convert-link" :disabled="isConverting" @click="convertToNote">
-        {{ isConverting ? 'Converting...' : 'Convert to an editable note' }}
+        {{ isConverting ? $t('preview.markdown.converting') : $t('preview.markdown.convertAction') }}
       </button>
     </div>
 
@@ -423,16 +427,17 @@ defineExpose({ exportPdf: handleExportPdf })
          replaceContent because a previous save is still pending. -->
     <CardBoxModal
       :model-value="saveStatus === 'conflict'"
-      title="Another save is in progress"
+      :title="$t('preview.markdown.conflictTitle')"
       button="warning"
-      button-label="Discard remote and overwrite"
+      :button-label="$t('preview.markdown.conflictOverwrite')"
       has-cancel
       @cancel="onDiscardConflict"
       @confirm="onResolveConflict"
     >
-      The server has an unfinished save for this note from another session.
-      Choose <strong>Discard remote and overwrite</strong> to drop their pending edit and save your version,
-      or <strong>Cancel</strong> to drop your local changes and let the other save finish.
+      <i18n-t keypath="preview.markdown.conflictBody" scope="global">
+        <template #overwrite><strong>{{ $t('preview.markdown.conflictOverwrite') }}</strong></template>
+        <template #cancel><strong>{{ $t('common.cancel') }}</strong></template>
+      </i18n-t>
     </CardBoxModal>
 
     <!-- Editor body + optional version-history sidebar. -->

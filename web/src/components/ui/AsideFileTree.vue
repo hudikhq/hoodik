@@ -21,6 +21,7 @@ const treeState = reactive({
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   mdiFolder,
   mdiFolderOpen,
@@ -47,6 +48,7 @@ const files = filesStore()
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const rootLoading = ref(false)
 
@@ -100,7 +102,7 @@ function syntheticSharedNode(): TreeNode {
     id: SHARED_WITH_ME_DIR_ID,
     user_id: '',
     is_owner: false,
-    name: 'Shared with me',
+    name: t('ui.fileTree.sharedWithMe'),
     name_hash: '',
     mime: 'dir',
     chunks: 0,
@@ -396,7 +398,7 @@ watch(
 <template>
   <div class="text-xs ml-6 mr-2 my-1 rounded-lg bg-brownish-800/40 overflow-hidden">
     <div v-if="rootLoading" class="flex items-center justify-center py-4 text-brownish-500">
-      Loading...
+      {{ $t('common.loading') }}
     </div>
     <ul v-else class="flex flex-col py-0.5">
       <template v-for="node in treeState.rootNodes" :key="node.file.id">
@@ -442,7 +444,9 @@ watch(
         </li>
 
         <template v-if="node.file.mime === 'dir' && treeState.expanded.has(node.file.id)">
-          <li v-if="node.loading" class="py-1 text-brownish-500" style="padding-left: 24px">Loading...</li>
+          <li v-if="node.loading" class="py-1 text-brownish-500" style="padding-left: 24px">
+            {{ $t('common.loading') }}
+          </li>
           <template v-else>
             <AsideFileTreeNode
               v-for="child in node.children"
@@ -466,7 +470,11 @@ watch(
                   : undefined
               "
             >
-              {{ node.file.id === SHARED_WITH_ME_DIR_ID ? 'No incoming shares yet' : 'Empty' }}
+              {{
+                node.file.id === SHARED_WITH_ME_DIR_ID
+                  ? $t('ui.fileTree.noIncomingShares')
+                  : $t('ui.fileTree.empty')
+              }}
             </li>
           </template>
         </template>
@@ -489,7 +497,7 @@ watch(
       </template>
 
       <li v-if="!treeState.rootNodes.length && !rootLoading" class="px-3 py-4 text-center text-brownish-500">
-        No files here yet
+        {{ $t('ui.fileTree.noFiles') }}
       </li>
     </ul>
   </div>

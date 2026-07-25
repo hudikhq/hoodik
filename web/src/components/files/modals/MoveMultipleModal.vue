@@ -5,12 +5,14 @@ import type { AppFile, Authenticated, FilesStore, KeyPair } from 'types'
 import DirectoryTree from '@/components/files/browser/DirectoryTree.vue'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { classifyMove, executeMove } from '!/storage/moveInto'
 import type { MoveCascadePreview } from '!/shares'
 import { useCapability } from '@/composables/useCapability'
 import { errorNotification } from '!/index'
 
 const router = useRouter()
+const { t } = useI18n()
 const { sharingEnabled } = useCapability()
 
 const props = defineProps<{
@@ -59,7 +61,7 @@ function confirmCascade(
     confirm.value = {
       visible: true,
       folderName: folder.name,
-      destinationName: destination?.name ?? 'Home',
+      destinationName: destination?.name ?? t('files.move.home'),
       itemCount: preview.itemCount,
       memberLabels: memberLabels(preview),
       progress: null,
@@ -126,7 +128,7 @@ const select = async (file?: AppFile) => {
 
 <template>
   <CardBoxModal
-    title="Select target directory"
+    :title="$t('files.move.selectTarget')"
     :model-value="props.modelValue"
     :has-cancel="false"
     :has-close="true"

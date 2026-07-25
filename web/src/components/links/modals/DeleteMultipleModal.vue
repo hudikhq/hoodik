@@ -23,17 +23,16 @@ const confirmRemoveAll = async () => {
 
 <template>
   <CardBoxModal
-    title="Delete selected links"
+    :title="$t('links.deleteModal.title')"
     button="danger"
     :model-value="props.modelValue"
-    button-label="Yes, delete"
+    :button-label="$t('links.deleteModal.confirm')"
     :has-cancel="true"
     @cancel="emits('update:modelValue', false)"
     @confirm="confirmRemoveAll"
   >
     <p>
-      Are you sure you want to delete
-      {{ Links.selected.length }} {{ Links.selected.length == 1 ? 'item' : 'items' }}?
+      {{ $t('links.deleteModal.body', Links.selected.length) }}
     </p>
   </CardBoxModal>
 </template>

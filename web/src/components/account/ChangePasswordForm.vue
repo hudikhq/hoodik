@@ -8,12 +8,15 @@ import type { ErrorResponse } from '!/api'
 import * as logger from '!/logger'
 import { isStrongPassword } from '@/utils/password'
 import { notify } from '@kyvg/vue3-notification'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   keypair?: KeyPair
   forgotPassword?: boolean
   email?: string
 }>()
+
+const { t } = useI18n()
 
 const config = ref()
 const changePasswordError = ref<string | null>(null)
@@ -34,13 +37,16 @@ const init = () => {
       token: ''
     } as UnsecureChangePassword,
     validationSchema: yup.object().shape({
-      email: yup.string().required('Email is required').email('Email is invalid'),
+      email: yup
+        .string()
+        .required(t('account.changePassword.emailRequired'))
+        .email(t('account.changePassword.emailInvalid')),
       password: yup
         .string()
-        .required('New password is required')
+        .required(t('account.changePassword.passwordRequired'))
         .test(
           'weak-password',
-          'New password used is too weak',
+          t('account.changePassword.passwordWeak'),
           (value: string | undefined) => isStrongPassword(value)
         )
     }),
@@ -73,7 +79,7 @@ const init = () => {
         }
         ctx.resetForm()
 
-        notify('Your password has been changed')
+        notify(t('account.changePassword.success'))
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
@@ -94,16 +100,16 @@ init()
     <AppField
       v-if="forgotPassword"
       :form="form"
-      label="Your email"
+      :label="$t('account.changePassword.emailLabel')"
       name="email"
       placeholder="your@email.com"
       autofocus
-      help="Enter the email address associated with your account."
+      :help="$t('account.changePassword.emailHelp')"
     />
 
     <AppCheckbox
       v-if="!forgotPassword && !isCurve"
-      label="Change with private key"
+      :label="$t('account.changePassword.usePrivateKey')"
       :form="form"
       name="use_private_key"
     />
@@ -113,30 +119,30 @@ init()
       textarea
       :rows="10"
       :form="form"
-      label="Your private key"
+      :label="$t('account.changePassword.privateKeyLabel')"
       name="private_key"
-      placeholder="Paste your private key here"
-      help="Use your private key to sign the new password in order to authenticate you."
+      :placeholder="$t('account.changePassword.privateKeyPlaceholder')"
+      :help="$t('account.changePassword.privateKeyHelp')"
     />
 
     <AppField
       v-else-if="!isCurve"
       :form="form"
-      label="Your current password"
+      :label="$t('account.changePassword.currentPasswordLabel')"
       name="current_password"
       type="password"
-      help="Enter your current account password in order to authenticate you."
+      :help="$t('account.changePassword.currentPasswordHelp')"
     />
 
     <div class="w-1/2 sm:w-1/4">
       <AppField
         type="password"
         :form="form"
-        label="2FA token (optional)"
+        :label="$t('account.changePassword.tokenLabel')"
         name="token"
         placeholder="* * * * * *"
         class-add="text-sm"
-        help="If you have 2FA enabled, enter your token here."
+        :help="$t('account.changePassword.tokenHelp')"
       />
     </div>
 
@@ -144,10 +150,10 @@ init()
       <AppField
         type="password"
         :form="form"
-        label="New password"
+        :label="$t('account.changePassword.newPasswordLabel')"
         name="password"
         :disabled="!isCurve && !form.values.current_password && !form.values.private_key"
-        help="Enter a new password that will be used to login to your account."
+        :help="$t('account.changePassword.newPasswordHelp')"
       />
     </div>
 
@@ -155,6 +161,8 @@ init()
       {{ changePasswordError }}
     </p>
 
-    <AppButton color="info" :form="form" type="submit">Change password</AppButton>
+    <AppButton color="info" :form="form" type="submit">{{
+      $t('account.changePassword.submit')
+    }}</AppButton>
   </AppForm>
 </template>

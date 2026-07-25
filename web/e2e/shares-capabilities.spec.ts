@@ -108,7 +108,7 @@ test.describe('Capabilities + kill switch + unread badge', () => {
     // counter from the same `unreadCount` getter the sidebar removed in
     // ebbd646. The count is non-zero until the virtual folder marks
     // shares as seen.
-    await page.locator('aside').locator(':text-is("Share")').first().click()
+    await page.locator('aside').locator(':text-is("Sharing")').first().click()
     await page.waitForURL(/\/share/, { timeout: 15_000 })
     const badge = page.getByTestId('share-hub-unread-badge')
     await expect(badge).toBeVisible({ timeout: 15_000 })
@@ -124,7 +124,7 @@ test.describe('Capabilities + kill switch + unread badge', () => {
     await sharedRow.dblclick()
     await expect(page).toHaveURL(/__shared_with_me__/)
 
-    await page.locator('aside').locator(':text-is("Share")').first().click()
+    await page.locator('aside').locator(':text-is("Sharing")').first().click()
     await page.waitForURL(/\/share/, { timeout: 15_000 })
     await expect(page.getByTestId('share-hub-unread-badge')).toHaveCount(0)
   })

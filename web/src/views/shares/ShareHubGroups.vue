@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import {
   mdiAccountMultipleOutline,
@@ -34,6 +35,7 @@ const props = defineProps<{
   keypair?: KeyPair
 }>()
 
+const { t } = useI18n()
 const { shareGroups } = useCapability()
 
 const loading = ref(false)
@@ -107,7 +109,7 @@ async function confirmDeleteGroup(): Promise<void> {
   if (!group) return
   try {
     await sharesApi.deleteGroup(group.id)
-    notification('Group deleted', `"${group.name}" has been removed.`, 'success')
+    notification(t('shares.groups.deletedTitle'), t('shares.groups.deletedBody', { name: group.name }), 'success')
     await refresh()
   } catch (err) {
     errorNotification(err)
@@ -134,8 +136,8 @@ async function confirmRemoveMember(): Promise<void> {
   try {
     await sharesApi.removeGroupMember(target.groupId, target.userId)
     notification(
-      'Member removed',
-      "They won't be included next time you share to the group.",
+      t('shares.groups.memberRemovedTitle'),
+      t('shares.groups.memberRemovedBody'),
       'success'
     )
     await refresh()
@@ -168,12 +170,12 @@ async function confirmRename(): Promise<void> {
   renaming.value = null
   try {
     await sharesApi.renameGroup(target.id, trimmed)
-    notification('Group renamed', `Now called "${trimmed}".`, 'success')
+    notification(t('shares.groups.renamedTitle'), t('shares.groups.renamedBody', { name: trimmed }), 'success')
     await refresh()
   } catch (err) {
     const message = err instanceof Error ? err.message : ''
     if (/409|conflict|taken/i.test(message)) {
-      notification('Name taken', 'You already have a group with that name.', 'error')
+      notification(t('shares.groups.nameTakenTitle'), t('shares.groups.nameTakenBody'), 'error')
     } else {
       errorNotification(err)
     }
@@ -194,7 +196,7 @@ async function changeRole(
 ): Promise<void> {
   try {
     await sharesApi.setGroupMemberRole(groupId, userId, next)
-    notification('Role updated', `Member is now a group ${next}.`, 'success')
+    notification(t('shares.groups.roleUpdatedTitle'), t('shares.groups.roleUpdatedBody', { role: next }), 'success')
     await refresh()
   } catch (err) {
     errorNotification(err)
@@ -206,7 +208,11 @@ function shortFingerprint(fp: string): string {
 }
 
 function roleLabel(role: GroupRole): string {
-  return role === 'co-owner' ? 'Co-owner' : role === 'editor' ? 'Editor' : 'Reader'
+  return role === 'co-owner'
+    ? t('shares.roles.coOwner')
+    : role === 'editor'
+      ? t('shares.roles.editor')
+      : t('shares.roles.reader')
 }
 
 const ownedHasGroups = computed(() => owned.value.length > 0)
@@ -219,19 +225,19 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
 <template>
   <div data-testid="share-hub-groups">
     <header class="flex items-center justify-between gap-3 mb-3">
-      <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-300">Owned groups</h2>
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-300">{{ $t('shares.groups.owned') }}</h2>
       <BaseButton
         :icon="mdiPlus"
         color="info"
         small
-        label="New group"
+        :label="$t('shares.groups.new')"
         data-testid="share-hub-groups-new"
         @click.prevent="showCreate = true"
       />
     </header>
 
     <p v-if="loading" class="text-sm text-brownish-300" data-testid="share-hub-groups-loading">
-      Loading groups…
+      {{ $t('shares.groups.loading') }}
     </p>
 
     <ul v-if="ownedHasGroups" class="space-y-3" data-testid="share-hub-groups-owned-list">
@@ -251,7 +257,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
               {{ group.name }}
             </span>
             <span class="text-xs text-brownish-300 shrink-0">
-              · {{ group.members.length }} member{{ group.members.length === 1 ? '' : 's' }}
+              · {{ $t('shares.groups.memberCount', group.members.length) }}
             </span>
           </div>
           <div class="flex gap-1.5 shrink-0">
@@ -260,7 +266,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
               :icon="mdiPencilOutline"
               color="dark"
               small
-              label="Rename"
+              :label="$t('common.rename')"
               :data-testid="`share-hub-groups-owned-${group.id}-rename`"
               @click.prevent="startRename(group.id, group.name)"
             />
@@ -268,7 +274,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
               :icon="mdiAccountPlus"
               color="dark"
               small
-              label="Add"
+              :label="$t('common.add')"
               :data-testid="`share-hub-groups-owned-${group.id}-add`"
               @click.prevent="openAddMember(group.id, group.name, group.owner_id === senderId)"
             />
@@ -276,7 +282,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
               :icon="mdiDeleteOutline"
               color="danger"
               small
-              label="Delete"
+              :label="$t('common.delete')"
               :data-testid="`share-hub-groups-owned-${group.id}-delete`"
               @click.prevent="deleteGroup(group)"
             />
@@ -324,7 +330,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
                 color="danger"
                 small
                 rounded-full
-                title="Remove member"
+                :title="$t('shares.groups.removeMember')"
                 :data-testid="`share-hub-groups-owned-${group.id}-member-${member.user_id}-remove`"
                 @click.prevent="removeMember(group.id, group.name, member)"
               />
@@ -336,7 +342,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
           class="mt-3 text-xs text-brownish-300"
           :data-testid="`share-hub-groups-owned-${group.id}-empty`"
         >
-          No members yet — add someone to share with the whole group at once.
+          {{ $t('shares.groups.noMembers') }}
         </p>
       </li>
     </ul>
@@ -346,11 +352,11 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
       class="text-sm text-brownish-300 p-4 rounded-lg bg-brownish-50 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700"
       data-testid="share-hub-groups-owned-empty"
     >
-      You haven't created any groups yet. Groups let you share with several people at once.
+      {{ $t('shares.groups.ownedEmpty') }}
     </p>
 
     <header class="flex items-center justify-between mt-6 mb-3">
-      <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-300">Member of</h2>
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-300">{{ $t('shares.groups.memberOf') }}</h2>
     </header>
     <ul
       v-if="memberOfHasGroups"
@@ -366,14 +372,14 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
         <div class="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
           <div class="flex flex-wrap items-baseline gap-x-2 min-w-0">
             <span class="font-medium truncate">{{ group.name }}</span>
-            <span class="text-xs text-brownish-300">owned by {{ group.owner_email }}</span>
+            <span class="text-xs text-brownish-300">{{ $t('shares.groups.ownedBy', { email: group.owner_email }) }}</span>
           </div>
           <span
             v-if="shareGroups"
             class="text-xs px-2 py-0.5 rounded-full bg-brownish-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200 shrink-0"
             :data-testid="`share-hub-groups-member-of-${group.id}-role`"
           >
-            Your role: {{ roleLabel(group.group_role) }}
+            {{ $t('shares.groups.yourRole', { role: roleLabel(group.group_role) }) }}
           </span>
         </div>
 
@@ -383,7 +389,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
             class="mt-2 text-xs text-brownish-300"
             :data-testid="`share-hub-groups-member-of-${group.id}-editor-hint`"
           >
-            You can share your files into this group from any file's Share dialog.
+            {{ $t('shares.groups.editorHint') }}
           </p>
 
           <div
@@ -396,7 +402,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
                 :icon="mdiAccountPlus"
                 color="dark"
                 small
-                label="Add member"
+                :label="$t('shares.groups.addMember')"
                 :data-testid="`share-hub-groups-member-of-${group.id}-add`"
                 @click.prevent="openAddMember(group.id, group.name, false)"
               />
@@ -405,7 +411,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
                 color="info"
                 outline
                 small
-                label="Manage roster"
+                :label="$t('shares.groups.manageRoster')"
                 :data-testid="`share-hub-groups-member-of-${group.id}-load-roster`"
                 @click.prevent="loadManagedRoster(group.id)"
               />
@@ -453,7 +459,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
                     color="danger"
                     small
                     rounded-full
-                    title="Remove member"
+                    :title="$t('shares.groups.removeMember')"
                     :data-testid="`share-hub-groups-member-of-${group.id}-member-${member.user_id}-remove`"
                     @click.prevent="removeMember(group.id, group.name, member)"
                   />
@@ -469,7 +475,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
       class="text-sm text-brownish-300 p-4 rounded-lg bg-brownish-50 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700"
       data-testid="share-hub-groups-member-of-empty"
     >
-      No one has added you to a group yet.
+      {{ $t('shares.groups.memberOfEmpty') }}
     </p>
 
     <GroupCreateDialog
@@ -495,9 +501,9 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
     <CardBoxModal
       v-if="renaming"
       :model-value="true"
-      title="Rename group"
+      :title="$t('shares.groups.renameTitle')"
       button="info"
-      button-label="Rename"
+      :button-label="$t('common.rename')"
       has-cancel
       data-testid="share-hub-groups-rename-modal"
       @confirm="confirmRename"
@@ -505,7 +511,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
     >
       <AppField
         name="group-rename"
-        label="Group name"
+        :label="$t('shares.groups.nameLabel')"
         v-model="renameValue"
         @confirm="confirmRename"
       />
@@ -514,40 +520,37 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
     <CardBoxModal
       v-if="deletingGroup"
       :model-value="true"
-      title="Delete group"
+      :title="$t('shares.groups.deleteTitle')"
       button="danger"
-      button-label="Delete"
+      :button-label="$t('common.delete')"
       has-cancel
       @confirm="confirmDeleteGroup"
       @cancel="deletingGroup = null"
     >
       <div data-testid="share-hub-groups-delete-modal" class="space-y-2 text-sm">
-        <p>
-          Delete the group
-          <strong>{{ deletingGroup.name }}</strong>? Files you already shared with
-          its members stay shared; the group just stops being a share target.
-        </p>
+        <i18n-t tag="p" keypath="shares.groups.deleteBody" scope="global">
+          <template #name><strong>{{ deletingGroup.name }}</strong></template>
+        </i18n-t>
       </div>
     </CardBoxModal>
 
     <CardBoxModal
       v-if="removingMember"
       :model-value="true"
-      title="Remove member"
+      :title="$t('shares.groups.removeMember')"
       button="danger"
-      button-label="Remove"
+      :button-label="$t('common.remove')"
       has-cancel
       @confirm="confirmRemoveMember"
       @cancel="removingMember = null"
     >
       <div data-testid="share-hub-groups-remove-member-modal" class="space-y-2 text-sm">
-        <p>
-          Remove
-          <strong>{{ removingMember.email ?? 'this member' }}</strong>
-          from <strong>{{ removingMember.groupName }}</strong>? Files already
-          shared with them stay shared; they just won't be included next time you
-          share to the group.
-        </p>
+        <i18n-t tag="p" keypath="shares.groups.removeMemberBody" scope="global">
+          <template #member>
+            <strong>{{ removingMember.email ?? $t('shares.groups.thisMember') }}</strong>
+          </template>
+          <template #group><strong>{{ removingMember.groupName }}</strong></template>
+        </i18n-t>
       </div>
     </CardBoxModal>
   </div>

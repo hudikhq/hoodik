@@ -144,7 +144,7 @@ where
             .filter(invitations::Column::Id.eq(id))
             .one(self.repository.connection())
             .await?
-            .ok_or_else(|| Error::NotFound("Invitation not found".to_string()))?;
+            .ok_or_else(|| Error::NotFound("invitation_not_found".to_string()))?;
 
         invite::send(self.repository.context(), &invitation, message).await?;
 
