@@ -103,6 +103,7 @@ init()
       :label="$t('account.changePassword.emailLabel')"
       name="email"
       placeholder="your@email.com"
+      autocomplete="username"
       autofocus
       :help="$t('account.changePassword.emailHelp')"
     />
@@ -131,6 +132,7 @@ init()
       :label="$t('account.changePassword.currentPasswordLabel')"
       name="current_password"
       type="password"
+      autocomplete="current-password"
       :help="$t('account.changePassword.currentPasswordHelp')"
     />
 
@@ -140,6 +142,7 @@ init()
         :form="form"
         :label="$t('account.changePassword.tokenLabel')"
         name="token"
+        autocomplete="one-time-code"
         placeholder="* * * * * *"
         class-add="text-sm"
         :help="$t('account.changePassword.tokenHelp')"
@@ -152,6 +155,7 @@ init()
         :form="form"
         :label="$t('account.changePassword.newPasswordLabel')"
         name="password"
+        autocomplete="new-password"
         :disabled="!isCurve && !form.values.current_password && !form.values.private_key"
         :help="$t('account.changePassword.newPasswordHelp')"
       />

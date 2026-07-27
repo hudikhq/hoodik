@@ -66,6 +66,24 @@ test.describe('Login', () => {
   })
 })
 
+test.describe('Password manager hints', () => {
+  test('login fields are annotated with autocomplete', async ({ page }) => {
+    await page.goto('/auth/login')
+
+    await expect(page.locator('#email')).toHaveAttribute('autocomplete', 'username')
+    await expect(page.locator('#password')).toHaveAttribute('autocomplete', 'current-password')
+    await expect(page.locator('#token')).toHaveAttribute('autocomplete', 'one-time-code')
+  })
+
+  test('registration fields are annotated with autocomplete', async ({ page }) => {
+    await page.goto('/auth/register')
+
+    await expect(page.locator('#email')).toHaveAttribute('autocomplete', 'username')
+    await expect(page.locator('#password')).toHaveAttribute('autocomplete', 'new-password')
+    await expect(page.locator('#confirm_password')).toHaveAttribute('autocomplete', 'new-password')
+  })
+})
+
 test.describe('Logout', () => {
   test('logout redirects to login page', async ({ page }) => {
     const email = randomEmail()

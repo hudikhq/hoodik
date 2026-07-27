@@ -102,6 +102,7 @@ init()
             :label="$t('auth.yourEmail')"
             name="email"
             :placeholder="$t('auth.emailPlaceholder')"
+            autocomplete="username"
             :disabled="form.values.invitation_id"
           />
           <AppField
@@ -109,6 +110,7 @@ init()
             :form="form"
             :label="$t('auth.yourPassword')"
             name="password"
+            autocomplete="new-password"
             placeholder="*********"
           />
           <AppField
@@ -117,6 +119,7 @@ init()
             :form="form"
             :label="$t('auth.register.confirmPassword')"
             name="confirm_password"
+            autocomplete="new-password"
             placeholder="*********"
           />
           <AppButton color="info" type="submit">{{ $t('common.next') }}</AppButton>
