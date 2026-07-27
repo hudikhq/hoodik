@@ -127,6 +127,7 @@ init()
             :label="$t('auth.twoFactor.tokenLabel')"
             name="token"
             autocomplete="one-time-code"
+            inputmode="numeric"
           />
 
           <AppButton color="info" type="submit">

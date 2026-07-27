@@ -81,12 +81,11 @@ init()
           />
           <div class="w-1/2 sm:w-1/4">
             <AppField
-              type="password"
               :form="form"
               :label="$t('auth.login.twoFactorLabel')"
               name="token"
               autocomplete="one-time-code"
-              placeholder="* * * * * *"
+              inputmode="numeric"
               class-add="text-sm"
             />
           </div>

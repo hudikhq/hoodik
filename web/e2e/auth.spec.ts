@@ -73,6 +73,8 @@ test.describe('Password manager hints', () => {
     await expect(page.locator('#email')).toHaveAttribute('autocomplete', 'username')
     await expect(page.locator('#password')).toHaveAttribute('autocomplete', 'current-password')
     await expect(page.locator('#token')).toHaveAttribute('autocomplete', 'one-time-code')
+    await expect(page.locator('#token')).toHaveAttribute('inputmode', 'numeric')
+    await expect(page.locator('#token')).toHaveAttribute('type', 'text')
   })
 
   test('registration fields are annotated with autocomplete', async ({ page }) => {

@@ -20,6 +20,7 @@ const props = defineProps<{
   form?: FormType
   type?: 'text' | 'password' | undefined
   autocomplete?: string | undefined
+  inputmode?: 'numeric' | undefined
   label?: string | undefined
   allowCopy?: boolean | undefined
   placeholder?: string | undefined
@@ -138,6 +139,7 @@ const copy = () => {
           @change="change"
           :type="type || 'text'"
           :autocomplete="autocomplete"
+          :inputmode="inputmode"
           :placeholder="placeholder || ''"
           :disabled="disabled || form?.isSubmitting.value"
           :autofocus="!!props.autofocus"
