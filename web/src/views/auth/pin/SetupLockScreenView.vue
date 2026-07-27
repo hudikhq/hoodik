@@ -73,6 +73,7 @@ config.value = {
             :form="form"
             :label="$t('auth.lockSetup.passwordLabel')"
             name="password"
+            autocomplete="off"
             placeholder="******"
           />
           <AppField
@@ -81,6 +82,7 @@ config.value = {
             :form="form"
             :label="$t('common.confirm')"
             name="confirm_password"
+            autocomplete="off"
             placeholder="******"
           />
 

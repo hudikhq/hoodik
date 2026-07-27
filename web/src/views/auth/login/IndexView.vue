@@ -68,6 +68,7 @@ init()
             :label="$t('auth.yourEmail')"
             name="email"
             :placeholder="$t('auth.emailPlaceholder')"
+            autocomplete="username"
             autofocus
           />
           <AppField
@@ -75,15 +76,16 @@ init()
             :form="form"
             :label="$t('auth.yourPassword')"
             name="password"
+            autocomplete="current-password"
             placeholder="***************************"
           />
           <div class="w-1/2 sm:w-1/4">
             <AppField
-              type="password"
               :form="form"
               :label="$t('auth.login.twoFactorLabel')"
               name="token"
-              placeholder="* * * * * *"
+              autocomplete="one-time-code"
+              inputmode="numeric"
               class-add="text-sm"
             />
           </div>

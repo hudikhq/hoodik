@@ -67,7 +67,13 @@ init()
         </div>
 
         <AppForm :config="config" class="mt-8 space-y-6" v-slot="{ form }">
-          <AppField :form="form" :label="$t('auth.yourEmail')" name="email" :autofocus="true" />
+          <AppField
+            :form="form"
+            :label="$t('auth.yourEmail')"
+            name="email"
+            autocomplete="username"
+            :autofocus="true"
+          />
 
           <p v-if="resendError" class="text-sm text-redish-400">
             {{ resendError }}

@@ -84,6 +84,7 @@ init()
             :form="form"
             :label="$t('auth.yourPassword')"
             name="password"
+            autocomplete="off"
             placeholder="********"
             :autofocus="true"
           />
