@@ -89,7 +89,7 @@ export const grantsStore = defineStore('grants', () => {
   async function loadGrants(fileId: string, kp: KeyPair, includeLinks = true): Promise<void> {
     setState(fileId, 'loading')
     try {
-      const work = [
+      const work: Promise<unknown>[] = [
         shares.loadOutgoingFor(fileId).catch((err) => {
           throw err instanceof Error ? err : new Error(String(err))
         })

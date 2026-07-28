@@ -892,6 +892,7 @@ export const store = defineStore('files', () => {
     deselectAll,
     dir,
     directories,
+    error,
     find,
     firstRootListing,
     getItem,
