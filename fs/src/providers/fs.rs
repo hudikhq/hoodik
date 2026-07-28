@@ -438,6 +438,12 @@ impl FsProviderContract for FsProvider<'_> {
         chunk: Option<i64>,
     ) -> AppResult<Streamer> {
         let filename = filename.filename()?;
+        if let Some(chunk) = chunk {
+            if !self.exists(&filename, chunk).await? {
+                return Err(Error::NotFound("chunk_not_found".to_string()));
+            }
+        }
+
         let stream = self.inner_stream(&filename, chunk).await?;
 
         Ok(Streamer::new(stream))
@@ -536,7 +542,13 @@ impl FsProviderContract for FsProvider<'_> {
         // Inline a small versioned variant of `inner_stream` — same lazy
         // open-one-at-a-time pattern, just using versioned chunk paths.
         let chunk_indices: Vec<i64> = match chunk {
-            Some(c) => vec![c],
+            Some(c) => {
+                if !std::path::Path::new(&self.versioned_chunk_path(&filename, version, c)).exists()
+                {
+                    return Err(Error::NotFound("chunk_not_found".to_string()));
+                }
+                vec![c]
+            }
             None => self.list_versioned_chunks(&filename, version).await?,
         };
 

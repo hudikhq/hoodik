@@ -153,15 +153,13 @@ impl S3Provider {
     /// True when `version == 1` and the versioned directory is empty. Used
     /// by every read-side `_v` method to transparently fall back to the
     /// legacy flat layout for pre-migration files.
-    async fn should_use_legacy(&self, filename: &Filename, version: i32) -> bool {
+    async fn should_use_legacy(&self, filename: &Filename, version: i32) -> AppResult<bool> {
         if version != 1 {
-            return false;
+            return Ok(false);
         }
         let prefix = self.version_prefix(filename, 1);
-        match self.list_objects(&prefix).await {
-            Ok(objects) => !objects.iter().any(|o| o.key.ends_with(".chunk")),
-            Err(_) => true,
-        }
+        let objects = self.list_objects(&prefix).await?;
+        Ok(!objects.iter().any(|o| o.key.ends_with(".chunk")))
     }
 }
 
@@ -177,46 +175,27 @@ impl FsProviderContract for S3Provider {
         // successful response, only an auth/connectivity failure surfaces as
         // an error.
         let key = format!("{}.hoodik-readiness", self.prefix);
-        head_exists(&self.bucket, &key).await.map(|_| ())
+        head_size(&self.bucket, &key).await.map(|_| ())
     }
 
     async fn read<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<u8>> {
         let key = self.object_key(&filename.filename()?);
-
-        let response = self
-            .bucket
-            .get_object(&key)
-            .await
-            .map_err(|e| Error::StorageError(format!("S3 read failed for '{}': {}", key, e)))?;
-
-        Ok(response.to_vec())
+        get_object_bytes(&self.bucket, &key).await
     }
 
     async fn write<T: IntoFilename>(&self, filename: &T, data: &[u8]) -> AppResult<()> {
         let key = self.object_key(&filename.filename()?);
-
-        self.bucket
-            .put_object(&key, data)
-            .await
-            .map_err(|e| Error::StorageError(format!("S3 write failed for '{}': {}", key, e)))?;
-
-        Ok(())
+        put_object_checked(&self.bucket, &key, data).await
     }
 
     async fn exists<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<bool> {
         let key = self.object_key(&filename.filename()?.with_chunk(chunk));
-        head_exists(&self.bucket, &key).await
+        head_size(&self.bucket, &key).await.map(|s| s.is_some())
     }
 
     async fn push<T: IntoFilename>(&self, filename: &T, chunk: i64, data: &[u8]) -> AppResult<()> {
         let key = self.object_key(&filename.filename()?.with_chunk(chunk));
-
-        self.bucket
-            .put_object(&key, data)
-            .await
-            .map_err(|e| Error::StorageError(format!("S3 push failed for '{}': {}", key, e)))?;
-
-        Ok(())
+        put_object_checked(&self.bucket, &key, data).await
     }
 
     async fn pull<T: IntoFilename>(&self, filename: &T, chunk: i64) -> AppResult<Vec<u8>> {
@@ -257,7 +236,12 @@ impl FsProviderContract for S3Provider {
         let filename = filename.filename()?;
 
         let chunks_to_stream: Vec<i64> = match chunk {
-            Some(c) => vec![c],
+            Some(c) => {
+                if !self.exists(&filename, c).await? {
+                    return Err(Error::NotFound("chunk_not_found".to_string()));
+                }
+                vec![c]
+            }
             None => self.get_uploaded_chunks(&filename).await?,
         };
 
@@ -309,10 +293,7 @@ impl FsProviderContract for S3Provider {
         data: &[u8],
     ) -> AppResult<()> {
         let key = self.versioned_chunk_key(&filename.filename()?, version, chunk);
-        self.bucket.put_object(&key, data).await.map_err(|e| {
-            Error::StorageError(format!("S3 push_v failed for '{}': {}", key, e))
-        })?;
-        Ok(())
+        put_object_checked(&self.bucket, &key, data).await
     }
 
     async fn pull_v<T: IntoFilename>(
@@ -322,7 +303,7 @@ impl FsProviderContract for S3Provider {
         chunk: i64,
     ) -> AppResult<Vec<u8>> {
         let filename = filename.filename()?;
-        if self.should_use_legacy(&filename, version).await {
+        if self.should_use_legacy(&filename, version).await? {
             return self.pull(&filename, chunk).await;
         }
 
@@ -337,12 +318,12 @@ impl FsProviderContract for S3Provider {
         chunk: i64,
     ) -> AppResult<bool> {
         let filename = filename.filename()?;
-        if self.should_use_legacy(&filename, version).await {
+        if self.should_use_legacy(&filename, version).await? {
             return self.exists(&filename, chunk).await;
         }
 
         let key = self.versioned_chunk_key(&filename, version, chunk);
-        head_exists(&self.bucket, &key).await
+        head_size(&self.bucket, &key).await.map(|s| s.is_some())
     }
 
     async fn get_uploaded_chunks_v<T: IntoFilename>(
@@ -351,7 +332,7 @@ impl FsProviderContract for S3Provider {
         version: i32,
     ) -> AppResult<Vec<i64>> {
         let filename = filename.filename()?;
-        if self.should_use_legacy(&filename, version).await {
+        if self.should_use_legacy(&filename, version).await? {
             return self.get_uploaded_chunks(&filename).await;
         }
 
@@ -375,12 +356,21 @@ impl FsProviderContract for S3Provider {
         chunk: Option<i64>,
     ) -> AppResult<Streamer> {
         let filename = filename.filename()?;
-        if self.should_use_legacy(&filename, version).await {
+        if self.should_use_legacy(&filename, version).await? {
             return self.stream(&filename, chunk).await;
         }
 
+        // Probe the key directly rather than via `exists_v`: the legacy
+        // question is already settled above, and `exists_v` would re-ask it
+        // with another LIST.
         let chunk_indices: Vec<i64> = match chunk {
-            Some(c) => vec![c],
+            Some(c) => {
+                let key = self.versioned_chunk_key(&filename, version, c);
+                if head_size(&self.bucket, &key).await?.is_none() {
+                    return Err(Error::NotFound("chunk_not_found".to_string()));
+                }
+                vec![c]
+            }
             None => self.get_uploaded_chunks_v(&filename, version).await?,
         };
 
@@ -399,7 +389,7 @@ impl FsProviderContract for S3Provider {
         version: i32,
     ) -> AppResult<Streamer> {
         let filename = filename.filename()?;
-        if self.should_use_legacy(&filename, version).await {
+        if self.should_use_legacy(&filename, version).await? {
             return self.stream_tar(&filename).await;
         }
 
@@ -422,7 +412,7 @@ impl FsProviderContract for S3Provider {
         version: i32,
     ) -> AppResult<u64> {
         let filename = filename.filename()?;
-        if self.should_use_legacy(&filename, version).await {
+        if self.should_use_legacy(&filename, version).await? {
             return self.tar_content_length(&filename).await;
         }
 
@@ -461,7 +451,7 @@ impl FsProviderContract for S3Provider {
         let src = src.filename()?;
         let dst = dst.filename()?;
 
-        let src_is_legacy = self.should_use_legacy(&src, src_version).await;
+        let src_is_legacy = self.should_use_legacy(&src, src_version).await?;
 
         // Enumerate source chunks in the right layout.
         let (src_keys, src_indices): (Vec<String>, Vec<i64>) = if src_is_legacy {
@@ -502,19 +492,15 @@ impl FsProviderContract for S3Provider {
         // at the library level, but data written by an older server —
         // or manually prepared fixtures — could in theory exceed it.
         // Multipart-copy isn't wired up, so surface a clear error.
-        const COPY_OBJECT_MAX_BYTES: i64 = 5 * 1024 * 1024 * 1024;
+        const COPY_OBJECT_MAX_BYTES: u64 = 5 * 1024 * 1024 * 1024;
         for key in &src_keys {
-            let (head, _) = self.bucket.head_object(key).await.map_err(|e| {
-                Error::StorageError(format!("S3 head_object failed for '{}': {}", key, e))
-            })?;
-            if let Some(size) = head.content_length {
-                if size > COPY_OBJECT_MAX_BYTES {
-                    return Err(Error::InternalError(format!(
-                        "S3 copy_version source chunk '{}' is {} bytes, \
-                         exceeding the CopyObject single-op limit of 5 GiB",
-                        key, size
-                    )));
-                }
+            let size = required_chunk_size(&self.bucket, key).await?;
+            if size > COPY_OBJECT_MAX_BYTES {
+                return Err(Error::InternalError(format!(
+                    "S3 copy_version source chunk '{}' is {} bytes, \
+                     exceeding the CopyObject single-op limit of 5 GiB",
+                    key, size
+                )));
             }
         }
 
@@ -528,7 +514,7 @@ impl FsProviderContract for S3Provider {
             .map(|(src_key, dst_key)| {
                 let bucket = bucket.clone();
                 async move {
-                    bucket
+                    let status = bucket
                         .copy_object_internal(&src_key, &dst_key)
                         .await
                         .map_err(|e| {
@@ -537,6 +523,12 @@ impl FsProviderContract for S3Provider {
                                 src_key, dst_key, e
                             ))
                         })?;
+                    if !(200..300).contains(&status) {
+                        return Err(Error::StorageError(format!(
+                            "S3 copy_object for '{}' -> '{}' returned status {}",
+                            src_key, dst_key, status
+                        )));
+                    }
                     Ok::<(), Error>(())
                 }
             })
@@ -574,15 +566,11 @@ fn chunk_key_stream(
         (bucket, keys),
         |(bucket, mut keys)| async move {
             let key = keys.pop()?;
-            match bucket.get_object(&key).await {
-                Ok(response) => Some((Ok(Bytes::from(response.to_vec())), (bucket, keys))),
+            match get_object_bytes(&bucket, &key).await {
+                Ok(data) => Some((Ok(Bytes::from(data)), (bucket, keys))),
                 Err(e) => {
-                    let err = Error::StorageError(format!(
-                        "S3 stream read failed for '{}': {}",
-                        key, e
-                    ));
-                    log::error!("{}", err);
-                    Some((Err(err), (bucket, keys)))
+                    log::error!("S3 stream read failed for '{}': {}", key, e);
+                    Some((Err(e), (bucket, keys)))
                 }
             }
         },
@@ -624,20 +612,11 @@ fn tar_entry_stream(
             match state.phase {
                 Phase::NextEntry => {
                     if let Some((name, key)) = state.entries.pop() {
-                        let response = match state.bucket.get_object(&key).await {
-                            Ok(r) => r,
-                            Err(e) => {
-                                return Some((
-                                    Err(Error::StorageError(format!(
-                                        "S3 tar stream failed for '{}': {}",
-                                        key, e
-                                    ))),
-                                    state,
-                                ));
-                            }
+                        let data = match get_object_bytes(&state.bucket, &key).await {
+                            Ok(d) => d,
+                            Err(e) => return Some((Err(e), state)),
                         };
 
-                        let data = response.to_vec();
                         let size = data.len() as u64;
                         let header = tar::tar_header(&name, size);
                         state.phase = Phase::Data(data);
@@ -678,16 +657,7 @@ fn tar_entry_stream(
 async fn tar_total_length(bucket: &s3::Bucket, keys: Vec<String>) -> AppResult<u64> {
     let mut total: u64 = 0;
     for key in &keys {
-        let (head, status) = bucket.head_object(key).await.map_err(|e| {
-            Error::StorageError(format!("S3 head_object failed for '{}': {}", key, e))
-        })?;
-        if status == 404 {
-            return Err(Error::NotFound(format!(
-                "S3 chunk not found for tar length: {}",
-                key
-            )));
-        }
-        let size = head.content_length.unwrap_or(0) as u64;
+        let size = required_chunk_size(bucket, key).await?;
         total += 512 + size + tar::tar_padding_len(size) as u64;
     }
     total += tar::TAR_END_OF_ARCHIVE_LEN as u64;
@@ -719,34 +689,52 @@ async fn get_object_bytes(bucket: &s3::Bucket, key: &str) -> AppResult<Vec<u8>> 
     }
 }
 
-/// `HEAD` an object and translate rust-s3's "return the status code in the
-/// Ok tuple" behaviour into a plain bool. A 404 is absence; 2xx is presence;
-/// anything else surfaces as an error.
-async fn head_exists(bucket: &s3::Bucket, key: &str) -> AppResult<bool> {
-    match bucket.head_object(key).await {
-        Ok((_, status)) => {
-            if (200..300).contains(&status) {
-                Ok(true)
-            } else if status == 404 {
-                Ok(false)
-            } else {
-                Err(Error::StorageError(format!(
-                    "S3 head_object for '{}' returned unexpected status {}",
-                    key, status
-                )))
-            }
-        }
-        Err(e) => {
-            if S3Provider::is_not_found(&e) {
-                Ok(false)
-            } else {
-                Err(Error::StorageError(format!(
-                    "S3 head_object failed for '{}': {}",
-                    key, e
-                )))
-            }
-        }
+/// `PUT` an object, failing on any non-2xx. Without this a rejected write
+/// (quota, policy, expired credentials) reports success to the caller, which
+/// then records a chunk that isn't in the bucket.
+async fn put_object_checked(bucket: &s3::Bucket, key: &str, data: &[u8]) -> AppResult<()> {
+    let response = bucket
+        .put_object(key, data)
+        .await
+        .map_err(|e| Error::StorageError(format!("S3 put_object failed for '{}': {}", key, e)))?;
+    let status = response.status_code();
+    if (200..300).contains(&status) {
+        Ok(())
+    } else {
+        Err(Error::StorageError(format!(
+            "S3 put_object for '{}' returned status {}",
+            key, status
+        )))
     }
+}
+
+/// `HEAD` an object, returning its size or `None` when the key is absent.
+/// `rust-s3` reports a 404 either as the status inside an `Ok` tuple or as a
+/// stringly-typed `Err`, depending on the backend; both mean absence.
+async fn head_size(bucket: &s3::Bucket, key: &str) -> AppResult<Option<u64>> {
+    match bucket.head_object(key).await {
+        Ok((head, status)) if (200..300).contains(&status) => {
+            Ok(Some(head.content_length.unwrap_or(0) as u64))
+        }
+        Ok((_, 404)) => Ok(None),
+        Ok((_, status)) => Err(Error::StorageError(format!(
+            "S3 head_object for '{}' returned unexpected status {}",
+            key, status
+        ))),
+        Err(e) if S3Provider::is_not_found(&e) => Ok(None),
+        Err(e) => Err(Error::StorageError(format!(
+            "S3 head_object failed for '{}': {}",
+            key, e
+        ))),
+    }
+}
+
+/// Size of a chunk that must be there. Callers summing sizes would otherwise
+/// under-report a missing key as a zero-length object.
+async fn required_chunk_size(bucket: &s3::Bucket, key: &str) -> AppResult<u64> {
+    head_size(bucket, key)
+        .await?
+        .ok_or_else(|| Error::NotFound(format!("S3 chunk not found: {}", key)))
 }
 
 #[cfg(test)]

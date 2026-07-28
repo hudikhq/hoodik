@@ -35,6 +35,7 @@ function baseFile(overrides: Partial<AppFile> = {}): AppFile {
     file_id: null,
     file_modified_at: 0,
     created_at: 0,
+    finished_upload_at: 1_700_000_000,
     is_new: false,
     editable: false,
     active_version: 1,
@@ -153,6 +154,33 @@ describe('isPreviewable: shared image without decrypted thumbnail', () => {
       share_role: 'reader'
     })
     expect(isPreviewable(file)).toBe(false)
+  })
+
+  it('rejects a file whose upload never finished', () => {
+    const file = baseFile({
+      mime: 'image/png',
+      size: 12_345,
+      thumbnail: 'data:image/png;base64,XXX',
+      finished_upload_at: undefined
+    })
+    expect(isPreviewable(file)).toBe(false)
+  })
+})
+
+describe('TableFileRow: still-uploading row', () => {
+  it('marks the row as uploading instead of rendering it as complete', () => {
+    const wrapper = mountRow(baseFile({ finished_upload_at: undefined, chunks: 0 }))
+    const progress = wrapper.find('.border-greeny-500')
+
+    expect(wrapper.find('[data-testid="uploading-icon"]').exists()).toBe(true)
+    expect(progress.attributes('style')).toContain('width: 0%')
+  })
+
+  it('leaves a finished row without the uploading affordances', () => {
+    const wrapper = mountRow(baseFile())
+
+    expect(wrapper.find('[data-testid="uploading-icon"]').exists()).toBe(false)
+    expect(wrapper.find('.border-greeny-500').exists()).toBe(false)
   })
 })
 

@@ -37,6 +37,11 @@ pub trait FsProviderContract {
     async fn get_uploaded_chunks<T: IntoFilename>(&self, filename: &T) -> AppResult<Vec<i64>>;
 
     /// Return stream of either one file chunk, or all chunks if no file chunk is specified.
+    ///
+    /// A named chunk that isn't stored resolves to `NotFound` before the
+    /// `Streamer` is built: callers hand the stream to a response whose status
+    /// is already committed, so absence discovered mid-body reaches the client
+    /// as ciphertext-shaped garbage under a 200.
     async fn stream<T: IntoFilename>(
         &self,
         filename: &T,
@@ -96,7 +101,8 @@ pub trait FsProviderContract {
         version: i32,
     ) -> AppResult<Vec<i64>>;
 
-    /// Stream a single chunk or all chunks of a specific version.
+    /// Stream a single chunk or all chunks of a specific version. Same
+    /// up-front `NotFound` for a named-but-absent chunk as [`Self::stream`].
     async fn stream_v<T: IntoFilename>(
         &self,
         filename: &T,

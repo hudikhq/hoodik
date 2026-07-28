@@ -318,6 +318,13 @@ async function toggleFolder(node: TreeNode) {
 }
 
 function onFileClick(file: AppFile) {
+  // A file still uploading has no content to render — stay in its folder
+  // instead of routing into a preview that cannot decrypt.
+  if (!file.finished_upload_at) {
+    router.push({ name: 'files', params: { file_id: file.file_id ?? undefined } })
+    return
+  }
+
   if (isMarkdownFile(file)) {
     router.push({ name: 'notes', params: { id: file.id } })
   } else {

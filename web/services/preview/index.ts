@@ -17,6 +17,25 @@ export function isPreviewable(item: AppFile | AppLink): boolean {
  * Helper to check if the file is previewable
  */
 function isFilePreviewable(item: AppFile): boolean {
+  // A file whose chunks never landed has nothing to decrypt — the server
+  // answers with an error body and the cipher chokes on it.
+  if (!item.finished_upload_at) {
+    return false
+  }
+
+  return hasPreviewableContent(item)
+}
+
+/**
+ * The mime/size half of the check, run against [[Preview]] instances too —
+ * they carry the same shape but none of the file row's upload state.
+ */
+function hasPreviewableContent(item: {
+  size?: number
+  mime: string
+  thumbnail?: string
+  has_thumbnail?: boolean
+}): boolean {
   return (
     !!item.size &&
     item.size > 0 &&
@@ -173,7 +192,7 @@ export abstract class Preview {
    * Lets us know if the wrapped file can have a preview at all
    */
   public is(): boolean {
-    return isFilePreviewable(this as unknown as AppFile)
+    return hasPreviewableContent(this)
   }
 
   /**

@@ -38,6 +38,16 @@ pub(crate) async fn download(
         return Err(Error::Unauthorized("link_expired".to_string()));
     }
 
+    let fs = Fs::new(&context.config);
+
+    // Resolve the stream before touching the counter: a named-but-absent chunk
+    // fails here with `NotFound`, and a fetch that 404s is not a download.
+    let streamer = if link.file_editable {
+        fs.stream_v(&link, link.file_active_version, chunk).await?
+    } else {
+        fs.stream(&link, chunk).await?
+    };
+
     // Count one download per completed transfer, not per chunk request. The
     // client fetches the file as N chunks (`?chunk=i`); only the final index
     // closes a download, and a whole-file request (`chunk` omitted) is a single
@@ -50,13 +60,6 @@ pub(crate) async fn download(
     if chunk.is_none_or(|i| i as u64 == last_chunk) {
         repository.increment_downloads(link.id).await?;
     }
-
-    let fs = Fs::new(&context.config);
-    let streamer = if link.file_editable {
-        fs.stream_v(&link, link.file_active_version, chunk).await?
-    } else {
-        fs.stream(&link, chunk).await?
-    };
 
     // The name lives in the link's encrypted metadata; the client decrypts it
     // and renames the saved blob itself, so a generic disposition is enough.

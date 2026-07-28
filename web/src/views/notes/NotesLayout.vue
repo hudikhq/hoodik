@@ -24,6 +24,13 @@ async function loadFile(id: string) {
   loadError.value = false
   try {
     const file = await props.Storage.metadata(id, props.keypair)
+
+    // The editor renders markdown without consulting `is()`, so the upload
+    // gate has to be applied here or a half-uploaded note decrypts garbage.
+    if (!file.finished_upload_at) {
+      throw new Error('Upload has not finished')
+    }
+
     const p = new FilePreview(file, props.keypair)
     await p.loadItems()
     preview.value = p

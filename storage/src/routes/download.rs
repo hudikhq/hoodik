@@ -119,6 +119,20 @@ pub(crate) async fn head(
             .finish());
     }
 
+    // Repeat the existence check GET does: a 200 here would advertise a
+    // chunk that the GET on the same URL refuses with 404.
+    if let Some(chunk) = chunk {
+        let storage = Fs::new(&context.config);
+        let exists = if file.use_versioned_layout() {
+            storage.exists_v(&file, file.active_version, chunk).await?
+        } else {
+            storage.exists(&file, chunk).await?
+        };
+        if !exists {
+            return Err(Error::NotFound("chunk_not_found".to_string()));
+        }
+    }
+
     let filename = match chunk {
         Some(chunk) => file.filename()?.with_chunk(chunk).with_extension(".enc"),
         None => file.filename()?.with_extension(".enc"),
