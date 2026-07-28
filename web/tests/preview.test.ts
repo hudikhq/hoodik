@@ -35,6 +35,7 @@ function makeFile(partial: Partial<AppFile>): AppFile {
     active_version: 1,
     file_modified_at: 0,
     created_at: 0,
+    finished_upload_at: 1_700_000_000,
     is_new: false,
     ...partial
   } as AppFile
@@ -106,6 +107,15 @@ describe('isPreviewable (files)', () => {
   it('UNIT: zero-byte files are not previewable even if mime matches', () => {
     const file = makeFile({ mime: 'text/markdown', size: 0 })
     expect(isPreviewable(file)).toBe(false)
+  })
+
+  it('UNIT: a file whose upload never finished is not previewable', () => {
+    // Its chunks are missing on the server, so the preview would decrypt
+    // an error body instead of content.
+    for (const mime of ['image/png', 'application/pdf', 'text/markdown']) {
+      const file = makeFile({ mime, thumbnail: 'thumb', finished_upload_at: undefined })
+      expect(isPreviewable(file)).toBe(false)
+    }
   })
 })
 

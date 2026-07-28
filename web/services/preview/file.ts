@@ -1,4 +1,4 @@
-import { Preview } from '.'
+import { Preview, isPreviewable } from '.'
 import { store as FileStore } from '!/storage'
 import { downloadAndDecrypt, downloadChunk } from '!/storage/download/sync'
 import type { AppFile, KeyPair } from 'types'
@@ -15,6 +15,14 @@ export class FilePreview extends Preview implements Preview {
 
     this.file = file
     this.keypair = keypair
+  }
+
+  /**
+   * The wrapped row still carries the upload state the base class drops,
+   * so the gate holds for previews built straight from a route parameter.
+   */
+  public is(): boolean {
+    return isPreviewable(this.file)
   }
 
   /**
@@ -45,8 +53,8 @@ export class FilePreview extends Preview implements Preview {
     await store.find(this.keypair, this.file.file_id ?? undefined)
 
     this.items = store.items
+      .filter((i) => isPreviewable(i))
       .map((i) => new FilePreview(i, this.keypair as KeyPair))
-      .filter((i) => i.is())
   }
 
   /**

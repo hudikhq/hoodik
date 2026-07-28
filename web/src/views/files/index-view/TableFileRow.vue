@@ -10,7 +10,8 @@ import {
   mdiDotsVertical,
   mdiCloudSyncOutline,
   mdiFolderAccount,
-  mdiShareVariantOutline
+  mdiShareVariantOutline,
+  mdiUploadOutline
 } from '@mdi/js'
 import type { AppFile } from 'types'
 import { computed, ref } from 'vue'
@@ -93,8 +94,12 @@ const fileModifiedAt = computed(() => {
 const progressValue = computed(() => {
   const total = props.file.chunks
 
-  if (!total || props.file.finished_upload_at) {
+  if (props.file.finished_upload_at) {
     return 100
+  }
+
+  if (!total) {
+    return 0
   }
 
   const uploaded = props.file.chunks_stored || 0
@@ -200,7 +205,7 @@ const canWriteMarkdown = computed(() => {
 const detailsOrPreview = () => {
   if (props.file.finished_upload_at && isMarkdownFile(props.file) && canWriteMarkdown.value) {
     router.push({ name: 'notes', params: { id: props.file.id } })
-  } else if (props.file.finished_upload_at && isPreviewable(props.file)) {
+  } else if (isPreviewable(props.file)) {
     router.push({ name: 'file-preview', params: { id: props.file.id } })
   } else {
     emits('details', props.file)
@@ -285,7 +290,15 @@ const drop = (e: DragEvent) => {
       :title="fileName"
       @click="click"
     >
-      <FileThumbnail :file="file" img-class="w-6 h-6 mr-2 rounded-md" />
+      <FileThumbnail :file="file" img-class="w-6 h-6 mr-2 rounded-md">
+        <BaseIcon
+          v-if="showProgress"
+          :path="mdiUploadOutline"
+          :size="16"
+          class="mr-2 text-greeny-500 dark:text-greeny-400"
+          data-testid="uploading-icon"
+        />
+      </FileThumbnail>
 
       <BaseIcon
         v-if="file.id === SHARED_WITH_ME_DIR_ID"

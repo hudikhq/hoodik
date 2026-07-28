@@ -96,9 +96,7 @@ async fn upload_one_chunk(
         .target_chunks()
         .ok_or(Error::BadRequest("file_has_no_chunks".to_string()))?;
 
-    if chunk > target_chunks {
-        return Err(Error::as_validation("chunk", "chunk_out_of_range"));
-    }
+    super::upload_tar::validate_chunk_index(chunk, target_chunks)?;
 
     let chunk_exists = if versioned {
         storage.exists_v(&file, file.target_version(), chunk).await?

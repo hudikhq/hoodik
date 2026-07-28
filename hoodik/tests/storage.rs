@@ -1,7 +1,10 @@
 #[path = "./helpers.rs"]
 mod helpers;
 
-use actix_web::{http::StatusCode, test};
+use actix_web::{
+    http::{Method, StatusCode},
+    test,
+};
 use auth::data::transfer_token::TransferTokenResponse;
 use hoodik::server;
 use storage::data::app_file::AppFile;
@@ -956,4 +959,332 @@ async fn test_fork_creates_independent_copy() {
     fs.purge_all(&source).await.unwrap();
     fs.purge_all(&forked).await.unwrap();
     context.config.app.cleanup();
+}
+
+/// `chunks` is a count, so the only valid indices are `0..chunks`. Accepting
+/// `chunks` itself lets a client that numbers from one reach the finalize
+/// threshold with index 0 never written, stamping `finished_upload_at` on a
+/// file with a hole in it.
+#[actix_web::test]
+async fn test_upload_rejects_out_of_range_chunk_index() {
+    let context =
+        context::Context::mock_with_data_dir(Some("../data-test-chunk-range".to_string())).await;
+
+    let app = test::init_service(server::app(context.clone())).await;
+    let jwt = helpers::register_curve25519(&app, "range@test.com").await.jwt;
+
+    let file = create_three_chunk_file(&app, &jwt, "range-test.enc").await;
+
+    for index in ["3", "-1"] {
+        let payload = b"x".to_vec();
+        let uri = format!(
+            "/api/storage/{}?checksum={}&chunk={}",
+            &file.id,
+            cryptfns::sha256::digest(payload.as_slice()),
+            index
+        );
+
+        let req = test::TestRequest::post()
+            .uri(uri.as_str())
+            .cookie(jwt.clone())
+            .append_header(("Content-Type", "application/octet-stream"))
+            .set_payload(payload)
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "chunk index {index} must be rejected for a 3-chunk file"
+        );
+    }
+
+    context.config.app.cleanup();
+}
+
+/// A client numbering its chunks from one writes 1, 2, 3 for a 3-chunk file.
+/// Every one of those has to be judged against the valid range, and the file
+/// must stay unfinished.
+#[actix_web::test]
+async fn test_upload_one_based_indices_do_not_finish_file() {
+    let context =
+        context::Context::mock_with_data_dir(Some("../data-test-chunk-hole".to_string())).await;
+
+    let app = test::init_service(server::app(context.clone())).await;
+    let jwt = helpers::register_curve25519(&app, "hole@test.com").await.jwt;
+
+    let file = create_three_chunk_file(&app, &jwt, "hole-test.enc").await;
+
+    for index in 1..=3 {
+        let payload = format!("chunk-{index}").into_bytes();
+        let uri = format!(
+            "/api/storage/{}?checksum={}&chunk={}",
+            &file.id,
+            cryptfns::sha256::digest(payload.as_slice()),
+            index
+        );
+
+        let req = test::TestRequest::post()
+            .uri(uri.as_str())
+            .cookie(jwt.clone())
+            .append_header(("Content-Type", "application/octet-stream"))
+            .set_payload(payload)
+            .to_request();
+
+        test::call_service(&app, req).await;
+    }
+
+    let req = test::TestRequest::get()
+        .uri(format!("/api/storage/{}/metadata", &file.id).as_str())
+        .cookie(jwt.clone())
+        .to_request();
+    let body = test::call_and_read_body(&app, req).await;
+    let file: AppFile = serde_json::from_slice(&body).unwrap();
+
+    assert!(
+        file.finished_upload_at.is_none(),
+        "file with chunk 0 missing must not be finalized"
+    );
+
+    use fs::prelude::{Fs, FsProviderContract};
+    Fs::new(&context.config).purge_all(&file).await.unwrap();
+    context.config.app.cleanup();
+}
+
+/// The download route builds its response with `streaming`, which commits the
+/// 200 before a single byte is read. A chunk that was never written therefore
+/// used to come back as an empty or provider-error body under a success status,
+/// which the client fed to the cipher.
+#[actix_web::test]
+async fn test_download_missing_chunk_returns_404() {
+    let context =
+        context::Context::mock_with_data_dir(Some("../data-test-missing-chunk".to_string())).await;
+
+    let app = test::init_service(server::app(context.clone())).await;
+    let jwt = helpers::register_curve25519(&app, "missing@test.com").await.jwt;
+
+    let file = create_three_chunk_file(&app, &jwt, "missing-test.enc").await;
+
+    let payload = b"chunk-zero".to_vec();
+    let uri = format!(
+        "/api/storage/{}?checksum={}&chunk=0",
+        &file.id,
+        cryptfns::sha256::digest(payload.as_slice())
+    );
+    let req = test::TestRequest::post()
+        .uri(uri.as_str())
+        .cookie(jwt.clone())
+        .append_header(("Content-Type", "application/octet-stream"))
+        .set_payload(payload)
+        .to_request();
+    assert_eq!(test::call_service(&app, req).await.status(), StatusCode::OK);
+
+    let req = test::TestRequest::get()
+        .uri(format!("/api/storage/{}?chunk=1", &file.id).as_str())
+        .cookie(jwt.clone())
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+
+    let body = test::read_body(resp).await;
+    assert!(
+        !body.starts_with(b"<?xml"),
+        "404 body must not be a storage-provider error document: {}",
+        String::from_utf8_lossy(&body)
+    );
+
+    // HEAD has to agree with the GET above — a 200 here would advertise a
+    // chunk that cannot be fetched.
+    let req = test::TestRequest::with_uri(format!("/api/storage/{}?chunk=1", &file.id).as_str())
+        .method(Method::HEAD)
+        .cookie(jwt.clone())
+        .to_request();
+    assert_eq!(
+        test::call_service(&app, req).await.status(),
+        StatusCode::NOT_FOUND
+    );
+
+    let req = test::TestRequest::with_uri(format!("/api/storage/{}?chunk=0", &file.id).as_str())
+        .method(Method::HEAD)
+        .cookie(jwt.clone())
+        .to_request();
+    assert_eq!(
+        test::call_service(&app, req).await.status(),
+        StatusCode::OK,
+        "the chunk that was uploaded still HEADs 200"
+    );
+
+    use fs::prelude::{Fs, FsProviderContract};
+    Fs::new(&context.config).purge_all(&file).await.unwrap();
+    context.config.app.cleanup();
+}
+
+/// Editable files read through the versioned layout, a separate branch from
+/// the one above — and `GET /versions/{v}` streams through it too. A chunk
+/// that was never written must 404 on every one of those surfaces.
+#[actix_web::test]
+async fn test_versioned_download_missing_chunk_returns_404() {
+    let context = context::Context::mock_with_data_dir(Some(
+        "../data-test-missing-chunk-versioned".to_string(),
+    ))
+    .await;
+
+    let app = test::init_service(server::app(context.clone())).await;
+    let jwt = helpers::register_curve25519(&app, "missing-v@test.com")
+        .await
+        .jwt;
+
+    let create = storage::data::create_file::CreateFile {
+        encrypted_key: Some("encrypted-key".to_string()),
+        encrypted_name: Some("note.md".to_string()),
+        encrypted_thumbnail: None,
+        search_tokens_hashed: None,
+        name_hash: Some(cryptfns::sha256::digest(b"versioned-gap")),
+        mime: Some("text/markdown".to_string()),
+        size: Some(3),
+        chunks: Some(1),
+        file_id: None,
+        file_modified_at: None,
+        md5: None,
+        sha1: None,
+        sha256: None,
+        blake2b: None,
+        cipher: None,
+        editable: Some(true),
+    };
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(jwt.clone())
+        .set_json(&create)
+        .to_request();
+    let file: AppFile =
+        serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
+
+    let upload = |data: Vec<u8>| {
+        let app = &app;
+        let jwt = jwt.clone();
+        let file_id = file.id;
+        async move {
+            let req = test::TestRequest::post()
+                .uri(
+                    format!(
+                        "/api/storage/{}?chunk=0&checksum={}",
+                        file_id,
+                        cryptfns::sha256::digest(data.as_slice())
+                    )
+                    .as_str(),
+                )
+                .cookie(jwt)
+                .append_header(("Content-Type", "application/octet-stream"))
+                .set_payload(data)
+                .to_request();
+            serde_json::from_slice::<AppFile>(&test::call_and_read_body(app, req).await).unwrap()
+        }
+    };
+
+    // v1 lands and finalizes, then one edit moves the active pointer to v2
+    // and snapshots v1 into history. Both versions hold exactly one chunk.
+    let file = upload(b"AAA".to_vec()).await;
+    assert_eq!(file.active_version, 1);
+
+    let req = test::TestRequest::put()
+        .uri(format!("/api/storage/{}/content", file.id).as_str())
+        .cookie(jwt.clone())
+        .set_json(serde_json::json!({ "size": 3, "chunks": 1 }))
+        .to_request();
+    let _ = test::call_and_read_body(&app, req).await;
+
+    let file = upload(b"BBB".to_vec()).await;
+    assert_eq!(file.active_version, 2, "edit finalized into v2");
+
+    let req = test::TestRequest::get()
+        .uri(format!("/api/storage/{}?chunk=1", file.id).as_str())
+        .cookie(jwt.clone())
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::NOT_FOUND,
+        "active version has one chunk; index 1 is a hole"
+    );
+    let body = test::read_body(resp).await;
+    assert!(
+        !body.starts_with(b"<?xml"),
+        "404 body must not be a storage-provider error document: {}",
+        String::from_utf8_lossy(&body)
+    );
+
+    let req = test::TestRequest::with_uri(format!("/api/storage/{}?chunk=1", file.id).as_str())
+        .method(Method::HEAD)
+        .cookie(jwt.clone())
+        .to_request();
+    assert_eq!(
+        test::call_service(&app, req).await.status(),
+        StatusCode::NOT_FOUND
+    );
+
+    let req = test::TestRequest::get()
+        .uri(format!("/api/storage/{}/versions/1?chunk=1", file.id).as_str())
+        .cookie(jwt.clone())
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::NOT_FOUND,
+        "history route must not stream a hole either"
+    );
+    let body = test::read_body(resp).await;
+    assert!(
+        !body.starts_with(b"<?xml"),
+        "404 body must not be a storage-provider error document: {}",
+        String::from_utf8_lossy(&body)
+    );
+
+    // The probe must not reject chunks that are actually there.
+    let req = test::TestRequest::get()
+        .uri(format!("/api/storage/{}/versions/1?chunk=0", file.id).as_str())
+        .cookie(jwt.clone())
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(test::read_body(resp).await, b"AAA".as_ref());
+
+    use fs::prelude::{Fs, FsProviderContract};
+    Fs::new(&context.config).purge_all(&file).await.unwrap();
+    context.config.app.cleanup();
+}
+
+/// Three declared chunks, none uploaded. Payloads stay tiny — these tests are
+/// about index bookkeeping, not transfer volume.
+async fn create_three_chunk_file(
+    app: &impl helpers::TestApp,
+    jwt: &actix_web::cookie::Cookie<'static>,
+    name: &str,
+) -> AppFile {
+    let create_file = storage::data::create_file::CreateFile {
+        encrypted_key: Some("encrypted-key".to_string()),
+        encrypted_name: Some(name.to_string()),
+        encrypted_thumbnail: None,
+        search_tokens_hashed: None,
+        name_hash: Some(cryptfns::sha256::digest(name.as_bytes())),
+        mime: Some("application/octet-stream".to_string()),
+        size: Some(30),
+        chunks: Some(3),
+        file_id: None,
+        file_modified_at: None,
+        md5: None,
+        sha1: None,
+        sha256: None,
+        blake2b: None,
+        cipher: None,
+        editable: None,
+    };
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(jwt.clone())
+        .set_json(&create_file)
+        .to_request();
+
+    serde_json::from_slice(&test::call_and_read_body(app, req).await).unwrap()
 }

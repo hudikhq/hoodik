@@ -46,7 +46,7 @@ async function loadRecent() {
     })
   )
 
-  notes.value = items.filter((f) => f.mime !== 'dir' && isMarkdownFile(f))
+  notes.value = items.filter((f) => f.mime !== 'dir' && !!f.finished_upload_at && isMarkdownFile(f))
   loading.value = false
 }
 
@@ -55,7 +55,9 @@ async function searchNotes(q: string) {
 
   try {
     const results = await search(q, props.keypair, { editable: true, limit: 50 })
-    notes.value = results.filter((f) => f.mime !== 'dir' && isMarkdownFile(f))
+    notes.value = results.filter(
+      (f) => f.mime !== 'dir' && !!f.finished_upload_at && isMarkdownFile(f)
+    )
   } catch {
     notes.value = []
   }

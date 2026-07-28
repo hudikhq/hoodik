@@ -3,6 +3,9 @@ import { randomEmail, randomPassword, createUser, logout, loginAsUser } from './
 import path from 'path'
 
 const imageFixture = path.join(__dirname, 'fixtures', 'test-image.png')
+const batchFixtures = ['test-image.png', 'test-image2.png', 'test.pdf', 'test-video.mp4'].map(
+  (name) => path.join(__dirname, 'fixtures', name)
+)
 
 async function setup(page: Parameters<typeof createUser>[0]) {
   const email = randomEmail()
@@ -55,6 +58,47 @@ test.describe('Upload', () => {
     await loginAsUser(page, email, password)
     await expect(page.getByTestId('file-row-test-image.png')).toBeVisible()
     await expect(page.locator('img[name="thumbnail"][alt="test-image.png"]')).toBeVisible()
+  })
+
+  test('a batch of files stays visible in the queue and every file lands complete', async ({
+    page
+  }) => {
+    await setup(page)
+
+    const created: number[] = []
+    page.on('response', (response) => {
+      const url = new URL(response.url())
+      if (response.request().method() === 'POST' && url.pathname === '/api/storage') {
+        created.push(response.status())
+      }
+    })
+
+    await page.setInputFiles('[name="upload-file-input"]', batchFixtures)
+
+    // Metadata is created one file at a time; once the last POST is back the
+    // whole batch is queued and only one file can be transferring.
+    await expect.poll(() => created.length, { timeout: 60_000 }).toBe(batchFixtures.length)
+
+    // Pin the sentinel up before waiting for it to go away, otherwise a
+    // sentinel that never rendered would satisfy that wait immediately.
+    await expect(page.getByTestId('upload-active')).toHaveCount(1)
+
+    await page.getByTestId('upload-active').waitFor({ state: 'hidden', timeout: 120_000 })
+
+    const listing = await page.request.get('/api/storage')
+    expect(listing.ok()).toBeTruthy()
+
+    const children = (await listing.json()).children as {
+      chunks: number
+      chunks_stored: number | null
+      finished_upload_at: number | null
+    }[]
+
+    expect(children).toHaveLength(batchFixtures.length)
+    for (const row of children) {
+      expect(row.chunks_stored).toBe(row.chunks)
+      expect(row.finished_upload_at).not.toBeNull()
+    }
   })
 })
 

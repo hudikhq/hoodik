@@ -76,12 +76,21 @@ async fn delete_individually(bucket: &s3::Bucket, keys: &[String]) -> AppResult<
         .map(|key| {
             let bucket = bucket.clone();
             async move {
-                bucket.delete_object(&key).await.map_err(|e| {
+                let response = bucket.delete_object(&key).await.map_err(|e| {
                     Error::StorageError(format!(
                         "S3 delete_object failed for '{}': {}",
                         key, e
                     ))
                 })?;
+                // A 404 means the key is already gone, which is the outcome
+                // the caller asked for; anything else non-2xx leaves an orphan.
+                let status = response.status_code();
+                if !(200..300).contains(&status) && status != 404 {
+                    return Err(Error::StorageError(format!(
+                        "S3 delete_object for '{}' returned status {}",
+                        key, status
+                    )));
+                }
                 Ok::<(), Error>(())
             }
         })

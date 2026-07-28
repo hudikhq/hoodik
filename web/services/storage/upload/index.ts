@@ -188,6 +188,10 @@ export const store = defineStore('upload', () => {
 
     if (running.value.length < FILES_UPLOADING_AT_ONE_TIME) {
       batch = waiting.value.splice(0, FILES_UPLOADING_AT_ONE_TIME - running.value.length)
+
+      // Until the worker acknowledges it, a dispatched file would belong to
+      // no list at all, and so fall outside the concurrency limit.
+      running.value.push(...batch)
     }
 
     return new Promise((resolve) => {

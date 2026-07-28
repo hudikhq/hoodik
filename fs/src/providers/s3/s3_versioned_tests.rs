@@ -15,6 +15,7 @@
 use crate::filename::Filename;
 use crate::providers::s3::S3Provider;
 use crate::{contract::FsProviderContract, MAX_CHUNK_SIZE_BYTES};
+use futures_util::stream::StreamExt;
 use uuid::Uuid;
 
 // ---------------------------------------------------------------------------
@@ -294,6 +295,42 @@ async fn s3_purge_all_removes_versions_and_legacy() {
         .await
         .unwrap()
         .is_empty());
+}
+
+/// `rust-s3` is built without `fail-on-err`, so a `NoSuchKey` arrives as an
+/// `Ok` whose body is S3's `<Error>` XML. Streamed straight through, the client
+/// hands that XML to the cipher and reports a decryption failure instead of a
+/// missing chunk. Both stream entry points have to resolve the absence before
+/// they hand back a `Streamer`, because the caller has already committed a 200
+/// by the time it polls one.
+#[tokio::test]
+async fn s3_stream_missing_chunk_is_not_found() {
+    let s = scope().await;
+
+    let versioned = fname();
+    s.p().push_v(&versioned, 2, 0, b"present").await.unwrap();
+    assert_not_found(s.p().stream_v(&versioned, 2, Some(9)).await.err(), "stream_v");
+    assert_not_found(s.p().pull_v(&versioned, 2, 9).await.err(), "pull_v");
+
+    let legacy = fname();
+    s.p().push(&legacy, 0, b"present").await.unwrap();
+    assert_not_found(s.p().stream(&legacy, Some(9)).await.err(), "stream");
+    assert_not_found(s.p().pull(&legacy, 9).await.err(), "pull");
+
+    // A chunk that is there still streams its bytes.
+    let streamer = s.p().stream_v(&versioned, 2, Some(0)).await.unwrap();
+    let mut stream = Box::pin(streamer.stream());
+    let bytes = stream.next().await.unwrap().unwrap();
+    assert_eq!(bytes.as_ref(), b"present");
+
+    s.clean().await;
+}
+
+fn assert_not_found(err: Option<error::Error>, what: &str) {
+    match err {
+        Some(e) => assert!(e.is_not_found(), "{what}: expected NotFound, got {e:?}"),
+        None => panic!("{what}: missing chunk resolved Ok"),
+    }
 }
 
 /// Bulk-delete path: stage 1050 tiny versioned chunks, then purge. This

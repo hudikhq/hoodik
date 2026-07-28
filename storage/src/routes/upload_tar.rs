@@ -209,7 +209,10 @@ fn parse_chunk_name(name: &str) -> AppResult<i64> {
         .map_err(|_| Error::BadRequest(format!("tar_entry_not_integer_index: {name}")))
 }
 
-fn validate_chunk_index(chunk_index: i64, target_chunks: i64) -> AppResult<()> {
+/// `target_chunks` is a count, so `0..target_chunks` are the only valid
+/// indices. Shared with the per-chunk route so the two upload paths can't
+/// drift on what "in range" means.
+pub(super) fn validate_chunk_index(chunk_index: i64, target_chunks: i64) -> AppResult<()> {
     if chunk_index < 0 || chunk_index >= target_chunks {
         return Err(Error::as_validation("chunk", "chunk_out_of_range"));
     }

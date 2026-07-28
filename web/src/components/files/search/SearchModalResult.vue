@@ -28,6 +28,12 @@ const url = computed(() => {
     return { name: 'files', params: { file_id: props.file.id } }
   }
 
+  // A file still uploading has no content to render — keep the result in
+  // its folder instead of routing into a preview that cannot decrypt.
+  if (!props.file.finished_upload_at) {
+    return { name: 'files', params: { file_id: props.file.file_id ?? undefined } }
+  }
+
   if (isMarkdownFile(props.file) && canWrite.value) {
     return { name: 'notes', params: { id: props.file.id } }
   }

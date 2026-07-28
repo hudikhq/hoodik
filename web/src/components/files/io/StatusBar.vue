@@ -177,8 +177,13 @@ window.addEventListener('keydown', (e) => {
     :class="{ 'w-full xl:w-2/5': showTable }"
     style="padding-bottom: env(safe-area-inset-bottom, 0px)"
   >
-    <!-- Sentinel for e2e tests: present while any upload/download is actively running -->
-    <span v-if="activeItems > 0" data-testid="upload-active" class="sr-only" aria-hidden="true" />
+    <!-- Sentinel for e2e tests: present while any upload/download is queued or running -->
+    <span
+      v-if="activeItems + pendingItems > 0"
+      data-testid="upload-active"
+      class="sr-only"
+      aria-hidden="true"
+    />
 
     <!-- Header bar -->
     <div

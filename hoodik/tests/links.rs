@@ -320,3 +320,126 @@ async fn test_link_download_decrypts_aegis256_file() {
 
     context.config.app.cleanup();
 }
+
+/// The anonymous link route streams too, so a chunk that was never written
+/// used to reach the recipient under a 200 and get handed to the cipher.
+/// Absence has to be a 404, and it must not consume the download counter.
+///
+/// The fixture declares a size spanning two chunks and then uploads only the
+/// first, so the missing chunk is also the *last* one — the single index that
+/// the route counts as a completed download. Any smaller declared size makes
+/// the counter assertion below pass no matter where the increment happens.
+#[actix_web::test]
+async fn test_link_download_missing_chunk_returns_404() {
+    let context =
+        context::Context::mock_with_data_dir(Some("../data-test-links-missing".to_string())).await;
+
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let owner = helpers::seed_legacy_user(&context.db, "gap@doe.com").await;
+
+    let req = test::TestRequest::post()
+        .uri("/api/auth/login")
+        .set_json(json!({ "email": "gap@doe.com", "password": helpers::LEGACY_PASSWORD }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    let (jwt, _) = helpers::extract_cookies(resp.headers());
+    let jwt = jwt.unwrap();
+
+    let create_file = storage::data::create_file::CreateFile {
+        encrypted_key: Some("encrypted-gibberish".to_string()),
+        encrypted_name: Some("name".to_string()),
+        encrypted_thumbnail: None,
+        search_tokens_hashed: None,
+        name_hash: Some(cryptfns::sha256::digest(b"gap")),
+        mime: Some("text/plain".to_string()),
+        size: Some(fs::MAX_CHUNK_SIZE_BYTES as i64 + 1),
+        chunks: Some(2),
+        file_id: None,
+        file_modified_at: None,
+        md5: None,
+        sha1: None,
+        sha256: None,
+        blake2b: None,
+        cipher: None,
+        editable: None,
+    };
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(jwt.clone())
+        .set_json(&create_file)
+        .to_request();
+    let file: AppFile =
+        serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
+
+    let payload = b"chunk-zero".to_vec();
+    let uri = format!(
+        "/api/storage/{}?checksum={}&chunk=0",
+        &file.id,
+        cryptfns::sha256::digest(payload.as_slice())
+    );
+    let req = test::TestRequest::post()
+        .uri(uri.as_str())
+        .cookie(jwt.clone())
+        .append_header(("Content-Type", "application/octet-stream"))
+        .set_payload(payload)
+        .to_request();
+    test::call_service(&app, req).await;
+
+    let link_key = cryptfns::aes::generate_key().unwrap();
+    let link_key_hex = cryptfns::hex::encode(link_key.clone());
+    let create_link = links::data::create_link::CreateLink {
+        file_id: Some(file.id.to_string()),
+        signature: Some(
+            cryptfns::rsa::private::sign(file.id.to_string().as_str(), &owner.rsa_private).unwrap(),
+        ),
+        encrypted_name: Some(cryptfns::hex::encode(
+            cryptfns::aes::encrypt(link_key.clone(), b"gap.txt".to_vec()).unwrap(),
+        )),
+        encrypted_link_key: Some(
+            cryptfns::rsa::public::encrypt(&link_key_hex, &owner.rsa_public).unwrap(),
+        ),
+        encrypted_thumbnail: None,
+        encrypted_file_key: Some(cryptfns::hex::encode(
+            cryptfns::aes::encrypt(link_key, b"file-key".to_vec()).unwrap(),
+        )),
+        expires_at: None,
+    };
+    let req = test::TestRequest::post()
+        .uri("/api/links")
+        .cookie(jwt.clone())
+        .set_json(create_link)
+        .to_request();
+    let link: AppLink = serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
+
+    let req = test::TestRequest::post()
+        .uri(&format!("/api/links/{}?chunk=1", link.id))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), actix_web::http::StatusCode::NOT_FOUND);
+
+    let body = test::read_body(resp).await;
+    assert!(
+        !body.starts_with(b"<?xml"),
+        "404 body must not be a storage-provider error document: {}",
+        String::from_utf8_lossy(&body)
+    );
+
+    use entity::EntityTrait;
+    let downloads = entity::links::Entity::find_by_id(link.id)
+        .one(&context.db)
+        .await
+        .unwrap()
+        .unwrap()
+        .downloads;
+    assert_eq!(
+        downloads, 0,
+        "the missing chunk is the last one, so counting it before the stream \
+         resolved would have registered a download that never happened"
+    );
+
+    use fs::prelude::{Fs, FsProviderContract};
+    Fs::new(&context.config).purge_all(&file).await.unwrap();
+    context.config.app.cleanup();
+}
