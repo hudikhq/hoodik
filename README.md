@@ -86,7 +86,7 @@ The cipher used to encrypt each file is stored in the database (`files.cipher`),
 
 ## Hoodik Cloud
 
-If you'd rather not run a server, [Hoodik Cloud](https://hoodik.cloud) is the managed version, run by us on the same open-source code. The encryption is identical — files are encrypted in the browser and the server only ever stores ciphertext. There is no lock-in: you can export your whole instance at any time and get a runnable copy of Hoodik with your encrypted data inside, ready to self-host with Docker.
+If you'd rather not run a server, [Hoodik Cloud](https://hoodik.cloud) is the managed version, run by us on the same publicly auditable code. The encryption is identical — files are encrypted in the browser and the server only ever stores ciphertext. There is no lock-in: you can export your whole instance at any time and get a runnable copy of Hoodik with your encrypted data inside, ready to self-host with Docker.
 
 ---
 
