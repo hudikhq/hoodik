@@ -333,7 +333,11 @@ function onPeopleCancel(): void {
     :hide-submit="true"
     @cancel="close"
   >
-    <div class="sticky top-0 z-10 -mx-4 px-4 -mt-4 pt-4 pb-2 bg-white dark:bg-brownish-900 border-b border-brownish-200 dark:border-brownish-700">
+    <!-- -top-4 compensates for the scroll container's p-4: sticky refuses to
+         enter the scrollport's padding, which left a page-toned strip above
+         the header. The bg must match the modal card so the header reads as
+         part of the same surface. -->
+    <div class="sticky -top-4 z-10 -mx-4 px-4 -mt-4 pt-4 pb-2 bg-white dark:bg-brownish-800 border-b border-paper-300 dark:border-brownish-700">
       <div class="flex items-start justify-between gap-3 mb-3">
         <div class="flex items-start gap-2 min-w-0">
           <BaseIcon :path="titleIcon" :size="24" class="shrink-0 mt-0.5 text-brownish-300 dark:text-brownish-200" />
@@ -346,7 +350,7 @@ function onPeopleCancel(): void {
             </h2>
             <span
               v-if="callerRoleLabel"
-              class="inline-block mt-1 text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-brownish-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200"
+              class="inline-block mt-1 text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-paper-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200"
               data-testid="sharing-modal-role-badge"
             >
               {{ callerRoleLabel }}
@@ -355,7 +359,7 @@ function onPeopleCancel(): void {
         </div>
         <button
           type="button"
-          class="shrink-0 -mt-1 -mr-1 w-11 h-11 inline-flex items-center justify-center rounded-full text-brownish-400 hover:text-brownish-100 hover:bg-brownish-100 dark:hover:bg-brownish-800 transition-colors"
+          class="shrink-0 -mt-1 -mr-1 w-11 h-11 inline-flex items-center justify-center rounded-full text-brownish-400 hover:text-brownish-100 hover:bg-paper-100 dark:hover:bg-brownish-800 transition-colors"
           :title="$t('common.close')"
           data-testid="sharing-modal-close"
           @click.prevent="close"
@@ -366,7 +370,7 @@ function onPeopleCancel(): void {
 
       <div
         v-if="!canWrite"
-        class="mb-2 px-3 py-2 rounded-lg text-xs sm:text-sm bg-brownish-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200"
+        class="mb-2 px-3 py-2 rounded-lg text-xs sm:text-sm bg-paper-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200"
         data-testid="sharing-modal-readonly-banner"
       >
         {{ readOnlyExplanation }}
@@ -423,7 +427,7 @@ function onPeopleCancel(): void {
       />
       <div
         v-if="isFolder && props.file"
-        class="border-t border-brownish-200 dark:border-brownish-700 pt-4"
+        class="border-t border-paper-300 dark:border-brownish-700 pt-4"
       >
         <SharingPeopleAdd
           :file="props.file"
@@ -454,7 +458,7 @@ function onPeopleCancel(): void {
           </p>
           <p
             v-else-if="userGrants.length === 0"
-            class="text-sm text-brownish-300 px-3 py-3 rounded-lg bg-brownish-50 dark:bg-brownish-800/40"
+            class="text-sm text-brownish-300 px-3 py-3 rounded-lg bg-paper-50 dark:bg-brownish-800/40"
             data-testid="sharing-modal-people-empty"
           >
             {{ $t('shares.modal.peopleEmpty') }}
@@ -463,7 +467,7 @@ function onPeopleCancel(): void {
             <li
               v-for="grant in userGrants"
               :key="grant.recipient_id"
-              class="px-3 py-2 rounded-lg bg-brownish-50 dark:bg-brownish-800/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+              class="px-3 py-2 rounded-lg bg-paper-50 dark:bg-brownish-800/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
               :data-testid="`sharing-modal-people-row-${grant.recipient_id}`"
             >
               <div class="min-w-0 sm:flex-1">
@@ -477,7 +481,7 @@ function onPeopleCancel(): void {
               </div>
               <div class="flex items-center justify-end gap-1.5 shrink-0">
                 <span
-                  class="text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-brownish-200 dark:bg-brownish-700 text-brownish-700 dark:text-brownish-100"
+                  class="text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-paper-200 dark:bg-brownish-700 text-brownish-700 dark:text-brownish-100"
                   :data-testid="`sharing-modal-role-badge-${grant.recipient_id}`"
                 >
                   {{ roleLabel(grant.user.share_role) }}
@@ -508,7 +512,7 @@ function onPeopleCancel(): void {
           </ul>
         </div>
 
-        <div class="border-t border-brownish-200 dark:border-brownish-700 pt-4">
+        <div class="border-t border-paper-300 dark:border-brownish-700 pt-4">
           <SharingPeopleAdd
             :file="props.file"
             :authenticated-user-id="props.authenticatedUserId"

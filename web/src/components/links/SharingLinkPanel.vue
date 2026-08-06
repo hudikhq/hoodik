@@ -15,6 +15,7 @@ import PuppyLoader from '@/components/ui/PuppyLoader.vue'
 import { AppField, AppDateTime } from '@/components/form'
 
 import { formatPrettyDate, formatSize, localDateFromUtcString } from '!/index'
+import { prettyMime } from '@/utils/mime'
 import * as logger from '!/logger'
 import { unwrapOwnLinkKey } from '!/links/crypto'
 import { useRouter } from 'vue-router'
@@ -223,7 +224,7 @@ watch(
       </div>
 
       <dl
-        class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 px-3 py-3 rounded-lg bg-brownish-50 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700 text-sm"
+        class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 px-3 py-3 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700 text-sm"
       >
         <div class="flex justify-between sm:flex-col gap-1">
           <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('common.name') }}</dt>
@@ -231,7 +232,9 @@ watch(
         </div>
         <div class="flex justify-between sm:flex-col gap-1">
           <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('common.type') }}</dt>
-          <dd class="truncate text-right sm:text-left">{{ link.file_mime }}</dd>
+          <dd class="truncate text-right sm:text-left" :title="link.file_mime">
+            {{ prettyMime(link.file_mime) }}
+          </dd>
         </div>
         <div class="flex justify-between sm:flex-col gap-1">
           <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('common.size') }}</dt>
@@ -243,16 +246,16 @@ watch(
         </div>
         <div class="flex justify-between sm:flex-col gap-1">
           <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('links.panel.fileCreated') }}</dt>
-          <dd class="text-right sm:text-left">{{ created }}</dd>
+          <dd class="text-right sm:text-left">{{ fileModifiedAt }}</dd>
         </div>
         <div class="flex justify-between sm:flex-col gap-1">
           <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('links.panel.linkCreated') }}</dt>
-          <dd class="text-right sm:text-left">{{ fileModifiedAt }}</dd>
+          <dd class="text-right sm:text-left">{{ created }}</dd>
         </div>
       </dl>
 
       <div
-        class="flex items-center justify-between gap-2 px-3 py-3 rounded-lg bg-brownish-50 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700"
+        class="flex items-center justify-between gap-2 px-3 py-3 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700"
         v-if="!editExpire"
       >
         <div class="min-w-0">
@@ -282,7 +285,7 @@ watch(
       </div>
       <div
         v-else
-        class="flex flex-col sm:flex-row sm:items-end gap-2 px-3 py-3 rounded-lg bg-brownish-50 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700"
+        class="flex flex-col sm:flex-row sm:items-end gap-2 px-3 py-3 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700"
       >
         <div class="flex-1 min-w-0">
           <AppDateTime
@@ -323,7 +326,7 @@ watch(
         </div>
       </div>
     </div>
-    <div v-else class="space-y-4 px-3 py-4 rounded-lg bg-brownish-50 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700">
+    <div v-else class="space-y-4 px-3 py-4 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700">
       <p class="text-sm text-brownish-700 dark:text-brownish-200">
         {{ $t('links.panel.noLinkYet') }}
       </p>
