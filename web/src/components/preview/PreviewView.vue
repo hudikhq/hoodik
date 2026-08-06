@@ -126,9 +126,11 @@ onUnmounted(() => {
 
 <template>
   <Suspense>
+    <!-- The viewer canvas is always near-black, so its controls must use the
+         dark palette even when the app is in light mode. -->
     <div
       v-if="preview"
-      class="fixed top-0 left-0 flex flex-col items-center justify-center w-full h-full bg-brownish-950 text-brownish-100 pt-12"
+      class="dark fixed top-0 left-0 flex flex-col items-center justify-center w-full h-full bg-brownish-950 text-brownish-100 pt-12"
       :class="{
         'pb-20': previewType !== 'pdf' && previewType !== 'markdown'
       }"

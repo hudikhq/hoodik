@@ -191,7 +191,7 @@ const drop = (e: DragEvent) => {
   }
 }
 
-const borderClass = 'sm:border-l sm:border-brownish-50 sm:dark:border-brownish-950'
+const borderClass = 'sm:border-l sm:border-paper-300 sm:dark:border-brownish-950'
 
 const sizes = {
   checkbox: 'pl-2 pt-3 w-10 shrink-0',
@@ -205,7 +205,7 @@ const sizes = {
 
 <template>
   <div
-    class="w-full p-2 mb-2 flex rounded-t-md bg-brownish-100 dark:bg-brownish-900 gap-4"
+    class="w-full p-2 mb-2 flex rounded-t-md bg-paper-100 dark:bg-brownish-900 gap-4"
     v-if="showActions"
   >
     <span
@@ -346,14 +346,14 @@ const sizes = {
     :class="{
       'border-2 border-redish-300 border-spacing-0 m-[-2px]': isDropZone
     }"
-    class="bg-white dark:bg-brownish-900 rounded-lg border border-brownish-200/40 dark:border-brownish-700/40"
+    class="bg-white dark:bg-brownish-900 rounded-lg border border-paper-300/40 dark:border-brownish-700/40"
     @dragenter="dragover"
     @dragleave="dragend"
     @dragend="dragend"
     @dragover="dragover"
     @drop="drop"
   >
-    <div class="w-full flex rounded-t-lg bg-brownish-100 dark:bg-brownish-950 border-b border-brownish-200 dark:border-brownish-700/40">
+    <div class="w-full flex rounded-t-lg bg-paper-100 dark:bg-brownish-950 border-b border-paper-300 dark:border-brownish-700/40">
       <div :class="sizes.checkbox">
         <TableCheckboxCell v-model="checked" v-if="!props.hideCheckbox" />
       </div>
@@ -399,7 +399,7 @@ const sizes = {
 
     <div
       v-if="props.error"
-      class="w-full rounded-b-lg bg-brownish-50 dark:bg-brownish-900 py-10 flex flex-col items-center gap-3"
+      class="w-full rounded-b-lg bg-paper-50 dark:bg-brownish-900 py-10 flex flex-col items-center gap-3"
       data-testid="files-error"
     >
       <span class="text-sm text-brownish-300 dark:text-brownish-100 px-6 text-center">
@@ -411,7 +411,7 @@ const sizes = {
          only covers a folder we know nothing about yet. -->
     <div
       v-else-if="props.loading && !props.items.length"
-      class="w-full pt-20 rounded-b-lg bg-brownish-50 dark:bg-brownish-900 h-52 text-center"
+      class="w-full pt-20 rounded-b-lg bg-paper-50 dark:bg-brownish-900 h-52 text-center"
     >
       <span class="w-1/2 h-1/2">
         <SpinnerIcon :size="200" />
@@ -419,7 +419,7 @@ const sizes = {
     </div>
     <div
       v-else-if="!props.items.length"
-      class="w-full rounded-b-lg bg-brownish-50 dark:bg-brownish-900 py-14 flex flex-col items-center gap-1"
+      class="w-full rounded-b-lg bg-paper-50 dark:bg-brownish-900 py-14 flex flex-col items-center gap-1"
       data-testid="files-empty"
     >
       <span class="text-brownish-300 dark:text-brownish-100">{{

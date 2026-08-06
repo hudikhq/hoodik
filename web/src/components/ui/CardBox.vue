@@ -36,8 +36,8 @@ const componentClass = computed(() => {
     props.flex,
     'border',
     props.isModal
-      ? 'border-brownish-200 dark:border-brownish-600'
-      : 'border-brownish-200/40 dark:border-brownish-700/40',
+      ? 'border-paper-300 dark:border-brownish-600'
+      : 'border-paper-300/40 dark:border-brownish-700/40',
     props.isModal ? 'shadow-2xl' : 'shadow-sm dark:shadow-none',
     props.isModal ? 'dark:bg-brownish-800' : 'dark:bg-brownish-900'
   ]

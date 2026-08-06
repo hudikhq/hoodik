@@ -59,8 +59,7 @@ const verifiedAgeLabel = computed(() => {
         />
         <BaseButton
           :label="$t('common.cancel')"
-          color="info"
-          outline
+          color="light"
           data-testid="fingerprint-mismatch-cancel"
           @click="emit('cancel')"
         />

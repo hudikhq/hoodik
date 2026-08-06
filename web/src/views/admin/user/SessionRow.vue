@@ -25,7 +25,7 @@ const expiresAt = computed(() => formatPrettyDate(props.session.expires_at))
     <td :data-label="$t('admin.expires')">{{ expiresAt }}</td>
     <td :data-label="$t('admin.status')">
       <span v-if="session.active" class="inline-flex items-center text-xs font-medium bg-blueish-500/15 text-blueish-400 px-2 py-0.5 rounded-full">{{ $t('admin.sessions.active') }}</span>
-      <span v-else class="inline-flex items-center text-xs font-medium bg-brownish-100 dark:bg-brownish-700 text-brownish-400 px-2 py-0.5 rounded-full">{{ $t('admin.sessions.revoked') }}</span>
+      <span v-else class="inline-flex items-center text-xs font-medium bg-paper-100 dark:bg-brownish-700 text-brownish-400 px-2 py-0.5 rounded-full">{{ $t('admin.sessions.revoked') }}</span>
     </td>
     <td>
       <BaseButtonConfirm

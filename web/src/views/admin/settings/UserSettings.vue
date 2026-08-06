@@ -25,14 +25,14 @@ const data = computed({
 </script>
 <template>
   <CardBox :class="props.class" v-if="data">
-    <div class="-mx-4 -mt-4 px-6 py-5 border-b border-brownish-100 dark:border-brownish-700/50 rounded-t-2xl">
+    <div class="-mx-4 -mt-4 px-6 py-5 border-b border-paper-200 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex items-center gap-2">
         <BaseIcon :path="mdiAccountPlus" :size="14" class="text-brownish-400 dark:text-brownish-100" />
         <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('admin.settings.registration') }}</p>
       </div>
 
       <div class="mt-4 space-y-3">
-        <div class="p-3 rounded-xl bg-brownish-50/50 dark:bg-brownish-700/20 border border-brownish-100/50 dark:border-brownish-700/30">
+        <div class="p-3 rounded-xl bg-paper-200 dark:bg-brownish-700/20 border border-paper-200/50 dark:border-brownish-700/30">
           <UniversalCheckbox
             :label="$t('admin.settings.requireEmailVerification')"
             name="enforce_email_activation"
@@ -44,7 +44,7 @@ const data = computed({
           </p>
         </div>
 
-        <div class="p-3 rounded-xl bg-brownish-50/50 dark:bg-brownish-700/20 border border-brownish-100/50 dark:border-brownish-700/30">
+        <div class="p-3 rounded-xl bg-paper-200 dark:bg-brownish-700/20 border border-paper-200/50 dark:border-brownish-700/30">
           <UniversalCheckbox
             :label="$t('admin.settings.allowRegistration')"
             name="allow_register"
@@ -58,7 +58,7 @@ const data = computed({
       </div>
     </div>
 
-    <div class="-mx-4 px-6 py-5 border-b border-brownish-100 dark:border-brownish-700/50">
+    <div class="-mx-4 px-6 py-5 border-b border-paper-200 dark:border-brownish-700/50">
       <div class="flex items-center gap-2 mb-4">
         <BaseIcon :path="mdiEmailSearch" :size="14" class="text-brownish-400 dark:text-brownish-100" />
         <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('admin.settings.emailFilters') }}</p>
@@ -69,9 +69,9 @@ const data = computed({
           <ListInput v-model="data.users.email_whitelist" :label="$t('admin.settings.whitelist')" :disabled="loading" />
           <i18n-t keypath="admin.settings.whitelistHint" tag="p" class="text-xs text-brownish-400 dark:text-brownish-100 leading-relaxed">
             <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->
-            <template #exampleDomain><code class="font-mono bg-brownish-100 dark:bg-brownish-700 px-1 rounded">*@company.com</code></template>
+            <template #exampleDomain><code class="font-mono bg-paper-100 dark:bg-brownish-700 px-1 rounded">*@company.com</code></template>
             <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->
-            <template #exampleAny><code class="font-mono bg-brownish-100 dark:bg-brownish-700 px-1 rounded">*@company.*</code></template>
+            <template #exampleAny><code class="font-mono bg-paper-100 dark:bg-brownish-700 px-1 rounded">*@company.*</code></template>
           </i18n-t>
         </div>
 
@@ -84,14 +84,14 @@ const data = computed({
       </div>
     </div>
 
-    <div class="-mx-4 px-6 py-5 border-b border-brownish-100 dark:border-brownish-700/50">
+    <div class="-mx-4 px-6 py-5 border-b border-paper-200 dark:border-brownish-700/50">
       <div class="flex items-center gap-2 mb-3">
         <BaseIcon :path="mdiShareVariantOutline" :size="14" class="text-brownish-400 dark:text-brownish-100" />
         <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('admin.settings.sharing') }}</p>
       </div>
 
       <div class="space-y-3">
-        <div class="p-3 rounded-xl bg-brownish-50/50 dark:bg-brownish-700/20 border border-brownish-100/50 dark:border-brownish-700/30">
+        <div class="p-3 rounded-xl bg-paper-200 dark:bg-brownish-700/20 border border-paper-200/50 dark:border-brownish-700/30">
           <UniversalCheckbox
             :label="$t('admin.settings.accountSharing')"
             name="sharing_enabled"
@@ -101,18 +101,18 @@ const data = computed({
           />
           <i18n-t keypath="admin.settings.sharingHint" tag="p" class="text-xs text-brownish-400 dark:text-brownish-100 pl-7 leading-relaxed mt-1">
             <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->
-            <template #endpoint><code class="font-mono bg-brownish-100 dark:bg-brownish-700 px-1 rounded">/api/shares/*</code></template>
+            <template #endpoint><code class="font-mono bg-paper-100 dark:bg-brownish-700 px-1 rounded">/api/shares/*</code></template>
           </i18n-t>
         </div>
 
-        <div class="p-3 rounded-xl bg-brownish-50/50 dark:bg-brownish-700/20 border border-brownish-100/50 dark:border-brownish-700/30">
+        <div class="p-3 rounded-xl bg-paper-200 dark:bg-brownish-700/20 border border-paper-200/50 dark:border-brownish-700/30">
           <label class="block text-xs uppercase tracking-wider mb-1 text-brownish-300" for="default_cipher">{{ $t('admin.settings.defaultCipher') }}</label>
           <select
             id="default_cipher"
             v-model="data.sharing.default_cipher"
             :disabled="loading"
             data-testid="admin-default-cipher-select"
-            class="w-full bg-white dark:bg-brownish-800 border border-brownish-200 dark:border-brownish-700 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-redish-500"
+            class="w-full bg-white dark:bg-brownish-800 border border-paper-300 dark:border-brownish-700 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-redish-500"
           >
             <!-- eslint-disable @intlify/vue-i18n/no-raw-text -->
             <option value="aegis128l">AEGIS-128L</option>
@@ -128,7 +128,7 @@ const data = computed({
       </div>
     </div>
 
-    <div class="-mx-4 px-6 py-5 border-b border-brownish-100 dark:border-brownish-700/50">
+    <div class="-mx-4 px-6 py-5 border-b border-paper-200 dark:border-brownish-700/50">
       <div class="flex items-center gap-2 mb-3">
         <BaseIcon :path="mdiDatabase" :size="14" class="text-brownish-400 dark:text-brownish-100" />
         <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('admin.settings.defaultQuota') }}</p>

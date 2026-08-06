@@ -128,7 +128,7 @@ const progressValue = computed(() => {
 })
 
 const sharedClass = computed(() => {
-  return 'dark:bg-brownish-900 hover:bg-dirty-white hover:dark:bg-brownish-700'
+  return 'dark:bg-brownish-900 hover:bg-paper-100 hover:dark:bg-brownish-700'
 })
 
 /**
@@ -167,7 +167,7 @@ const sharedOutTitle = computed(() =>
  */
 const isSyntheticRoot = computed(() => props.file.id === SHARED_WITH_ME_DIR_ID)
 
-const border = 'sm:border-l sm:border-brownish-50 sm:dark:border-brownish-950'
+const border = 'sm:border-l sm:border-paper-300 sm:dark:border-brownish-950'
 const sizes = computed(() => {
   return {
     checkbox: `${props.sizes.checkbox}`,
@@ -290,7 +290,7 @@ const drop = (e: DragEvent) => {
     :data-testid="`file-row-${file.name}`"
     class="w-full flex file-row-separator"
     :class="{
-      'bg-brownish-50 dark:bg-brownish-700': !!checked,
+      'bg-paper-50 dark:bg-brownish-700': !!checked,
       [sharedClass]: true,
       'outline-2 outline-redish-300 outline z-10': isDropZone
     }"
@@ -355,7 +355,7 @@ const drop = (e: DragEvent) => {
       </span>
       <span
         v-if="ownerBadgeEmail"
-        class="ml-2 inline-flex items-center max-w-[10rem] truncate px-2 py-0.5 rounded-full text-[11px] uppercase tracking-wider bg-brownish-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200"
+        class="ml-2 inline-flex items-center max-w-[10rem] truncate px-2 py-0.5 rounded-full text-[11px] uppercase tracking-wider bg-paper-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200"
         :title="$t('files.row.ownedBy', { email: ownerBadgeEmail })"
         data-testid="shared-by-badge"
       >

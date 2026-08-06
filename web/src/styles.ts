@@ -1,7 +1,7 @@
 export const basic = {
   aside: 'bg-brownish-800',
   asideBrand: 'bg-brownish-900 text-white',
-  asideMenuItem: 'text-brownish-300 hover:text-white',
+  asideMenuItem: 'text-brownish-100 hover:text-white',
   asideMenuItemActive: 'font-bold text-white',
   asideMenuDropdown: 'bg-brownish-700/50',
   navBarItemLabel: 'text-black',
@@ -15,7 +15,7 @@ export const white = {
   asideBrand: '',
   asideMenuItem: 'text-redish-600 hover:text-black dark:text-white',
   asideMenuItemActive: 'font-bold text-black dark:text-white',
-  asideMenuDropdown: 'bg-brownish-100/75',
+  asideMenuDropdown: 'bg-paper-100/75',
   navBarItemLabel: 'text-redish-600',
   navBarItemLabelHover: 'hover:text-black',
   navBarItemLabelActiveColor: 'text-black',

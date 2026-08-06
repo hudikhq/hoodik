@@ -48,7 +48,7 @@ function formatTimestamp(unixSeconds: number): string {
 
 <template>
   <li
-    class="p-3 sm:p-4 rounded-lg bg-brownish-50 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700 text-sm"
+    class="p-3 sm:p-4 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700 text-sm"
     :data-testid="`share-hub-audit-row-${row.id}`"
   >
     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -102,7 +102,7 @@ function formatTimestamp(unixSeconds: number): string {
              + per-row chevron disclosure for the verification breakdown. -->
         <span
           v-if="state === 'system'"
-          class="inline-flex items-center text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-brownish-200 dark:bg-brownish-700 text-brownish-700 dark:text-brownish-200"
+          class="inline-flex items-center text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-paper-200 dark:bg-brownish-700 text-brownish-700 dark:text-brownish-200"
           :data-testid="`share-hub-audit-row-${row.id}-system`"
           :title="row.sender_id ? $t('shares.audit.row.parentTitle', { id: row.sender_id }) : $t('shares.audit.row.systemCascade')"
         >
@@ -159,7 +159,7 @@ function formatTimestamp(unixSeconds: number): string {
          lines. Replaces the old always-on badge wall. -->
     <div
       v-if="expanded"
-      class="mt-3 p-3 rounded-lg bg-brownish-100/60 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700 text-xs space-y-1.5 font-mono text-brownish-600 dark:text-brownish-200"
+      class="mt-3 p-3 rounded-lg bg-paper-100/60 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700 text-xs space-y-1.5 font-mono text-brownish-600 dark:text-brownish-200"
       :data-testid="`share-hub-audit-row-${row.id}-disclosure`"
     >
       <p>

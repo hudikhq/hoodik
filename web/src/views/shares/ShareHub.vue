@@ -74,7 +74,7 @@ onMounted(() => {
         </header>
 
         <nav
-          class="flex items-center gap-1 sm:gap-3 border-b border-brownish-200 dark:border-brownish-700 overflow-x-auto scrollbar-hide"
+          class="flex items-center gap-1 sm:gap-3 border-b border-paper-300 dark:border-brownish-700 overflow-x-auto scrollbar-hide"
           data-testid="share-hub-subtabs"
         >
           <RouterLink

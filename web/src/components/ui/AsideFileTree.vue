@@ -416,7 +416,7 @@ watch(
           :class="
             node.file.id === activeFolderId
               ? 'bg-orangy-500/15 text-orangy-300'
-              : 'text-brownish-300 hover:bg-brownish-700/50 hover:text-brownish-100'
+              : 'text-brownish-100 hover:bg-brownish-700/50 hover:text-white'
           "
           data-testid="aside-tree-shared-with-me"
           @click="toggleFolder(node)"
@@ -437,7 +437,7 @@ watch(
           :class="
             node.file.id === activeFolderId
               ? 'bg-orangy-500/15 text-orangy-300'
-              : 'text-brownish-300 hover:bg-brownish-700/50 hover:text-brownish-100'
+              : 'text-brownish-100 hover:bg-brownish-700/50 hover:text-white'
           "
           @click="toggleFolder(node)"
         >
@@ -493,7 +493,7 @@ watch(
           :class="
             node.file.id === activeFileId
               ? 'bg-orangy-500/15 text-orangy-300'
-              : 'text-brownish-300 hover:bg-brownish-700/50 hover:text-brownish-100'
+              : 'text-brownish-100 hover:bg-brownish-700/50 hover:text-white'
           "
           @click="onFileClick(node.file)"
         >
@@ -503,7 +503,7 @@ watch(
         </li>
       </template>
 
-      <li v-if="!treeState.rootNodes.length && !rootLoading" class="px-3 py-4 text-center text-brownish-500">
+      <li v-if="!treeState.rootNodes.length && !rootLoading" class="px-3 py-4 text-center text-brownish-100">
         {{ $t('ui.fileTree.noFiles') }}
       </li>
     </ul>

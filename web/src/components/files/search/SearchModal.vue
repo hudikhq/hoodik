@@ -124,7 +124,7 @@ watch(
             v-bind="field"
             class="w-full pl-10 pr-4 py-2 transition duration-150 ease-in-out rounded-lg
               bg-white dark:bg-brownish-800
-              border border-brownish-50 dark:border-brownish-600
+              border border-paper-300 dark:border-brownish-600
               text-brownish-900 dark:text-white
               placeholder-brownish-100/60 dark:placeholder-brownish-400
               focus:outline-none focus:ring-2 focus:ring-offset-0
@@ -155,12 +155,12 @@ watch(
         :key="index"
         class="flex items-center gap-3 p-2 animate-pulse"
       >
-        <div class="w-10 h-10 rounded-md shrink-0 bg-brownish-50/50 dark:bg-brownish-700" />
+        <div class="w-10 h-10 rounded-md shrink-0 bg-paper-200 dark:bg-brownish-700" />
         <div class="min-w-0 flex-1 space-y-2">
-          <div class="h-3.5 rounded bg-brownish-50/50 dark:bg-brownish-700" :class="width" />
-          <div class="h-3 w-20 rounded bg-brownish-50/40 dark:bg-brownish-700/60" />
+          <div class="h-3.5 rounded bg-paper-200 dark:bg-brownish-700" :class="width" />
+          <div class="h-3 w-20 rounded bg-paper-200/70 dark:bg-brownish-700/60" />
         </div>
-        <div class="h-3 w-12 rounded shrink-0 bg-brownish-50/40 dark:bg-brownish-700/60" />
+        <div class="h-3 w-12 rounded shrink-0 bg-paper-200/70 dark:bg-brownish-700/60" />
       </div>
     </div>
 

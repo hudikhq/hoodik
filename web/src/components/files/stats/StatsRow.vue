@@ -53,15 +53,15 @@ const maxSize = computed(() => (props.max ? formatSize(props.max) : t('files.sta
 </script>
 <template>
   <div
-    class="py-2 border-b border-brownish-100 dark:border-brownish-700/50 last:border-0"
+    class="py-2 border-b border-paper-200 dark:border-brownish-700/50 last:border-0"
     :title="$t('files.stats.ofMax', { percent: percentageStr, max: maxSize })"
   >
     <div class="flex items-center gap-2">
       <span class="flex-1 min-w-0 truncate text-sm">{{ label }}</span>
       <span class="text-xs text-brownish-400 shrink-0">{{ count }}×</span>
-      <span class="text-xs font-medium w-14 text-right shrink-0">{{ size }}</span>
+      <span class="text-xs font-medium min-w-[3.5rem] whitespace-nowrap text-right shrink-0">{{ size }}</span>
     </div>
-    <div v-if="max" class="mt-1.5 h-1 bg-brownish-100 dark:bg-brownish-700 rounded-full overflow-hidden">
+    <div v-if="max" class="mt-1.5 h-1 bg-paper-100 dark:bg-brownish-700 rounded-full overflow-hidden">
       <div
         class="h-1 bg-greeny-500/60 rounded-full transition-[width] duration-500"
         :style="{ width: percentageStr }"

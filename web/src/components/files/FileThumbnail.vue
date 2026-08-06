@@ -50,7 +50,7 @@ watch(
   <span
     v-else-if="loading"
     name="thumbnail-placeholder"
-    class="inline-block animate-pulse bg-brownish-100 dark:bg-brownish-700 rounded-md"
+    class="inline-block animate-pulse bg-paper-100 dark:bg-brownish-700 rounded-md"
     :class="imgClass ?? 'w-6 h-6'"
   />
   <slot v-else />

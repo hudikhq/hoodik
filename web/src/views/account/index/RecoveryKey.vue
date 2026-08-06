@@ -80,7 +80,7 @@ async function copy() {
 
     <pre
       v-if="revealed"
-      class="mt-4 p-3 rounded-lg bg-brownish-100 dark:bg-brownish-900 text-xs overflow-x-auto whitespace-pre-wrap break-all"
+      class="mt-4 p-3 rounded-lg bg-paper-100 dark:bg-brownish-900 text-xs overflow-x-auto whitespace-pre-wrap break-all"
       >{{ recoveryKey }}</pre
     >
   </CardBox>

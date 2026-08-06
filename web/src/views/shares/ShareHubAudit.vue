@@ -70,7 +70,7 @@ onMounted(refresh)
          in a quiet info treatment, no red.  -->
     <div
       v-if="hasActiveFilter"
-      class="p-3 mb-3 rounded-lg bg-brownish-100 dark:bg-brownish-900/60 text-sm flex items-start gap-2 text-brownish-600 dark:text-brownish-200 border border-brownish-200 dark:border-brownish-700"
+      class="p-3 mb-3 rounded-lg bg-paper-100 dark:bg-brownish-900/60 text-sm flex items-start gap-2 text-brownish-600 dark:text-brownish-200 border border-paper-300 dark:border-brownish-700"
       data-testid="share-hub-audit-filter-banner"
     >
       <BaseIcon :path="mdiAlertCircleOutline" :size="16" class="shrink-0 mt-0.5" />
@@ -100,7 +100,7 @@ onMounted(refresh)
 
     <p
       v-else-if="!loading"
-      class="p-6 rounded-lg bg-brownish-50 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700 text-sm text-brownish-300"
+      class="p-6 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700 text-sm text-brownish-300"
       data-testid="share-hub-audit-empty"
     >
       {{ $t('shares.audit.empty') }}

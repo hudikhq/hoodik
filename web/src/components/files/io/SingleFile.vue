@@ -169,7 +169,7 @@ const showProgress = computed(
       <!-- Left icon cluster — shrink-0 so icons never compress -->
       <div class="flex items-center shrink-0 -ml-1">
         <button
-          class="min-h-[36px] min-w-[36px] flex items-center justify-center rounded hover:bg-brownish-200 dark:hover:bg-brownish-700 transition-colors"
+          class="min-h-[36px] min-w-[36px] flex items-center justify-center rounded hover:bg-paper-200 dark:hover:bg-brownish-700 transition-colors"
           :title="
             props.type.endsWith('running')
               ? $t('files.transfers.cancelTransfer')
@@ -215,7 +215,7 @@ const showProgress = computed(
     <!-- Row 2: progress track — full width, smooth animated fill -->
     <div
       v-if="showProgress"
-      class="mt-1.5 h-1.5 rounded-full bg-brownish-200 dark:bg-brownish-700 overflow-hidden"
+      class="mt-1.5 h-1.5 rounded-full bg-paper-200 dark:bg-brownish-700 overflow-hidden"
     >
       <div
         class="h-full rounded-full transition-[width] duration-500 ease-out"

@@ -13,8 +13,8 @@ export type ColorType =
   | 'empty'
 
 export const colorsBgLight = {
-  light: 'bg-brownish-100 text-black dark:bg-brownish-900/70 dark:text-white',
-  dark: 'bg-brownish-100 text-black dark:bg-brownish-900/70 dark:text-white',
+  light: 'bg-paper-100 text-brownish-700 dark:bg-brownish-900/70 dark:text-white',
+  dark: 'bg-paper-100 text-brownish-700 dark:bg-brownish-900/70 dark:text-white',
   contrast: 'bg-brownish-800 text-white dark:bg-brownish-100 dark:text-black',
   success: 'bg-greeny-500 border-greeny-500 text-white',
   danger: 'bg-redish-500 border-redish-500 text-white',
@@ -35,7 +35,7 @@ export const colorsText = {
 }
 
 export const colorsOutline = {
-  light: [colorsText.light, 'border-brownish-100'],
+  light: [colorsText.light, 'border-paper-300'],
   dark: [colorsText.dark, 'border-brownish-400'],
   contrast: [colorsText.contrast, 'border-brownish-900 dark:border-brownish-100'],
   success: [colorsText.success, 'border-greeny-500'],
@@ -52,8 +52,8 @@ export const getButtonColor = (
 ): string[] => {
   const colors = {
     ring: {
-      light: 'ring-brownish-200 dark:ring-brownish-500 ',
-      dark: 'ring-brownish-200 dark:ring-brownish-500 ',
+      light: 'ring-paper-400 dark:ring-brownish-500 ',
+      dark: 'ring-paper-400 dark:ring-brownish-500 ',
       contrast: 'ring-brownish-300 dark:ring-brownish-400 ',
       success: 'ring-greeny-300 dark:ring-greeny-700 ',
       danger: 'ring-redish-300 dark:ring-redish-700 ',
@@ -62,8 +62,8 @@ export const getButtonColor = (
       empty: 'ring-brownish-200 dark:ring-brownish-500'
     },
     active: {
-      light: 'bg-brownish-200 dark:bg-brownish-700 ',
-      dark: 'bg-brownish-300 dark:bg-brownish-800 ',
+      light: 'bg-paper-200 dark:bg-brownish-700 ',
+      dark: 'bg-paper-200 dark:bg-brownish-800 ',
       contrast: 'bg-brownish-700 dark:bg-brownish-100 ',
       success: 'bg-greeny-700 dark:bg-greeny-600 ',
       danger: 'bg-redish-700 dark:bg-redish-600 ',
@@ -72,8 +72,8 @@ export const getButtonColor = (
       empty: 'bg-transparent'
     },
     bg: {
-      light: 'bg-brownish-100 text-black dark:bg-brownish-800 dark:text-white ',
-      dark: 'bg-brownish-100 text-black dark:bg-brownish-800 dark:text-white ',
+      light: 'bg-white text-brownish-700 dark:bg-brownish-800 dark:text-white ',
+      dark: 'bg-white text-brownish-700 dark:bg-brownish-800 dark:text-white ',
       contrast: 'bg-brownish-800 text-white dark:bg-brownish-100 dark:text-black ',
       success: 'bg-greeny-600 dark:bg-greeny-500 text-white ',
       danger: 'bg-redish-600 dark:bg-redish-500 text-white ',
@@ -82,8 +82,8 @@ export const getButtonColor = (
       empty: 'bg-transparent text-black dark:text-white'
     },
     bgHover: {
-      light: 'hover:bg-brownish-200 hover:dark:bg-brownish-700 ',
-      dark: 'hover:bg-brownish-200 hover:dark:bg-brownish-700 ',
+      light: 'hover:bg-paper-100 hover:dark:bg-brownish-700 ',
+      dark: 'hover:bg-paper-100 hover:dark:bg-brownish-700 ',
       contrast: 'hover:bg-brownish-700 hover:dark:bg-brownish-100 ',
       success:
         'hover:bg-greeny-700 hover:border-greeny-700 hover:dark:bg-greeny-600 hover:dark:border-greeny-600 ',
@@ -95,8 +95,8 @@ export const getButtonColor = (
       empty: 'hover:bg-transparent'
     },
     borders: {
-      light: 'border-brownish-100 dark:border-brownish-500 ',
-      dark: 'border-brownish-100 dark:border-brownish-500 ',
+      light: 'border-paper-300 dark:border-brownish-500 ',
+      dark: 'border-paper-300 dark:border-brownish-500 ',
       contrast: 'border-brownish-800 dark:border-white ',
       success: 'border-greeny-600 dark:border-greeny-500 ',
       danger: 'border-redish-600 dark:border-redish-500 ',

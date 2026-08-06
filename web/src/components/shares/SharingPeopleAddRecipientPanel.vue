@@ -54,7 +54,7 @@ const folderEditable = computed({
 
 <template>
   <div
-    class="border border-brownish-200 dark:border-brownish-700 rounded-lg p-3 space-y-3"
+    class="border border-paper-300 dark:border-brownish-700 rounded-lg p-3 space-y-3"
   >
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 min-w-0">
       <span class="text-sm font-medium truncate" data-testid="share-dialog-recipient-email">
@@ -125,7 +125,7 @@ const folderEditable = computed({
 
     <div
       v-if="showUnknownPill"
-      class="px-2.5 py-1.5 bg-brownish-100 dark:bg-brownish-800/60 text-brownish-700 dark:text-brownish-200 rounded-lg text-xs flex items-start gap-2"
+      class="px-2.5 py-1.5 bg-paper-100 dark:bg-brownish-800/60 text-brownish-700 dark:text-brownish-200 rounded-lg text-xs flex items-start gap-2"
       data-testid="share-dialog-unknown"
     >
       <BaseIcon :path="mdiShieldKeyOutline" :size="14" class="mt-0.5 shrink-0" />
@@ -162,7 +162,7 @@ const folderEditable = computed({
       </div>
       <div
         v-if="determinate"
-        class="w-full bg-brownish-200 dark:bg-brownish-700 h-1 rounded mt-1.5 overflow-hidden"
+        class="w-full bg-paper-200 dark:bg-brownish-700 h-1 rounded mt-1.5 overflow-hidden"
       >
         <div
           class="bg-redish-500 h-1 rounded transition-all"
@@ -173,7 +173,7 @@ const folderEditable = computed({
       </div>
       <div
         v-else-if="indeterminateActive"
-        class="w-full bg-brownish-200 dark:bg-brownish-700 h-1 rounded mt-1.5 overflow-hidden"
+        class="w-full bg-paper-200 dark:bg-brownish-700 h-1 rounded mt-1.5 overflow-hidden"
       >
         <div class="bg-redish-500 h-1 w-1/3 rounded share-dialog-indeterminate" />
       </div>

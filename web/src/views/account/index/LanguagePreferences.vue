@@ -37,7 +37,7 @@ function change() {
       <select
         v-model="locale"
         data-testid="account-language-select"
-        class="mt-2 w-full bg-white dark:bg-brownish-800 border border-brownish-200 dark:border-brownish-700 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-redish-500"
+        class="mt-2 w-full bg-white dark:bg-brownish-800 border border-paper-300 dark:border-brownish-700 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-redish-500"
         @change="change"
       >
         <option v-for="(label, code) in SUPPORTED_LOCALES" :key="code" :value="code">

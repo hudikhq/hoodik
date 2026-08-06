@@ -21,7 +21,7 @@ const available = computed(() => {
 })
 </script>
 <template>
-  <li v-if="Storage.stats" class="text-center">
+  <li v-if="Storage.stats" class="text-center text-sm text-brownish-50">
     {{ $t('files.stats.usedOf', { used, available }) }}
   </li>
 </template>

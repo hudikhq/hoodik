@@ -47,7 +47,7 @@ const usageTextColor = computed(() => {
 </script>
 <template>
   <CardBox :class="props.class">
-    <div class="-mx-4 -mt-4 px-6 py-6 border-b border-brownish-100 dark:border-brownish-700/50 rounded-t-2xl">
+    <div class="-mx-4 -mt-4 px-6 py-6 border-b border-paper-200 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex items-center gap-2 mb-4">
         <BaseIcon :path="mdiDatabase" :size="14" class="text-brownish-400 dark:text-brownish-100" />
         <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('account.storage.title') }}</p>
@@ -64,7 +64,7 @@ const usageTextColor = computed(() => {
         <span v-if="quota" class="text-sm font-semibold" :class="usageTextColor">{{ usagePercent }}%</span>
       </div>
 
-      <div v-if="quota" class="h-3 rounded-full bg-brownish-100 dark:bg-brownish-700 overflow-hidden">
+      <div v-if="quota" class="h-3 rounded-full bg-paper-100 dark:bg-brownish-700 overflow-hidden">
         <div
           class="h-full rounded-full transition-[width] duration-700"
           :class="usageColor"

@@ -22,6 +22,16 @@ module.exports = {
       transparent: 'transparent',
       white: '#FFFFFF',
       'dirty-white': '#EEEEEE',
+      // Light-mode neutrals. The brownish ramp starts at #898989, which is
+      // why early light surfaces came out mid-gray; paper carries the light
+      // end of the scale instead.
+      paper: {
+        50: '#FAFAF9',
+        100: '#F1F1EF',
+        200: '#E5E5E2',
+        300: '#D2D2CE',
+        400: '#B9B9B4'
+      },
       redish,
       primary: redish,
       brownish: {

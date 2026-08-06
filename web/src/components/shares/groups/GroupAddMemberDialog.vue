@@ -238,7 +238,7 @@ const showUnknownPill = computed(
 
       <div
         v-if="recipient"
-        class="border border-brownish-200 dark:border-brownish-700 rounded-lg p-3 space-y-3"
+        class="border border-paper-300 dark:border-brownish-700 rounded-lg p-3 space-y-3"
       >
         <div>
           <div class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('shares.groups.memberHeading') }}</div>
@@ -306,7 +306,7 @@ const showUnknownPill = computed(
         </div>
         <div
           v-if="showUnknownPill"
-          class="px-3 py-2 bg-brownish-100 dark:bg-brownish-800/60 text-brownish-700 dark:text-brownish-200 rounded-lg text-xs flex items-start gap-2"
+          class="px-3 py-2 bg-paper-100 dark:bg-brownish-800/60 text-brownish-700 dark:text-brownish-200 rounded-lg text-xs flex items-start gap-2"
           data-testid="group-add-member-unknown"
         >
           <BaseIcon :path="mdiShieldKeyOutline" :size="14" class="mt-0.5 shrink-0" />

@@ -53,7 +53,7 @@ const menuClick = (event: Event, item: NavBarItem) => {
   >
     <div
       :class="[layoutAsidePadding, { 'ml-72 lg:ml-0': isAsideMobileExpanded }]"
-      class="pt-16 min-h-screen w-screen transition-position lg:w-auto bg-white text-brownish-900 dark:bg-brownish-800 dark:text-dirty-white"
+      class="pt-16 min-h-screen w-screen transition-position lg:w-auto bg-paper-50 text-brownish-900 dark:bg-brownish-800 dark:text-dirty-white"
     >
       <NavBar
         v-if="login.authenticated"

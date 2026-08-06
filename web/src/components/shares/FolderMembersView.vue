@@ -120,7 +120,7 @@ const canReshare = computed(() => {
 function roleBadgeClass(role: ShareRole): string {
   switch (role) {
     case 'reader':
-      return 'bg-brownish-200 text-brownish-900 dark:bg-brownish-700 dark:text-dirty-white'
+      return 'bg-paper-200 text-brownish-900 dark:bg-brownish-700 dark:text-dirty-white'
     case 'editor':
       return 'bg-blueish-200 text-blueish-900 dark:bg-blueish-800 dark:text-blueish-100'
     case 'co-owner':
@@ -327,7 +327,7 @@ function cancelRevoke(): void {
       <li
         v-for="member in members"
         :key="member.user_id"
-        class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-brownish-50 dark:bg-brownish-800/60 rounded-lg px-3 py-2 text-sm"
+        class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-paper-50 dark:bg-brownish-800/60 rounded-lg px-3 py-2 text-sm"
         :data-testid="`folder-members-view-row-${member.user_id}`"
       >
         <div class="flex-1 min-w-0">

@@ -157,7 +157,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     <div
       ref="menu"
       :key="`${file.id}-menu`"
-      class="floating-menu bg-brownish-700 shadow-lg max-h-modal w-8/12 md:w-3/5 lg:w-2/5 xl:w-1/12 z-50 py-2 m-4"
+      class="floating-menu bg-white dark:bg-brownish-700 border border-paper-300 dark:border-brownish-600 rounded-md shadow-lg max-h-modal w-max min-w-[10rem] max-w-[16rem] z-50 py-2 m-4"
     >
       <ActionsButtons
         v-model="file"

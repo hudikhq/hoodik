@@ -244,7 +244,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
       <li
         v-for="group in owned"
         :key="group.id"
-        class="p-3 sm:p-4 rounded-lg bg-brownish-50 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700"
+        class="p-3 sm:p-4 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700"
         :data-testid="`share-hub-groups-owned-${group.id}`"
       >
         <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -309,7 +309,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
             <div class="flex items-center justify-end gap-2 shrink-0">
               <select
                 v-if="shareGroups"
-                class="text-xs rounded-md border border-brownish-200 dark:border-brownish-700 bg-white dark:bg-brownish-800 px-1.5 py-1"
+                class="text-xs rounded-md border border-paper-300 dark:border-brownish-700 bg-white dark:bg-brownish-800 px-1.5 py-1"
                 :value="member.group_role"
                 :data-testid="`share-hub-groups-owned-${group.id}-member-${member.user_id}-role`"
                 @change="(e) => changeRole(group.id, member.user_id, (e.target as HTMLSelectElement).value as GroupRole)"
@@ -349,7 +349,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
 
     <p
       v-else-if="!loading"
-      class="text-sm text-brownish-300 p-4 rounded-lg bg-brownish-50 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700"
+      class="text-sm text-brownish-300 p-4 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700"
       data-testid="share-hub-groups-owned-empty"
     >
       {{ $t('shares.groups.ownedEmpty') }}
@@ -366,7 +366,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
       <li
         v-for="group in memberOf"
         :key="group.id"
-        class="p-3 rounded-lg bg-brownish-50 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700 text-sm"
+        class="p-3 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700 text-sm"
         :data-testid="`share-hub-groups-member-of-${group.id}`"
       >
         <div class="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
@@ -376,7 +376,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
           </div>
           <span
             v-if="shareGroups"
-            class="text-xs px-2 py-0.5 rounded-full bg-brownish-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200 shrink-0"
+            class="text-xs px-2 py-0.5 rounded-full bg-paper-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200 shrink-0"
             :data-testid="`share-hub-groups-member-of-${group.id}-role`"
           >
             {{ $t('shares.groups.yourRole', { role: roleLabel(group.group_role) }) }}
@@ -437,7 +437,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
                 <div class="flex items-center justify-end gap-2 shrink-0">
                   <select
                     v-if="member.group_role !== 'co-owner'"
-                    class="text-xs rounded-md border border-brownish-200 dark:border-brownish-700 bg-white dark:bg-brownish-800 px-1.5 py-1"
+                    class="text-xs rounded-md border border-paper-300 dark:border-brownish-700 bg-white dark:bg-brownish-800 px-1.5 py-1"
                     :value="member.group_role"
                     :data-testid="`share-hub-groups-member-of-${group.id}-member-${member.user_id}-role`"
                     @change="(e) => changeRole(group.id, member.user_id, (e.target as HTMLSelectElement).value as GroupRole)"
@@ -472,7 +472,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
     </ul>
     <p
       v-else-if="!loading"
-      class="text-sm text-brownish-300 p-4 rounded-lg bg-brownish-50 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700"
+      class="text-sm text-brownish-300 p-4 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700"
       data-testid="share-hub-groups-member-of-empty"
     >
       {{ $t('shares.groups.memberOfEmpty') }}

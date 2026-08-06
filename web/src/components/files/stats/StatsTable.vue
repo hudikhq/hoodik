@@ -41,13 +41,13 @@ const sortedData = computed(() => {
 </script>
 <template>
   <div>
-    <div class="flex items-center gap-2 pb-1.5 mb-0.5 border-b border-brownish-100 dark:border-brownish-700/50">
+    <div class="flex items-center gap-2 pb-1.5 mb-0.5 border-b border-paper-200 dark:border-brownish-700/50">
       <div class="flex-1">
         <SortableName v-model="sort" name="mime" :label="$t('common.type')" />
       </div>
       <SortableName v-model="sort" name="count" :label="$t('files.stats.files')" />
-      <div class="w-14 text-right">
-        <SortableName class="float-right" v-model="sort" name="size" :label="$t('common.size')" />
+      <div class="min-w-[3.5rem] shrink-0 text-right">
+        <SortableName class="float-right whitespace-nowrap" v-model="sort" name="size" :label="$t('common.size')" />
       </div>
     </div>
 

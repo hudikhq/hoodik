@@ -36,7 +36,7 @@ const isActive = computed(() => !!props.session.refresh && !expired.value)
     <td :data-label="$t('account.activity.status')">
       <span v-if="isCurrent" class="inline-flex items-center text-xs font-medium bg-greeny-500/15 text-greeny-500 dark:text-greeny-400 px-2 py-0.5 rounded-full">{{ $t('account.activity.statusCurrent') }}</span>
       <span v-else-if="isActive" class="inline-flex items-center text-xs font-medium bg-blueish-500/15 text-blueish-400 px-2 py-0.5 rounded-full">{{ $t('account.activity.statusActive') }}</span>
-      <span v-else-if="expired" class="inline-flex items-center text-xs font-medium bg-brownish-100 dark:bg-brownish-700 text-brownish-400 px-2 py-0.5 rounded-full">{{ $t('account.activity.statusExpired') }}</span>
+      <span v-else-if="expired" class="inline-flex items-center text-xs font-medium bg-paper-100 dark:bg-brownish-700 text-brownish-400 px-2 py-0.5 rounded-full">{{ $t('account.activity.statusExpired') }}</span>
       <span v-else class="inline-flex items-center text-xs font-medium bg-redish-500/15 text-redish-500 dark:text-redish-400 px-2 py-0.5 rounded-full">{{ $t('account.activity.statusRevoked') }}</span>
     </td>
     <td>

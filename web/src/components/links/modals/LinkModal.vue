@@ -67,7 +67,7 @@ const cancel = () => {
       </div>
       <button
         type="button"
-        class="shrink-0 w-11 h-11 inline-flex items-center justify-center rounded-full text-brownish-400 hover:text-brownish-100 hover:bg-brownish-100 dark:hover:bg-brownish-800 transition-colors"
+        class="shrink-0 w-11 h-11 inline-flex items-center justify-center rounded-full text-brownish-400 hover:text-brownish-100 hover:bg-paper-100 dark:hover:bg-brownish-800 transition-colors"
         :title="$t('common.close')"
         @click.prevent="cancel"
       >

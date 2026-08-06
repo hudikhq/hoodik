@@ -112,7 +112,7 @@ const {
         <li v-for="group in groupSuggestions" :key="group.id">
           <button
             type="button"
-            class="px-2.5 py-1 rounded-full bg-brownish-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200 hover:bg-brownish-200 dark:hover:bg-brownish-700 transition-colors"
+            class="px-2.5 py-1 rounded-full bg-paper-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200 hover:bg-paper-200 dark:hover:bg-brownish-700 transition-colors"
             :data-testid="`share-dialog-group-suggestion-${group.id}`"
             :disabled="submitting || readOnly"
             @click.prevent="() => { email = group.name; void discover() }"
@@ -166,8 +166,7 @@ const {
     <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
       <BaseButton
         :label="$t('common.cancel')"
-        color="info"
-        outline
+        color="light"
         :disabled="submitting"
         @click.prevent="cancel"
       />
@@ -194,7 +193,7 @@ const {
       >
         <div class="flex flex-col items-center gap-3 px-6 py-4 text-center max-w-full">
           <span
-            class="inline-block w-7 h-7 rounded-full border-2 border-brownish-200 border-t-redish-500 share-dialog-spinner"
+            class="inline-block w-7 h-7 rounded-full border-2 border-paper-300 border-t-redish-500 share-dialog-spinner"
             aria-hidden="true"
           />
           <p

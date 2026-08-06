@@ -71,9 +71,9 @@ onMounted(() => loadFolders(currentId.value))
 </script>
 
 <template>
-  <div class="border border-brownish-200 dark:border-brownish-700 rounded-lg overflow-hidden">
+  <div class="border border-paper-300 dark:border-brownish-700 rounded-lg overflow-hidden">
     <div
-      class="flex items-center gap-2 px-3 py-2 bg-brownish-50 dark:bg-brownish-800 border-b border-brownish-200 dark:border-brownish-700 text-sm"
+      class="flex items-center gap-2 px-3 py-2 bg-paper-50 dark:bg-brownish-800 border-b border-paper-300 dark:border-brownish-700 text-sm"
     >
       <button
         v-if="stack.length"
@@ -95,7 +95,7 @@ onMounted(() => loadFolders(currentId.value))
       <li
         v-for="folder in folders"
         :key="folder.id"
-        class="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer transition-colors hover:bg-brownish-50 dark:hover:bg-brownish-700/50"
+        class="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer transition-colors hover:bg-paper-50 dark:hover:bg-brownish-700/50"
         @click="open(folder)"
       >
         <BaseIcon :path="mdiFolder" :size="16" class="flex-shrink-0 text-orangy-400" />

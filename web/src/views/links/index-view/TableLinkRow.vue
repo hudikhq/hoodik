@@ -90,10 +90,10 @@ const isExpired = computed(() => {
 })
 
 const sharedClass = computed(() => {
-  return 'dark:bg-brownish-900 hover:bg-dirty-white hover:dark:bg-brownish-700'
+  return 'dark:bg-brownish-900 hover:bg-paper-100 hover:dark:bg-brownish-700'
 })
 
-const border = 'sm:border-l sm:border-brownish-50 sm:dark:border-brownish-950'
+const border = 'sm:border-l sm:border-paper-300 sm:dark:border-brownish-950'
 const sizes = computed(() => {
   return {
     checkbox: `${props.sizes.checkbox}`,
@@ -167,7 +167,7 @@ const singleClick = () => {
       <span
         v-else-if="thumbnailLoading"
         name="thumbnail-placeholder"
-        class="inline-block w-6 h-6 mr-2 animate-pulse bg-brownish-100 dark:bg-brownish-700 rounded-md"
+        class="inline-block w-6 h-6 mr-2 animate-pulse bg-paper-100 dark:bg-brownish-700 rounded-md"
       />
 
       <TruncatedSpan :text="linkName" />

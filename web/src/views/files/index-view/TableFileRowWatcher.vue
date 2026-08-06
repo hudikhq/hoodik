@@ -69,8 +69,8 @@ onUnmounted(() => {
       v-if="!visible"
     >
       <div class="flex items-start">
-        <div class="w-6 h-6 mr-2 rounded-md bg-brownish-50 dark:bg-brownish-800"></div>
-        <div class="w-32 h-6 mr-2 rounded-md bg-brownish-50 dark:bg-brownish-800"></div>
+        <div class="w-6 h-6 mr-2 rounded-md bg-paper-50 dark:bg-brownish-800"></div>
+        <div class="w-32 h-6 mr-2 rounded-md bg-paper-50 dark:bg-brownish-800"></div>
       </div>
     </div>
     <TableFileRow

@@ -8,7 +8,7 @@
   }
 
   tr {
-    @apply max-w-full block relative border-b-4 border-brownish-100
+    @apply max-w-full block relative border-b-4 border-paper-200
       lg:table-row lg:border-b-0 dark:border-brownish-800;
   }
 
@@ -17,7 +17,7 @@
   }
 
   td:not(:first-child) {
-    @apply lg:border-l lg:border-t-0 lg:border-r-0 lg:border-b-0 lg:border-brownish-100 lg:dark:border-brownish-700;
+    @apply lg:border-l lg:border-t-0 lg:border-r-0 lg:border-b-0 lg:border-paper-200 lg:dark:border-brownish-700;
   }
 
   th {
@@ -25,7 +25,7 @@
   }
 
   td {
-    @apply flex justify-between text-right py-3 px-4 align-top border-b border-brownish-100
+    @apply flex justify-between text-right py-3 px-4 align-top border-b border-paper-200
       lg:table-cell lg:text-left lg:p-3 lg:align-middle lg:border-b-0 dark:border-brownish-800;
   }
 
@@ -35,11 +35,11 @@
 
   tbody tr,
   tbody tr:nth-child(odd) {
-    @apply lg:hover:bg-brownish-100 lg:dark:hover:bg-brownish-700/70;
+    @apply lg:hover:bg-paper-100 lg:dark:hover:bg-brownish-700/70;
   }
 
   tbody tr:nth-child(odd) {
-    @apply lg:bg-brownish-100/50 lg:dark:bg-brownish-800/50;
+    @apply lg:bg-paper-100/60 lg:dark:bg-brownish-800/50;
   }
 
   td:before {

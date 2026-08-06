@@ -40,7 +40,7 @@ const sendTestEmail = async () => {
 </script>
 <template>
   <CardBox :class="props.class">
-    <div class="-mx-4 -mt-4 px-6 py-5 border-b border-brownish-100 dark:border-brownish-700/50 rounded-t-2xl">
+    <div class="-mx-4 -mt-4 px-6 py-5 border-b border-paper-200 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex items-center gap-2 mb-3">
         <BaseIcon :path="mdiEmail" :size="14" class="text-brownish-400 dark:text-brownish-100" />
         <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('admin.email.configuration') }}</p>
@@ -59,7 +59,7 @@ const sendTestEmail = async () => {
         <p class="text-sm text-redish-400">{{ testError }}</p>
       </div>
 
-      <div class="p-3 rounded-xl bg-brownish-50/50 dark:bg-brownish-700/20 border border-brownish-100/50 dark:border-brownish-700/30">
+      <div class="p-3 rounded-xl bg-paper-200 dark:bg-brownish-700/20 border border-paper-200/50 dark:border-brownish-700/30">
         <div class="flex items-center justify-between gap-4">
           <div class="min-w-0">
             <p class="text-sm font-medium">{{ $t('admin.email.testEmail') }}</p>

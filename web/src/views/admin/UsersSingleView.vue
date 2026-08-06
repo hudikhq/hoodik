@@ -162,7 +162,7 @@ watch(
                   <span v-if="user.role" class="inline-flex items-center text-xs font-semibold uppercase tracking-wider bg-orangy-400/15 text-orangy-400 px-2 py-0.5 rounded-full">
                     {{ user.role }}
                   </span>
-                  <span v-else class="inline-flex text-xs bg-brownish-100 dark:bg-brownish-700 text-brownish-400 dark:text-brownish-300 px-2 py-0.5 rounded-full">
+                  <span v-else class="inline-flex text-xs bg-paper-100 dark:bg-brownish-700 text-brownish-400 dark:text-brownish-300 px-2 py-0.5 rounded-full">
                     {{ $t('admin.user.userBadge') }}
                   </span>
                   <span v-if="emailVerifiedAt" class="inline-flex items-center gap-1 text-xs text-greeny-500 dark:text-greeny-400">
@@ -200,7 +200,7 @@ watch(
 
           <div class="-mx-4 -mb-4">
             <!-- Quota display / editor -->
-            <div class="px-4 py-4 border-b border-brownish-100 dark:border-brownish-700/50">
+            <div class="px-4 py-4 border-b border-paper-200 dark:border-brownish-700/50">
               <div v-if="!editQuota" class="flex items-center justify-between">
                 <div>
                   <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-0.5">{{ $t('admin.user.storageQuota') }}</p>
@@ -244,7 +244,7 @@ watch(
 
             <div class="-mx-4 -mb-4">
               <!-- Two-factor auth -->
-              <div class="flex items-center justify-between px-4 py-4 border-b border-brownish-100 dark:border-brownish-700/50">
+              <div class="flex items-center justify-between px-4 py-4 border-b border-paper-200 dark:border-brownish-700/50">
                 <div>
                   <p class="text-sm font-medium">{{ $t('admin.user.twoFactorAuth') }}</p>
                   <p class="text-xs mt-0.5">

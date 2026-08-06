@@ -55,7 +55,7 @@ watch(
   }
 )
 
-const borderClass = 'sm:border-l sm:border-brownish-50 sm:dark:border-brownish-950'
+const borderClass = 'sm:border-l sm:border-paper-300 sm:dark:border-brownish-950'
 
 const sizes = {
   checkbox: 'pl-2 pt-3 w-10 shrink-0',
@@ -68,7 +68,7 @@ const sizes = {
 </script>
 
 <template>
-  <div class="w-full p-2 mb-2 flex rounded-t-md bg-brownish-100 dark:bg-brownish-900 gap-4">
+  <div class="w-full p-2 mb-2 flex rounded-t-md bg-paper-100 dark:bg-brownish-900 gap-4">
     <BaseButton
       :title="$t('links.table.deleteSelected')"
       :iconSize="20"
@@ -80,8 +80,8 @@ const sizes = {
     />
   </div>
 
-  <div class="bg-white dark:bg-brownish-900 rounded-lg border border-brownish-200/40 dark:border-brownish-700/40">
-    <div class="w-full flex rounded-t-lg bg-brownish-100 dark:bg-brownish-950 border-b border-brownish-200 dark:border-brownish-700/40">
+  <div class="bg-white dark:bg-brownish-900 rounded-lg border border-paper-300/40 dark:border-brownish-700/40">
+    <div class="w-full flex rounded-t-lg bg-paper-100 dark:bg-brownish-950 border-b border-paper-300 dark:border-brownish-700/40">
       <div :class="sizes.checkbox">
         <TableCheckboxCell v-model="checked" v-if="!props.hideCheckbox" />
       </div>
@@ -107,7 +107,7 @@ const sizes = {
 
     <div
       v-if="props.loading && !items.length"
-      class="w-full pt-20 rounded-b-lg bg-brownish-50 dark:bg-brownish-900 h-52 text-center"
+      class="w-full pt-20 rounded-b-lg bg-paper-50 dark:bg-brownish-900 h-52 text-center"
     >
       <span class="w-1/2 h-1/2">
         <SpinnerIcon :size="200" />
@@ -115,7 +115,7 @@ const sizes = {
     </div>
     <div
       v-else-if="!items.length"
-      class="w-full rounded-b-lg bg-brownish-50 dark:bg-brownish-900 py-14 flex flex-col items-center gap-1"
+      class="w-full rounded-b-lg bg-paper-50 dark:bg-brownish-900 py-14 flex flex-col items-center gap-1"
       data-testid="links-empty"
     >
       <span class="text-brownish-300 dark:text-brownish-100">{{ $t('links.table.empty') }}</span>

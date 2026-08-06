@@ -8,7 +8,7 @@ const { toClipboard } = useClipboard()
 const originalClass =
   'w-full px-4 py-2 transition duration-150 ease-in-out rounded-lg ' +
   'bg-white dark:bg-brownish-800 ' +
-  'border border-brownish-50 dark:border-brownish-600 ' +
+  'border border-paper-300 dark:border-brownish-600 ' +
   'text-brownish-900 dark:text-white ' +
   'placeholder-brownish-100/60 dark:placeholder-brownish-400 ' +
   'focus:outline-none focus:ring-2 focus:ring-offset-0 ' +

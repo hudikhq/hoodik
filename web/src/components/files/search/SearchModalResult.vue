@@ -56,7 +56,7 @@ const fileSize = computed(() => {
 <template>
   <router-link
     class="flex items-center gap-3 p-2 rounded-lg transition-colors
-      hover:bg-brownish-50 dark:hover:bg-brownish-800"
+      hover:bg-paper-50 dark:hover:bg-brownish-800"
     :to="url"
     @click="emits('clicked', props.file)"
   >

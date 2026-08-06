@@ -24,7 +24,7 @@ const role = computed({
 
 <template>
   <div
-    class="border border-brownish-200 dark:border-brownish-700 rounded-lg p-3 space-y-3"
+    class="border border-paper-300 dark:border-brownish-700 rounded-lg p-3 space-y-3"
     data-testid="share-dialog-group-panel"
   >
     <div class="flex items-baseline justify-between gap-2 min-w-0">

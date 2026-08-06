@@ -617,7 +617,7 @@ watch(
 
   <div
     v-if="forkingId && forkProgress"
-    class="fixed bottom-4 right-4 z-50 p-3 rounded-lg bg-brownish-100 dark:bg-brownish-800 shadow-lg text-sm"
+    class="fixed bottom-4 right-4 z-50 p-3 rounded-lg bg-paper-100 dark:bg-brownish-800 shadow-lg text-sm"
     data-testid="fork-progress"
   >
     <div class="flex items-center gap-2">
