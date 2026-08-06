@@ -109,18 +109,20 @@ defineExpose({ closeDropdown })
 
   <!-- Save status + button (edit mode only) -->
   <template v-if="editable">
-    <span v-if="saveStatus === 'saving'" class="md-save-status text-brownish-200">{{ $t('notes.toolbar.saving') }}</span>
-    <span v-else-if="saveStatus === 'saved'" class="md-save-status text-greeny-300 flex items-center gap-1">
-      <BaseIcon :path="mdiCheck" :size="14" />
-      {{ $t('notes.toolbar.saved') }}
-    </span>
-    <span v-else-if="saveStatus === 'conflict'" class="md-save-status text-orangy-400 flex items-center gap-1">
-      <BaseIcon :path="mdiAlertCircleOutline" :size="14" />
-      {{ $t('notes.toolbar.conflict') }}
-    </span>
-    <span v-else-if="saveStatus === 'error'" class="md-save-status text-redish-400 flex items-center gap-1">
-      <BaseIcon :path="mdiAlertCircleOutline" :size="14" />
-      {{ $t('notes.toolbar.saveFailed') }}
+    <span role="status" aria-live="polite">
+      <span v-if="saveStatus === 'saving'" class="md-save-status text-brownish-200">{{ $t('notes.toolbar.saving') }}</span>
+      <span v-else-if="saveStatus === 'saved'" class="md-save-status text-greeny-300 flex items-center gap-1">
+        <BaseIcon :path="mdiCheck" :size="14" />
+        {{ $t('notes.toolbar.saved') }}
+      </span>
+      <span v-else-if="saveStatus === 'conflict'" class="md-save-status text-orangy-400 flex items-center gap-1">
+        <BaseIcon :path="mdiAlertCircleOutline" :size="14" />
+        {{ $t('notes.toolbar.conflict') }}
+      </span>
+      <span v-else-if="saveStatus === 'error'" class="md-save-status text-redish-400 flex items-center gap-1">
+        <BaseIcon :path="mdiAlertCircleOutline" :size="14" />
+        {{ $t('notes.toolbar.saveFailed') }}
+      </span>
     </span>
 
     <BaseButton

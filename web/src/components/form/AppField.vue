@@ -25,6 +25,7 @@ const props = defineProps<{
   allowCopy?: boolean | undefined
   placeholder?: string | undefined
   disabled?: boolean | undefined
+  readonly?: boolean | undefined
   modelValue?: string | undefined
   required?: boolean | undefined
   error?: string
@@ -104,7 +105,7 @@ const copy = () => {
       </div>
       <div class="float-right w-1/2 mb-2" v-if="allowCopy">
         <button
-          class="float-right text-center justify-center text-xs text-brownish-50 dark:text-brownish-100"
+          class="float-right text-center justify-center text-xs text-brownish-200 dark:text-brownish-50"
           :class="{ 'text-greeny-400 dark:text-greeny-300': copied }"
           @click.prevent="copy"
         >
@@ -121,6 +122,7 @@ const copy = () => {
         as="textarea"
         v-model="model"
         :name="name"
+        :readonly="readonly"
         :disabled="disabled || form?.isSubmitting.value"
         ref="input"
         @input="update"
@@ -148,7 +150,7 @@ const copy = () => {
         />
       </Field>
     </div>
-    <div v-if="help" class="text-xs text-brownish-100 dark:text-brownish-100 mt-1">
+    <div v-if="help" class="text-xs text-brownish-200 dark:text-brownish-50 mt-1">
       {{ help }}
     </div>
 

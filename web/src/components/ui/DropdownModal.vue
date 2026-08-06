@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import OverlayLayer from '@/components/ui/OverlayLayer.vue'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 import type { FormType } from '../form'
 
 const props = defineProps<{
@@ -16,6 +17,12 @@ const value = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value)
 })
+
+const card = ref()
+const cardEl = computed<HTMLElement | null>(() => card.value?.$el ?? null)
+const isOpen = computed(() => !!props.modelValue)
+
+useFocusTrap(cardEl, isOpen)
 
 const cancel = () => {
   if (props.form) {
@@ -40,7 +47,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
   <OverlayLayer :visible="value" @overlay-click="cancel">
     <CardBox
       v-show="value"
-      class="shadow-lg max-h-modal w-8/12 md:w-3/5 lg:w-2/5 xl:w-1/12 z-50 py-2"
+      ref="card"
+      role="dialog"
+      aria-modal="true"
+      :aria-label="title"
+      tabindex="-1"
+      class="shadow-lg max-h-modal w-8/12 md:w-3/5 lg:w-2/5 xl:w-1/12 z-50 py-2 focus:outline-none"
       rounded="rounded-md"
       :hasComponentLayout="true"
       is-modal

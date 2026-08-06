@@ -194,7 +194,7 @@ window.addEventListener('keydown', (e) => {
         'bg-brownish-100 dark:bg-brownish-600': totalItems === 0
       }"
     >
-      <span class="text-xs font-medium">{{ headerLabel || $t('files.transfers.title') }}</span>
+      <span class="text-xs font-medium" aria-live="polite">{{ headerLabel || $t('files.transfers.title') }}</span>
       <div class="flex items-center gap-2">
         <span class="text-xs tabular-nums" v-if="showStandaloneCount">{{ totalItems }}</span>
         <BaseIcon :path="showTable ? mdiChevronDown : mdiChevronUp" w="w-4" h="h-4" />

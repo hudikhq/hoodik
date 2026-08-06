@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { mdiClose } from '@mdi/js'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseButtons from '@/components/ui/BaseButtons.vue'
 import CardBox from '@/components/ui/CardBox.vue'
@@ -26,6 +27,12 @@ const value = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value)
 })
+
+const card = ref()
+const cardEl = computed<HTMLElement | null>(() => card.value?.$el ?? null)
+const isOpen = computed(() => !!props.modelValue)
+
+useFocusTrap(cardEl, isOpen)
 
 const confirm = async () => {
   if (!props.form) {
@@ -57,7 +64,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
   <OverlayLayer :visible="value" @overlay-click="cancel">
     <CardBox
       v-show="value"
-      class="shadow-lg max-h-modal w-11/12 md:w-3/5 lg:w-2/5 xl:w-4/12 z-50"
+      ref="card"
+      role="dialog"
+      aria-modal="true"
+      :aria-label="title"
+      tabindex="-1"
+      class="shadow-lg max-h-modal w-11/12 md:w-3/5 lg:w-2/5 xl:w-4/12 z-50 focus:outline-none"
       is-modal
       has-component-layout
     >
@@ -84,15 +96,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
               :label="buttonLabel"
               :color="button || 'info'"
               @click="confirm"
-              tabindex="1"
               type="submit"
               @keyup.enter="confirm()"
             />
             <BaseButton
               v-if="hasCancel"
               :label="$t('common.cancel')"
-              :color="button || 'info'"
-              outline
+              color="light"
               @click="cancel"
             />
           </slot>
