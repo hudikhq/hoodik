@@ -260,7 +260,10 @@
     },
     "lock": {
       "description": "Das Konto des Benutzers mit der E-Mail-Adresse {email} wurde in diesem Browser gesperrt, alle anderen Daten wurden entfernt. Wenn Sie nicht der Inhaber dieses Kontos sind, können Sie das Konto verwerfen und sich selbst anmelden oder registrieren.",
-      "forgetAccount": "Konto verwerfen"
+      "forgetAccount": "Konto verwerfen",
+      "forgetConfirmBody": "Dadurch werden das gesperrte Konto und sein verschlüsselter Schlüssel aus diesem Browser entfernt. Das Konto selbst wird nicht gelöscht; Sie können sich jederzeit wieder mit Ihrem Passwort anmelden.",
+      "forgetConfirmLabel": "Ja, verwerfen",
+      "forgetConfirmTitle": "Dieses Konto verwerfen?"
     },
     "lockSetup": {
       "description": "Ihr privater Schlüssel wird verschlüsselt und lokal gespeichert, damit Sie ihn beim nächsten Besuch mit einer einfachen PIN oder einem Passwort entschlüsseln und auf Ihre Dateien zugreifen können.",
@@ -295,10 +298,10 @@
     },
     "registerKey": {
       "confirmStored": "Ich habe meinen privaten Schlüssel gespeichert",
+      "download": "Schlüssel herunterladen",
       "generating": "...wird erzeugt, bitte warten...",
       "label": "Ihr Wiederherstellungsschlüssel",
-      "lastTimeWarning": "Dies ist das letzte Mal, dass wir Ihnen Ihren Wiederherstellungsschlüssel anzeigen!",
-      "storeSafe": "Bewahren Sie ihn an einem sicheren Ort auf. Sie benötigen ihn, um sich anzumelden oder Ihr Konto wiederherzustellen, falls Sie Ihr Passwort vergessen.",
+      "storeSafe": "Bewahren Sie ihn an einem sicheren Ort auf. Sie benötigen ihn, um sich anzumelden oder Ihr Konto wiederherzustellen, falls Sie Ihr Passwort vergessen. Sie können ihn jederzeit unter Konto → Wiederherstellungsschlüssel erneut anzeigen.",
       "title": "Ihr Wiederherstellungsschlüssel"
     },
     "rememberMe": "Angemeldet bleiben",
@@ -484,6 +487,7 @@
       "sharing": "Freigabe"
     },
     "breadcrumbs": "Navigationspfad",
+    "breadcrumbsShowAll": "Alle Ordner anzeigen",
     "browser": {
       "addToDownloadQueue": "Zur Download-Warteschlange hinzufügen",
       "createDirectory": "Ordner erstellen",
@@ -539,7 +543,8 @@
     "row": {
       "ownedBy": "Eigentümer: {email}",
       "savingInAnotherSession": "Eine andere Sitzung speichert diese Notiz gerade",
-      "sharedWith": "Mit {count} weiterem Konto geteilt | Mit {count} weiteren Konten geteilt"
+      "sharedWith": "Mit {count} weiterem Konto geteilt | Mit {count} weiteren Konten geteilt",
+      "uploadIncomplete": "Upload unvollständig"
     },
     "search": {
       "noMatches": "Keine Dateien entsprechen dieser Suche",
@@ -575,6 +580,19 @@
     },
     "tree": {
       "root": "Hauptordner"
+    },
+    "type": {
+      "archive": "Archiv",
+      "audio": "Audio",
+      "document": "Dokument",
+      "folder": "Ordner",
+      "font": "Schriftart",
+      "image": "Bild",
+      "pdf": "PDF",
+      "presentation": "Präsentation",
+      "spreadsheet": "Tabelle",
+      "text": "Text",
+      "video": "Video"
     }
   },
   "links": {
@@ -669,6 +687,7 @@
       "lock": "Sperren",
       "notes": "Notizen",
       "share": "Freigabe",
+      "theme": "Darstellung",
       "users": "Benutzer"
     },
     "title": {
@@ -765,7 +784,7 @@
       "moveTitle": "In Ordner verschieben",
       "readOnly": "Diese Markdown-Datei ist schreibgeschützt."
     },
-    "noPreview": "Keine Vorschau verfügbar 🥲",
+    "noPreview": "Keine Vorschau verfügbar",
     "versionHistory": {
       "authorAnonymous": "Anonym",
       "authorOther": "Eine andere Person",

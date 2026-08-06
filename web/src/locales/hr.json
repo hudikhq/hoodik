@@ -260,7 +260,10 @@
     },
     "lock": {
       "description": "Račun korisnika s emailom {email} zaključan je u ovom pregledniku, a svi ostali podaci su uklonjeni. Ako nisi vlasnik ovog računa, možeš zaboraviti račun pa se prijaviti ili registrirati.",
-      "forgetAccount": "Zaboravi račun"
+      "forgetAccount": "Zaboravi račun",
+      "forgetConfirmBody": "Ovo uklanja zaključani račun i njegov kriptirani ključ iz ovog preglednika. Sam račun se ne briše; uvijek se možeš ponovno prijaviti svojom lozinkom.",
+      "forgetConfirmLabel": "Da, zaboravi",
+      "forgetConfirmTitle": "Zaboraviti ovaj račun?"
     },
     "lockSetup": {
       "description": "Tvoj privatni ključ bit će enkriptiran i spremljen lokalno, pa ćeš ga sljedeći put moći dekriptirati i pristupiti svojim datotekama jednostavnim PIN-om ili lozinkom.",
@@ -295,10 +298,10 @@
     },
     "registerKey": {
       "confirmStored": "Moj privatni ključ je spremljen",
+      "download": "Preuzmi ključ",
       "generating": "...generira se, pričekaj...",
       "label": "Tvoj ključ za oporavak",
-      "lastTimeWarning": "Ovo je zadnji put da ti prikazujemo tvoj ključ za oporavak!",
-      "storeSafe": "Spremi ga na sigurno mjesto. Trebat će ti za prijavu ili oporavak računa ako zaboraviš lozinku.",
+      "storeSafe": "Spremi ga na sigurno mjesto. Trebat će ti za prijavu ili oporavak računa ako zaboraviš lozinku. Uvijek ga možeš ponovno vidjeti pod Račun → Ključ za oporavak.",
       "title": "Tvoj ključ za oporavak"
     },
     "rememberMe": "Zapamti me",
@@ -484,6 +487,7 @@
       "sharing": "Dijeljenje"
     },
     "breadcrumbs": "Putanja",
+    "breadcrumbsShowAll": "Prikaži sve foldere",
     "browser": {
       "addToDownloadQueue": "Dodaj u red za download",
       "createDirectory": "Kreiraj folder",
@@ -539,7 +543,8 @@
     "row": {
       "ownedBy": "Vlasnik: {email}",
       "savingInAnotherSession": "Druga sesija upravo sprema ovu bilješku",
-      "sharedWith": "Podijeljeno s još {count} računom | Podijeljeno s još {count} računa | Podijeljeno s još {count} računa"
+      "sharedWith": "Podijeljeno s još {count} računom | Podijeljeno s još {count} računa | Podijeljeno s još {count} računa",
+      "uploadIncomplete": "Upload nije dovršen"
     },
     "search": {
       "noMatches": "Nijedna datoteka ne odgovara pretrazi",
@@ -575,6 +580,19 @@
     },
     "tree": {
       "root": "Root"
+    },
+    "type": {
+      "archive": "Arhiva",
+      "audio": "Audio",
+      "document": "Dokument",
+      "folder": "Folder",
+      "font": "Font",
+      "image": "Slika",
+      "pdf": "PDF",
+      "presentation": "Prezentacija",
+      "spreadsheet": "Tablica",
+      "text": "Tekst",
+      "video": "Video"
     }
   },
   "links": {
@@ -669,6 +687,7 @@
       "lock": "Zaključaj",
       "notes": "Bilješke",
       "share": "Dijeljenje",
+      "theme": "Tema",
       "users": "Korisnici"
     },
     "title": {
@@ -765,7 +784,7 @@
       "moveTitle": "Premjesti u folder",
       "readOnly": "Ova markdown datoteka je samo za čitanje."
     },
-    "noPreview": "Pregled nije dostupan 🥲",
+    "noPreview": "Pregled nije dostupan",
     "versionHistory": {
       "authorAnonymous": "Anonimno",
       "authorOther": "Drugi suradnik",

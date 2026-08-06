@@ -260,7 +260,10 @@
     },
     "lock": {
       "description": "Un compte pour l’utilisateur avec l’adresse e-mail {email} a été verrouillé sur ce navigateur et toutes les autres données ont été supprimées. Si vous n’êtes pas le propriétaire de ce compte, vous pouvez l’oublier puis vous connecter ou vous inscrire.",
-      "forgetAccount": "Oublier le compte"
+      "forgetAccount": "Oublier le compte",
+      "forgetConfirmBody": "Cela supprime le compte verrouillé et sa clé chiffrée de ce navigateur. Le compte lui-même n’est pas supprimé ; vous pourrez vous reconnecter à tout moment avec votre mot de passe.",
+      "forgetConfirmLabel": "Oui, oublier",
+      "forgetConfirmTitle": "Oublier ce compte ?"
     },
     "lockSetup": {
       "description": "Votre clé privée sera chiffrée et stockée localement afin qu’à votre prochaine visite vous puissiez la déchiffrer et accéder à vos fichiers avec un simple code PIN ou mot de passe.",
@@ -295,10 +298,10 @@
     },
     "registerKey": {
       "confirmStored": "J’ai enregistré ma clé privée",
+      "download": "Télécharger la clé",
       "generating": "…génération en cours, veuillez patienter…",
       "label": "Votre clé de récupération",
-      "lastTimeWarning": "C’est la dernière fois que nous vous montrons votre clé de récupération !",
-      "storeSafe": "Conservez-la en lieu sûr. Vous en aurez besoin pour vous connecter ou récupérer votre compte si vous oubliez votre mot de passe.",
+      "storeSafe": "Conservez-la en lieu sûr. Vous en aurez besoin pour vous connecter ou récupérer votre compte si vous oubliez votre mot de passe. Vous pouvez la retrouver à tout moment dans Compte → Clé de récupération.",
       "title": "Votre clé de récupération"
     },
     "rememberMe": "Se souvenir de moi",
@@ -484,6 +487,7 @@
       "sharing": "Partage"
     },
     "breadcrumbs": "Fil d’Ariane",
+    "breadcrumbsShowAll": "Afficher tous les dossiers",
     "browser": {
       "addToDownloadQueue": "Ajouter à la file de téléchargement",
       "createDirectory": "Créer un dossier",
@@ -539,7 +543,8 @@
     "row": {
       "ownedBy": "Appartient à {email}",
       "savingInAnotherSession": "Une autre session enregistre cette note",
-      "sharedWith": "Partagé avec {count} autre compte | Partagé avec {count} autres comptes"
+      "sharedWith": "Partagé avec {count} autre compte | Partagé avec {count} autres comptes",
+      "uploadIncomplete": "Téléversement incomplet"
     },
     "search": {
       "noMatches": "Aucun fichier ne correspond à cette recherche",
@@ -575,6 +580,19 @@
     },
     "tree": {
       "root": "Racine"
+    },
+    "type": {
+      "archive": "Archive",
+      "audio": "Audio",
+      "document": "Document",
+      "folder": "Dossier",
+      "font": "Police",
+      "image": "Image",
+      "pdf": "PDF",
+      "presentation": "Présentation",
+      "spreadsheet": "Feuille de calcul",
+      "text": "Texte",
+      "video": "Vidéo"
     }
   },
   "links": {
@@ -669,6 +687,7 @@
       "lock": "Verrouiller",
       "notes": "Notes",
       "share": "Partage",
+      "theme": "Thème",
       "users": "Utilisateurs"
     },
     "title": {
@@ -765,7 +784,7 @@
       "moveTitle": "Déplacer vers un dossier",
       "readOnly": "Ce fichier markdown est en lecture seule."
     },
-    "noPreview": "Aucun aperçu disponible 🥲",
+    "noPreview": "Aucun aperçu disponible",
     "versionHistory": {
       "authorAnonymous": "Anonyme",
       "authorOther": "Un autre collaborateur",

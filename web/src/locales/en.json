@@ -40,8 +40,8 @@
       "submit": "Change password",
       "success": "Your password has been changed",
       "title": "Change my password",
-      "tokenHelp": "If you have 2FA enabled, enter your token here.",
-      "tokenLabel": "2FA token (optional)",
+      "tokenHelp": "If you have 2FA enabled, enter your code here.",
+      "tokenLabel": "2FA code (optional)",
       "usePrivateKey": "Change with private key"
     },
     "details": {
@@ -60,7 +60,7 @@
       "tfaOffHint": "Add an extra layer of login security.",
       "tfaOnHint": "Protected with a TOTP authenticator app.",
       "title": "Account Details",
-      "twoFactor": "Two-Factor Auth",
+      "twoFactor": "Two-factor authentication",
       "verified": "verified {date}"
     },
     "invite": {
@@ -115,15 +115,15 @@
     },
     "tfa": {
       "disable": "Disable",
-      "disableTitle": "Disable two factor authentication",
+      "disableTitle": "Disable two-factor authentication",
       "enable": "Enable",
-      "enableTitle": "Enable two factor authentication",
-      "lostAccessHelp": "If you have lost access to your two factor account, contact the app admin",
-      "scanQr": "Scan the QR code with your two factor application, or simply copy and paste the secret code below",
-      "secretLabel": "Your two factor secret",
+      "enableTitle": "Enable two-factor authentication",
+      "lostAccessHelp": "If you have lost access to your authenticator app, contact the app admin",
+      "scanQr": "Scan the QR code with your authenticator app, or simply copy and paste the secret code below",
+      "secretLabel": "Your 2FA secret",
       "secretRequired": "Secret is required",
-      "tokenLabel": "Enter your two factor token",
-      "tokenRequired": "Two factor token is required"
+      "tokenLabel": "Enter your 2FA code",
+      "tokenRequired": "Two-factor code is required"
     }
   },
   "admin": {
@@ -206,7 +206,7 @@
       "deleteAccount": "Delete this account",
       "deleteAccountWarning": "Permanently deletes the user and all their files. This cannot be undone.",
       "deleteUser": "Delete user",
-      "disableTfa": "Disable TFA",
+      "disableTfa": "Disable 2FA",
       "editQuota": "Edit quota",
       "editStorageQuota": "Edit Storage Quota",
       "emailUnverified": "email unverified",
@@ -226,8 +226,8 @@
       "storageQuota": "Storage Quota",
       "tfaEnabled": "Enabled",
       "tfaNotEnabled": "Not enabled",
-      "tfaOn": "TFA on",
-      "twoFactorAuth": "Two-Factor Auth",
+      "tfaOn": "2FA on",
+      "twoFactorAuth": "Two-factor authentication",
       "userBadge": "user"
     },
     "users": {
@@ -236,7 +236,7 @@
       "joined": "Joined",
       "lastActive": "Last Active",
       "searchPlaceholder": "Search by ID or email",
-      "tfa": "TFA",
+      "tfa": "2FA",
       "tfaEnabled": "enabled",
       "tfaOff": "off",
       "title": "Users ({total})",
@@ -259,8 +259,11 @@
       "title": "Recover your account"
     },
     "lock": {
-      "description": "An account for the user with email {email} has been locked on this browser all other data has been removed. If you are not the owner of this account, you can forget the account and login or register yourself.",
-      "forgetAccount": "Forget account"
+      "description": "The account for {email} has been locked on this browser and all other data has been removed. If you are not the owner of this account, you can forget it and log in or register yourself.",
+      "forgetAccount": "Forget account",
+      "forgetConfirmBody": "This removes the locked account and its encrypted key from this browser. The account itself is not deleted, and you can sign back in with your password at any time.",
+      "forgetConfirmLabel": "Yes, forget it",
+      "forgetConfirmTitle": "Forget this account?"
     },
     "lockSetup": {
       "description": "Your private key will be encrypted and stored locally so the next time you come back you can decrypt it and access your files with a simple pin/password.",
@@ -272,7 +275,7 @@
       "forgotPassword": "Forgot your password?",
       "recoverHere": "Recover your account here",
       "title": "Access Your Files",
-      "twoFactorLabel": "2FA token (optional)",
+      "twoFactorLabel": "2FA code (optional)",
       "withPrivateKey": "Login With Private Key"
     },
     "migration": {
@@ -295,16 +298,16 @@
     },
     "registerKey": {
       "confirmStored": "I have stored my private key",
+      "download": "Download key",
       "generating": "...is being generated, please wait...",
       "label": "Your recovery key",
-      "lastTimeWarning": "This is the last time we'll show you your recovery key!",
-      "storeSafe": "Store it somewhere safe. You will need this to login or recover your account if you forget your password.",
+      "storeSafe": "Store it somewhere safe. You will need it to log in or to recover your account if you forget your password. You can view it again anytime under Account → Recovery key.",
       "title": "Your Recovery Key"
     },
     "rememberMe": "Remember me",
     "resend": {
       "alreadyActivated": "Already activated an account?",
-      "description1": "We have sent you an activation email that contains link you have to visit in order to active your account.",
+      "description1": "We have sent you an activation email with a link you need to visit to activate your account.",
       "description2": "In case you haven't received an email, you can request another one by filling out the form below.",
       "resend": "Re-send",
       "resendCount": "Re-send ({count})",
@@ -312,13 +315,13 @@
       "title": "Activation pending"
     },
     "twoFactor": {
-      "generating": "We are generating your two factor secret...",
-      "registerButton": "Register with Two Factor",
-      "scanQr": "Scan the QR code with your two factor application, or simply copy and paste the secret code below",
-      "secretLabel": "Your two factor secret",
+      "generating": "We are generating your 2FA secret...",
+      "registerButton": "Register with 2FA",
+      "scanQr": "Scan the QR code with your authenticator app, or simply copy and paste the secret code below",
+      "secretLabel": "Your 2FA secret",
       "skip": "Skip",
-      "title": "Two Factor Authentication",
-      "tokenLabel": "Enter your two factor token"
+      "title": "Two-factor authentication",
+      "tokenLabel": "Enter your 2FA code"
     },
     "unlock": "Unlock",
     "validation": {
@@ -334,7 +337,7 @@
       "privateKeyRequired": "Private key is required",
       "pubkeyRequired": "Public key is required",
       "secretRequired": "Secret is required",
-      "twoFactorRequired": "Two factor token is required"
+      "twoFactorRequired": "Two-factor code is required"
     },
     "verifyEmail": {
       "failed": "Email verification failed:",
@@ -484,9 +487,10 @@
       "sharing": "Sharing"
     },
     "breadcrumbs": "Breadcrumb",
+    "breadcrumbsShowAll": "Show all folders",
     "browser": {
       "addToDownloadQueue": "Add to download queue",
-      "createDirectory": "Create directory",
+      "createDirectory": "Create folder",
       "emptyFolder": "This folder is empty",
       "emptyFolderHint": "Drop files here or use the upload button to add some",
       "newFile": "New file",
@@ -496,10 +500,10 @@
       "uploadFolder": "Upload folder"
     },
     "createDirectory": {
-      "nameLabel": "Directory name",
+      "nameLabel": "Folder name",
       "namePlaceholder": "Documents",
-      "nameRequired": "Directory name is required",
-      "title": "Create a directory"
+      "nameRequired": "Folder name is required",
+      "title": "Create a folder"
     },
     "createFile": {
       "nameLabel": "File name",
@@ -507,8 +511,8 @@
       "title": "Create a new file"
     },
     "delete": {
-      "confirmDirectory": "Are you sure you want to delete forever '{name}' directory?",
-      "confirmFile": "Are you sure you want to delete forever '{name}'?",
+      "confirmDirectory": "Are you sure you want to delete the folder '{name}' forever?",
+      "confirmFile": "Are you sure you want to delete '{name}' forever?",
       "confirmLabel": "Yes, delete",
       "confirmMany": "Are you sure you want to delete {count} items?",
       "selectedTitle": "Delete selected"
@@ -518,7 +522,7 @@
     },
     "move": {
       "home": "Home",
-      "selectTarget": "Select target directory"
+      "selectTarget": "Select target folder"
     },
     "moveShare": {
       "andMore": "{names} and {count} more",
@@ -531,7 +535,7 @@
     },
     "myFiles": "My Files",
     "rename": {
-      "directoryTitle": "Rename a directory",
+      "directoryTitle": "Rename a folder",
       "fileTitle": "Rename a file",
       "namePlaceholder": "new name",
       "nameRequired": "New name is required"
@@ -539,7 +543,8 @@
     "row": {
       "ownedBy": "Owned by {email}",
       "savingInAnotherSession": "Another session is saving this note",
-      "sharedWith": "Shared with {count} other account | Shared with {count} other accounts"
+      "sharedWith": "Shared with {count} other account | Shared with {count} other accounts",
+      "uploadIncomplete": "Upload incomplete"
     },
     "search": {
       "noMatches": "No files match that search",
@@ -575,6 +580,19 @@
     },
     "tree": {
       "root": "Root"
+    },
+    "type": {
+      "archive": "Archive",
+      "audio": "Audio",
+      "document": "Document",
+      "folder": "Folder",
+      "font": "Font",
+      "image": "Image",
+      "pdf": "PDF",
+      "presentation": "Presentation",
+      "spreadsheet": "Spreadsheet",
+      "text": "Text",
+      "video": "Video"
     }
   },
   "links": {
@@ -642,7 +660,7 @@
   },
   "nav": {
     "activation": {
-      "notice": "You account is not activated, please check your email for the activation link, it might end up in spam folder, so check that too. You can also try to {resend} the activation email.",
+      "notice": "Your account is not activated. Please check your email for the activation link; it might end up in the spam folder, so check that too. You can also try to {resend} the activation email.",
       "resend": "resend",
       "resendFailed": "Couldn't resend activation email"
     },
@@ -669,6 +687,7 @@
       "lock": "Lock",
       "notes": "Notes",
       "share": "Sharing",
+      "theme": "Theme",
       "users": "Users"
     },
     "title": {
@@ -691,12 +710,12 @@
       "registerCredentials": "Create Account - Credentials",
       "registerKey": "Create Account - Your Private Key",
       "registerResend": "Create Account - Resend Activation Email",
-      "registerTwoFactor": "Create Account - Two Factor Authentication",
+      "registerTwoFactor": "Create Account - Two-Factor Authentication",
       "setupLockScreen": "Setup Lock Screen",
       "verifyEmail": "Create Account - Verify Email"
     },
     "upload": {
-      "fileIsDirectory": "File {name} is a directory"
+      "fileIsDirectory": "{name} is a folder"
     }
   },
   "notes": {
@@ -765,7 +784,7 @@
       "moveTitle": "Move to folder",
       "readOnly": "This markdown file is read-only."
     },
-    "noPreview": "No preview available 🥲",
+    "noPreview": "No preview available",
     "versionHistory": {
       "authorAnonymous": "Anonymous",
       "authorOther": "Another collaborator",

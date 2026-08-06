@@ -64,7 +64,7 @@ export async function createUserWithTwoFactor(page: Page, email: string, passwor
   const secret = await page.locator('#secret').inputValue()
   const token = authenticator.generate(secret)
   await page.locator('#token').fill(token)
-  await page.getByRole('button', { name: 'Register with Two Factor' }).click()
+  await page.getByRole('button', { name: 'Register with 2FA' }).click()
 
   return { email, password, privateKey, secret }
 }
