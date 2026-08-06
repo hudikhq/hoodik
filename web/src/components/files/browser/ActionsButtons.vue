@@ -126,6 +126,15 @@ const canDelete = computed(() => {
   />
 
   <PureButton
+    v-if="canRename"
+    :icon="mdiPencil"
+    @click="emits('rename', file)"
+    :label="$t('common.rename')"
+    name="rename"
+    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
+  />
+
+  <PureButton
     v-if="hasPreview"
     :icon="mdiEye"
     :to="{
@@ -183,15 +192,6 @@ const canDelete = computed(() => {
     @click="emits('remove', file)"
     :label="$t('common.delete')"
     name="delete"
-    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
-  />
-
-  <PureButton
-    v-if="canRename"
-    :icon="mdiPencil"
-    @click="emits('rename', file)"
-    :label="$t('common.rename')"
-    name="rename"
-    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
+    class="block text-left p-2 sm:p-0 w-full mt-1 pt-1 border-t border-brownish-200 dark:border-brownish-600 text-redish-500 dark:text-redish-200 hover:bg-brownish-600"
   />
 </template>

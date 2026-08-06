@@ -1,5 +1,18 @@
 /* eslint-env node */
 
+const redish = {
+  50: '#F58596',
+  100: '#E2677B',
+  200: '#D8566B',
+  300: '#BA4054',
+  400: '#A63446', // native
+  500: '#A43144',
+  600: '#96293B',
+  700: '#811C2C',
+  800: '#610F1C',
+  900: '#300C13',
+  950: '#1C0508'
+}
 
 module.exports = {
   content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
@@ -9,19 +22,8 @@ module.exports = {
       transparent: 'transparent',
       white: '#FFFFFF',
       'dirty-white': '#EEEEEE',
-      redish: {
-        50: '#F58596',
-        100: '#E2677B',
-        200: '#D8566B',
-        300: '#BA4054',
-        400: '#A63446', // native
-        500: '#A43144',
-        600: '#96293B',
-        700: '#811C2C',
-        800: '#610F1C',
-        900: '#300C13',
-        950: '#1C0508'
-      },
+      redish,
+      primary: redish,
       brownish: {
         50: '#898989',
         100: '#787878',

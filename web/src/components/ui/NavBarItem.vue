@@ -32,6 +32,21 @@ const is = computed(() => {
   return 'div'
 })
 
+// RouterLink resolves its own href — an explicit href binding, even an
+// undefined one, overrides it away in the attr merge. Only bind the
+// attributes that apply to the element being rendered.
+const linkAttrs = computed(() => {
+  if (props.item.href) {
+    return { href: props.item.href, target: props.item.target }
+  }
+
+  if (props.item.to) {
+    return { to: props.item.to }
+  }
+
+  return {}
+})
+
 const styleStore = store()
 
 const componentClass = computed(() => {
@@ -101,9 +116,9 @@ onBeforeUnmount(() => {
     ref="root"
     class="block lg:flex items-center relative cursor-pointer"
     :class="componentClass"
-    :to="item.to ?? null"
-    :href="item.href ?? null"
-    :target="item.target ?? null"
+    v-bind="linkAttrs"
+    :data-testid="item.testid"
+    :title="item.label"
     @click="menuClick"
   >
     <div

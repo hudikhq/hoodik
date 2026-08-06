@@ -8,7 +8,7 @@ import ChangePasswordForm from '@/components/account/ChangePasswordForm.vue'
   <LayoutGuest>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass">
-        <h1 class="text-2xl text-white">{{ $t('auth.forgotPassword.title') }}</h1>
+        <h1 class="text-2xl text-brownish-700 dark:text-white">{{ $t('auth.forgotPassword.title') }}</h1>
         <ChangePasswordForm :forgotPassword="true" />
 
         <div class="text-sm font-medium text-brownish-500 dark:text-brownish-100 pt-2">

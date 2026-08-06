@@ -74,7 +74,7 @@ init()
   <LayoutGuest>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass">
-        <h1 class="text-2xl text-white">{{ $t('auth.register.title') }}</h1>
+        <h1 class="text-2xl text-brownish-700 dark:text-white">{{ $t('auth.register.title') }}</h1>
 
         <div v-if="registrationDisabled" class="mt-8 space-y-6" data-testid="registration-disabled">
           <p class="text-sm text-dirty-white">
@@ -111,7 +111,7 @@ init()
             :label="$t('auth.yourPassword')"
             name="password"
             autocomplete="new-password"
-            placeholder="*********"
+            placeholder="••••••••"
           />
           <AppField
             :allow-copy="false"
@@ -120,7 +120,7 @@ init()
             :label="$t('auth.register.confirmPassword')"
             name="confirm_password"
             autocomplete="new-password"
-            placeholder="*********"
+            placeholder="••••••••"
           />
           <AppButton color="info" type="submit">{{ $t('common.next') }}</AppButton>
 

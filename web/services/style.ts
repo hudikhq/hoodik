@@ -37,7 +37,7 @@ export const store = defineStore('style', {
     },
 
     setDarkMode(payload?: boolean) {
-      this.darkMode = payload ? payload : !this.darkMode
+      this.darkMode = payload ?? !this.darkMode
 
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(lightModeKey, this.darkMode ? '0' : '1')

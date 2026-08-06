@@ -58,7 +58,7 @@ config.value = {
   <LayoutAuthenticatedWithLoader clear>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass">
-        <h1 class="text-2xl text-white mb-5">{{ $t('auth.lockSetup.title') }}</h1>
+        <h1 class="text-2xl text-brownish-700 dark:text-white mb-5">{{ $t('auth.lockSetup.title') }}</h1>
         <div class="flex items-start">
           <div class="flex items-center">
             <p class="text-sm">
@@ -74,7 +74,7 @@ config.value = {
             :label="$t('auth.lockSetup.passwordLabel')"
             name="password"
             autocomplete="off"
-            placeholder="******"
+            placeholder="••••••••"
           />
           <AppField
             type="password"
@@ -83,7 +83,7 @@ config.value = {
             :label="$t('common.confirm')"
             name="confirm_password"
             autocomplete="off"
-            placeholder="******"
+            placeholder="••••••••"
           />
 
           <AppButton :form="form" type="submit">{{ $t('auth.lockSetup.submit') }}</AppButton>

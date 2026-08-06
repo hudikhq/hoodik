@@ -127,7 +127,7 @@ onUnmounted(() => {
         v-model="query"
         type="text"
         :placeholder="$t('notes.landing.searchPlaceholder')"
-        class="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-brownish-200 dark:border-brownish-700 bg-white dark:bg-brownish-800 dark:text-brownish-100 focus:outline-none focus:ring-1 focus:ring-orangy-500 focus:border-orangy-500"
+        class="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-brownish-200 dark:border-brownish-700 bg-white dark:bg-brownish-800 dark:text-brownish-100 focus:outline-none focus:ring-1 focus:ring-redish-400 focus:border-redish-400"
       />
     </div>
 

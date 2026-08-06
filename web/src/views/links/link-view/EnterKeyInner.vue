@@ -43,7 +43,7 @@ const config = ref({
             :form="form"
             :label="$t('links.unlock.keyLabel')"
             name="linkKeyHex"
-            placeholder="********"
+            placeholder="••••••••"
             :autofocus="true"
           />
 

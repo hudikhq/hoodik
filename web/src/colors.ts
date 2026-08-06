@@ -58,7 +58,7 @@ export const getButtonColor = (
       success: 'ring-greeny-300 dark:ring-greeny-700 ',
       danger: 'ring-redish-300 dark:ring-redish-700 ',
       warning: 'ring-orangy-300 dark:ring-orangy-700 ',
-      info: 'ring-blueish-300 dark:ring-blueish-700 ',
+      info: 'ring-redish-300 dark:ring-redish-700 ',
       empty: 'ring-brownish-200 dark:ring-brownish-500'
     },
     active: {
@@ -68,7 +68,7 @@ export const getButtonColor = (
       success: 'bg-greeny-700 dark:bg-greeny-600 ',
       danger: 'bg-redish-700 dark:bg-redish-600 ',
       warning: 'bg-orangy-700 dark:bg-orangy-600 ',
-      info: 'bg-blueish-700 dark:bg-blueish-600 ',
+      info: 'bg-redish-600 dark:bg-redish-500 ',
       empty: 'bg-transparent'
     },
     bg: {
@@ -78,7 +78,7 @@ export const getButtonColor = (
       success: 'bg-greeny-600 dark:bg-greeny-500 text-white ',
       danger: 'bg-redish-600 dark:bg-redish-500 text-white ',
       warning: 'bg-orangy-600 dark:bg-orangy-500 text-white ',
-      info: 'bg-blueish-600 dark:bg-blueish-500 text-white ',
+      info: 'bg-redish-500 dark:bg-redish-400 text-white ',
       empty: 'bg-transparent text-black dark:text-white'
     },
     bgHover: {
@@ -91,17 +91,17 @@ export const getButtonColor = (
         'hover:bg-redish-700 hover:border-redish-700 hover:dark:bg-redish-600 hover:dark:border-redish-600 ',
       warning:
         'hover:bg-orangy-700 hover:border-orangy-700 hover:dark:bg-orangy-600 hover:dark:border-orangy-600 ',
-      info: 'hover:bg-blueish-700 hover:border-blueish-700 hover:dark:bg-blueish-600 hover:dark:border-blueish-600 ',
+      info: 'hover:bg-redish-600 hover:border-redish-600 hover:dark:bg-redish-300 hover:dark:border-redish-300 ',
       empty: 'hover:bg-transparent'
     },
     borders: {
-      light: 'border-brownish-100 dark:border-brownish-800 ',
-      dark: 'border-brownish-100 dark:border-brownish-800 ',
+      light: 'border-brownish-100 dark:border-brownish-500 ',
+      dark: 'border-brownish-100 dark:border-brownish-500 ',
       contrast: 'border-brownish-800 dark:border-white ',
       success: 'border-greeny-600 dark:border-greeny-500 ',
       danger: 'border-redish-600 dark:border-redish-500 ',
       warning: 'border-orangy-600 dark:border-orangy-500 ',
-      info: 'border-blueish-600 dark:border-blueish-500 ',
+      info: 'border-redish-500 dark:border-redish-400 ',
       empty: 'border-transparent'
     },
     text: {
@@ -111,7 +111,7 @@ export const getButtonColor = (
       success: 'text-greeny-600 dark:text-greeny-500 ',
       danger: 'text-redish-600 dark:text-redish-500 ',
       warning: 'text-orangy-600 dark:text-orangy-500 ',
-      info: 'text-blueish-600 dark:text-blueish-500 ',
+      info: 'text-redish-500 dark:text-redish-200 ',
       empty: 'text-black dark:text-white'
     },
     outlineHover: {
@@ -125,7 +125,7 @@ export const getButtonColor = (
         'hover:bg-redish-600 hover:text-white hover:text-white hover:dark:text-white hover:dark:border-redish-600 ',
       warning:
         'hover:bg-orangy-600 hover:text-white hover:text-white hover:dark:text-white hover:dark:border-orangy-600 ',
-      info: 'hover:bg-blueish-600 hover:text-white hover:dark:text-white hover:dark:border-blueish-600 ',
+      info: 'hover:bg-redish-500 hover:text-white hover:dark:text-white hover:dark:border-redish-500 ',
       empty: 'hover:text-black hover:dark:text-white '
     }
   }

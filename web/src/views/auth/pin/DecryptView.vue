@@ -69,7 +69,7 @@ init()
   <LayoutGuest>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass" v-if="config">
-        <h1 class="text-2xl text-white mb-5">{{ $t('auth.decrypt.title') }}</h1>
+        <h1 class="text-2xl text-brownish-700 dark:text-white mb-5">{{ $t('auth.decrypt.title') }}</h1>
         <p>
           {{ $t('auth.decrypt.aboutToUnlock') }} <strong>{{ email }}</strong>
           {{ $t('auth.decrypt.notYou') }}
@@ -85,7 +85,7 @@ init()
             :label="$t('auth.yourPassword')"
             name="password"
             autocomplete="off"
-            placeholder="********"
+            placeholder="••••••••"
             :autofocus="true"
           />
 

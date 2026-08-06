@@ -58,7 +58,7 @@ verify()
       <CardBox :class="`${cardClass} h-[450px] text-center`">
         <PuppyLoader v-model="working" />
 
-        <h1 class="text-2xl text-white">{{ $t('auth.verifyEmail.title') }}</h1>
+        <h1 class="text-2xl text-brownish-700 dark:text-white">{{ $t('auth.verifyEmail.title') }}</h1>
 
         <BaseIcon
           v-if="!error && !working"

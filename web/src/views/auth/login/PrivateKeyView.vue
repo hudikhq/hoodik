@@ -76,7 +76,7 @@ init()
   <LayoutGuest>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass">
-        <h1 class="text-2xl text-white">{{ $t('auth.login.title') }}</h1>
+        <h1 class="text-2xl text-brownish-700 dark:text-white">{{ $t('auth.login.title') }}</h1>
         <AppForm v-if="config" :config="config" class="mt-8 space-y-6" v-slot="{ form }">
           <AppField
             textarea

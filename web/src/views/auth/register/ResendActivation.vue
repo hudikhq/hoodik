@@ -56,7 +56,7 @@ init()
   <LayoutGuest>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass" v-if="config">
-        <h1 class="text-2xl text-white mb-5">{{ $t('auth.resend.title') }}</h1>
+        <h1 class="text-2xl text-brownish-700 dark:text-white mb-5">{{ $t('auth.resend.title') }}</h1>
         <div class="flex items-start">
           <div class="flex items-center h-5">
             <p class="text-sm dark:text-white">

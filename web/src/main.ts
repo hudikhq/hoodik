@@ -32,13 +32,8 @@ const styleStore = style(pinia)
 /* App style */
 styleStore.setStyle(localStorage[styleKey] ?? 'basic')
 
-/* Dark mode */
-if (
-  (!localStorage[lightModeKey] && window.matchMedia('(prefers-color-scheme: dark)').matches) ||
-  localStorage[lightModeKey] === '1'
-) {
-  styleStore.setDarkMode(true)
-}
+/* Theme: dark unless the user explicitly stored a light preference */
+styleStore.setDarkMode(localStorage[lightModeKey] !== '1')
 
 /* Default title tag */
 window.defaultDocumentTitle = import.meta.env.APP_NAME || 'Hoodik'

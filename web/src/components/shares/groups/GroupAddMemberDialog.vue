@@ -335,7 +335,7 @@ const showUnknownPill = computed(
         data-testid="group-add-member-submit"
         @click.prevent="submit"
       />
-      <BaseButton :label="$t('common.cancel')" color="info" outline @click.prevent="cancel" />
+      <BaseButton :label="$t('common.cancel')" color="light" @click.prevent="cancel" />
     </template>
   </CardBoxModal>
 
