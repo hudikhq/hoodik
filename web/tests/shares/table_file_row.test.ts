@@ -4,8 +4,9 @@ import { mount } from '@vue/test-utils'
 
 import TableFileRow from '../../src/views/files/index-view/TableFileRow.vue'
 import { SHARED_WITH_ME_DIR_ID } from '../../services/storage'
+import { store as uploadStore } from '../../services/storage/upload'
 import { isPreviewable } from '../../services/preview'
-import type { AppFile } from '../../types'
+import type { AppFile, UploadAppFile } from '../../types'
 
 const routerPush = vi.fn()
 vi.mock('vue-router', () => ({
@@ -168,18 +169,32 @@ describe('isPreviewable: shared image without decrypted thumbnail', () => {
 })
 
 describe('TableFileRow: still-uploading row', () => {
-  it('marks the row as uploading instead of rendering it as complete', () => {
-    const wrapper = mountRow(baseFile({ finished_upload_at: undefined, chunks: 0 }))
+  it('marks the row as uploading while the queue is working on it', () => {
+    const file = baseFile({ finished_upload_at: undefined, chunks: 0 })
+    uploadStore().running.push(file as UploadAppFile)
+
+    const wrapper = mountRow(file)
     const progress = wrapper.find('.border-greeny-500')
 
     expect(wrapper.find('[data-testid="uploading-icon"]').exists()).toBe(true)
     expect(progress.attributes('style')).toContain('width: 0%')
   })
 
+  it('marks an unfinished row with no live transfer as stalled, not uploading', () => {
+    // After a refresh the in-memory queue is empty — the row must not sit
+    // on a progress bar that will never move.
+    const wrapper = mountRow(baseFile({ finished_upload_at: undefined, chunks: 0 }))
+
+    expect(wrapper.find('[data-testid="uploading-icon"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="stalled-upload-icon"]').exists()).toBe(true)
+    expect(wrapper.find('.border-greeny-500').exists()).toBe(false)
+  })
+
   it('leaves a finished row without the uploading affordances', () => {
     const wrapper = mountRow(baseFile())
 
     expect(wrapper.find('[data-testid="uploading-icon"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="stalled-upload-icon"]').exists()).toBe(false)
     expect(wrapper.find('.border-greeny-500').exists()).toBe(false)
   })
 })

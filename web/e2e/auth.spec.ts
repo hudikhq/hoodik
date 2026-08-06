@@ -96,3 +96,69 @@ test.describe('Logout', () => {
     await expect(page).toHaveURL(/auth\/login/)
   })
 })
+
+test.describe('Theme', () => {
+  test('login renders crimson links and submit button in the default dark theme', async ({
+    page
+  }) => {
+    await page.goto('/auth/login')
+
+    // dark:text-primary-500 resolves to the redish ramp — the palette these
+    // classes point at has to actually exist in the tailwind config.
+    const link = page.getByRole('link', { name: 'Create an Account' })
+    await expect(link).toBeVisible()
+    await expect(link).toHaveCSS('color', 'rgb(164, 49, 68)')
+
+    await expect(page.getByRole('button', { name: 'Login', exact: true })).toHaveCSS(
+      'background-color',
+      'rgb(166, 52, 70)'
+    )
+  })
+
+  test('the navbar toggle switches to light mode and the choice persists', async ({ page }) => {
+    const email = randomEmail()
+    const password = randomPassword()
+    await createUser(page, email, password)
+
+    await expect(page.locator('html')).toHaveClass(/dark/)
+
+    await page.getByTestId('theme-toggle').click()
+    await expect(page.locator('html')).not.toHaveClass(/dark/)
+    expect(await page.evaluate(() => localStorage.getItem('lightMode'))).toBe('1')
+
+    await page.getByTestId('theme-toggle').click()
+    await expect(page.locator('html')).toHaveClass(/dark/)
+    expect(await page.evaluate(() => localStorage.getItem('lightMode'))).toBe('0')
+  })
+})
+
+test.describe('Lock screen', () => {
+  test('forgetting a locked account requires confirmation', async ({ page }) => {
+    const email = randomEmail()
+    const password = randomPassword()
+    await createUser(page, email, password)
+
+    // First visit to the lock route without a stored pin walks through setup
+    await page.locator('nav a[href*="/auth/pin/lock"]').click()
+    await page.waitForURL('**/auth/pin/setup-lock-screen')
+    await page.locator('#password').fill('1234')
+    await page.locator('#confirm_password').fill('1234')
+    await page.getByRole('button', { name: 'Encrypt and store' }).click()
+    await page.waitForURL('**/')
+
+    // A fresh load with a stored pin lands on the lock screen
+    await page.goto('/auth/pin/lock')
+    await page.getByRole('button', { name: 'Forget account' }).click()
+
+    // Cancelling keeps the stored key and stays on the lock screen
+    await expect(page.getByText('Forget this account?')).toBeVisible()
+    await page.getByRole('button', { name: 'Cancel' }).click()
+    await expect(page.getByText('Forget this account?')).not.toBeVisible()
+    await expect(page).toHaveURL(/auth\/pin\/lock/)
+
+    // Confirming forgets the account and returns to login
+    await page.getByRole('button', { name: 'Forget account' }).click()
+    await page.getByRole('button', { name: 'Yes, forget it' }).click()
+    await page.waitForURL('**/auth/login')
+  })
+})

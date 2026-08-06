@@ -8,6 +8,7 @@ import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { formatPrettyDate, formatSize } from '!'
 import {
   mdiDotsVertical,
+  mdiAlertCircleOutline,
   mdiCloudSyncOutline,
   mdiFolderAccount,
   mdiShareVariantOutline,
@@ -19,6 +20,8 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { isPreviewable, isMarkdownFile } from '!/preview'
 import { SHARED_WITH_ME_DIR_ID } from '!/storage'
+import { store as uploadStore } from '!/storage/upload'
+import { prettyMime } from '@/utils/mime'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -65,13 +68,30 @@ const checked = computed({
   set: (v) => selectOne(v)
 })
 
+const upload = uploadStore()
+
+const isUnfinished = computed(() => {
+  return props.file.mime !== 'dir' && !props.file.finished_upload_at
+})
+
+/**
+ * The upload queue lives in memory, so after a refresh an unfinished row
+ * has no transfer behind it anymore. Live progress renders only for rows
+ * the queue is actually working on; the rest surface as stalled uploads
+ * instead of sitting on a progress bar that will never move.
+ */
 const showProgress = computed(() => {
-  if (props.file.mime === 'dir') {
+  if (!isUnfinished.value) {
     return false
   }
 
-  return !props.file.finished_upload_at
+  return (
+    upload.running.some((item) => item.id === props.file.id) ||
+    upload.waiting.some((item) => item.id === props.file.id)
+  )
 })
+
+const isStalledUpload = computed(() => isUnfinished.value && !showProgress.value)
 
 const isDir = computed(() => {
   return props.file.mime === 'dir'
@@ -267,9 +287,7 @@ const drop = (e: DragEvent) => {
     @dragend="dragend"
     @dragover="dragover"
     @drop="drop"
-    name="file-row"
     :data-testid="`file-row-${file.name}`"
-    accesskey="test"
     class="w-full flex file-row-separator"
     :class="{
       'bg-brownish-50 dark:bg-brownish-700': !!checked,
@@ -297,6 +315,14 @@ const drop = (e: DragEvent) => {
           :size="16"
           class="mr-2 text-greeny-500 dark:text-greeny-400"
           data-testid="uploading-icon"
+        />
+        <BaseIcon
+          v-else-if="isStalledUpload"
+          :path="mdiAlertCircleOutline"
+          :size="16"
+          class="mr-2 text-orangy-500 dark:text-orangy-400"
+          :title="$t('files.row.uploadIncomplete')"
+          data-testid="stalled-upload-icon"
         />
       </FileThumbnail>
 
@@ -342,7 +368,7 @@ const drop = (e: DragEvent) => {
     </div>
 
     <div :class="sizes.type" :title="props.file.mime">
-      <TruncatedSpan :text="props.file.mime" />
+      <TruncatedSpan :text="prettyMime(props.file.mime)" />
     </div>
 
     <div :class="sizes.modifiedAt" :title="fileModifiedAt">
