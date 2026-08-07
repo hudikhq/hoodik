@@ -263,9 +263,34 @@
 .milkdown-wrapper .milkdown .ProseMirror li { margin: 0.3em 0; line-height: 1.7; display: list-item; }
 .milkdown-wrapper .milkdown .ProseMirror li::marker { color: var(--md-marker); }
 
-.milkdown-wrapper .milkdown .ProseMirror ul[data-type="taskList"] { list-style: none; padding-left: 0; }
-.milkdown-wrapper .milkdown .ProseMirror ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5em; }
-.milkdown-wrapper .milkdown .ProseMirror ul[data-type="taskList"] li input[type="checkbox"] { accent-color: #EE8434; margin-top: 0.35em; }
+/* Task lists (GFM). The task-list NodeView renders each item as
+   li > input.task-checkbox + div.task-content. */
+.milkdown-wrapper .milkdown .ProseMirror li[data-item-type="task"] {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55em;
+  list-style: none;
+}
+
+.milkdown-wrapper .milkdown .ProseMirror li[data-item-type="task"]::marker { content: none; }
+
+.milkdown-wrapper .milkdown .ProseMirror li[data-item-type="task"] > .task-checkbox {
+  accent-color: #EE8434;
+  width: 1em;
+  height: 1em;
+  margin-top: 0.45em;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.milkdown-wrapper .milkdown .ProseMirror li[data-item-type="task"] > .task-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.milkdown-wrapper .milkdown .ProseMirror li[data-item-type="task"][data-checked="true"] > .task-content {
+  color: var(--md-del);
+}
 
 /* Horizontal rule */
 .milkdown-wrapper .milkdown .ProseMirror hr {

@@ -30,6 +30,33 @@ test.describe('New File button — A1 create flow', () => {
     await expect(page.locator('.md-raw-textarea')).toHaveValue(/from-browser/)
   })
 
+  test('task-list checkboxes toggle by click and serialize as [x]', async ({ page }) => {
+    await setup(page)
+    await createNoteFromBrowser(page, 'tasks.md')
+
+    await openRawMarkdown(page)
+    await typeRawMarkdown(page, '# Tasks\n\n- [ ] buy milk\n- [x] water plants\n')
+    await saveViaButton(page)
+
+    // Back to the WYSIWYG editor — the task items must render real,
+    // clickable checkboxes reflecting the parsed state.
+    await page.locator('[name="md-actions"]').click()
+    await page.getByRole('button', { name: 'WYSIWYG editor', exact: true }).click()
+
+    const boxes = page.locator('.task-checkbox')
+    await expect(boxes).toHaveCount(2)
+    await expect(boxes.nth(0)).not.toBeChecked()
+    await expect(boxes.nth(1)).toBeChecked()
+
+    await boxes.nth(0).click()
+    await expect(boxes.nth(0)).toBeChecked()
+    await saveViaButton(page)
+
+    // The toggle must land in the markdown itself.
+    await openRawMarkdown(page)
+    await expect(page.locator('.md-raw-textarea')).toHaveValue(/\[x\] buy milk/)
+  })
+
   test('the editor canvas follows the app theme', async ({ page }) => {
     await setup(page)
     await createNoteFromBrowser(page, 'themed.md')

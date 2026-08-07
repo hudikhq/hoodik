@@ -11,6 +11,7 @@ import { nord } from '@milkdown/theme-nord'
 import { createKeyboardShortcutsPlugin } from './plugins/keyboard-shortcuts'
 import { createHeadingAnchorPlugin } from './plugins/heading-anchor'
 import { htmlRenderView } from './plugins/html-render'
+import { taskListItemView } from './plugins/task-list'
 import { configurePrismLanguages } from './plugins/prism-languages'
 import type { EditorOptions } from './types'
 
@@ -60,6 +61,7 @@ export function getBasePlugins(options: EditorOptions): (MilkdownPlugin | Milkdo
     prism,
     history,
     htmlRenderView,
+    taskListItemView,
     createHeadingAnchorPlugin(),
   ]
 
