@@ -3,7 +3,7 @@ export { createKeyboardShortcutsPlugin } from './plugins/keyboard-shortcuts'
 export type { KeyboardShortcutCallbacks } from './plugins/keyboard-shortcuts'
 export { createHeadingAnchorPlugin } from './plugins/heading-anchor'
 export { htmlRenderView } from './plugins/html-render'
-export { taskListItemView } from './plugins/task-list'
+export { taskListItemView, toggleTaskListCommand } from './plugins/task-list'
 
 // Editor setup
 export { configureEditor, getBasePlugins } from './setup'

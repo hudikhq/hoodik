@@ -1,6 +1,8 @@
-import { $view } from '@milkdown/utils'
-import { listItemSchema } from '@milkdown/preset-commonmark'
+import { $command, $view } from '@milkdown/utils'
+import { commandsCtx } from '@milkdown/core'
+import { listItemSchema, wrapInBulletListCommand } from '@milkdown/preset-commonmark'
 import type { Node } from '@milkdown/prose/model'
+import type { EditorState } from '@milkdown/prose/state'
 import type { NodeViewConstructor } from '@milkdown/prose/view'
 
 /**
@@ -103,3 +105,48 @@ export const taskListItemView = $view(
     }
   }
 )
+
+/**
+ * Finds the closest ancestor list item around the selection and returns
+ * its position, or null when the selection is not inside a list.
+ */
+function findListItem(state: EditorState): { pos: number; node: Node } | null {
+  const { $from } = state.selection
+  for (let depth = $from.depth; depth > 0; depth--) {
+    const node = $from.node(depth)
+    if (node.type.name === 'list_item') {
+      return { pos: $from.before(depth), node }
+    }
+  }
+  return null
+}
+
+/**
+ * Turns the current block into a task-list item, or a task item back into
+ * a plain list item. Outside a list the selection is wrapped in a bullet
+ * list first, so a single toolbar press works from an ordinary paragraph.
+ */
+export const toggleTaskListCommand = $command('ToggleTaskList', (ctx) => () => {
+  return (state, dispatch) => {
+    const found = findListItem(state)
+
+    if (!found) {
+      const commands = ctx.get(commandsCtx)
+      if (!commands.call(wrapInBulletListCommand.key)) return false
+      // Re-enter by key: the selection now sits inside the fresh list item.
+      // (The literal avoids a self-referential type in the command const.)
+      return commands.call('ToggleTaskList')
+    }
+
+    if (dispatch) {
+      dispatch(
+        state.tr.setNodeMarkup(found.pos, undefined, {
+          ...found.node.attrs,
+          checked: found.node.attrs.checked == null ? false : null
+        })
+      )
+    }
+
+    return true
+  }
+})

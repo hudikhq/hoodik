@@ -5,6 +5,7 @@ import {
   mdiFormatItalic,
   mdiFormatHeader1,
   mdiFormatStrikethrough,
+  mdiCheckboxMarkedOutline,
   mdiFormatListBulleted,
   mdiFormatListNumbered,
   mdiFormatQuoteClose,
@@ -96,6 +97,7 @@ defineExpose({ closeDropdown })
 
     <BaseButton color="dark" :icon="mdiFormatListBulleted" xs :title="$t('notes.toolbar.bulletList')" name="md-bullet-list" @mousedown.prevent @click="$emit('command', 'WrapInBulletList')" />
     <BaseButton color="dark" :icon="mdiFormatListNumbered" xs :title="$t('notes.toolbar.orderedList')" name="md-ordered-list" @mousedown.prevent @click="$emit('command', 'WrapInOrderedList')" />
+    <BaseButton color="dark" :icon="mdiCheckboxMarkedOutline" xs :title="$t('notes.toolbar.taskList')" name="md-task-list" @mousedown.prevent @click="$emit('command', 'ToggleTaskList')" />
     <BaseButton color="dark" :icon="mdiFormatQuoteClose" xs :title="$t('notes.toolbar.blockquote')" name="md-blockquote" @mousedown.prevent @click="$emit('command', 'WrapInBlockquote')" />
 
     <span class="md-toolbar-divider" />

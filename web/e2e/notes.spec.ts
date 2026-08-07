@@ -30,6 +30,26 @@ test.describe('New File button — A1 create flow', () => {
     await expect(page.locator('.md-raw-textarea')).toHaveValue(/from-browser/)
   })
 
+  test('the toolbar button turns the current line into a task item', async ({ page }) => {
+    await setup(page)
+    await createNoteFromBrowser(page, 'tasks-button.md')
+
+    // Put the caret on a fresh paragraph below the title, then press the
+    // task-list toolbar button — no bracket syntax involved.
+    await page.locator('.ProseMirror').click()
+    await page.keyboard.press('End')
+    await page.keyboard.press('Enter')
+    await page.locator('[name="md-task-list"]').click()
+
+    const box = page.locator('.task-checkbox')
+    await expect(box).toHaveCount(1)
+    await page.keyboard.type('from the button')
+
+    await saveViaButton(page)
+    await openRawMarkdown(page)
+    await expect(page.locator('.md-raw-textarea')).toHaveValue(/\[ \] from the button/)
+  })
+
   test('task-list checkboxes toggle by click and serialize as [x]', async ({ page }) => {
     await setup(page)
     await createNoteFromBrowser(page, 'tasks.md')

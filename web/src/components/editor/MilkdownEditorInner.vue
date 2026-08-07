@@ -9,7 +9,7 @@ import { prism } from '@milkdown/plugin-prism'
 import { history } from '@milkdown/plugin-history'
 import { nord } from '@milkdown/theme-nord'
 import { replaceAll, callCommand } from '@milkdown/utils'
-import { taskListItemView } from '@hoodik/editor'
+import { taskListItemView, toggleTaskListCommand } from '@hoodik/editor'
 import { createKeyboardShortcutsPlugin } from './plugins/keyboard-shortcuts'
 import { htmlRenderView } from './plugins/html-render'
 import { createHeadingAnchorPlugin } from './plugins/heading-anchor'
@@ -60,6 +60,7 @@ useEditor((container) => {
     .use(history)
     .use(htmlRenderView)
     .use(taskListItemView)
+    .use(toggleTaskListCommand)
     .use(createHeadingAnchorPlugin())
 
   if (props.editable) {
