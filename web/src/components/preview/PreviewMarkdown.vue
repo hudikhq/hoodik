@@ -482,8 +482,13 @@ defineExpose({ exportPdf: handleExportPdf })
 
 <style scoped>
 .md-toolbar {
+  background: #FAFAF9;
+  border-bottom: 1px solid rgba(238, 132, 52, 0.25);
+}
+
+.dark .md-toolbar {
   background: #1a1a1a;
-  border-bottom: 1px solid rgba(238, 132, 52, 0.15);
+  border-bottom-color: rgba(238, 132, 52, 0.15);
 }
 
 .md-convert-banner {
@@ -491,25 +496,34 @@ defineExpose({ exportPdf: handleExportPdf })
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: rgba(139, 169, 224, 0.06);
-  border-bottom: 1px solid rgba(139, 169, 224, 0.12);
-  color: #8BA9E0;
+  background: rgba(88, 105, 148, 0.08);
+  border-bottom: 1px solid rgba(88, 105, 148, 0.18);
+  color: #4A5A7A;
   font-size: 0.8125rem;
   flex-shrink: 0;
 }
 
+.dark .md-convert-banner {
+  background: rgba(139, 169, 224, 0.06);
+  border-bottom-color: rgba(139, 169, 224, 0.12);
+  color: #8BA9E0;
+}
+
 .md-convert-link {
-  color: #EE9B5C;
+  color: #C76F2C;
   font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 2px;
   transition: color 150ms;
 }
 
-.md-convert-link:hover { color: #F2AC78; }
+.md-convert-link:hover { color: #9F5822; }
+.dark .md-convert-link { color: #EE9B5C; }
+.dark .md-convert-link:hover { color: #F2AC78; }
 .md-convert-link:disabled { opacity: 0.5; cursor: wait; }
 
-.md-raw-wrapper { background: #141414; }
+.md-raw-wrapper { background: #F4F4F3; }
+.dark .md-raw-wrapper { background: #141414; }
 
 .md-raw-textarea {
   width: 100%;
@@ -520,7 +534,7 @@ defineExpose({ exportPdf: handleExportPdf })
   display: block;
   padding: 2rem 2.5rem;
   background: transparent;
-  color: #b0b0b0;
+  color: #4A4A4A;
   font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace;
   font-size: 0.875rem;
   line-height: 1.8;
@@ -530,8 +544,12 @@ defineExpose({ exportPdf: handleExportPdf })
   tab-size: 2;
 }
 
+.dark .md-raw-textarea { color: #b0b0b0; }
+
 .md-raw-wrapper::-webkit-scrollbar { width: 8px; }
 .md-raw-wrapper::-webkit-scrollbar-track { background: transparent; }
-.md-raw-wrapper::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 4px; }
-.md-raw-wrapper::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+.md-raw-wrapper::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); border-radius: 4px; }
+.md-raw-wrapper::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.25); }
+.dark .md-raw-wrapper::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); }
+.dark .md-raw-wrapper::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
 </style>

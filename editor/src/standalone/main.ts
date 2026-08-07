@@ -11,6 +11,10 @@ import '../styles/editor.css'
 
 const bridge = new EditorBridgeHost()
 
+// The stylesheet is light by default with dark values under `.dark`.
+// Hosts that never send setTheme keep the dark editor they always had.
+document.documentElement.classList.add('dark')
+
 // Expose message receiver for Flutter's runJavaScript
 window.hoodik = {
   receiveMessage: (json: string) => {

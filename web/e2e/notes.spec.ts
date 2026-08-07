@@ -30,6 +30,20 @@ test.describe('New File button — A1 create flow', () => {
     await expect(page.locator('.md-raw-textarea')).toHaveValue(/from-browser/)
   })
 
+  test('the editor canvas follows the app theme', async ({ page }) => {
+    await setup(page)
+    await createNoteFromBrowser(page, 'themed.md')
+
+    const canvas = page.locator('.milkdown-wrapper')
+    await expect(canvas).toHaveCSS('background-color', 'rgb(24, 24, 24)')
+
+    await page.getByTestId('theme-toggle').click()
+    await expect(canvas).toHaveCSS('background-color', 'rgb(250, 250, 249)')
+
+    await page.getByTestId('theme-toggle').click()
+    await expect(canvas).toHaveCSS('background-color', 'rgb(24, 24, 24)')
+  })
+
   test('appends .md extension when the user forgets it', async ({ page }) => {
     await setup(page)
     await createNoteFromBrowser(page, 'shopping-list')

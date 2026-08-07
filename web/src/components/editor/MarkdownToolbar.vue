@@ -110,16 +110,16 @@ defineExpose({ closeDropdown })
   <!-- Save status + button (edit mode only) -->
   <template v-if="editable">
     <span role="status" aria-live="polite">
-      <span v-if="saveStatus === 'saving'" class="md-save-status text-brownish-200">{{ $t('notes.toolbar.saving') }}</span>
-      <span v-else-if="saveStatus === 'saved'" class="md-save-status text-greeny-300 flex items-center gap-1">
+      <span v-if="saveStatus === 'saving'" class="md-save-status text-brownish-300 dark:text-brownish-200">{{ $t('notes.toolbar.saving') }}</span>
+      <span v-else-if="saveStatus === 'saved'" class="md-save-status text-greeny-500 dark:text-greeny-300 flex items-center gap-1">
         <BaseIcon :path="mdiCheck" :size="14" />
         {{ $t('notes.toolbar.saved') }}
       </span>
-      <span v-else-if="saveStatus === 'conflict'" class="md-save-status text-orangy-400 flex items-center gap-1">
+      <span v-else-if="saveStatus === 'conflict'" class="md-save-status text-orangy-700 dark:text-orangy-400 flex items-center gap-1">
         <BaseIcon :path="mdiAlertCircleOutline" :size="14" />
         {{ $t('notes.toolbar.conflict') }}
       </span>
-      <span v-else-if="saveStatus === 'error'" class="md-save-status text-redish-400 flex items-center gap-1">
+      <span v-else-if="saveStatus === 'error'" class="md-save-status text-redish-500 dark:text-redish-400 flex items-center gap-1">
         <BaseIcon :path="mdiAlertCircleOutline" :size="14" />
         {{ $t('notes.toolbar.saveFailed') }}
       </span>
@@ -153,9 +153,11 @@ defineExpose({ closeDropdown })
 .md-toolbar-divider {
   width: 1px;
   height: 1.25rem;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.1);
   margin: 0 0.25rem;
 }
+
+.dark .md-toolbar-divider { background: rgba(255, 255, 255, 0.08); }
 
 .md-save-status {
   font-size: 0.75rem;
@@ -169,12 +171,18 @@ defineExpose({ closeDropdown })
   left: 0;
   min-width: 100px;
   margin-top: 0.25rem;
-  background: #232323;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 0.5rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   overflow: hidden;
   z-index: 50;
+}
+
+.dark .md-heading-dropdown {
+  background: #232323;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .md-heading-option {
@@ -182,12 +190,16 @@ defineExpose({ closeDropdown })
   width: 100%;
   text-align: left;
   padding: 0.4rem 0.75rem;
-  color: #b0b0b0;
+  color: #4a4a4a;
   transition: all 150ms;
 }
 
+.dark .md-heading-option { color: #b0b0b0; }
+
 .md-heading-option:hover {
   background: rgba(238, 155, 92, 0.1);
-  color: #EE9B5C;
+  color: #C76F2C;
 }
+
+.dark .md-heading-option:hover { color: #EE9B5C; }
 </style>
