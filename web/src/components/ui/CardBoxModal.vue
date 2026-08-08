@@ -69,7 +69,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       aria-modal="true"
       :aria-label="title"
       tabindex="-1"
-      class="shadow-lg max-h-modal w-11/12 md:w-3/5 lg:w-2/5 xl:w-4/12 z-50 focus:outline-none"
+      class="relative shadow-lg max-h-modal w-11/12 md:w-3/5 lg:w-2/5 xl:w-4/12 z-50 focus:outline-none"
       is-modal
       has-component-layout
     >
