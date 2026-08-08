@@ -79,13 +79,13 @@ init()
       v-model="date"
       :disabled="props.disabled"
       :min="props.min ? format(props.min, 'yyyy-MM-dd') : undefined"
-      class="w-8/12 px-4 py-2 text-gray-900 placeholder-gray-400 transition duration-150 ease-in-out bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-redish-500"
+      class="w-8/12 px-4 py-2 transition duration-150 ease-in-out rounded-md shadow-sm bg-white dark:bg-brownish-800 border border-paper-300 dark:border-brownish-600 text-brownish-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-redish-500"
     />
     <input
       type="time"
       v-model="time"
       :disabled="props.disabled"
-      class="w-4/12 px-4 py-2 text-gray-900 placeholder-gray-400 transition duration-150 ease-in-out bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-redish-500"
+      class="w-4/12 px-4 py-2 transition duration-150 ease-in-out rounded-md shadow-sm bg-white dark:bg-brownish-800 border border-paper-300 dark:border-brownish-600 text-brownish-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-redish-500"
     />
   </div>
 </template>

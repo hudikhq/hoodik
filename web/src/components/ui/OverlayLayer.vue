@@ -55,7 +55,7 @@ const overlayClick = (event: Event) => {
     >
       <!-- eslint-disable-next-line vue/require-toggle-inside-transition -->
       <div
-        class="absolute inset-0 bg-gradient-to-tr opacity-90 from-brownish-900/40 via-brownish-950/50 to-brownish-900/40 dark:from-brownish-950 dark:via-black dark:to-brownish-950"
+        class="absolute inset-0 bg-gradient-to-tr opacity-90 from-brownish-900/40 via-brownish-950/50 to-brownish-900/40 dark:from-brownish-900 dark:via-brownish-950 dark:to-brownish-900"
         :class="styleStore.overlayStyle"
         @click="overlayClick"
       />

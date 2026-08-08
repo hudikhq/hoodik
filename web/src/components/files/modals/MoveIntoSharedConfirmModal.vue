@@ -65,9 +65,9 @@ const progressPercent = computed(() =>
       class="mt-4"
       data-testid="move-share-confirm-progress"
     >
-      <div class="h-2 w-full rounded bg-brownish-800">
+      <div class="h-2 w-full rounded bg-paper-200 dark:bg-brownish-800">
         <div
-          class="h-2 rounded bg-info-500 transition-all"
+          class="h-2 rounded bg-redish-500 transition-all"
           :style="{ width: `${progressPercent}%` }"
         />
       </div>
