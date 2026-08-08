@@ -49,7 +49,7 @@ const init = () => {
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
-        authenticationError.value = error.description
+        authenticationError.value = error.description || (err as Error).message
       }
     }
   }

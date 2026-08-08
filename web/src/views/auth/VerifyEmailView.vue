@@ -45,7 +45,9 @@ const verify = async () => {
     }, 10000)
   } catch (err) {
     const _error = err as ErrorResponse<any>
-    error.value = _error.description
+    // Must never end up empty: the template treats a falsy error as success
+    // and would show a verified checkmark for a failed verification.
+    error.value = _error.description || (err as Error).message || t('errors.unknown')
     working.value = false
   }
 }

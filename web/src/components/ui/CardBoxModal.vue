@@ -79,6 +79,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           <BaseButton
             v-if="hasCancel || hasClose"
             :icon="mdiClose"
+            :title="$t('common.close')"
+            :aria-label="$t('common.close')"
             color="dark"
             small
             rounded-full
@@ -95,6 +97,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
               v-if="!hideSubmit"
               :label="buttonLabel"
               :color="button || 'info'"
+              :disabled="form?.isSubmitting.value"
               @click="confirm"
               type="submit"
               @keyup.enter="confirm()"
