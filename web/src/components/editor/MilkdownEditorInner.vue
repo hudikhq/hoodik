@@ -72,8 +72,24 @@ useEditor((container) => {
 
 const [loadingRef, getEditor] = useInstance()
 
-function runCommand(commandKey: string, payload?: unknown) {
-  if (loadingRef.value) return
+function editorReady(): Promise<void> {
+  if (!loadingRef.value) return Promise.resolve()
+  return new Promise((resolve) => {
+    const stop = watch(loadingRef, (loading) => {
+      if (!loading) {
+        stop()
+        resolve()
+      }
+    })
+  })
+}
+
+// The ProseMirror view renders before the editor finishes initializing,
+// so a toolbar click can arrive while commands aren't callable yet.
+// Waiting instead of dropping the command keeps that click from being
+// a silent no-op.
+async function runCommand(commandKey: string, payload?: unknown) {
+  await editorReady()
   const editor = getEditor()
   if (!editor) return
 
