@@ -2,6 +2,7 @@
 import { ref, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
+import FormError from '@/components/ui/FormError.vue'
 import { AppForm, AppField } from '@/components/form'
 import * as yup from 'yup'
 import { createNote } from '!/storage/save'
@@ -77,9 +78,7 @@ init()
       @cancel="$emit('cancel')"
       :form="form"
     >
-      <p v-if="errorMessage" class="text-sm text-redish-900 dark:text-redish-200">
-        {{ errorMessage }}
-      </p>
+      <FormError v-if="errorMessage">{{ errorMessage }}</FormError>
 
       <AppField
         :form="form"

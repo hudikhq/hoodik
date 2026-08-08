@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
+import FormError from '@/components/ui/FormError.vue'
 import FolderPicker from '@/components/ui/FolderPicker.vue'
 import { AppForm, AppField } from '@/components/form'
 import * as yup from 'yup'
@@ -107,9 +108,7 @@ onMounted(() => init())
       @cancel="$emit('cancel')"
       :form="form"
     >
-      <p v-if="errorMessage" class="text-sm text-redish-900 dark:text-redish-200 mb-3">
-        {{ errorMessage }}
-      </p>
+      <FormError v-if="errorMessage">{{ errorMessage }}</FormError>
 
       <AppField :form="form" :label="$t('notes.create.nameLabel')" name="name" placeholder="Untitled.md" autofocus />
 

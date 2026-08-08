@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
+import FormError from '@/components/ui/FormError.vue'
 import { AppForm, AppField } from '@/components/form'
 import QuotaSlider from '@/components/ui/QuotaSlider.vue'
 import * as yup from 'yup'
@@ -62,9 +63,7 @@ init()
       @cancel="$emit('cancel')"
       :form="form"
     >
-      <p v-if="errorMessage" class="text-sm text-redish-900 dark:text-redish-200">
-        {{ errorMessage }}
-      </p>
+      <FormError v-if="errorMessage">{{ errorMessage }}</FormError>
 
       <AppField :form="form" :label="$t('common.email')" name="email" autofocus />
       <AppField

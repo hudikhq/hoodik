@@ -37,6 +37,23 @@ test.describe('Directories', () => {
     await expect(page.getByTestId('file-row-My_Test_Dir')).toBeVisible()
   })
 
+  test('creating a duplicate directory shows an error and keeps the dialog open', async ({ page }) => {
+    await setup(page)
+
+    await page.locator('[name="create-dir"]').click()
+    await page.locator('#name').fill('Dup_Dir')
+    await page.getByRole('button', { name: 'Create', exact: true }).click()
+    await expect(page.getByTestId('file-row-Dup_Dir')).toBeVisible()
+
+    await page.locator('[name="create-dir"]').click()
+    await page.locator('#name').fill('Dup_Dir')
+    await page.getByRole('button', { name: 'Create', exact: true }).click()
+
+    const dialog = page.getByRole('dialog', { name: 'Create a folder' })
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole('alert')).toContainText('already exists')
+  })
+
   test('dialogs paint above the page content in light theme', async ({ page }) => {
     await setup(page)
     await page.getByTestId('theme-toggle').click()
