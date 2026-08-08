@@ -471,8 +471,14 @@ export default class Api {
       _headers['Content-Type'] = 'application/json'
     }
 
+    // fetch() normalizes GET, POST, PUT, DELETE, HEAD and OPTIONS to
+    // uppercase but deliberately leaves PATCH alone, and actix matches
+    // methods case-sensitively — so a lowercase 'patch' reaches the server
+    // as `patch` and misses the route entirely.
+    const verb = method.toUpperCase()
+
     const request: Request<B> = {
-      method,
+      method: verb,
       url,
       body,
       query,
@@ -483,7 +489,7 @@ export default class Api {
       cache: 'no-cache',
       credentials: 'include',
       headers: request.headers,
-      method,
+      method: verb,
       mode: 'cors',
       redirect: 'follow'
     }
