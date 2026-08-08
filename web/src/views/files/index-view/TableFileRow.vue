@@ -300,6 +300,7 @@ const drop = (e: DragEvent) => {
         v-if="!props.hideCheckbox"
         v-model="checked"
         :disabled="isSyntheticRoot"
+        :label="$t('common.selectRow', { name: file.name })"
       />
     </div>
 
@@ -383,6 +384,9 @@ const drop = (e: DragEvent) => {
           :icon="mdiDotsVertical"
           small
           name="actions-modal"
+          :title="$t('common.actions')"
+          :aria-label="$t('common.actions')"
+          aria-haspopup="menu"
           @click="emits('actions', file)"
           :disabled="!props.file.id"
         />

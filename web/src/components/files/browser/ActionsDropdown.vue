@@ -150,6 +150,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         :icon="mdiDotsVertical"
         small
         :disabled="props.disabled"
+        :title="$t('common.actions')"
+        :aria-label="$t('common.actions')"
+        aria-haspopup="menu"
         @click="open"
         name="actions-dropdown"
       />

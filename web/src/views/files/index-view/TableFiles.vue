@@ -355,7 +355,7 @@ const sizes = {
   >
     <div class="w-full flex rounded-t-lg bg-paper-100 dark:bg-brownish-950 border-b border-paper-300 dark:border-brownish-700/40">
       <div :class="sizes.checkbox">
-        <TableCheckboxCell v-model="checked" v-if="!props.hideCheckbox" />
+        <TableCheckboxCell v-model="checked" v-if="!props.hideCheckbox" :label="$t('common.selectAll')" />
       </div>
 
       <div :class="`${sizes.name}`">

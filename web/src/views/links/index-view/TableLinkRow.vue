@@ -149,7 +149,7 @@ const singleClick = () => {
     }"
   >
     <div :class="sizes.checkbox">
-      <TableCheckboxCell v-model="checked" />
+      <TableCheckboxCell v-model="checked" :label="$t('common.selectRow', { name: link.name })" />
     </div>
 
     <button

@@ -205,14 +205,14 @@ watch(
         :icon="mdiMinus"
         small
         @click="minus"
-        title="Decrease image size (+)"
+        :title="$t('preview.zoomOut')"
       />
       <BaseButton
         :disabled="!imageUrl"
         color="dark"
         small
         @click="fit"
-        title="Fit image to screen (space)"
+        :title="$t('preview.zoomFit')"
         :label="percentage > -1 ? `${percentage}%` : ' '"
       />
       <BaseButton
@@ -221,7 +221,7 @@ watch(
         :icon="mdiPlus"
         small
         @click="plus"
-        title="Increase image size (+)"
+        :title="$t('preview.zoomIn')"
       />
     </div>
   </div>

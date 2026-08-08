@@ -143,6 +143,7 @@ onUnmounted(() => {
             color="danger"
             :icon="mdiTrashCan"
             small
+            :title="$t('preview.deleteFile')"
             @click="remove"
             name="preview-remove"
           />
@@ -150,6 +151,7 @@ onUnmounted(() => {
             color="light"
             :icon="mdiInformationSlabCircleOutline"
             small
+            :title="$t('preview.fileDetails')"
             @click="details"
             name="preview-details"
           />
@@ -157,6 +159,7 @@ onUnmounted(() => {
             color="light"
             :icon="mdiDownload"
             small
+            :title="$t('preview.downloadFile')"
             @click="download"
             name="preview-download"
           />
@@ -165,7 +168,7 @@ onUnmounted(() => {
             color="light"
             :icon="mdiFilePdfBox"
             small
-            title="Export PDF"
+            :title="$t('preview.exportPdf')"
             @click="markdownRef?.exportPdf()"
             name="preview-export-pdf"
           />
@@ -174,6 +177,7 @@ onUnmounted(() => {
             color="light"
             :icon="mdiClose"
             small
+            :title="$t('common.close')"
             @click="cancel"
             name="preview-close"
           />
@@ -187,7 +191,7 @@ onUnmounted(() => {
             color="dark"
             :icon="mdiArrowLeft"
             small
-            title="Previous image"
+            :title="$t('preview.previousImage')"
             :to="{ name: 'file-preview', params: { id: previousId as string } }"
           />
           <span
@@ -201,7 +205,7 @@ onUnmounted(() => {
             color="dark"
             :icon="mdiArrowRight"
             small
-            title="Next image"
+            :title="$t('preview.nextImage')"
             :to="{ name: 'file-preview', params: { id: nextId as string } }"
           />
         </div>

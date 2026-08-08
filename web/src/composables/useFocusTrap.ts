@@ -75,5 +75,8 @@ export function useFocusTrap(container: ReadonlyRef<HTMLElement | null>, active:
     { immediate: true }
   )
 
-  onUnmounted(() => document.removeEventListener('keydown', onKeydown))
+  // Most callers guard the dialog with `v-if`, so closing unmounts it before
+  // the watcher can run deactivate() — without this, focus is left on <body>
+  // and the next Tab restarts from the top of the document.
+  onUnmounted(deactivate)
 }
