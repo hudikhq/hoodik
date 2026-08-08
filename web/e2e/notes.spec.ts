@@ -68,6 +68,10 @@ test.describe('New File button — A1 create flow', () => {
     await expect(boxes.nth(0)).not.toBeChecked()
     await expect(boxes.nth(1)).toBeChecked()
 
+    // The editor owns the checkbox styling — the app's global form reset
+    // must not repaint the checked state in its own colors.
+    await expect(boxes.nth(1)).toHaveCSS('background-color', 'rgb(238, 132, 52)')
+
     await boxes.nth(0).click()
     await expect(boxes.nth(0)).toBeChecked()
     await saveViaButton(page)
