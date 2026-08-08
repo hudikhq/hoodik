@@ -69,15 +69,15 @@ const label = computed(() =>
       </p>
     </div>
 
-    <label class="flex items-start gap-3 cursor-pointer">
+    <label class="checkbox items-start gap-3">
       <input
         type="checkbox"
         :checked="enabled"
         :disabled="saving"
-        class="mt-1"
         data-testid="account-share-notifications-toggle"
         @change="toggle"
       />
+      <span class="check mt-0.5" />
       <span>
         <span class="text-sm font-medium">{{ $t('account.sharing.toggleLabel') }}</span>
         <span class="block text-xs text-brownish-400 mt-1" data-testid="account-share-notifications-label">

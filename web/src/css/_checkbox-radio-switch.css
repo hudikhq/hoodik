@@ -67,7 +67,7 @@
   }
 
   .switch input[type='checkbox']:checked + .check:before {
-    transform: tranbrownish3d(110%, 0, 0);
+    transform: translate3d(110%, 0, 0);
     @apply border-redish-600;
   }
 }

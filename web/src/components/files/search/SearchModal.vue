@@ -7,7 +7,12 @@ import { computed, ref, watch } from 'vue'
 import * as yup from 'yup'
 import type { KeyPair, AppFile } from 'types'
 import { Field } from 'vee-validate'
-import { mdiFileDocumentOutline, mdiFileSearchOutline, mdiMagnify } from '@mdi/js'
+import {
+  mdiAlertCircleOutline,
+  mdiFileDocumentOutline,
+  mdiFileSearchOutline,
+  mdiMagnify
+} from '@mdi/js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 
 const props = defineProps<{ keypair: KeyPair; modelValue: boolean }>()
@@ -23,6 +28,7 @@ const active = computed({
 const searchField = ref()
 const results = ref<AppFile[]>([])
 const searched = ref(false)
+const failed = ref(false)
 const loading = ref(false)
 const notesOnly = ref(false)
 const config = ref()
@@ -42,6 +48,7 @@ let latestSearch = 0
 async function doSearch(query: string) {
   const ticket = ++latestSearch
   loading.value = true
+  failed.value = false
 
   try {
     const found = await search(
@@ -58,6 +65,9 @@ async function doSearch(query: string) {
     if (ticket === latestSearch) {
       results.value = []
       searched.value = true
+      // Without this the failure renders as "no matches", telling the user
+      // their file does not exist when the request never completed.
+      failed.value = true
     }
   } finally {
     // `searched` flips only once a request has actually come back: setting it
@@ -136,12 +146,9 @@ watch(
         </div>
       </Field>
 
-      <label class="flex items-center gap-2 mt-2 text-sm cursor-pointer text-brownish-400 dark:text-brownish-100 hover:text-brownish-600 dark:hover:text-brownish-50 transition-colors select-none">
-        <input
-          type="checkbox"
-          v-model="notesOnly"
-          class="rounded border-brownish-600 bg-brownish-800 text-orangy-500 focus:ring-orangy-500 focus:ring-offset-0"
-        />
+      <label class="checkbox gap-2 mt-2 text-sm text-brownish-400 dark:text-brownish-100 hover:text-brownish-600 dark:hover:text-brownish-50 transition-colors select-none">
+        <input type="checkbox" v-model="notesOnly" />
+        <span class="check" />
         <BaseIcon :path="mdiFileDocumentOutline" :size="14" />
         {{ $t('files.search.notesOnly') }}
       </label>
@@ -171,9 +178,19 @@ watch(
       class="w-full mt-4 flex flex-col items-center justify-center gap-2 h-40 text-brownish-300 dark:text-brownish-100"
       v-else-if="!results.length"
     >
-      <BaseIcon :path="searched ? mdiFileSearchOutline : mdiMagnify" :size="28" />
-      <span class="text-sm">
-        {{ searched ? $t('files.search.noMatches') : $t('files.search.startTyping') }}
+      <BaseIcon
+        :path="failed ? mdiAlertCircleOutline : searched ? mdiFileSearchOutline : mdiMagnify"
+        :size="28"
+        :class="failed ? 'text-redish-500 dark:text-redish-400' : ''"
+      />
+      <span class="text-sm" :class="failed ? 'text-redish-700 dark:text-redish-200' : ''">
+        {{
+          failed
+            ? $t('files.search.failed')
+            : searched
+              ? $t('files.search.noMatches')
+              : $t('files.search.startTyping')
+        }}
       </span>
     </div>
     <div class="w-full max-h-72 overflow-y-auto mt-4" v-else>

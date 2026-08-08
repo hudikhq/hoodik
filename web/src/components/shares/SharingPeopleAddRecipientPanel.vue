@@ -91,7 +91,7 @@ const folderEditable = computed({
 
     <label
       v-if="isDir"
-      class="flex gap-2 items-start text-sm cursor-pointer min-h-[1.75rem]"
+      class="checkbox gap-2 items-start text-sm min-h-[1.75rem]"
       :class="{ 'opacity-50 cursor-not-allowed': role === 'reader' }"
       data-testid="share-dialog-folder-editable"
     >
@@ -99,9 +99,9 @@ const folderEditable = computed({
         type="checkbox"
         v-model="folderEditable"
         :disabled="submitting || readOnly || role === 'reader'"
-        class="mt-0.5"
         data-testid="share-dialog-folder-editable-toggle"
       />
+      <span class="check mt-0.5" />
       <span class="min-w-0">
         {{ $t('shares.add.allowAddFiles') }}
         <span
