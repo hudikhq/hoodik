@@ -386,6 +386,8 @@
     "retry": "Réessayer",
     "save": "Enregistrer",
     "search": "Rechercher",
+    "selectAll": "Tout sélectionner",
+    "selectRow": "Sélectionner {name}",
     "send": "Envoyer",
     "settings": "Paramètres",
     "share": "Partager",
@@ -547,6 +549,7 @@
       "uploadIncomplete": "Téléversement incomplet"
     },
     "search": {
+      "failed": "Échec de la recherche — vérifiez votre connexion et réessayez",
       "noMatches": "Aucun fichier ne correspond à cette recherche",
       "notesOnly": "Notes uniquement",
       "placeholder": "Rechercher des fichiers…",
@@ -743,6 +746,7 @@
       "empty": "Aucune note pour l’instant",
       "loading": "Chargement des notes…",
       "noMatches": "Aucune note ne correspond à « {query} »",
+      "searchFailed": "Échec de la recherche — vérifiez votre connexion et réessayez",
       "searchPlaceholder": "Rechercher des notes…",
       "title": "Notes",
       "today": "Aujourd’hui",
@@ -772,6 +776,10 @@
     }
   },
   "preview": {
+    "deleteFile": "Supprimer le fichier",
+    "downloadFile": "Télécharger le fichier",
+    "exportPdf": "Exporter en PDF",
+    "fileDetails": "Détails du fichier",
     "markdown": {
       "conflictBody": "Le serveur a un enregistrement inachevé de cette note provenant d’une autre session. Choisissez {overwrite} pour abandonner sa modification en attente et enregistrer votre version, ou {cancel} pour abandonner vos modifications locales et laisser l’autre enregistrement se terminer.",
       "conflictOverwrite": "Abandonner la version distante et écraser",
@@ -785,7 +793,9 @@
       "moveTitle": "Déplacer vers un dossier",
       "readOnly": "Ce fichier markdown est en lecture seule."
     },
+    "nextImage": "Image suivante",
     "noPreview": "Aucun aperçu disponible",
+    "previousImage": "Image précédente",
     "versionHistory": {
       "authorAnonymous": "Anonyme",
       "authorOther": "Un autre collaborateur",
@@ -813,7 +823,10 @@
     "video": {
       "loadError": "Impossible de charger la vidéo : {error}",
       "loading": "Chargement… {progress} %"
-    }
+    },
+    "zoomFit": "Ajuster l'image à l'écran",
+    "zoomIn": "Agrandir l'image",
+    "zoomOut": "Réduire l'image"
   },
   "shares": {
     "add": {

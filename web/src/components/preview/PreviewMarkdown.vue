@@ -2,7 +2,7 @@
 import { ref, watch, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { MilkdownProvider } from '@milkdown/vue'
-import { mdiNotePlusOutline } from '@mdi/js'
+import { mdiAlertCircleOutline, mdiNotePlusOutline } from '@mdi/js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import FolderPicker from '@/components/ui/FolderPicker.vue'
@@ -60,6 +60,7 @@ const canConvertToNote = computed(() => {
 
 const markdownContent = ref('')
 const isLoaded = ref(false)
+const loadError = ref('')
 const showRaw = ref(false)
 const isConverting = ref(false)
 
@@ -213,13 +214,21 @@ async function load() {
   isDirty.value = false
   saveStatus.value = 'idle'
   editableOverride.value = undefined
+  loadError.value = ''
 
-  const data = await props.modelValue.load()
-  const decoder = new TextDecoder()
-  markdownContent.value = decoder.decode(data)
-  setLastSaved(markdownContent.value)
+  try {
+    const data = await props.modelValue.load()
+    const decoder = new TextDecoder()
+    markdownContent.value = decoder.decode(data)
+    setLastSaved(markdownContent.value)
 
-  isLoaded.value = true
+    isLoaded.value = true
+  } catch (err) {
+    // The whole editor is gated on isLoaded, so a failure here used to
+    // render an empty pane with no explanation and no way back.
+    const failure = err as { description?: string; message?: string }
+    loadError.value = failure.description || failure.message || t('errors.unknown')
+  }
 }
 
 watch(() => props.modelValue, load, { immediate: true })
@@ -333,7 +342,17 @@ defineExpose({ exportPdf: handleExportPdf })
 </script>
 
 <template>
-  <div v-if="isLoaded" class="flex flex-col w-full h-full overflow-hidden">
+  <div
+    v-if="loadError"
+    class="flex flex-col items-center justify-center gap-2 w-full h-full text-redish-700 dark:text-redish-200"
+    role="alert"
+    data-testid="note-load-error"
+  >
+    <BaseIcon :path="mdiAlertCircleOutline" :size="32" />
+    <p class="text-sm">{{ loadError }}</p>
+  </div>
+
+  <div v-else-if="isLoaded" class="flex flex-col w-full h-full overflow-hidden">
     <!-- Toolbar -->
     <div v-if="showToolbar" class="md-toolbar flex items-center gap-1 px-4 py-2 flex-shrink-0 flex-wrap">
       <MarkdownToolbar

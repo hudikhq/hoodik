@@ -386,6 +386,8 @@
     "retry": "Retry",
     "save": "Save",
     "search": "Search",
+    "selectAll": "Select all",
+    "selectRow": "Select {name}",
     "send": "Send",
     "settings": "Settings",
     "share": "Share",
@@ -547,6 +549,7 @@
       "uploadIncomplete": "Upload incomplete"
     },
     "search": {
+      "failed": "Search failed — check your connection and try again",
       "noMatches": "No files match that search",
       "notesOnly": "Notes only",
       "placeholder": "Search files...",
@@ -743,6 +746,7 @@
       "empty": "No notes yet",
       "loading": "Loading notes...",
       "noMatches": "No notes matching \"{query}\"",
+      "searchFailed": "Search failed — check your connection and try again",
       "searchPlaceholder": "Search notes...",
       "title": "Notes",
       "today": "Today",
@@ -772,6 +776,10 @@
     }
   },
   "preview": {
+    "deleteFile": "Delete file",
+    "downloadFile": "Download file",
+    "exportPdf": "Export PDF",
+    "fileDetails": "File details",
     "markdown": {
       "conflictBody": "The server has an unfinished save for this note from another session. Choose {overwrite} to drop their pending edit and save your version, or {cancel} to drop your local changes and let the other save finish.",
       "conflictOverwrite": "Discard remote and overwrite",
@@ -785,7 +793,9 @@
       "moveTitle": "Move to folder",
       "readOnly": "This markdown file is read-only."
     },
+    "nextImage": "Next image",
     "noPreview": "No preview available",
+    "previousImage": "Previous image",
     "versionHistory": {
       "authorAnonymous": "Anonymous",
       "authorOther": "Another collaborator",
@@ -813,7 +823,10 @@
     "video": {
       "loadError": "Could not load video: {error}",
       "loading": "Loading… {progress}%"
-    }
+    },
+    "zoomFit": "Fit image to screen",
+    "zoomIn": "Increase image size",
+    "zoomOut": "Decrease image size"
   },
   "shares": {
     "add": {

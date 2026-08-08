@@ -386,6 +386,8 @@
     "retry": "Pokušaj ponovno",
     "save": "Spremi",
     "search": "Pretraži",
+    "selectAll": "Odaberi sve",
+    "selectRow": "Odaberi {name}",
     "send": "Pošalji",
     "settings": "Postavke",
     "share": "Podijeli",
@@ -547,6 +549,7 @@
       "uploadIncomplete": "Upload nije dovršen"
     },
     "search": {
+      "failed": "Pretraga nije uspjela — provjeri vezu i pokušaj ponovno",
       "noMatches": "Nijedna datoteka ne odgovara pretrazi",
       "notesOnly": "Samo bilješke",
       "placeholder": "Pretraži datoteke...",
@@ -743,6 +746,7 @@
       "empty": "Još nema bilješki",
       "loading": "Učitavanje bilješki...",
       "noMatches": "Nema bilješki koje odgovaraju \"{query}\"",
+      "searchFailed": "Pretraga nije uspjela — provjeri vezu i pokušaj ponovno",
       "searchPlaceholder": "Pretraži bilješke...",
       "title": "Bilješke",
       "today": "Danas",
@@ -772,6 +776,10 @@
     }
   },
   "preview": {
+    "deleteFile": "Obriši datoteku",
+    "downloadFile": "Preuzmi datoteku",
+    "exportPdf": "Izvezi PDF",
+    "fileDetails": "Detalji datoteke",
     "markdown": {
       "conflictBody": "Server ima nedovršeno spremanje ove bilješke iz druge sesije. Odaberi {overwrite} da odbaciš njihovu izmjenu i spremiš svoju verziju, ili {cancel} da odbaciš svoje lokalne izmjene i pustiš da se drugo spremanje dovrši.",
       "conflictOverwrite": "Odbaci udaljeno i prepiši",
@@ -785,7 +793,9 @@
       "moveTitle": "Premjesti u folder",
       "readOnly": "Ova markdown datoteka je samo za čitanje."
     },
+    "nextImage": "Sljedeća slika",
     "noPreview": "Pregled nije dostupan",
+    "previousImage": "Prethodna slika",
     "versionHistory": {
       "authorAnonymous": "Anonimno",
       "authorOther": "Drugi suradnik",
@@ -813,7 +823,10 @@
     "video": {
       "loadError": "Video nije bilo moguće učitati: {error}",
       "loading": "Učitavanje… {progress}%"
-    }
+    },
+    "zoomFit": "Prilagodi sliku zaslonu",
+    "zoomIn": "Povećaj sliku",
+    "zoomOut": "Smanji sliku"
   },
   "shares": {
     "add": {

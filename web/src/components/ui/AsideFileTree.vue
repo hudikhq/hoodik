@@ -198,6 +198,16 @@ async function loadSharedRoots(): Promise<void> {
 async function loadRoot() {
   rootLoading.value = true
 
+  try {
+    await loadRootInner()
+  } finally {
+    // Without this a single failed listing leaves the tree stuck on
+    // "Loading…" for the rest of the session, with no way to retry.
+    rootLoading.value = false
+  }
+}
+
+async function loadRootInner() {
   let items: AppFile[]
   let incomingShared: boolean
 
@@ -217,7 +227,6 @@ async function loadRoot() {
   treeState.rootNodes = incomingShared ? [syntheticSharedNode(), ...nodes] : nodes
   treeState.loaded = true
   treeState.userFingerprint = props.keypair.fingerprint || undefined
-  rootLoading.value = false
 
   // Auto-expand tree to match the current route
   const folderId = activeFolderId.value
@@ -307,10 +316,13 @@ async function toggleFolder(node: TreeNode) {
     treeState.expanded.add(id)
     if (!node.loaded) {
       node.loading = true
-      const items = await fetchChildren(id)
-      node.children = items.map(toNode)
-      node.loaded = true
-      node.loading = false
+      try {
+        const items = await fetchChildren(id)
+        node.children = items.map(toNode)
+        node.loaded = true
+      } finally {
+        node.loading = false
+      }
     }
   }
 

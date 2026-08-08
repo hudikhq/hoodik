@@ -386,6 +386,8 @@
     "retry": "Erneut versuchen",
     "save": "Speichern",
     "search": "Suchen",
+    "selectAll": "Alle auswählen",
+    "selectRow": "{name} auswählen",
     "send": "Senden",
     "settings": "Einstellungen",
     "share": "Teilen",
@@ -547,6 +549,7 @@
       "uploadIncomplete": "Upload unvollständig"
     },
     "search": {
+      "failed": "Suche fehlgeschlagen — prüfe deine Verbindung und versuche es erneut",
       "noMatches": "Keine Dateien entsprechen dieser Suche",
       "notesOnly": "Nur Notizen",
       "placeholder": "Dateien suchen...",
@@ -743,6 +746,7 @@
       "empty": "Noch keine Notizen",
       "loading": "Notizen werden geladen...",
       "noMatches": "Keine Notizen passend zu „{query}“",
+      "searchFailed": "Suche fehlgeschlagen — prüfe deine Verbindung und versuche es erneut",
       "searchPlaceholder": "Notizen suchen...",
       "title": "Notizen",
       "today": "Heute",
@@ -772,6 +776,10 @@
     }
   },
   "preview": {
+    "deleteFile": "Datei löschen",
+    "downloadFile": "Datei herunterladen",
+    "exportPdf": "PDF exportieren",
+    "fileDetails": "Dateidetails",
     "markdown": {
       "conflictBody": "Der Server hat einen nicht abgeschlossenen Speichervorgang für diese Notiz aus einer anderen Sitzung. Wählen Sie {overwrite}, um deren ausstehende Änderung zu verwerfen und Ihre Version zu speichern, oder {cancel}, um Ihre lokalen Änderungen zu verwerfen und den anderen Speichervorgang abschließen zu lassen.",
       "conflictOverwrite": "Entfernte Änderung verwerfen und überschreiben",
@@ -785,7 +793,9 @@
       "moveTitle": "In Ordner verschieben",
       "readOnly": "Diese Markdown-Datei ist schreibgeschützt."
     },
+    "nextImage": "Nächstes Bild",
     "noPreview": "Keine Vorschau verfügbar",
+    "previousImage": "Vorheriges Bild",
     "versionHistory": {
       "authorAnonymous": "Anonym",
       "authorOther": "Eine andere Person",
@@ -813,7 +823,10 @@
     "video": {
       "loadError": "Video konnte nicht geladen werden: {error}",
       "loading": "Wird geladen… {progress} %"
-    }
+    },
+    "zoomFit": "Bild einpassen",
+    "zoomIn": "Bild vergrößern",
+    "zoomOut": "Bild verkleinern"
   },
   "shares": {
     "add": {

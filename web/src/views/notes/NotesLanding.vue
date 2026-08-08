@@ -2,7 +2,7 @@
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { mdiFileDocumentOutline, mdiPlus, mdiMagnify } from '@mdi/js'
+import { mdiAlertCircleOutline, mdiFileDocumentOutline, mdiPlus, mdiMagnify } from '@mdi/js'
 import { formatSize } from '!'
 import { search } from '!/storage'
 import * as meta from '!/storage/meta'
@@ -24,34 +24,45 @@ const router = useRouter()
 const { t } = useI18n()
 const notes = ref<AppFile[]>([])
 const loading = ref(true)
+const failed = ref(false)
 const query = ref('')
 const showCreateModal = ref(false)
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 async function loadRecent() {
   loading.value = true
+  failed.value = false
 
-  const response = await meta.find({
-    editable: true,
-    order: 'desc',
-    order_by: 'modified_at'
-  })
-
-  const privateKey = props.keypair.wrappingPrivate || (props.keypair.input as string)
-
-  const items = await Promise.all(
-    response.children.map(async (item) => {
-      const decrypted = await meta.decrypt(item, privateKey)
-      return { ...item, ...decrypted } as AppFile
+  try {
+    const response = await meta.find({
+      editable: true,
+      order: 'desc',
+      order_by: 'modified_at'
     })
-  )
 
-  notes.value = items.filter((f) => f.mime !== 'dir' && !!f.finished_upload_at && isMarkdownFile(f))
-  loading.value = false
+    const privateKey = props.keypair.wrappingPrivate || (props.keypair.input as string)
+
+    const items = await Promise.all(
+      response.children.map(async (item) => {
+        const decrypted = await meta.decrypt(item, privateKey)
+        return { ...item, ...decrypted } as AppFile
+      })
+    )
+
+    notes.value = items.filter(
+      (f) => f.mime !== 'dir' && !!f.finished_upload_at && isMarkdownFile(f)
+    )
+  } catch {
+    notes.value = []
+    failed.value = true
+  } finally {
+    loading.value = false
+  }
 }
 
 async function searchNotes(q: string) {
   loading.value = true
+  failed.value = false
 
   try {
     const results = await search(q, props.keypair, { editable: true, limit: 50 })
@@ -60,9 +71,12 @@ async function searchNotes(q: string) {
     )
   } catch {
     notes.value = []
+    // Otherwise a failed request renders as "no matches" — the user is told
+    // the note does not exist when it was simply never fetched.
+    failed.value = true
+  } finally {
+    loading.value = false
   }
-
-  loading.value = false
 }
 
 watch(query, (q) => {
@@ -133,6 +147,15 @@ onUnmounted(() => {
 
     <div v-if="loading" class="flex-1 flex items-center justify-center text-brownish-400">
       <p class="text-sm">{{ $t('notes.landing.loading') }}</p>
+    </div>
+
+    <div
+      v-else-if="failed"
+      class="flex-1 flex flex-col items-center justify-center gap-2 text-redish-700 dark:text-redish-200"
+      role="alert"
+    >
+      <BaseIcon :path="mdiAlertCircleOutline" :size="32" />
+      <p class="text-sm">{{ $t('notes.landing.searchFailed') }}</p>
     </div>
 
     <div v-else-if="!notes.length && !query" class="flex-1 flex flex-col items-center justify-center text-brownish-400">
