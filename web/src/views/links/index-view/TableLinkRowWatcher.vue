@@ -48,7 +48,7 @@ onMounted(() => {
       :class="{
         '!border !border-greeny-300 dark:!border-greeny-700': props.highlighted
       }"
-      class="w-full flex pl-11 pt-3.5 pb-3.5 dark:bg-brownish-900"
+      class="w-full flex pl-11 pt-3.5 pb-3.5 bg-paper-50 dark:bg-brownish-900"
       v-if="!visible"
     >
       <div class="flex items-start">

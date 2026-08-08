@@ -77,7 +77,7 @@ init()
         <h1 class="text-2xl text-brownish-700 dark:text-white">{{ $t('auth.register.title') }}</h1>
 
         <div v-if="registrationDisabled" class="mt-8 space-y-6" data-testid="registration-disabled">
-          <p class="text-sm text-dirty-white">
+          <p class="text-sm text-brownish-400 dark:text-brownish-100">
             {{ $t('auth.register.disabled') }}
           </p>
           <p class="text-sm text-brownish-300">

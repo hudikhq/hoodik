@@ -304,7 +304,7 @@ watch(
                 <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-1">{{ $t('admin.user.publicKey') }}</p>
                 <div class="flex items-start gap-2">
                   <code class="flex-1 font-mono text-xs break-all text-brownish-400 dark:text-brownish-300 leading-relaxed">{{ user.pubkey }}</code>
-                  <button @click="copyToClipboard(user.pubkey, 'pubkey')" class="shrink-0 mt-0.5 text-brownish-400 hover:text-white transition-colors">
+                  <button @click="copyToClipboard(user.pubkey, 'pubkey')" class="shrink-0 mt-0.5 text-brownish-400 hover:text-brownish-700 dark:hover:text-white transition-colors">
                     <BaseIcon :path="copiedField === 'pubkey' ? mdiCheck : mdiContentCopy" :size="14" />
                   </button>
                 </div>
@@ -313,7 +313,7 @@ watch(
                 <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-1">{{ $t('admin.user.fingerprint') }}</p>
                 <div class="flex items-start gap-2">
                   <code class="flex-1 font-mono text-xs break-all text-brownish-400 dark:text-brownish-300">{{ user.fingerprint }}</code>
-                  <button @click="copyToClipboard(user.fingerprint, 'fingerprint')" class="shrink-0 mt-0.5 text-brownish-400 hover:text-white transition-colors">
+                  <button @click="copyToClipboard(user.fingerprint, 'fingerprint')" class="shrink-0 mt-0.5 text-brownish-400 hover:text-brownish-700 dark:hover:text-white transition-colors">
                     <BaseIcon :path="copiedField === 'fingerprint' ? mdiCheck : mdiContentCopy" :size="14" />
                   </button>
                 </div>

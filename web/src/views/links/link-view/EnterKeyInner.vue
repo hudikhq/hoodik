@@ -32,7 +32,7 @@ const config = ref({
   <LayoutGuest>
     <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
       <CardBox :class="cardClass" v-if="config">
-        <h1 class="text-2xl text-white mb-5">{{ $t('links.unlock.title') }}</h1>
+        <h1 class="text-2xl text-brownish-700 dark:text-white mb-5">{{ $t('links.unlock.title') }}</h1>
         <p>
           {{ $t('links.unlock.description') }}
         </p>

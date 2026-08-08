@@ -15,7 +15,7 @@ const puppyLoader = ref(true)
 
         <template #fallback>
           <div
-            class="flex min-h-screen items-center justify-center bg-gradient-to-tr from-brownish-700 via-brownish-900 to-brownish-800"
+            class="flex min-h-screen items-center justify-center bg-gradient-to-tr from-paper-100 via-paper-50 to-paper-100 dark:from-brownish-700 dark:via-brownish-900 dark:to-brownish-800"
           >
             <PuppyLoader v-model="puppyLoader" />
           </div>

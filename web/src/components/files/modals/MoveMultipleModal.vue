@@ -135,7 +135,7 @@ const select = async (file?: AppFile) => {
     :hide-submit="true"
     @cancel="emits('update:modelValue', false)"
   >
-    <div class="w-full border-[1px] border-t-0 border-brownish-800 min-h-[400px]">
+    <div class="w-full border-[1px] border-t-0 border-paper-300 dark:border-brownish-800 min-h-[400px]">
       <DirectoryTree
         v-if="props.modelValue"
         @select="select"
