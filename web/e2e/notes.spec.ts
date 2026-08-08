@@ -34,16 +34,21 @@ test.describe('New File button — A1 create flow', () => {
     await setup(page)
     await createNoteFromBrowser(page, 'tasks-button.md')
 
-    // Put the caret on a fresh paragraph below the title, then press the
-    // task-list toolbar button — no bracket syntax involved.
-    await page.locator('.ProseMirror').click()
-    await page.keyboard.press('End')
-    await page.keyboard.press('Enter')
+    // Seed a paragraph through the raw view, then click into its text —
+    // clicking rendered text is the one caret placement that's reliable.
+    await openRawMarkdown(page)
+    await typeRawMarkdown(page, '# tasks-button\n\nfrom the button\n')
+    await saveViaButton(page)
+    await page.locator('[name="md-actions"]').click()
+    await page.getByRole('button', { name: 'WYSIWYG editor', exact: true }).click()
+
+    // With the caret on the paragraph, the toolbar button turns it into a
+    // task item — no bracket syntax involved.
+    await page.locator('.ProseMirror').getByText('from the button').click()
     await page.locator('[name="md-task-list"]').click()
 
     const box = page.locator('.task-checkbox')
     await expect(box).toHaveCount(1)
-    await page.keyboard.type('from the button')
 
     await saveViaButton(page)
     await openRawMarkdown(page)
@@ -164,29 +169,16 @@ test.describe('Formatting — A1 toolbar commands', () => {
     await setup(page)
     await createNoteFromBrowser(page, 'bold.md')
 
-    // Switch directly to WYSIWYG (the editor's default mode) and type
-    // into ProseMirror. The raw textarea path is separate and doesn't
-    // go through the toolbar commands.
-    const prose = page.locator('.milkdown-wrapper .ProseMirror').first()
-    await prose.waitFor({ state: 'visible' })
-    await prose.click()
+    // Seed a paragraph through the raw view, then act on its rendered
+    // text — clicking text is the one caret placement that's reliable.
+    await openRawMarkdown(page)
+    await typeRawMarkdown(page, '# bold\n\nMARKER\n')
+    await saveViaButton(page)
+    await page.locator('[name="md-actions"]').click()
+    await page.getByRole('button', { name: 'WYSIWYG editor', exact: true }).click()
 
-    // Move the caret to end of document, then type a marker word.
-    await page.keyboard.press('Control+End')
-    await page.keyboard.type('MARKER')
-
-    // Select the word we just typed by holding Shift while walking the
-    // caret back across the six characters of "MARKER". Holding Shift
-    // throughout (rather than press-and-release per iteration) is what
-    // keeps the selection extending — every Shift keyup between presses
-    // can collapse the ProseMirror selection on slower CI runners.
-    await page.keyboard.down('Shift')
-    for (let i = 0; i < 6; i++) {
-      await page.keyboard.press('ArrowLeft')
-    }
-    await page.keyboard.up('Shift')
-
-    // Apply Bold via the toolbar button.
+    // Double-click selects the word; apply Bold via the toolbar button.
+    await page.locator('.ProseMirror').getByText('MARKER').dblclick()
     await page.locator('[name="md-bold"]').click()
 
     // Explicit save — we want a deterministic flush before reading the
