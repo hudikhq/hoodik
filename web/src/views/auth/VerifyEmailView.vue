@@ -6,10 +6,10 @@ import { useI18n } from 'vue-i18n'
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
-import type { ErrorResponse } from '!/api'
 import PuppyLoader from '@/components/ui/PuppyLoader.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { mdiCheckCircleOutline, mdiAlertOutline } from '@mdi/js'
+import { humanizeError } from '!/index'
 
 const register = store()
 const router = useRouter()
@@ -44,10 +44,9 @@ const verify = async () => {
       router.push({ name: 'login' })
     }, 10000)
   } catch (err) {
-    const _error = err as ErrorResponse<any>
     // Must never end up empty: the template treats a falsy error as success
     // and would show a verified checkmark for a failed verification.
-    error.value = _error.description || (err as Error).message || t('errors.unknown')
+    error.value = humanizeError(err)
     working.value = false
   }
 }

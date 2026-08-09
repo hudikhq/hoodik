@@ -5,16 +5,20 @@ import { createPinia } from '!/init'
 import { store as style } from '!/style'
 import { lightModeKey, styleKey } from '@/config'
 import { greeting } from '!/logger'
+import { humanizeError } from '!/index'
 import { i18n, currentLocale } from '@/i18n'
 import Notifications, { notify } from '@kyvg/vue3-notification'
 import './css/main.css'
 
 greeting()
 
+// Last resort for anything no handler caught. The reason's own message is
+// the rawest string in the app, so it goes in the body under a title a
+// person can read — never as the headline.
 window.addEventListener('unhandledrejection', function (event) {
   notify({
-    title: event.reason.message || i18n.global.t('errors.unknown'),
-    text: event.reason.description,
+    title: i18n.global.t('errors.requestFailed'),
+    text: humanizeError(event.reason),
     type: 'error'
   })
 })

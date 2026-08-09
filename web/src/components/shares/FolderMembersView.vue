@@ -12,7 +12,7 @@ import BaseIcon from '@/components/ui/BaseIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import RevokeConfirmModal from '@/components/shares/RevokeConfirmModal.vue'
 import { api as sharesApi, crypto as shareCrypto, editable as editableSvc } from '!/shares'
-import { errorNotification, notification } from '!/index'
+import { errorNotification, notification, humanizeError } from '!/index'
 
 import type {
   AppFile,
@@ -59,7 +59,7 @@ async function refresh(): Promise<void> {
     response.value = await sharesApi.getFolderMembers(props.folder.id)
     await verifySignatures(response.value)
   } catch (err) {
-    loadError.value = (err as Error).message || t('shares.members.loadFailed')
+    loadError.value = humanizeError(err) || t('shares.members.loadFailed')
   } finally {
     loading.value = false
   }

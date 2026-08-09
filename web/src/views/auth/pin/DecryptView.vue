@@ -12,6 +12,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ErrorResponse } from '!/api'
 import type { Credentials } from 'types'
+import { humanizeError } from '!/index'
 
 const login = loginStore()
 const router = useRouter()
@@ -57,7 +58,7 @@ const init = () => {
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
-        authenticationError.value = error.description || (err as Error).message
+        authenticationError.value = humanizeError(err)
       }
     }
   }

@@ -11,22 +11,48 @@ import { i18n, currentDateFnsLocale, currentLocale } from '@/i18n'
 const DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
 
 /**
+ * Turn whatever was thrown into something a person can act on.
+ *
+ * fetch rejects with a bare TypeError when the request never reached the
+ * server, whose message ("Failed to fetch", "Load failed", "NetworkError…")
+ * is browser-specific and means nothing to a user — so that case gets named
+ * explicitly rather than passed through.
+ */
+export function humanizeError(error: unknown): string {
+  if (typeof error === 'string' && error) {
+    return error
+  }
+
+  if ((error as ErrorResponse<any>)?.kind === 'ErrorResponse') {
+    return (error as ErrorResponse<any>).description || i18n.global.t('errors.unknown')
+  }
+
+  const message = (error as Error)?.message
+
+  if (!message) {
+    return i18n.global.t('errors.unknown')
+  }
+
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false
+  const looksLikeNetwork =
+    error instanceof TypeError || /failed to fetch|load failed|networkerror/i.test(message)
+
+  if (offline || looksLikeNetwork) {
+    return i18n.global.t('errors.network')
+  }
+
+  return message
+}
+
+/**
  * Unify way to handle every kind of error as an error notification
  */
 export function errorNotification(error: string | Error | ErrorResponse<any> | unknown) {
   if (typeof error === 'string') {
-    return notification(error ?? i18n.global.t('errors.unknown'), undefined, 'error')
+    return notification(error || i18n.global.t('errors.unknown'), undefined, 'error')
   }
 
-  if ((error as ErrorResponse<any>).kind === 'ErrorResponse') {
-    return notification(
-      i18n.global.t('errors.requestFailed'),
-      (error as ErrorResponse<any>).description,
-      'error'
-    )
-  }
-
-  notification((error as Error).message, (error as ErrorResponse<any>).description, 'error')
+  notification(i18n.global.t('errors.requestFailed'), humanizeError(error), 'error')
 }
 
 /**

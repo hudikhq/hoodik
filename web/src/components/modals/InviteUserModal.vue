@@ -9,6 +9,7 @@ import type { ErrorResponse } from '!/api'
 import { create } from '!/admin/invitations'
 import type { Create } from 'types/admin/invitations'
 import { useI18n } from 'vue-i18n'
+import { humanizeError } from '!/index'
 
 const props = defineProps<{
   modelValue?: boolean | undefined
@@ -42,7 +43,7 @@ const init = () => {
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
-        errorMessage.value = error.description || (err as Error).message
+        errorMessage.value = humanizeError(err)
       }
     }
   }

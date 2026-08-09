@@ -7,6 +7,7 @@ import { AppForm, AppField } from '@/components/form'
 import * as yup from 'yup'
 import type { ErrorResponse } from '!/api'
 import type { CryptoStore, FilesStore } from 'types'
+import { humanizeError } from '!/index'
 
 const props = defineProps<{
   modelValue?: boolean | undefined
@@ -39,7 +40,7 @@ const init = () => {
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
-        errorMessage.value = error.description || (err as Error).message
+        errorMessage.value = humanizeError(err)
       }
     }
   }

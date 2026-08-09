@@ -11,6 +11,7 @@ import { createNote } from '!/storage/save'
 import { emitFileTreeChange } from '!/storage/events'
 import type { ErrorResponse } from '!/api'
 import type { KeyPair } from 'types'
+import { humanizeError } from '!/index'
 
 const LAST_FOLDER_KEY = 'hoodik:notes:lastFolder'
 
@@ -87,7 +88,7 @@ const init = () => {
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
-        errorMessage.value = error.description || (err as Error).message
+        errorMessage.value = humanizeError(err)
       }
     }
   }

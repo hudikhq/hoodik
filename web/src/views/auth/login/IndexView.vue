@@ -14,6 +14,7 @@ import { useI18n } from 'vue-i18n'
 import type { ErrorResponse } from '!/api'
 import type { Credentials } from 'types'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import { humanizeError } from '!/index'
 
 const login = store()
 const register = registerStore()
@@ -49,7 +50,7 @@ const init = () => {
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
-        authenticationError.value = error.description || (err as Error).message
+        authenticationError.value = humanizeError(err)
       }
     }
   }
