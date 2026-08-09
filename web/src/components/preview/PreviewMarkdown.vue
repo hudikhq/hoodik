@@ -16,7 +16,7 @@ import { store as loginStore } from '!/auth/login'
 import VersionHistory from '@/components/preview/VersionHistory.vue'
 import { useMarkdownSave } from '@/components/editor/composables/useMarkdownSave'
 import { exportPdf } from '@/components/editor/composables/useMarkdownExport'
-import { notification } from '!/index'
+import { errorNotification, notification } from '!/index'
 import * as meta from '!/storage/meta'
 import { emitFileTreeChange } from '!/storage/events'
 import { store as storageStore } from '!/storage'
@@ -137,7 +137,9 @@ async function convertToNote() {
     await nextTick()
     isLoaded.value = true
   } catch (err) {
-    console.error('Failed to convert file to note:', err)
+    // Nothing on screen changes when this fails, so the button just looks
+    // dead unless the failure is announced.
+    errorNotification(err)
   } finally {
     isConverting.value = false
   }

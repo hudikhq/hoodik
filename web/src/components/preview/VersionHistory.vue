@@ -21,7 +21,7 @@ import OverlayLayer from '@/components/ui/OverlayLayer.vue'
 import * as cryptfns from '!/cryptfns'
 import * as versions from '!/storage/versions'
 import type { ForkRequest } from '!/storage/versions'
-import { formatPrettyDate } from '!/index'
+import { formatPrettyDate, humanizeError } from '!/index'
 import type { AppFile, FileVersion, KeyPair } from 'types'
 
 import '@/components/editor/markdown-editor.css'
@@ -50,6 +50,9 @@ const busyVersion = ref<number | null>(null)
 const previewVersion = ref<FileVersion | null>(null)
 const previewBytes = ref<string | null>(null)
 const previewError = ref<string | null>(null)
+// A failed restore/fork/delete must not replace the list — the user needs
+// to still see their versions while reading why the action failed.
+const actionError = ref<string | null>(null)
 const confirmingDelete = ref<FileVersion | null>(null)
 const confirmingPurgeAll = ref(false)
 const confirmingRestore = ref<FileVersion | null>(null)
@@ -60,7 +63,7 @@ async function load() {
   try {
     list.value = await versions.list(props.file.id)
   } catch (err) {
-    loadError.value = (err as Error).message
+    loadError.value = humanizeError(err)
   } finally {
     loading.value = false
   }
@@ -107,7 +110,7 @@ async function openPreview(v: FileVersion) {
     const bytes = await decryptVersionBytes(v)
     previewBytes.value = new TextDecoder().decode(bytes)
   } catch (err) {
-    previewError.value = (err as Error).message
+    previewError.value = humanizeError(err)
   }
 }
 
@@ -125,13 +128,14 @@ async function restore() {
   const v = confirmingRestore.value
   if (!v) return
   busyVersion.value = v.version
+  actionError.value = null
   try {
     const updated = await versions.restore(props.file.id, v.version)
     emit('restored', updated)
     confirmingRestore.value = null
     await load()
   } catch (err) {
-    loadError.value = (err as Error).message
+    actionError.value = humanizeError(err)
   } finally {
     busyVersion.value = null
   }
@@ -139,10 +143,11 @@ async function restore() {
 
 async function forkAsNew(v: FileVersion) {
   if (!props.file.key) {
-    loadError.value = 'File key unavailable'
+    actionError.value = t('preview.versionHistory.keyUnavailable')
     return
   }
   busyVersion.value = v.version
+  actionError.value = null
   try {
     const stamp = formatPrettyDate(v.created_at)
     const baseName = props.file.name.replace(/\.md$/i, '')
@@ -168,7 +173,7 @@ async function forkAsNew(v: FileVersion) {
     const newFile = await versions.fork(props.file.id, v.version, payload)
     emit('forked', newFile)
   } catch (err) {
-    loadError.value = (err as Error).message
+    actionError.value = humanizeError(err)
   } finally {
     busyVersion.value = null
   }
@@ -182,26 +187,28 @@ async function confirmDelete() {
   const v = confirmingDelete.value
   if (!v) return
   busyVersion.value = v.version
+  actionError.value = null
   try {
     await versions.remove(props.file.id, v.version)
     confirmingDelete.value = null
     await load()
     emit('changed')
   } catch (err) {
-    loadError.value = (err as Error).message
+    actionError.value = humanizeError(err)
   } finally {
     busyVersion.value = null
   }
 }
 
 async function purgeAll() {
+  actionError.value = null
   try {
     await versions.purgeAll(props.file.id)
     confirmingPurgeAll.value = false
     await load()
     emit('changed')
   } catch (err) {
-    loadError.value = (err as Error).message
+    actionError.value = humanizeError(err)
   }
 }
 </script>
@@ -212,6 +219,11 @@ async function purgeAll() {
       <h3 class="vh-title">{{ $t('preview.versionHistory.title') }}</h3>
       <BaseButton color="dark" :icon="mdiClose" xs :title="$t('common.close')" name="vh-close" @click="emit('close')" />
     </header>
+
+    <div v-if="actionError" class="vh-error" role="alert">
+      <BaseIcon :path="mdiAlertCircleOutline" :size="14" />
+      {{ actionError }}
+    </div>
 
     <div v-if="loading" class="vh-empty">{{ $t('preview.versionHistory.loading') }}</div>
 

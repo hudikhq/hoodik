@@ -12,6 +12,10 @@ export { meta, crypto }
 
 export const store = defineStore('links', () => {
   const loading = ref(false)
+  // Links the current key can't unwrap are omitted from the list rather than
+  // failing the page. Count them so the view can say so — a published link
+  // that silently isn't listed reads as deleted, and never gets revoked.
+  const undecryptable = ref(0)
 
   const items = ref<AppLink[]>([])
 
@@ -190,6 +194,8 @@ export const store = defineStore('links', () => {
       })
     )
 
+    undecryptable.value = links.filter((link) => link === null).length
+
     for (const link of links) {
       if (link) upsertItem(link)
     }
@@ -313,6 +319,7 @@ export const store = defineStore('links', () => {
     deselectAll,
     selected,
     items,
-    loading
+    loading,
+    undecryptable
   }
 })

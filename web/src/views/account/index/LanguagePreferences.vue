@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import CardBox from '@/components/ui/CardBox.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
@@ -7,10 +8,13 @@ import { mdiTranslate } from '@mdi/js'
 
 import { api as sharesApi } from '!/shares'
 import { SUPPORTED_LOCALES, currentLocale, setLocale, type SupportedLocale } from '@/i18n'
+import { notification } from '!/index'
 
 const props = defineProps<{
   class?: string
 }>()
+
+const { t } = useI18n()
 
 const locale = ref<SupportedLocale>(currentLocale())
 
@@ -18,8 +22,12 @@ function change() {
   setLocale(locale.value)
 
   // Store the preference server-side too, so outbound email (activation,
-  // share notifications) follows the user's language. Cosmetic on failure.
-  sharesApi.patchMe({ locale: locale.value }).catch(() => undefined)
+  // share notifications) follows the user's language. The UI language has
+  // already changed by this point, which makes a silent failure read as a
+  // full success — say what did not stick.
+  sharesApi
+    .patchMe({ locale: locale.value })
+    .catch(() => notification(t('errors.requestFailed'), t('errors.emailLanguageFailed'), 'error'))
 }
 </script>
 

@@ -24,6 +24,7 @@ import * as editable from './editable'
 import * as fork from './fork'
 import * as groups from './groups'
 import * as subtree from './subtree'
+import { i18n } from '@/i18n'
 
 export { api, crypto, editable, fork, groups, subtree }
 export { GroupMemberFingerprintMismatch } from './groups'
@@ -107,7 +108,7 @@ export const store = defineStore('shares', () => {
         incoming.value = [...incoming.value, ...page.items]
       }
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to load incoming shares'
+      error.value = i18n.global.t('errors.incomingFailed')
       throw e
     } finally {
       loading.value = false

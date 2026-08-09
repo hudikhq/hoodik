@@ -7,6 +7,7 @@ import LayoutAuthenticatedWithLoader from '@/layouts/LayoutAuthenticatedWithLoad
 import SectionMain from '@/components/ui/SectionMain.vue'
 import { useCapability } from '@/composables/useCapability'
 import { store as sharesStoreFactory, capabilitiesStore } from '!/shares'
+import { errorNotification } from '!/index'
 
 const { t } = useI18n()
 const { sharingEnabled } = useCapability()
@@ -47,9 +48,10 @@ async function refreshIncoming(): Promise<void> {
   if (!sharingEnabled.value) return
   try {
     await shares.loadIncoming(50, 0)
-  } catch {
-    // The store has surfaced the error; the UI keeps rendering whatever
-    // cached rows it already has.
+  } catch (err) {
+    // The store records the failure but nothing renders it, so an empty
+    // list would read as "nobody has shared anything with you".
+    errorNotification(err)
   }
 }
 
