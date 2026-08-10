@@ -5,12 +5,14 @@ import { RouterLink, RouterView } from 'vue-router'
 
 import LayoutAuthenticatedWithLoader from '@/layouts/LayoutAuthenticatedWithLoader.vue'
 import SectionMain from '@/components/ui/SectionMain.vue'
+import BaseIcon from '@/components/ui/BaseIcon.vue'
+import { mdiAlertCircleOutline } from '@mdi/js'
 import { useCapability } from '@/composables/useCapability'
 import { store as sharesStoreFactory, capabilitiesStore } from '!/shares'
 import { errorNotification } from '!/index'
 
 const { t } = useI18n()
-const { sharingEnabled } = useCapability()
+const { sharingEnabled, fetchError } = useCapability()
 const caps = capabilitiesStore()
 const shares = sharesStoreFactory()
 
@@ -64,6 +66,16 @@ onMounted(() => {
   <LayoutAuthenticatedWithLoader v-slot="{ authenticated, keypair }">
     <SectionMain v-if="authenticated">
       <div class="flex flex-col gap-4">
+        <div
+          v-if="fetchError"
+          role="alert"
+          class="flex items-start gap-2 rounded-md border border-orangy-500/30 bg-orangy-500/10 px-3 py-2 text-sm text-orangy-700 dark:border-orangy-400/25 dark:bg-orangy-400/10 dark:text-orangy-200"
+          data-testid="share-capabilities-error"
+        >
+          <BaseIcon :path="mdiAlertCircleOutline" :size="16" w="w-4" h="h-4" class="mt-0.5 shrink-0" />
+          <span>{{ $t(fetchError) }}</span>
+        </div>
+
         <header class="flex items-center justify-between gap-3">
           <h1 class="text-xl sm:text-2xl font-semibold">{{ $t('common.share') }}</h1>
           <div

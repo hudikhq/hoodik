@@ -6,7 +6,6 @@ import * as download from './download'
 import { emitFileTreeChange } from './events'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { i18n } from '@/i18n'
 import * as cryptfns from '../cryptfns'
 import { utcStringFromLocal, uuidv4 } from '..'
 import { useStorage } from '@vueuse/core'
@@ -339,7 +338,7 @@ export const store = defineStore('files', () => {
         )
         rows.forEach((row) => upsertItem(row))
       } catch (e) {
-        error.value = i18n.global.t('errors.listFailed')
+        error.value = 'errors.listFailed'
       } finally {
         loading.value = false
       }
@@ -361,7 +360,7 @@ export const store = defineStore('files', () => {
     try {
       response = await meta.find(query)
     } catch (e) {
-      error.value = i18n.global.t('errors.listFailed')
+      error.value = 'errors.listFailed'
     }
 
     const rows = [...(response.parents || []), ...(response.children || [])]

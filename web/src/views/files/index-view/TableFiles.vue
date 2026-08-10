@@ -403,7 +403,7 @@ const sizes = {
       data-testid="files-error"
     >
       <span class="text-sm text-brownish-300 dark:text-brownish-100 px-6 text-center">
-        {{ props.error }}
+        {{ $t(props.error) }}
       </span>
       <BaseButton color="info" small :label="$t('common.retry')" @click="emits('retry')" />
     </div>
