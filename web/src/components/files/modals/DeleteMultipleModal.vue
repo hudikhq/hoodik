@@ -1,12 +1,16 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import type { FilesStore, KeyPair } from 'types'
+import { notification, humanizeError } from '!/notify'
 
 const props = defineProps<{
   modelValue: boolean
   Storage: FilesStore
   kp: KeyPair
 }>()
+
+const { t } = useI18n()
 
 const emits = defineEmits<{
   (event: 'update:modelValue', value: boolean): void
@@ -16,7 +20,11 @@ const emits = defineEmits<{
  * Confirms removing multiple files that were selected
  */
 const confirmRemoveAll = async () => {
-  await props.Storage.removeAll(props.kp, props.Storage.selected)
+  try {
+    await props.Storage.removeAll(props.kp, props.Storage.selected)
+  } catch (err) {
+    notification(t('errors.deleteFailed'), humanizeError(err), 'error')
+  }
   emits('update:modelValue', false)
 }
 </script>

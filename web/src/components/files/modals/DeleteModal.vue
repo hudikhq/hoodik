@@ -1,12 +1,16 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import type { FilesStore, KeyPair, AppFile } from 'types'
+import { notification, humanizeError } from '!/notify'
 
 const props = defineProps<{
   modelValue: AppFile | undefined
   Storage: FilesStore
   kp: KeyPair
 }>()
+
+const { t } = useI18n()
 
 const emits = defineEmits<{
   (event: 'update:modelValue', value: AppFile | undefined): void
@@ -18,7 +22,13 @@ const emits = defineEmits<{
 const confirmRemove = async () => {
   if (!props.modelValue) return
 
-  await props.Storage.remove(props.kp, props.modelValue)
+  // The dialog is already closing by the time this runs, so a failure has
+  // to announce itself — the row simply staying put reads as success.
+  try {
+    await props.Storage.remove(props.kp, props.modelValue)
+  } catch (err) {
+    notification(t('errors.deleteFailed'), humanizeError(err), 'error')
+  }
 
   emits('update:modelValue', undefined)
 }

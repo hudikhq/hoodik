@@ -13,6 +13,7 @@ import {
   mdiArrowDownBoldOutline
 } from '@mdi/js'
 import type { DownloadAppFile, UploadAppFile, QueueItemActionType } from 'types'
+import { humanizeError } from '!/notify'
 
 const props = defineProps<{
   type: QueueItemActionType
@@ -31,11 +32,13 @@ const name = computed<string>(() => `${props.file.name || props.file.id}`)
 
 const error = computed(() => {
   if (!props.file.error) return ''
+  // `context` is whatever the worker captured — for a plain Error that is
+  // its raw message, and interpolating the object itself renders
+  // "[object Object]". Route it through the shared wording instead.
   if (props.file.error.context && typeof props.file.error.context === 'string') {
-    return props.file.error.context
+    return humanizeError(new Error(props.file.error.context))
   }
-  if (props.file.error.context) return t('files.transfers.somethingWentWrong')
-  return `${props.file.error}`
+  return t('files.transfers.somethingWentWrong')
 })
 
 const titleText = computed(() => {
