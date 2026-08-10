@@ -2,11 +2,16 @@
  * Client-side PDF export from the Milkdown editor.
  * Uses html2pdf.js to render the editor content to a downloadable PDF.
  */
-export async function exportPdf(editorWrapper: HTMLElement | undefined, fileName: string) {
+/** Resolves to the number of images that could not be embedded. */
+export async function exportPdf(
+  editorWrapper: HTMLElement | undefined,
+  fileName: string
+): Promise<number> {
+  let dropped = 0
   const html2pdf = (await import('html2pdf.js')).default
 
   const editorEl = editorWrapper?.querySelector('.ProseMirror')
-  if (!editorEl) return
+  if (!editorEl) return 0
 
   const container = document.createElement('div')
   container.innerHTML = editorEl.innerHTML
@@ -86,6 +91,10 @@ export async function exportPdf(editorWrapper: HTMLElement | undefined, fileName
       })
       img.src = dataUrl
     } catch {
+      // An image that can't be inlined is dropped rather than breaking the
+      // export, but the resulting PDF is then quietly wrong — count it so
+      // the caller can say so before the user sends it to someone.
+      dropped++
       img.remove()
     }
   })
@@ -107,4 +116,6 @@ export async function exportPdf(editorWrapper: HTMLElement | undefined, fileName
     })
     .from(container)
     .save()
+
+  return dropped
 }

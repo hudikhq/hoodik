@@ -22,6 +22,7 @@ import { useCapability } from '@/composables/useCapability'
 import { api as sharesApi, crypto as shareCrypto } from '!/shares'
 import { errorNotification, notification } from '!/index'
 
+import type { ErrorResponse } from '!/api'
 import type {
   AppShareGroupAsMember,
   AppShareGroupWithMembers,
@@ -173,8 +174,7 @@ async function confirmRename(): Promise<void> {
     notification(t('shares.groups.renamedTitle'), t('shares.groups.renamedBody', { name: trimmed }), 'success')
     await refresh()
   } catch (err) {
-    const message = err instanceof Error ? err.message : ''
-    if (/409|conflict|taken/i.test(message)) {
+    if ((err as ErrorResponse<unknown>)?.status === 409) {
       notification(t('shares.groups.nameTakenTitle'), t('shares.groups.nameTakenBody'), 'error')
     } else {
       errorNotification(err)

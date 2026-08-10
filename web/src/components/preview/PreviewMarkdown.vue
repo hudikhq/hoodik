@@ -63,6 +63,7 @@ const isLoaded = ref(false)
 const loadError = ref('')
 const showRaw = ref(false)
 const isConverting = ref(false)
+const isExporting = ref(false)
 
 const editorRef = ref<InstanceType<typeof MilkdownEditorInner>>()
 const toolbarRef = ref<InstanceType<typeof MarkdownToolbar>>()
@@ -197,8 +198,22 @@ async function confirmMove() {
   showMoveModal.value = false
 }
 
-function handleExportPdf() {
-  exportPdf(editorWrapperRef.value, preview.value.name || 'document')
+async function handleExportPdf() {
+  if (isExporting.value) return
+
+  // Rasterizing a long note takes seconds with no visual change, so an
+  // unguarded handler reads as a dead menu item and invites a second click.
+  isExporting.value = true
+  try {
+    const dropped = await exportPdf(editorWrapperRef.value, preview.value.name || 'document')
+    if (dropped > 0) {
+      notification(t('errors.requestFailed'), t('errors.pdfImagesDropped'), 'error')
+    }
+  } catch (err) {
+    errorNotification(err)
+  } finally {
+    isExporting.value = false
+  }
 }
 
 function runCommand(command: string, payload?: unknown) {

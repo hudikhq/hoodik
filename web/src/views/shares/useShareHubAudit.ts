@@ -10,7 +10,7 @@ import {
   DiscoverUserError
 } from '!/shares'
 import { meta as storageMeta } from '!/storage'
-import { errorNotification } from '!/index'
+import { errorNotification, notification } from '!/index'
 
 import type { AuditEventAction, KeyPair, ShareEvent, ShareRole } from 'types'
 
@@ -485,9 +485,12 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
     }
     try {
       await navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
+      notification(t('common.copied'), undefined, 'success')
     } catch {
-      // Clipboard access can fail in narrow embed contexts; the
-      // disclosure remains visible so the user can copy by hand.
+      // Clipboard access can fail in narrow embed contexts. The disclosure
+      // stays on screen either way, but the click has to say which of the
+      // two happened.
+      notification(t('errors.requestFailed'), t('errors.copyFailed'), 'error')
     }
   }
 
