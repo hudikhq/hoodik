@@ -152,7 +152,7 @@ watch(
 <template>
   <ul v-if="mode === 'select'">
     <li
-      class="w-full border-t-[1px] border-brownish-800 p-1"
+      class="w-full border-t-[1px] border-paper-200 dark:border-brownish-800 p-1"
       :class="{
         'pl-4': parent
       }"
@@ -189,7 +189,7 @@ watch(
     </li>
 
     <template v-if="isTopLevelSelect && sharedRootItems.length > 0">
-      <li class="w-full border-t-[1px] border-brownish-800 p-1">
+      <li class="w-full border-t-[1px] border-paper-200 dark:border-brownish-800 p-1">
         <div
           class="w-full cursor-pointer prevent-select"
           @click="sharedOpened = !sharedOpened"
@@ -227,7 +227,7 @@ watch(
         :class="[
           isActive
             ? styleStore.asideMenuItemActiveStyle
-            : `${styleStore.asideMenuItemStyle} dark:text-brownish-300 dark:hover:text-white`
+            : `${styleStore.asideMenuItemStyle} dark:text-brownish-50 dark:hover:text-white`
         ]"
         @click="opened = !opened"
       >
@@ -271,7 +271,7 @@ watch(
         :class="[
           isActive
             ? styleStore.asideMenuItemActiveStyle
-            : `${styleStore.asideMenuItemStyle} dark:text-brownish-300 dark:hover:text-white`
+            : `${styleStore.asideMenuItemStyle} dark:text-brownish-50 dark:hover:text-white`
         ]"
       >
         <span

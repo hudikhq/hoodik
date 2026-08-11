@@ -86,7 +86,7 @@
     },
     "preferences": "Postavke",
     "recoveryKey": {
-      "body": "Ovo je vjerodajnica kojom vraćaš pristup računu ako ikada zaboraviš lozinku. Čuvaj kopiju na sigurnom i privatnom mjestu; svatko tko je ima može se prijaviti kao ti. Za korištenje odaberi {loginWithKey} na stranici za prijavu.",
+      "body": "Ovo je ključ kojim vraćaš pristup računu ako ikada zaboraviš lozinku. Čuvaj kopiju na sigurnom i privatnom mjestu; svatko tko ga ima može se prijaviti kao ti. Za korištenje odaberi {loginWithKey} na stranici za prijavu.",
       "copiedText": "Ključ za oporavak je u međuspremniku.",
       "hide": "Sakrij",
       "loginWithKey": "Prijava ključem",
@@ -198,10 +198,12 @@
     "user": {
       "accountControls": "Upravljanje računom",
       "allUsers": "Svi korisnici",
+      "awaitingVerification": "Čeka potvrdu",
       "confirmDelete": "Da, obriši",
       "confirmDemote": "Da, ukloni ulogu",
       "confirmDisable": "Da, isključi",
       "confirmPromote": "Da, postavi za admina",
+      "confirmVerifyEmail": "Potvrdi sada",
       "dangerZone": "Opasna zona",
       "deleteAccount": "Obriši ovaj račun",
       "deleteAccountWarning": "Trajno briše korisnika i sve njegove datoteke. Ovo se ne može poništiti.",
@@ -209,6 +211,7 @@
       "disableTfa": "Isključi 2FA",
       "editQuota": "Uredi kvotu",
       "editStorageQuota": "Uredi kvotu pohrane",
+      "emailAddress": "Email adresa",
       "emailUnverified": "email nije potvrđen",
       "emailVerified": "email potvrđen",
       "encryptionKeys": "Enkripcijski ključevi",
@@ -228,7 +231,9 @@
       "tfaNotEnabled": "Nije uključena",
       "tfaOn": "2FA uključen",
       "twoFactorAuth": "Dvofaktorska autentifikacija",
-      "userBadge": "korisnik"
+      "userBadge": "korisnik",
+      "verifiedOn": "Potvrđeno {date}",
+      "verifyEmail": "Potvrdi email"
     },
     "users": {
       "emailActivated": "Email aktiviran",
@@ -260,7 +265,10 @@
     },
     "lock": {
       "description": "Račun korisnika s emailom {email} zaključan je u ovom pregledniku, a svi ostali podaci su uklonjeni. Ako nisi vlasnik ovog računa, možeš zaboraviti račun pa se prijaviti ili registrirati.",
-      "forgetAccount": "Zaboravi račun"
+      "forgetAccount": "Zaboravi račun",
+      "forgetConfirmBody": "Ovo uklanja zaključani račun i njegov kriptirani ključ iz ovog preglednika. Sam račun se ne briše; uvijek se možeš ponovno prijaviti svojom lozinkom.",
+      "forgetConfirmLabel": "Da, zaboravi",
+      "forgetConfirmTitle": "Zaboraviti ovaj račun?"
     },
     "lockSetup": {
       "description": "Tvoj privatni ključ bit će enkriptiran i spremljen lokalno, pa ćeš ga sljedeći put moći dekriptirati i pristupiti svojim datotekama jednostavnim PIN-om ili lozinkom.",
@@ -269,10 +277,13 @@
       "title": "Postavljanje zaključanog ekrana"
     },
     "login": {
+      "codeDigit": "Znamenka {index} od {total}",
       "forgotPassword": "Zaboravljena lozinka?",
       "recoverHere": "Oporavi svoj račun ovdje",
       "title": "Pristupi svojim datotekama",
-      "twoFactorLabel": "2FA token (neobavezno)",
+      "twoFactorBody": "Ovaj račun štiti dvofaktorska autentifikacija. Upiši trenutni kod iz svoje aplikacije za autentifikaciju.",
+      "twoFactorLabel": "Kod za autentifikaciju",
+      "twoFactorTitle": "Kod za dvofaktorsku prijavu",
       "withPrivateKey": "Prijava privatnim ključem"
     },
     "migration": {
@@ -295,10 +306,10 @@
     },
     "registerKey": {
       "confirmStored": "Moj privatni ključ je spremljen",
+      "download": "Preuzmi ključ",
       "generating": "...generira se, pričekaj...",
       "label": "Tvoj ključ za oporavak",
-      "lastTimeWarning": "Ovo je zadnji put da ti prikazujemo tvoj ključ za oporavak!",
-      "storeSafe": "Spremi ga na sigurno mjesto. Trebat će ti za prijavu ili oporavak računa ako zaboraviš lozinku.",
+      "storeSafe": "Spremi ga na sigurno mjesto. Trebat će ti za prijavu ili oporavak računa ako zaboraviš lozinku. Uvijek ga možeš ponovno vidjeti pod Račun → Ključ za oporavak.",
       "title": "Tvoj ključ za oporavak"
     },
     "rememberMe": "Zapamti me",
@@ -334,6 +345,7 @@
       "privateKeyRequired": "Privatni ključ je obavezan",
       "pubkeyRequired": "Javni ključ je obavezan",
       "secretRequired": "Tajni kod je obavezan",
+      "tokenRequired": "Kod za dvofaktorsku prijavu je obavezan",
       "twoFactorRequired": "2FA token je obavezan"
     },
     "verifyEmail": {
@@ -354,7 +366,7 @@
     "cancel": "Odustani",
     "close": "Zatvori",
     "confirm": "Potvrdi",
-    "copied": "Kopirano",
+    "copied": "Kopirano u međuspremnik",
     "copy": "Kopiraj",
     "create": "Kreiraj",
     "created": "Kreirano",
@@ -383,6 +395,8 @@
     "retry": "Pokušaj ponovno",
     "save": "Spremi",
     "search": "Pretraži",
+    "selectAll": "Odaberi sve",
+    "selectRow": "Odaberi {name}",
     "send": "Pošalji",
     "settings": "Postavke",
     "share": "Podijeli",
@@ -401,10 +415,14 @@
     "cannot_set_editable_on_directory": "Folderi ne mogu biti uređivi",
     "cannot_share_not_owner": "Samo vlasnik može ovo podijeliti",
     "cannot_update_not_owner": "Samo vlasnik može ovo izmijeniti",
+    "capabilitiesUnavailable": "Značajke dijeljenja su skrivene jer server nije dostupan — osvježi stranicu za ponovni pokušaj",
     "chunk_already_exists": "Chunk je već uploadan",
     "chunk_out_of_range": "Chunk je izvan raspona",
     "chunk_size_exceeds_max": "Veličina chunka premašuje maksimum",
+    "copyFailed": "Kopiranje nije uspjelo — označi tekst i kopiraj ga ručno",
+    "deleteFailed": "Brisanje nije uspjelo — stavka je i dalje tu",
     "directory_not_found": "Folder nije pronađen",
+    "emailLanguageFailed": "Jezik sučelja je promijenjen, ali ga nije bilo moguće spremiti za e-poštu",
     "encrypted_private_key_required": "Enkriptirani privatni ključ je obavezan",
     "file_already_exists": "Datoteka s ovim nazivom već postoji",
     "file_has_no_chunks": "Datoteka nema uploadanih podataka",
@@ -414,6 +432,7 @@
     "forbidden_not_owner": "Nisi vlasnik",
     "forbidden_read_only": "Ovo dijeljenje je samo za čitanje",
     "inactive_account": "Tvoj račun nije aktiviran",
+    "incomingFailed": "Dijeljenja upućena tebi nije moguće učitati — popis je možda nepotpun",
     "invalid": "Neispravna vrijednost",
     "invalid_authorization_header": "Neispravan authorization header",
     "invalid_credentials": "Neispravan email ili lozinka",
@@ -432,9 +451,11 @@
     "invitation_not_found": "Pozivnica nije pronađena",
     "link_expired": "Ovaj link je istekao",
     "link_signature_invalid": "Potpis linka nije ispravan",
+    "listFailed": "Datoteke nije moguće učitati — provjeri vezu i pokušaj ponovno",
     "login_expired": "Sesija je istekla, prijavi se ponovno",
     "missing_refresh_token": "Nedostaje refresh token, prijavi se ponovno",
     "missing_session_token": "Nedostaje token sesije, prijavi se ponovno",
+    "network": "Server nije dostupan — provjeri vezu i pokušaj ponovno",
     "new_fingerprint_mismatch": "Fingerprint novog ključa se ne podudara",
     "no_authorization_header": "Nedostaje authorization header",
     "no_context": "Nedostaje kontekst zahtjeva",
@@ -445,6 +466,7 @@
     "ownership_proof_required": "Potreban je dokaz vlasništva",
     "parent_directory_not_found": "Nadređeni folder nije pronađen",
     "password_not_set": "Lozinka nije postavljena",
+    "pdfImagesDropped": "Neke slike nije bilo moguće uključiti u PDF",
     "pending_chunks_not_set": "Stanje uploada nije potpuno",
     "pending_size_not_set": "Stanje uploada nije potpuno",
     "quota_exceeded": "Kvota pohrane je premašena",
@@ -467,6 +489,8 @@
     "transition_signature_invalid_base64": "Potpis tranzicije ključa nije ispravno kodiran",
     "transition_timestamp_skew": "Vremenska oznaka tranzicije ključa je izvan raspona",
     "two_factor_already_enabled": "Dvofaktorska autentifikacija je već uključena",
+    "two_factor_required": "Upiši svoj kod za dvofaktorsku prijavu",
+    "undecryptable": "Jedan ili više tvojih linkova nije moguće otvoriti trenutnim ključem pa nisu prikazani",
     "unknown": "Nešto je pošlo po zlu",
     "unknown_cipher": "Nepoznat cipher",
     "upgrade_required": "Ažuriraj aplikaciju za nastavak",
@@ -478,12 +502,13 @@
   "files": {
     "actions": {
       "details": "Detalji",
-      "fork": "Fork",
+      "fork": "Spremi vlastitu kopiju",
       "forkTitle": "Spremi neovisnu kopiju u svoje datoteke; ostaje ti i nakon opoziva dijeljenja",
       "preview": "Pregled",
       "sharing": "Dijeljenje"
     },
     "breadcrumbs": "Putanja",
+    "breadcrumbsShowAll": "Prikaži sve foldere",
     "browser": {
       "addToDownloadQueue": "Dodaj u red za download",
       "createDirectory": "Kreiraj folder",
@@ -511,7 +536,10 @@
       "confirmFile": "Sigurno želiš zauvijek obrisati '{name}'?",
       "confirmLabel": "Da, obriši",
       "confirmMany": "Sigurno želiš obrisati odabrane stavke ({count})?",
-      "selectedTitle": "Obriši odabrano"
+      "confirmManyFolders": "{count} od njih je mapa — nestaje i sve unutra. | {count} su mape — nestaje i sve unutra.",
+      "selectedTitle": "Obriši odabrano",
+      "typeCount": "Upiši {count} za potvrdu",
+      "typeName": "Upiši {name} za potvrdu"
     },
     "details": {
       "uploaded": "Uploadano"
@@ -539,9 +567,11 @@
     "row": {
       "ownedBy": "Vlasnik: {email}",
       "savingInAnotherSession": "Druga sesija upravo sprema ovu bilješku",
-      "sharedWith": "Podijeljeno s još {count} računom | Podijeljeno s još {count} računa | Podijeljeno s još {count} računa"
+      "sharedWith": "Podijeljeno s još {count} računom | Podijeljeno s još {count} računa | Podijeljeno s još {count} računa",
+      "uploadIncomplete": "Upload nije dovršen"
     },
     "search": {
+      "failed": "Pretraga nije uspjela — provjeri vezu i pokušaj ponovno",
       "noMatches": "Nijedna datoteka ne odgovara pretrazi",
       "notesOnly": "Samo bilješke",
       "placeholder": "Pretraži datoteke...",
@@ -555,7 +585,7 @@
       "images": "Slike",
       "ofMax": "{percent} od {max}",
       "text": "Tekst",
-      "unlimited": "neograničeno",
+      "unlimited": "neograničenog prostora",
       "usedOf": "Iskorišteno {used} od {available}",
       "videos": "Video"
     },
@@ -575,6 +605,44 @@
     },
     "tree": {
       "root": "Root"
+    },
+    "type": {
+      "archive": "Arhiva",
+      "audio": "Audio",
+      "document": "Dokument",
+      "folder": "Folder",
+      "font": "Font",
+      "image": "Slika",
+      "pdf": "PDF",
+      "presentation": "Prezentacija",
+      "spreadsheet": "Tablica",
+      "text": "Tekst",
+      "video": "Video"
+    }
+  },
+  "help": {
+    "title": "Pomoć",
+    "shortcuts": {
+      "title": "Tipkovni prečaci",
+      "search": "Pretraži datoteke",
+      "help": "Otvori ovaj prozor",
+      "inNotes": "U uređivaču bilješki",
+      "bold": "Podebljano",
+      "italic": "Kurziv",
+      "link": "Poveznica",
+      "save": "Spremi",
+      "undoRedo": "Poništi / Ponovi"
+    },
+    "facts": {
+      "title": "Dobro je znati",
+      "recoveryKey": "Ključ za oporavak jedini je način povratka ako zaboraviš lozinku. Uvijek je dostupan pod Račun → Ključ za oporavak.",
+      "sharing": "Ukidanje dijeljenja zaustavlja buduća čitanja. Ono što je druga osoba već preuzela ostaje kod nje; enkripcija to ne može povući.",
+      "server": "Nazivi, sadržaj i sličice šifriraju se u tvom pregledniku prije slanja. Poslužitelj čuva samo šifrat i nikad ne drži tvoje ključeve."
+    },
+    "links": {
+      "title": "Drugdje",
+      "source": "Izvorni kod i sigurnosna politika na GitHubu",
+      "apps": "Aplikacije za mobitel i računalo"
     }
   },
   "links": {
@@ -651,7 +719,7 @@
       "saved": "Spremljeno u međuspremnik"
     },
     "fork": {
-      "cancelledText": "Fork je otkazan prije dovršetka.",
+      "cancelledText": "Kopiranje je otkazano prije dovršetka.",
       "cancelledTitle": "Spremanje otkazano",
       "noSession": "Spremanje nije moguće bez aktivne sesije.",
       "progress": "Spremanje u tvoje datoteke",
@@ -666,9 +734,11 @@
     "menu": {
       "account": "Račun",
       "files": "Datoteke",
+      "help": "Pomoć",
       "lock": "Zaključaj",
       "notes": "Bilješke",
       "share": "Dijeljenje",
+      "theme": "Tema",
       "users": "Korisnici"
     },
     "title": {
@@ -680,7 +750,7 @@
       "filePreview": "Pregled datoteke",
       "forgotPassword": "Oporavak lozinke",
       "groups": "Grupe",
-      "loginCredentials": "Prijava - Vjerodajnice",
+      "loginCredentials": "Prijava - Email i lozinka",
       "manageSettings": "Upravljanje postavkama",
       "manageUser": "Upravljanje korisnikom",
       "manageUsers": "Upravljanje korisnicima",
@@ -688,7 +758,7 @@
       "myFiles": "Moje datoteke",
       "notes": "Bilješke",
       "publicLinks": "Javni linkovi",
-      "registerCredentials": "Kreiranje računa - Vjerodajnice",
+      "registerCredentials": "Kreiranje računa - Email i lozinka",
       "registerKey": "Kreiranje računa - Tvoj privatni ključ",
       "registerResend": "Kreiranje računa - Ponovno slanje aktivacijskog emaila",
       "registerTwoFactor": "Kreiranje računa - Dvofaktorska autentifikacija",
@@ -724,6 +794,7 @@
       "empty": "Još nema bilješki",
       "loading": "Učitavanje bilješki...",
       "noMatches": "Nema bilješki koje odgovaraju \"{query}\"",
+      "searchFailed": "Pretraga nije uspjela — provjeri vezu i pokušaj ponovno",
       "searchPlaceholder": "Pretraži bilješke...",
       "title": "Bilješke",
       "today": "Danas",
@@ -747,11 +818,16 @@
       "saved": "Spremljeno",
       "saving": "Spremanje...",
       "strikethrough": "Precrtano",
+      "taskList": "Popis zadataka",
       "undo": "Poništi (Ctrl+Z)",
       "versionHistory": "Povijest verzija"
     }
   },
   "preview": {
+    "deleteFile": "Obriši datoteku",
+    "downloadFile": "Preuzmi datoteku",
+    "exportPdf": "Izvezi PDF",
+    "fileDetails": "Detalji datoteke",
     "markdown": {
       "conflictBody": "Server ima nedovršeno spremanje ove bilješke iz druge sesije. Odaberi {overwrite} da odbaciš njihovu izmjenu i spremiš svoju verziju, ili {cancel} da odbaciš svoje lokalne izmjene i pustiš da se drugo spremanje dovrši.",
       "conflictOverwrite": "Odbaci udaljeno i prepiši",
@@ -765,7 +841,9 @@
       "moveTitle": "Premjesti u folder",
       "readOnly": "Ova markdown datoteka je samo za čitanje."
     },
-    "noPreview": "Pregled nije dostupan 🥲",
+    "nextImage": "Sljedeća slika",
+    "noPreview": "Pregled nije dostupan",
+    "previousImage": "Prethodna slika",
     "versionHistory": {
       "authorAnonymous": "Anonimno",
       "authorOther": "Drugi suradnik",
@@ -775,25 +853,29 @@
       "clearAllBody": "Sve povijesne verzije bit će trajno obrisane. Trenutna bilješka ostaje.",
       "clearAllConfirmLabel": "Obriši sve",
       "clearAllTitle": "Očistiti svu povijest?",
-      "decrypting": "Dešifriranje…",
+      "decrypting": "Dekriptiranje…",
       "deleteBody": "v{version} od {date} bit će trajno uklonjena. Ovo se ne može poništiti.",
       "deleteConfirmLabel": "Obriši zauvijek",
       "deleteTitle": "Obrisati ovu verziju?",
       "deleteVersion": "Obriši ovu verziju",
       "empty": "Još nema povijesti. Uredi bilješku da je počneš graditi.",
+      "keyUnavailable": "Ključ ove datoteke nije dostupan — otvori bilješku ponovno",
       "loading": "Učitavanje verzija…",
       "previewTitle": "Pregled v{version}",
       "restoreAsNew": "Vrati kao novu bilješku",
       "restoreBody": "Ovo zamjenjuje trenutni sadržaj s v{version} od {date}. Tvoja trenutna verzija ostaje u povijesti, pa vraćanje kasnije možeš poništiti.",
       "restoreConfirmLabel": "Da, vrati",
-      "restoreInPlace": "Vrati na mjesto",
+      "restoreInPlace": "Vrati umjesto trenutne",
       "restoreTitle": "Vratiti ovu verziju?",
       "title": "Povijest verzija"
     },
     "video": {
       "loadError": "Video nije bilo moguće učitati: {error}",
       "loading": "Učitavanje… {progress}%"
-    }
+    },
+    "zoomFit": "Prilagodi sliku zaslonu",
+    "zoomIn": "Povećaj sliku",
+    "zoomOut": "Smanji sliku"
   },
   "shares": {
     "add": {
@@ -837,7 +919,7 @@
     },
     "audit": {
       "actions": {
-        "fork": "Fork",
+        "fork": "Spremljena kopija",
         "grant": "Podijeljeno",
         "keyRotation": "Rotacija ključeva",
         "revoke": "Opozvano",
@@ -858,17 +940,18 @@
         "sigPending": "Provjera u tijeku",
         "sigVerified": "Provjereno prema javnom ključu pošiljatelja"
       },
-      "empty": "Nijedan događaj ne odgovara trenutnim filterima.",
+      "empty": "Nijedan događaj ne odgovara postavljenim filtrima.",
+      "emptyAll": "Još nema aktivnosti dijeljenja. Događaji se pojavljuju ovdje kad podijeliš datoteku ili netko podijeli s tobom.",
       "filteredBanner": "Filtrirani prikaz – provjera lanca ograničena je na vidljive retke.",
       "filters": {
         "action": "Radnja",
         "allActions": "Sve radnje",
+        "allRecipients": "Svi primatelji",
         "clear": "Očisti filtere",
         "fileId": "ID datoteke",
         "find": "Pronađi",
         "from": "Od",
         "recipient": "Primatelj",
-        "recipientPlaceholder": "ID korisnika",
         "sender": "Pošiljatelj",
         "senderPlaceholder": "korisnik{'@'}primjer.com",
         "to": "Do"
@@ -901,7 +984,7 @@
         "evict": "{recipient} više ne može otvoriti {file} (kaskadni opoziv)",
         "fallback": "{action} – {file}",
         "fileId": "datoteku {id}…",
-        "fork": "{sender} je forkao {file} u svoje datoteke",
+        "fork": "{sender} je spremio/la vlastitu kopiju datoteke {file}",
         "grant": "{sender} je podijelio {file} s {recipient}",
         "grantAs": "{sender} je podijelio {file} s {recipient} kao {role}",
         "keyRotation": "{sender} je rotirao enkripcijske ključeve svog računa",
@@ -1068,6 +1151,7 @@
   },
   "ui": {
     "aside": {
+      "collapse": "Sakrij bočnu traku",
       "getApps": "Preuzmi aplikacije"
     },
     "fileTree": {

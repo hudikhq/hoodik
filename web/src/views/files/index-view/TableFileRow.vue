@@ -8,6 +8,7 @@ import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { formatPrettyDate, formatSize } from '!'
 import {
   mdiDotsVertical,
+  mdiAlertCircleOutline,
   mdiCloudSyncOutline,
   mdiFolderAccount,
   mdiShareVariantOutline,
@@ -19,6 +20,8 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { isPreviewable, isMarkdownFile } from '!/preview'
 import { SHARED_WITH_ME_DIR_ID } from '!/storage'
+import { store as uploadStore } from '!/storage/upload'
+import { prettyMime } from '@/utils/mime'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -53,6 +56,7 @@ const emits = defineEmits<{
   (event: 'fork', file: AppFile): void
   (event: 'leave', file: AppFile): void
   (event: 'select-one', value: boolean, file: AppFile): void
+  (event: 'select-range', file: AppFile): void
   (event: 'upload-many', files: FileList, dirId?: string): void
 }>()
 
@@ -65,13 +69,30 @@ const checked = computed({
   set: (v) => selectOne(v)
 })
 
+const upload = uploadStore()
+
+const isUnfinished = computed(() => {
+  return props.file.mime !== 'dir' && !props.file.finished_upload_at
+})
+
+/**
+ * The upload queue lives in memory, so after a refresh an unfinished row
+ * has no transfer behind it anymore. Live progress renders only for rows
+ * the queue is actually working on; the rest surface as stalled uploads
+ * instead of sitting on a progress bar that will never move.
+ */
 const showProgress = computed(() => {
-  if (props.file.mime === 'dir') {
+  if (!isUnfinished.value) {
     return false
   }
 
-  return !props.file.finished_upload_at
+  return (
+    upload.running.some((item) => item.id === props.file.id) ||
+    upload.waiting.some((item) => item.id === props.file.id)
+  )
 })
+
+const isStalledUpload = computed(() => isUnfinished.value && !showProgress.value)
 
 const isDir = computed(() => {
   return props.file.mime === 'dir'
@@ -108,7 +129,7 @@ const progressValue = computed(() => {
 })
 
 const sharedClass = computed(() => {
-  return 'dark:bg-brownish-900 hover:bg-dirty-white hover:dark:bg-brownish-700'
+  return 'dark:bg-brownish-900 hover:bg-paper-100 hover:dark:bg-brownish-700'
 })
 
 /**
@@ -147,7 +168,7 @@ const sharedOutTitle = computed(() =>
  */
 const isSyntheticRoot = computed(() => props.file.id === SHARED_WITH_ME_DIR_ID)
 
-const border = 'sm:border-l sm:border-brownish-50 sm:dark:border-brownish-950'
+const border = 'sm:border-l sm:border-paper-300 sm:dark:border-brownish-950'
 const sizes = computed(() => {
   return {
     checkbox: `${props.sizes.checkbox}`,
@@ -159,28 +180,17 @@ const sizes = computed(() => {
   }
 })
 
-const clicks = ref(0)
-const timer = ref()
-
 /**
- * Click listener
- * that handles single and double clicks
+ * The browser already knows what a double click is, and it knows it at the
+ * speed the reader configured. This used to be a hand-rolled 250ms counter,
+ * which made diving into folders feel like it was thinking about it.
  */
-const click = () => {
-  clicks.value++
-  if (clicks.value === 1) {
-    singleClick()
-
-    timer.value = setTimeout(() => {
-      clicks.value = 0
-    }, 250)
+const click = (event: MouseEvent) => {
+  if (event.shiftKey) {
+    emits('select-range', props.file)
+    return
   }
-
-  if (clicks.value === 2) {
-    clicks.value = 0
-    clearTimeout(timer.value)
-    doubleClick()
-  }
+  singleClick()
 }
 
 const doubleClick = () => {
@@ -267,12 +277,10 @@ const drop = (e: DragEvent) => {
     @dragend="dragend"
     @dragover="dragover"
     @drop="drop"
-    name="file-row"
     :data-testid="`file-row-${file.name}`"
-    accesskey="test"
     class="w-full flex file-row-separator"
     :class="{
-      'bg-brownish-50 dark:bg-brownish-700': !!checked,
+      'bg-paper-50 dark:bg-brownish-700': !!checked,
       [sharedClass]: true,
       'outline-2 outline-redish-300 outline z-10': isDropZone
     }"
@@ -282,21 +290,33 @@ const drop = (e: DragEvent) => {
         v-if="!props.hideCheckbox"
         v-model="checked"
         :disabled="isSyntheticRoot"
+        :label="$t('common.selectRow', { name: file.name })"
       />
     </div>
 
     <button
-      :class="`${sizes.name} flex justify-start cursor-pointer prevent-select text-left`"
+      :class="`${sizes.name} flex justify-start cursor-pointer prevent-select text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-redish-400/60 dark:focus:ring-redish-500/50`"
       :title="fileName"
+      data-row-nav
       @click="click"
+      @dblclick="doubleClick"
+      @keydown.space.prevent="singleClick"
     >
       <FileThumbnail :file="file" img-class="w-6 h-6 mr-2 rounded-md">
         <BaseIcon
           v-if="showProgress"
           :path="mdiUploadOutline"
           :size="16"
-          class="mr-2 text-greeny-500 dark:text-greeny-400"
+          class="mr-2 text-greeny-500 dark:text-greeny-300"
           data-testid="uploading-icon"
+        />
+        <BaseIcon
+          v-else-if="isStalledUpload"
+          :path="mdiAlertCircleOutline"
+          :size="16"
+          class="mr-2 text-orangy-800 dark:text-orangy-400"
+          :title="$t('files.row.uploadIncomplete')"
+          data-testid="stalled-upload-icon"
         />
       </FileThumbnail>
 
@@ -304,14 +324,14 @@ const drop = (e: DragEvent) => {
         v-if="file.id === SHARED_WITH_ME_DIR_ID"
         :path="mdiFolderAccount"
         :size="18"
-        class="mr-2 text-orangy-400"
+        class="mr-2 text-orangy-800 dark:text-orangy-400"
         data-testid="shared-with-me-folder-icon"
       />
 
       <TruncatedSpan :text="fileName" />
       <span
         v-if="isSharedOut"
-        class="ml-2 inline-flex items-center text-brownish-400 dark:text-brownish-300"
+        class="ml-2 inline-flex items-center text-brownish-400 dark:text-brownish-50"
         :title="sharedOutTitle"
         data-testid="shared-out-badge"
       >
@@ -322,14 +342,14 @@ const drop = (e: DragEvent) => {
            heads-up before they try to edit and run into a 409. -->
       <span
         v-if="file.pending_version != null"
-        class="ml-2 inline-flex items-center text-orangy-400"
+        class="ml-2 inline-flex items-center text-orangy-800 dark:text-orangy-400"
         :title="$t('files.row.savingInAnotherSession')"
       >
         <BaseIcon :path="mdiCloudSyncOutline" :size="14" />
       </span>
       <span
         v-if="ownerBadgeEmail"
-        class="ml-2 inline-flex items-center max-w-[10rem] truncate px-2 py-0.5 rounded-full text-[11px] uppercase tracking-wider bg-brownish-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200"
+        class="ml-2 inline-flex items-center max-w-[10rem] truncate px-2 py-0.5 rounded-full text-xs font-semibold bg-paper-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-50"
         :title="$t('files.row.ownedBy', { email: ownerBadgeEmail })"
         data-testid="shared-by-badge"
       >
@@ -342,7 +362,7 @@ const drop = (e: DragEvent) => {
     </div>
 
     <div :class="sizes.type" :title="props.file.mime">
-      <TruncatedSpan :text="props.file.mime" />
+      <TruncatedSpan :text="prettyMime(props.file.mime)" />
     </div>
 
     <div :class="sizes.modifiedAt" :title="fileModifiedAt">
@@ -357,6 +377,9 @@ const drop = (e: DragEvent) => {
           :icon="mdiDotsVertical"
           small
           name="actions-modal"
+          :title="$t('common.actions')"
+          :aria-label="$t('common.actions')"
+          aria-haspopup="menu"
           @click="emits('actions', file)"
           :disabled="!props.file.id"
         />

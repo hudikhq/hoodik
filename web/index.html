@@ -90,7 +90,7 @@
     @media (prefers-color-scheme: dark) {
       #boot {
         background: #1E1E1E;
-        color: #898989;
+        color: #939393;
       }
     }
 
@@ -103,8 +103,16 @@
         animation-duration: 1ms;
       }
 
+      /* Still says "working" without the rotation. A static ring here reads
+         as a stalled boot, which is the one message this screen must not send. */
       #boot-spinner {
-        animation: none;
+        animation: boot-fade 1.6s ease-in-out infinite;
+        border-top-color: currentColor;
+      }
+
+      @keyframes boot-fade {
+        0%, 100% { opacity: 0.25; }
+        50% { opacity: 0.6; }
       }
     }
   </style>

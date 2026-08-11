@@ -65,22 +65,22 @@ watch(
     </CardBoxComponentTitle>
 
     <div v-if="link">
-      <div class="flex flex-row p-2 border-b-[1px] border-brownish-700" v-if="loading">
+      <div class="flex flex-row p-2 border-b-[1px] border-paper-200 dark:border-brownish-700" v-if="loading">
         <div class="flex w-full">
           <SpinnerIcon class="w-6 h-6 mr-2" />
           <span>{{ $t('links.details.verifyingSignature') }}</span>
         </div>
       </div>
-      <div class="flex flex-row p-2 border-b-[1px] border-brownish-700" v-else>
-        <div class="flex flex-col w-full text-greeny-400" v-if="signatureValid">
+      <div class="flex flex-row p-2 border-b-[1px] border-paper-200 dark:border-brownish-700" v-else>
+        <div class="flex flex-col w-full text-greeny-500 dark:text-greeny-300" v-if="signatureValid">
           {{ $t('links.details.signatureValid', { email: link.owner_email }) }}
         </div>
-        <div class="flex flex-col w-full text-redish-400" v-else>
+        <div class="flex flex-col w-full text-redish-400 dark:text-redish-100" v-else>
           {{ $t('links.details.signatureInvalid') }}
         </div>
       </div>
 
-      <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+      <div class="flex flex-row p-2 border-b-[1px] border-paper-200 dark:border-brownish-700">
         <div class="w-full">
           <AppField
             name="owner_pubkey"
@@ -92,7 +92,7 @@ watch(
           />
         </div>
       </div>
-      <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+      <div class="flex flex-row p-2 border-b-[1px] border-paper-200 dark:border-brownish-700">
         <div class="w-full">
           <AppField
             name="owner_pubkey"
@@ -104,7 +104,7 @@ watch(
           />
         </div>
       </div>
-      <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+      <div class="flex flex-row p-2 border-b-[1px] border-paper-200 dark:border-brownish-700">
         <div class="w-full">
           <AppField
             name="signature"

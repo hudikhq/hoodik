@@ -10,6 +10,8 @@ import { ed25519, wrapping } from '!/cryptfns'
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import { mdiDownload } from '@mdi/js'
 import type { CreateUser } from 'types'
 import * as logger from '!/logger'
 
@@ -72,35 +74,52 @@ const init = async () => {
   }
 }
 init()
+
+const downloadKey = (bundle: string) => {
+  const url = URL.createObjectURL(new Blob([bundle], { type: 'text/plain' }))
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = 'hoodik-recovery-key.txt'
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
 </script>
 <template>
   <LayoutGuest>
-    <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
+    <SectionFullScreen v-slot="{ cardClass }">
       <CardBox :class="cardClass">
-        <h1 class="text-2xl text-white">{{ $t('auth.registerKey.title') }}</h1>
+        <h1 class="text-2xl text-brownish-700 dark:text-white">{{ $t('auth.registerKey.title') }}</h1>
 
         <div class="flex items-start" v-if="!config">
           <div class="flex items-center h-5">
-            <p class="text-sm text-white">{{ $t('auth.registerKey.generating') }}</p>
+            <p class="text-sm text-brownish-500 dark:text-white">{{ $t('auth.registerKey.generating') }}</p>
           </div>
         </div>
         <AppForm v-else :config="config" class="mt-8 space-y-6" v-slot="{ form }">
           <div class="flex items-start">
             <div class="flex items-center h-5">
-              <p class="text-sm text-redish-500 dark:text-redish-400">
-                <strong>{{ $t('auth.registerKey.lastTimeWarning') }}</strong>
+              <p class="text-sm text-brownish-500 dark:text-brownish-50">
                 {{ $t('auth.registerKey.storeSafe') }}
               </p>
             </div>
           </div>
           <AppField
             textarea
+            readonly
             :rows="12"
             :form="form"
             :label="$t('auth.registerKey.label')"
             name="recovery_bundle"
             class-add="text-xs"
             :allow-copy="true"
+          />
+          <BaseButton
+            :label="$t('auth.registerKey.download')"
+            :icon="mdiDownload"
+            color="light"
+            small
+            name="download-recovery-key"
+            @click.prevent="downloadKey(form.values.recovery_bundle)"
           />
           <AppCheckbox
             :label="$t('auth.registerKey.confirmStored')"
@@ -111,11 +130,11 @@ init()
             {{ $t('common.next') }}
           </AppButton>
 
-          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-100">
+          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-50">
             {{ $t('auth.alreadyHaveAccount') }}
             <router-link
               :to="{ name: 'login' }"
-              class="text-primary-700 hover:underline dark:text-primary-500"
+              class="text-primary-700 hover:underline dark:text-primary-100"
               >{{ $t('common.login') }}</router-link
             >
           </div>

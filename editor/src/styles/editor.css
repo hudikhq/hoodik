@@ -4,22 +4,111 @@
  * These MUST be unscoped because Milkdown renders its own DOM
  * outside Vue's component scope. Scoped styles would not reach
  * the ProseMirror nodes.
+ *
+ * Theming: every color reads from a custom property. The defaults are
+ * the light theme; a `.dark` class on any ancestor (the web app stamps
+ * it on <html>, the standalone bootstrap stamps it by default) switches
+ * the whole set. Hosts flip themes by toggling that class — the
+ * standalone exposes it as the `setTheme` bridge message.
  */
 
-/* Editor base */
 .milkdown-wrapper {
-  background: #181818;
+  --md-bg: #FAFAF9;
+  --md-text: #3A3A3A;
+  --md-h1: #1E1E1E;
+  --md-h2: #232323;
+  --md-h3: #2A2A2A;
+  --md-h456: #333333;
+  --md-h1-border: rgba(238, 132, 52, 0.35);
+  --md-h2-border: rgba(0, 0, 0, 0.08);
+  --md-strong: #1E1E1E;
+  --md-del: #8A8A86;
+  --md-link: #C76F2C;
+  --md-link-hover: #9F5822;
+  --md-link-underline: rgba(199, 111, 44, 0.35);
+  --md-bq-text: #6B6B66;
+  --md-code-bg: rgba(238, 132, 52, 0.08);
+  --md-code-border: rgba(238, 132, 52, 0.15);
+  --md-code-text: #9F5822;
+  --md-pre-bg: #F1F1EF;
+  --md-pre-border: rgba(0, 0, 0, 0.06);
+  --md-pre-text: #3A3A3A;
+  --md-tok-comment: #8A8A86;
+  --md-tok-punct: #777777;
+  --md-tok-orange: #C76F2C;
+  --md-tok-green: #4E7228;
+  --md-tok-var: #9F5822;
+  --md-tok-keyword: #A63446;
+  --md-tok-fn: #586994;
+  --md-tok-important: #C76F2C;
+  --md-tok-deleted: #A43144;
+  --md-marker: #C76F2C;
+  --md-hr: rgba(238, 132, 52, 0.35);
+  --md-table-border: rgba(0, 0, 0, 0.1);
+  --md-th-bg: rgba(238, 132, 52, 0.08);
+  --md-th-text: #333333;
+  --md-row-even: rgba(0, 0, 0, 0.02);
+  --md-row-hover: rgba(238, 155, 92, 0.08);
+  --md-selection: rgba(238, 132, 52, 0.3);
+  --md-task-border: rgba(0, 0, 0, 0.3);
+  --md-scrollbar: rgba(0, 0, 0, 0.15);
+  --md-scrollbar-hover: rgba(0, 0, 0, 0.25);
+
+  background: var(--md-bg);
   /* Host zoom — set via the setZoom bridge message. Every downstream
      font-size is declared in em/rem, so scaling this one var rescales
      the whole document proportionally (headings, code, tables, etc.). */
   --editor-zoom: 1;
 }
 
+.dark .milkdown-wrapper {
+  --md-bg: #181818;
+  --md-text: #c8c8c8;
+  --md-h1: #f5f5f5;
+  --md-h2: #efefef;
+  --md-h3: #e0e0e0;
+  --md-h456: #d0d0d0;
+  --md-h1-border: rgba(238, 132, 52, 0.2);
+  --md-h2-border: rgba(255, 255, 255, 0.06);
+  --md-strong: #f0f0f0;
+  --md-del: #707070;
+  --md-link: #EE9B5C;
+  --md-link-hover: #F2AC78;
+  --md-link-underline: rgba(238, 155, 92, 0.3);
+  --md-bq-text: #999999;
+  --md-code-bg: rgba(238, 132, 52, 0.08);
+  --md-code-border: rgba(238, 132, 52, 0.12);
+  --md-code-text: #EE9B5C;
+  --md-pre-bg: #111111;
+  --md-pre-border: rgba(255, 255, 255, 0.05);
+  --md-pre-text: #c8c8c8;
+  --md-tok-comment: #6b6b6b;
+  --md-tok-punct: #888888;
+  --md-tok-orange: #EE9B5C;
+  --md-tok-green: #94BC6A;
+  --md-tok-var: #d4976c;
+  --md-tok-keyword: #E2677B;
+  --md-tok-fn: #8BA9E0;
+  --md-tok-important: #F2AC78;
+  --md-tok-deleted: #A63446;
+  --md-marker: #EE8434;
+  --md-hr: rgba(238, 132, 52, 0.25);
+  --md-table-border: rgba(255, 255, 255, 0.06);
+  --md-th-bg: rgba(238, 132, 52, 0.06);
+  --md-th-text: #e0e0e0;
+  --md-row-even: rgba(255, 255, 255, 0.015);
+  --md-row-hover: rgba(238, 155, 92, 0.04);
+  --md-selection: rgba(238, 132, 52, 0.25);
+  --md-task-border: rgba(255, 255, 255, 0.3);
+  --md-scrollbar: rgba(255, 255, 255, 0.08);
+  --md-scrollbar-hover: rgba(255, 255, 255, 0.15);
+}
+
 .milkdown-wrapper .milkdown {
   max-width: 52rem;
   margin: 0 auto;
   padding: 2rem 2.5rem;
-  color: #c8c8c8;
+  color: var(--md-text);
   outline: none;
   font-size: calc(1rem * var(--editor-zoom));
 }
@@ -39,8 +128,8 @@
   letter-spacing: -0.025em;
   margin: 1.5em 0 0.6em;
   padding-bottom: 0.4em;
-  color: #f5f5f5;
-  border-bottom: 1px solid rgba(238, 132, 52, 0.2);
+  color: var(--md-h1);
+  border-bottom: 1px solid var(--md-h1-border);
 }
 
 .milkdown-wrapper .milkdown .ProseMirror h2 {
@@ -49,8 +138,8 @@
   letter-spacing: -0.02em;
   margin: 1.3em 0 0.5em;
   padding-bottom: 0.3em;
-  color: #efefef;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--md-h2);
+  border-bottom: 1px solid var(--md-h2-border);
 }
 
 .milkdown-wrapper .milkdown .ProseMirror h3 {
@@ -58,7 +147,7 @@
   font-weight: 600;
   letter-spacing: -0.015em;
   margin: 1.1em 0 0.4em;
-  color: #e0e0e0;
+  color: var(--md-h3);
 }
 
 .milkdown-wrapper .milkdown .ProseMirror h4,
@@ -68,25 +157,25 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   margin: 1em 0 0.3em;
-  color: #d0d0d0;
+  color: var(--md-h456);
 }
 
 /* Body */
 .milkdown-wrapper .milkdown .ProseMirror p { margin: 0.65em 0; line-height: 1.75; }
-.milkdown-wrapper .milkdown .ProseMirror strong { color: #f0f0f0; font-weight: 600; }
-.milkdown-wrapper .milkdown .ProseMirror del { color: #707070; text-decoration: line-through; }
+.milkdown-wrapper .milkdown .ProseMirror strong { color: var(--md-strong); font-weight: 600; }
+.milkdown-wrapper .milkdown .ProseMirror del { color: var(--md-del); text-decoration: line-through; }
 
 /* Links */
 .milkdown-wrapper .milkdown .ProseMirror a {
-  color: #EE9B5C;
+  color: var(--md-link);
   text-decoration: none;
-  border-bottom: 1px solid rgba(238, 155, 92, 0.3);
+  border-bottom: 1px solid var(--md-link-underline);
   transition: border-color 150ms, color 150ms;
 }
 
 .milkdown-wrapper .milkdown .ProseMirror a:hover {
-  color: #F2AC78;
-  border-bottom-color: #F2AC78;
+  color: var(--md-link-hover);
+  border-bottom-color: var(--md-link-hover);
 }
 
 /* Blockquotes */
@@ -94,7 +183,7 @@
   border-left: 3px solid #EE8434;
   padding: 0.25em 0 0.25em 1.25em;
   margin: 1em 0;
-  color: #999;
+  color: var(--md-bq-text);
   font-style: italic;
 }
 
@@ -102,30 +191,30 @@
 
 /* Inline code */
 .milkdown-wrapper .milkdown .ProseMirror code {
-  background: rgba(238, 132, 52, 0.08);
-  border: 1px solid rgba(238, 132, 52, 0.12);
+  background: var(--md-code-bg);
+  border: 1px solid var(--md-code-border);
   padding: 0.15em 0.4em;
   border-radius: 4px;
   font-size: 0.875em;
   font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
-  color: #EE9B5C;
+  color: var(--md-code-text);
 }
 
 /* Code blocks */
 .milkdown-wrapper .milkdown .ProseMirror pre {
-  background: #111111;
+  background: var(--md-pre-bg);
   padding: 1.25em 1.5em;
   border-radius: 8px;
   overflow-x: auto;
   margin: 1em 0;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--md-pre-border);
 }
 
 .milkdown-wrapper .milkdown .ProseMirror pre code {
   background: none;
   border: none;
   padding: 0;
-  color: #c8c8c8;
+  color: var(--md-pre-text);
   font-size: 0.85em;
   line-height: 1.6;
 }
@@ -134,38 +223,38 @@
 .milkdown-wrapper .milkdown .ProseMirror .token.comment,
 .milkdown-wrapper .milkdown .ProseMirror .token.prolog,
 .milkdown-wrapper .milkdown .ProseMirror .token.doctype,
-.milkdown-wrapper .milkdown .ProseMirror .token.cdata { color: #6b6b6b; font-style: italic; }
-.milkdown-wrapper .milkdown .ProseMirror .token.punctuation { color: #888; }
+.milkdown-wrapper .milkdown .ProseMirror .token.cdata { color: var(--md-tok-comment); font-style: italic; }
+.milkdown-wrapper .milkdown .ProseMirror .token.punctuation { color: var(--md-tok-punct); }
 
 .milkdown-wrapper .milkdown .ProseMirror .token.property,
 .milkdown-wrapper .milkdown .ProseMirror .token.tag,
 .milkdown-wrapper .milkdown .ProseMirror .token.boolean,
 .milkdown-wrapper .milkdown .ProseMirror .token.number,
 .milkdown-wrapper .milkdown .ProseMirror .token.constant,
-.milkdown-wrapper .milkdown .ProseMirror .token.symbol { color: #EE9B5C; }
+.milkdown-wrapper .milkdown .ProseMirror .token.symbol { color: var(--md-tok-orange); }
 
 .milkdown-wrapper .milkdown .ProseMirror .token.selector,
 .milkdown-wrapper .milkdown .ProseMirror .token.attr-name,
 .milkdown-wrapper .milkdown .ProseMirror .token.string,
 .milkdown-wrapper .milkdown .ProseMirror .token.char,
-.milkdown-wrapper .milkdown .ProseMirror .token.inserted { color: #94BC6A; }
+.milkdown-wrapper .milkdown .ProseMirror .token.inserted { color: var(--md-tok-green); }
 
 .milkdown-wrapper .milkdown .ProseMirror .token.operator,
 .milkdown-wrapper .milkdown .ProseMirror .token.entity,
 .milkdown-wrapper .milkdown .ProseMirror .token.url,
-.milkdown-wrapper .milkdown .ProseMirror .token.variable { color: #d4976c; }
+.milkdown-wrapper .milkdown .ProseMirror .token.variable { color: var(--md-tok-var); }
 
 .milkdown-wrapper .milkdown .ProseMirror .token.atrule,
 .milkdown-wrapper .milkdown .ProseMirror .token.attr-value,
-.milkdown-wrapper .milkdown .ProseMirror .token.keyword { color: #E2677B; }
+.milkdown-wrapper .milkdown .ProseMirror .token.keyword { color: var(--md-tok-keyword); }
 
 .milkdown-wrapper .milkdown .ProseMirror .token.function,
-.milkdown-wrapper .milkdown .ProseMirror .token.class-name { color: #8BA9E0; }
+.milkdown-wrapper .milkdown .ProseMirror .token.class-name { color: var(--md-tok-fn); }
 
 .milkdown-wrapper .milkdown .ProseMirror .token.regex,
-.milkdown-wrapper .milkdown .ProseMirror .token.important { color: #F2AC78; }
+.milkdown-wrapper .milkdown .ProseMirror .token.important { color: var(--md-tok-important); }
 
-.milkdown-wrapper .milkdown .ProseMirror .token.deleted { color: #A63446; }
+.milkdown-wrapper .milkdown .ProseMirror .token.deleted { color: var(--md-tok-deleted); }
 .milkdown-wrapper .milkdown .ProseMirror .token.important,
 .milkdown-wrapper .milkdown .ProseMirror .token.bold { font-weight: 600; }
 .milkdown-wrapper .milkdown .ProseMirror .token.italic { font-style: italic; }
@@ -174,17 +263,64 @@
 .milkdown-wrapper .milkdown .ProseMirror ul { padding-left: 1.5em; margin: 0.65em 0; list-style-type: disc; }
 .milkdown-wrapper .milkdown .ProseMirror ol { padding-left: 1.5em; margin: 0.65em 0; list-style-type: decimal; }
 .milkdown-wrapper .milkdown .ProseMirror li { margin: 0.3em 0; line-height: 1.7; display: list-item; }
-.milkdown-wrapper .milkdown .ProseMirror li::marker { color: #EE8434; }
+.milkdown-wrapper .milkdown .ProseMirror li::marker { color: var(--md-marker); }
 
-.milkdown-wrapper .milkdown .ProseMirror ul[data-type="taskList"] { list-style: none; padding-left: 0; }
-.milkdown-wrapper .milkdown .ProseMirror ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5em; }
-.milkdown-wrapper .milkdown .ProseMirror ul[data-type="taskList"] li input[type="checkbox"] { accent-color: #EE8434; margin-top: 0.35em; }
+/* Task lists (GFM). The task-list NodeView renders each item as
+   li > input.task-checkbox + div.task-content. */
+.milkdown-wrapper .milkdown .ProseMirror li[data-item-type="task"] {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55em;
+  list-style: none;
+}
+
+.milkdown-wrapper .milkdown .ProseMirror li[data-item-type="task"]::marker { content: none; }
+
+/* Fully custom rendering: the web app's form reset (@tailwindcss/forms)
+   repaints native checkboxes in its own colors, and the standalone WebView
+   build has no such reset — owning the styles keeps both identical. */
+.milkdown-wrapper .milkdown .ProseMirror li[data-item-type="task"] > .task-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1em;
+  height: 1em;
+  /* Centers the 1em box against the first 1.75-line-height text line. */
+  margin-top: 0.375em;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: 1px solid var(--md-task-border);
+  border-radius: 0.25em;
+  background-color: transparent;
+}
+
+.milkdown-wrapper .milkdown .ProseMirror li[data-item-type="task"] > .task-checkbox:checked {
+  border-color: #EE8434;
+  background-color: #EE8434;
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='%23fff' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.milkdown-wrapper .milkdown .ProseMirror li[data-item-type="task"] > .task-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The paragraph's own vertical margins would push the text below the
+   checkbox inside the flex row. */
+.milkdown-wrapper .milkdown .ProseMirror li[data-item-type="task"] > .task-content > p:first-child { margin-top: 0; }
+.milkdown-wrapper .milkdown .ProseMirror li[data-item-type="task"] > .task-content > p:last-child { margin-bottom: 0; }
+
+.milkdown-wrapper .milkdown .ProseMirror li[data-item-type="task"][data-checked="true"] > .task-content {
+  color: var(--md-del);
+}
 
 /* Horizontal rule */
 .milkdown-wrapper .milkdown .ProseMirror hr {
   border: none;
   height: 1px;
-  background: linear-gradient(to right, transparent, rgba(238, 132, 52, 0.25), transparent);
+  background: linear-gradient(to right, transparent, var(--md-hr), transparent);
   margin: 2em 0;
 }
 
@@ -193,22 +329,33 @@
 
 .milkdown-wrapper .milkdown .ProseMirror th,
 .milkdown-wrapper .milkdown .ProseMirror td {
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--md-table-border);
   padding: 0.6em 0.9em;
   text-align: left;
 }
 
 .milkdown-wrapper .milkdown .ProseMirror th {
-  background: rgba(238, 132, 52, 0.06);
+  background: var(--md-th-bg);
   font-weight: 600;
-  color: #e0e0e0;
+  color: var(--md-th-text);
   font-size: 0.85em;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
-.milkdown-wrapper .milkdown .ProseMirror tr:nth-child(even) td { background: rgba(255, 255, 255, 0.015); }
-.milkdown-wrapper .milkdown .ProseMirror tr:hover td { background: rgba(238, 155, 92, 0.04); }
+.milkdown-wrapper .milkdown .ProseMirror tr:nth-child(even) td { background: var(--md-row-even); }
+.milkdown-wrapper .milkdown .ProseMirror tr:hover td { background: var(--md-row-hover); }
+
+/* The web app styles bare table elements globally (responsive card
+   collapse, zebra striping, data-label pseudo-content). None of that
+   may reach ProseMirror tables — the editor renders real tables at
+   every viewport. */
+.milkdown-wrapper .milkdown .ProseMirror thead { display: table-header-group; }
+.milkdown-wrapper .milkdown .ProseMirror tr { display: table-row; max-width: none; border-bottom: 0; }
+.milkdown-wrapper .milkdown .ProseMirror td { display: table-cell; }
+.milkdown-wrapper .milkdown .ProseMirror td::before { content: none; }
+.milkdown-wrapper .milkdown .ProseMirror tbody tr:nth-child(odd),
+.milkdown-wrapper .milkdown .ProseMirror tbody tr:hover { background: transparent; }
 
 /* Images */
 .milkdown-wrapper .milkdown .ProseMirror img { max-width: 100%; border-radius: 6px; margin: 0.5em 0; }
@@ -216,13 +363,13 @@
 /* Rendered HTML blocks */
 .milkdown-wrapper .milkdown .ProseMirror .milkdown-html-render { display: block; margin: 0.5em 0; }
 .milkdown-wrapper .milkdown .ProseMirror .milkdown-html-render img { max-width: 100%; border-radius: 6px; }
-.milkdown-wrapper .milkdown .ProseMirror .milkdown-html-render a { color: #EE9B5C; text-decoration: none; border-bottom: 1px solid rgba(238, 155, 92, 0.3); }
-.milkdown-wrapper .milkdown .ProseMirror .milkdown-html-render a:hover { color: #F2AC78; border-bottom-color: #F2AC78; }
+.milkdown-wrapper .milkdown .ProseMirror .milkdown-html-render a { color: var(--md-link); text-decoration: none; border-bottom: 1px solid var(--md-link-underline); }
+.milkdown-wrapper .milkdown .ProseMirror .milkdown-html-render a:hover { color: var(--md-link-hover); border-bottom-color: var(--md-link-hover); }
 
-.milkdown-wrapper .milkdown .ProseMirror ::selection { background: rgba(238, 132, 52, 0.25); }
+.milkdown-wrapper .milkdown .ProseMirror ::selection { background: var(--md-selection); }
 
 /* Scrollbar */
 .milkdown-wrapper::-webkit-scrollbar { width: 8px; }
 .milkdown-wrapper::-webkit-scrollbar-track { background: transparent; }
-.milkdown-wrapper::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 4px; }
-.milkdown-wrapper::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+.milkdown-wrapper::-webkit-scrollbar-thumb { background: var(--md-scrollbar); border-radius: 4px; }
+.milkdown-wrapper::-webkit-scrollbar-thumb:hover { background: var(--md-scrollbar-hover); }

@@ -16,6 +16,7 @@ export const EditorCommands = {
   WrapInHeading: 'WrapInHeading',
   WrapInBulletList: 'WrapInBulletList',
   WrapInOrderedList: 'WrapInOrderedList',
+  ToggleTaskList: 'ToggleTaskList',
   WrapInBlockquote: 'WrapInBlockquote',
   CreateCodeBlock: 'CreateCodeBlock',
   InsertTable: 'InsertTable',

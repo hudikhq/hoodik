@@ -11,6 +11,6 @@ const props = defineProps({
         ? 'hidden lg:block lg:my-0.5 dark:border-brownish-700'
         : 'my-6 -mx-6 dark:border-brownish-800'
     "
-    class="border-t border-brownish-100"
+    class="border-t border-paper-200"
   />
 </template>

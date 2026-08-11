@@ -107,16 +107,26 @@ const open = (event: MouseEvent) => {
     menu.value.removeAttribute('style')
   }
 
-  if (menuWidth.value + event.pageX >= window.innerWidth) {
-    menu.value.style.left = event.pageX - menuWidth.value + 2 + 'px'
-  } else {
-    menu.value.style.left = event.pageX - 2 + 'px'
+  // Keyboard activation fires a click at (0,0); anchor the menu to the
+  // trigger button instead so it doesn't open in the page corner.
+  let pageX = event.pageX
+  let pageY = event.pageY
+  if (!pageX && !pageY) {
+    const rect = tracker.value.getBoundingClientRect()
+    pageX = rect.left + window.scrollX + rect.width / 2
+    pageY = rect.top + window.scrollY + rect.height / 2
   }
 
-  if (menuHeight.value + event.pageY >= window.innerHeight) {
-    menu.value.style.top = event.pageY - menuHeight.value + 2 + 'px'
+  if (menuWidth.value + pageX >= window.innerWidth) {
+    menu.value.style.left = pageX - menuWidth.value + 2 + 'px'
   } else {
-    menu.value.style.top = event.pageY - 2 + 'px'
+    menu.value.style.left = pageX - 2 + 'px'
+  }
+
+  if (menuHeight.value + pageY >= window.innerHeight) {
+    menu.value.style.top = pageY - menuHeight.value + 2 + 'px'
+  } else {
+    menu.value.style.top = pageY - 2 + 'px'
   }
 
   menu.value.style.display = 'block'
@@ -140,6 +150,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         :icon="mdiDotsVertical"
         small
         :disabled="props.disabled"
+        :title="$t('common.actions')"
+        :aria-label="$t('common.actions')"
+        aria-haspopup="menu"
         @click="open"
         name="actions-dropdown"
       />
@@ -147,7 +160,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     <div
       ref="menu"
       :key="`${file.id}-menu`"
-      class="floating-menu bg-brownish-700 shadow-lg max-h-modal w-8/12 md:w-3/5 lg:w-2/5 xl:w-1/12 z-50 py-2 m-4"
+      class="floating-menu bg-white dark:bg-brownish-700 border border-paper-300 dark:border-brownish-600 rounded-md shadow-lg max-h-modal w-max min-w-[10rem] max-w-[16rem] z-50 py-2 m-4"
     >
       <ActionsButtons
         v-model="file"
@@ -172,6 +185,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
   left: 0;
   margin: 0;
   padding: 0;
-  z-index: 1000000;
+  z-index: 50;
 }
 </style>

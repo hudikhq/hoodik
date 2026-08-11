@@ -198,10 +198,12 @@
     "user": {
       "accountControls": "Contrôles du compte",
       "allUsers": "Tous les utilisateurs",
+      "awaitingVerification": "En attente de vérification",
       "confirmDelete": "Oui, supprimer",
       "confirmDemote": "Oui, rétrograder",
       "confirmDisable": "Oui, désactiver",
       "confirmPromote": "Oui, promouvoir",
+      "confirmVerifyEmail": "Vérifier maintenant",
       "dangerZone": "Zone de danger",
       "deleteAccount": "Supprimer ce compte",
       "deleteAccountWarning": "Supprime définitivement l’utilisateur et tous ses fichiers. Cette action est irréversible.",
@@ -209,6 +211,7 @@
       "disableTfa": "Désactiver la 2FA",
       "editQuota": "Modifier le quota",
       "editStorageQuota": "Modifier le quota de stockage",
+      "emailAddress": "Adresse e-mail",
       "emailUnverified": "e-mail non vérifié",
       "emailVerified": "e-mail vérifié",
       "encryptionKeys": "Clés de chiffrement",
@@ -228,7 +231,9 @@
       "tfaNotEnabled": "Non activée",
       "tfaOn": "2FA activée",
       "twoFactorAuth": "Authentification à deux facteurs",
-      "userBadge": "utilisateur"
+      "userBadge": "utilisateur",
+      "verifiedOn": "Vérifiée le {date}",
+      "verifyEmail": "Vérifier l'e-mail"
     },
     "users": {
       "emailActivated": "E-mail activé",
@@ -260,7 +265,10 @@
     },
     "lock": {
       "description": "Un compte pour l’utilisateur avec l’adresse e-mail {email} a été verrouillé sur ce navigateur et toutes les autres données ont été supprimées. Si vous n’êtes pas le propriétaire de ce compte, vous pouvez l’oublier puis vous connecter ou vous inscrire.",
-      "forgetAccount": "Oublier le compte"
+      "forgetAccount": "Oublier le compte",
+      "forgetConfirmBody": "Cela supprime le compte verrouillé et sa clé chiffrée de ce navigateur. Le compte lui-même n’est pas supprimé ; vous pourrez vous reconnecter à tout moment avec votre mot de passe.",
+      "forgetConfirmLabel": "Oui, oublier",
+      "forgetConfirmTitle": "Oublier ce compte ?"
     },
     "lockSetup": {
       "description": "Votre clé privée sera chiffrée et stockée localement afin qu’à votre prochaine visite vous puissiez la déchiffrer et accéder à vos fichiers avec un simple code PIN ou mot de passe.",
@@ -269,10 +277,13 @@
       "title": "Configurer l’écran de verrouillage"
     },
     "login": {
+      "codeDigit": "Chiffre {index} sur {total}",
       "forgotPassword": "Mot de passe oublié ?",
       "recoverHere": "Récupérez votre compte ici",
       "title": "Accédez à vos fichiers",
-      "twoFactorLabel": "Code 2FA (facultatif)",
+      "twoFactorBody": "Ce compte est protégé par l'authentification à deux facteurs. Saisissez le code actuel de votre application d'authentification.",
+      "twoFactorLabel": "Code d'authentification",
+      "twoFactorTitle": "Code à deux facteurs",
       "withPrivateKey": "Connexion avec la clé privée"
     },
     "migration": {
@@ -295,10 +306,10 @@
     },
     "registerKey": {
       "confirmStored": "J’ai enregistré ma clé privée",
+      "download": "Télécharger la clé",
       "generating": "…génération en cours, veuillez patienter…",
       "label": "Votre clé de récupération",
-      "lastTimeWarning": "C’est la dernière fois que nous vous montrons votre clé de récupération !",
-      "storeSafe": "Conservez-la en lieu sûr. Vous en aurez besoin pour vous connecter ou récupérer votre compte si vous oubliez votre mot de passe.",
+      "storeSafe": "Conservez-la en lieu sûr. Vous en aurez besoin pour vous connecter ou récupérer votre compte si vous oubliez votre mot de passe. Vous pouvez la retrouver à tout moment dans Compte → Clé de récupération.",
       "title": "Votre clé de récupération"
     },
     "rememberMe": "Se souvenir de moi",
@@ -334,6 +345,7 @@
       "privateKeyRequired": "La clé privée est requise",
       "pubkeyRequired": "La clé publique est requise",
       "secretRequired": "Le code secret est requis",
+      "tokenRequired": "Le code à deux facteurs est requis",
       "twoFactorRequired": "Le code 2FA est requis"
     },
     "verifyEmail": {
@@ -354,7 +366,7 @@
     "cancel": "Annuler",
     "close": "Fermer",
     "confirm": "Confirmer",
-    "copied": "Copié",
+    "copied": "Copié dans le presse-papiers",
     "copy": "Copier",
     "create": "Créer",
     "created": "Créé",
@@ -383,6 +395,8 @@
     "retry": "Réessayer",
     "save": "Enregistrer",
     "search": "Rechercher",
+    "selectAll": "Tout sélectionner",
+    "selectRow": "Sélectionner {name}",
     "send": "Envoyer",
     "settings": "Paramètres",
     "share": "Partager",
@@ -401,10 +415,14 @@
     "cannot_set_editable_on_directory": "Les dossiers ne peuvent pas être rendus modifiables",
     "cannot_share_not_owner": "Seul le propriétaire peut partager cet élément",
     "cannot_update_not_owner": "Seul le propriétaire peut modifier cet élément",
+    "capabilitiesUnavailable": "Les fonctions de partage sont masquées car le serveur est injoignable — rechargez pour réessayer",
     "chunk_already_exists": "Fragment déjà téléversé",
     "chunk_out_of_range": "Fragment hors limites",
     "chunk_size_exceeds_max": "La taille du fragment dépasse le maximum",
+    "copyFailed": "Copie impossible — sélectionnez le texte et copiez-le manuellement",
+    "deleteFailed": "Suppression impossible — l'élément est toujours là",
     "directory_not_found": "Dossier introuvable",
+    "emailLanguageFailed": "La langue d'affichage a changé, mais n'a pas pu être enregistrée pour les e-mails",
     "encrypted_private_key_required": "La clé privée chiffrée est requise",
     "file_already_exists": "Un fichier portant ce nom existe déjà",
     "file_has_no_chunks": "Le fichier ne contient aucune donnée téléversée",
@@ -414,6 +432,7 @@
     "forbidden_not_owner": "Vous n’êtes pas le propriétaire",
     "forbidden_read_only": "Ce partage est en lecture seule",
     "inactive_account": "Votre compte n’est pas activé",
+    "incomingFailed": "Impossible de charger les partages reçus — cette liste peut être incomplète",
     "invalid": "Valeur invalide",
     "invalid_authorization_header": "En-tête d’autorisation invalide",
     "invalid_credentials": "E-mail ou mot de passe invalide",
@@ -432,9 +451,11 @@
     "invitation_not_found": "Invitation introuvable",
     "link_expired": "Ce lien a expiré",
     "link_signature_invalid": "La signature du lien est invalide",
+    "listFailed": "Impossible de charger vos fichiers — vérifiez votre connexion et réessayez",
     "login_expired": "Votre session a expiré, veuillez vous reconnecter",
     "missing_refresh_token": "Jeton de rafraîchissement manquant, veuillez vous reconnecter",
     "missing_session_token": "Jeton de session manquant, veuillez vous reconnecter",
+    "network": "Serveur injoignable — vérifiez votre connexion et réessayez",
     "new_fingerprint_mismatch": "L’empreinte de la nouvelle clé ne correspond pas",
     "no_authorization_header": "En-tête d’autorisation manquant",
     "no_context": "Le contexte de la requête est manquant",
@@ -445,6 +466,7 @@
     "ownership_proof_required": "Une preuve de propriété est requise",
     "parent_directory_not_found": "Dossier parent introuvable",
     "password_not_set": "Le mot de passe n’est pas défini",
+    "pdfImagesDropped": "Certaines images n'ont pas pu être incluses dans le PDF",
     "pending_chunks_not_set": "L’état du téléversement est incomplet",
     "pending_size_not_set": "L’état du téléversement est incomplet",
     "quota_exceeded": "Quota de stockage dépassé",
@@ -467,6 +489,8 @@
     "transition_signature_invalid_base64": "La signature de transition de clé est mal formée",
     "transition_timestamp_skew": "L’horodatage de la transition de clé est hors plage",
     "two_factor_already_enabled": "L’authentification à deux facteurs est déjà activée",
+    "two_factor_required": "Saisissez votre code à deux facteurs",
+    "undecryptable": "Un ou plusieurs de vos liens n'ont pas pu être ouverts avec votre clé actuelle et ne sont pas affichés",
     "unknown": "Une erreur est survenue",
     "unknown_cipher": "Algorithme de chiffrement inconnu",
     "upgrade_required": "Veuillez mettre à jour votre application pour continuer",
@@ -478,12 +502,13 @@
   "files": {
     "actions": {
       "details": "Détails",
-      "fork": "Dupliquer",
+      "fork": "Enregistrer ma propre copie",
       "forkTitle": "Enregistrer une copie indépendante dans votre espace — elle survit à la révocation",
       "preview": "Aperçu",
       "sharing": "Partage"
     },
     "breadcrumbs": "Fil d’Ariane",
+    "breadcrumbsShowAll": "Afficher tous les dossiers",
     "browser": {
       "addToDownloadQueue": "Ajouter à la file de téléchargement",
       "createDirectory": "Créer un dossier",
@@ -511,7 +536,10 @@
       "confirmFile": "Voulez-vous vraiment supprimer définitivement « {name} » ?",
       "confirmLabel": "Oui, supprimer",
       "confirmMany": "Voulez-vous vraiment supprimer {count} éléments ?",
-      "selectedTitle": "Supprimer la sélection"
+      "confirmManyFolders": "{count} d'entre eux est un dossier — tout ce qu'il contient part aussi. | {count} d'entre eux sont des dossiers — tout ce qu'ils contiennent part aussi.",
+      "selectedTitle": "Supprimer la sélection",
+      "typeCount": "Saisissez {count} pour confirmer",
+      "typeName": "Saisissez {name} pour confirmer"
     },
     "details": {
       "uploaded": "Téléversé"
@@ -539,9 +567,11 @@
     "row": {
       "ownedBy": "Appartient à {email}",
       "savingInAnotherSession": "Une autre session enregistre cette note",
-      "sharedWith": "Partagé avec {count} autre compte | Partagé avec {count} autres comptes"
+      "sharedWith": "Partagé avec {count} autre compte | Partagé avec {count} autres comptes",
+      "uploadIncomplete": "Téléversement incomplet"
     },
     "search": {
+      "failed": "Échec de la recherche — vérifiez votre connexion et réessayez",
       "noMatches": "Aucun fichier ne correspond à cette recherche",
       "notesOnly": "Notes uniquement",
       "placeholder": "Rechercher des fichiers…",
@@ -575,6 +605,44 @@
     },
     "tree": {
       "root": "Racine"
+    },
+    "type": {
+      "archive": "Archive",
+      "audio": "Audio",
+      "document": "Document",
+      "folder": "Dossier",
+      "font": "Police",
+      "image": "Image",
+      "pdf": "PDF",
+      "presentation": "Présentation",
+      "spreadsheet": "Feuille de calcul",
+      "text": "Texte",
+      "video": "Vidéo"
+    }
+  },
+  "help": {
+    "title": "Aide",
+    "shortcuts": {
+      "title": "Raccourcis clavier",
+      "search": "Rechercher vos fichiers",
+      "help": "Ouvrir ce panneau",
+      "inNotes": "Dans l'éditeur de notes",
+      "bold": "Gras",
+      "italic": "Italique",
+      "link": "Lien",
+      "save": "Enregistrer",
+      "undoRedo": "Annuler / Rétablir"
+    },
+    "facts": {
+      "title": "Bon à savoir",
+      "recoveryKey": "Votre clé de récupération est le seul moyen de revenir si vous oubliez votre mot de passe. Elle reste disponible sous Compte → Clé de récupération.",
+      "sharing": "Révoquer un partage empêche les lectures futures. Ce que l'autre personne a déjà téléchargé lui reste ; le chiffrement ne peut pas le reprendre.",
+      "server": "Les noms, les contenus et les miniatures sont chiffrés dans votre navigateur avant l'envoi. Le serveur ne stocke que du chiffré et ne détient jamais vos clés."
+    },
+    "links": {
+      "title": "Ailleurs",
+      "source": "Code source et politique de sécurité sur GitHub",
+      "apps": "Applications pour téléphone et ordinateur"
     }
   },
   "links": {
@@ -666,9 +734,11 @@
     "menu": {
       "account": "Compte",
       "files": "Fichiers",
+      "help": "Aide",
       "lock": "Verrouiller",
       "notes": "Notes",
       "share": "Partage",
+      "theme": "Thème",
       "users": "Utilisateurs"
     },
     "title": {
@@ -724,6 +794,7 @@
       "empty": "Aucune note pour l’instant",
       "loading": "Chargement des notes…",
       "noMatches": "Aucune note ne correspond à « {query} »",
+      "searchFailed": "Échec de la recherche — vérifiez votre connexion et réessayez",
       "searchPlaceholder": "Rechercher des notes…",
       "title": "Notes",
       "today": "Aujourd’hui",
@@ -747,11 +818,16 @@
       "saved": "Enregistré",
       "saving": "Enregistrement…",
       "strikethrough": "Barré",
+      "taskList": "Liste de tâches",
       "undo": "Annuler (Ctrl+Z)",
       "versionHistory": "Historique des versions"
     }
   },
   "preview": {
+    "deleteFile": "Supprimer le fichier",
+    "downloadFile": "Télécharger le fichier",
+    "exportPdf": "Exporter en PDF",
+    "fileDetails": "Détails du fichier",
     "markdown": {
       "conflictBody": "Le serveur a un enregistrement inachevé de cette note provenant d’une autre session. Choisissez {overwrite} pour abandonner sa modification en attente et enregistrer votre version, ou {cancel} pour abandonner vos modifications locales et laisser l’autre enregistrement se terminer.",
       "conflictOverwrite": "Abandonner la version distante et écraser",
@@ -765,7 +841,9 @@
       "moveTitle": "Déplacer vers un dossier",
       "readOnly": "Ce fichier markdown est en lecture seule."
     },
-    "noPreview": "Aucun aperçu disponible 🥲",
+    "nextImage": "Image suivante",
+    "noPreview": "Aucun aperçu disponible",
+    "previousImage": "Image précédente",
     "versionHistory": {
       "authorAnonymous": "Anonyme",
       "authorOther": "Un autre collaborateur",
@@ -781,6 +859,7 @@
       "deleteTitle": "Supprimer cette version ?",
       "deleteVersion": "Supprimer cette version",
       "empty": "Aucun historique pour l’instant. Modifiez la note pour commencer à en constituer un.",
+      "keyUnavailable": "La clé de ce fichier est indisponible — rouvrez la note",
       "loading": "Chargement des versions…",
       "previewTitle": "Aperçu v{version}",
       "restoreAsNew": "Restaurer comme nouvelle note",
@@ -793,7 +872,10 @@
     "video": {
       "loadError": "Impossible de charger la vidéo : {error}",
       "loading": "Chargement… {progress} %"
-    }
+    },
+    "zoomFit": "Ajuster l'image à l'écran",
+    "zoomIn": "Agrandir l'image",
+    "zoomOut": "Réduire l'image"
   },
   "shares": {
     "add": {
@@ -837,7 +919,7 @@
     },
     "audit": {
       "actions": {
-        "fork": "Dupliqué",
+        "fork": "Copie enregistrée",
         "grant": "Partagé",
         "keyRotation": "Rotation de clés",
         "revoke": "Révoqué",
@@ -858,17 +940,18 @@
         "sigPending": "Vérification en attente",
         "sigVerified": "Vérifiée avec la clé publique de l’expéditeur"
       },
-      "empty": "Aucun événement ne correspond aux filtres actuels.",
+      "empty": "Aucun évènement ne correspond aux filtres actuels.",
+      "emptyAll": "Aucune activité de partage pour l'instant. Les évènements apparaissent ici dès que vous partagez un fichier ou que quelqu'un en partage un avec vous.",
       "filteredBanner": "Vue filtrée — la vérification de la chaîne est limitée aux lignes visibles.",
       "filters": {
         "action": "Action",
         "allActions": "Toutes les actions",
+        "allRecipients": "Tous les destinataires",
         "clear": "Effacer les filtres",
         "fileId": "ID du fichier",
         "find": "Rechercher",
         "from": "Du",
         "recipient": "Destinataire",
-        "recipientPlaceholder": "id utilisateur",
         "sender": "Expéditeur",
         "senderPlaceholder": "utilisateur{'@'}exemple.com",
         "to": "Au"
@@ -901,7 +984,7 @@
         "evict": "{recipient} a perdu l’accès à {file} (cascade)",
         "fallback": "{action} sur {file}",
         "fileId": "fichier {id}…",
-        "fork": "{sender} a dupliqué {file} dans son espace",
+        "fork": "{sender} a enregistré sa propre copie de {file}",
         "grant": "{sender} a partagé {file} avec {recipient}",
         "grantAs": "{sender} a partagé {file} avec {recipient} en tant que {role}",
         "keyRotation": "{sender} a effectué la rotation des clés de chiffrement de son compte",
@@ -1068,6 +1151,7 @@
   },
   "ui": {
     "aside": {
+      "collapse": "Réduire la barre latérale",
       "getApps": "Obtenir les applications"
     },
     "fileTree": {

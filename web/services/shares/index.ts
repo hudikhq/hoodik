@@ -107,7 +107,7 @@ export const store = defineStore('shares', () => {
         incoming.value = [...incoming.value, ...page.items]
       }
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to load incoming shares'
+      error.value = 'errors.incomingFailed'
       throw e
     } finally {
       loading.value = false
@@ -387,7 +387,7 @@ export const capabilitiesStore = defineStore('capabilities', () => {
       lastFetchedAt.value = Math.floor(Date.now() / 1000)
     } catch (e) {
       caps.value = FAIL_CLOSED_CAPABILITIES
-      fetchError.value = e instanceof Error ? e.message : 'Capability fetch failed'
+      fetchError.value = 'errors.capabilitiesUnavailable'
     } finally {
       loading.value = false
     }

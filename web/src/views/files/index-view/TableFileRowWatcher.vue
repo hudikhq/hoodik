@@ -32,6 +32,7 @@ const emits = defineEmits<{
   (event: 'fork', file: AppFile): void
   (event: 'leave', file: AppFile): void
   (event: 'select-one', value: boolean, file: AppFile): void
+  (event: 'select-range', file: AppFile): void
   (event: 'upload-many', files: FileList, dirId?: string): void
 }>()
 
@@ -65,12 +66,12 @@ onUnmounted(() => {
       :class="{
         '!border !border-greeny-300 dark:!border-greeny-700': props.highlighted
       }"
-      class="w-full flex pl-11 pt-3.5 pb-3.5 dark:bg-brownish-900"
+      class="w-full flex pl-11 pt-3.5 pb-3.5 bg-paper-50 dark:bg-brownish-900"
       v-if="!visible"
     >
       <div class="flex items-start">
-        <div class="w-6 h-6 mr-2 rounded-md bg-brownish-50 dark:bg-brownish-800"></div>
-        <div class="w-32 h-6 mr-2 rounded-md bg-brownish-50 dark:bg-brownish-800"></div>
+        <div class="w-6 h-6 mr-2 rounded-md bg-paper-50 dark:bg-brownish-800"></div>
+        <div class="w-32 h-6 mr-2 rounded-md bg-paper-50 dark:bg-brownish-800"></div>
       </div>
     </div>
     <TableFileRow
@@ -92,6 +93,7 @@ onUnmounted(() => {
       @fork="(f: AppFile) => emits('fork', f)"
       @leave="(f: AppFile) => emits('leave', f)"
       @select-one="(v: boolean, f: AppFile) => emits('select-one', v, f)"
+      @select-range="(f: AppFile) => emits('select-range', f)"
       @upload-many="(f: FileList, d?: string) => emits('upload-many', f, d)"
     />
   </Suspense>

@@ -9,6 +9,14 @@ use crate::{
     providers::credentials::CredentialsProvider,
 };
 
+/// A login that stalls only because the account wants its second factor has
+/// already proven the password. Charging it would spend the guessing budget on
+/// the honest path and, on a shared address, let ordinary two-factor logins
+/// crowd out the signal the limiter exists to read.
+fn is_two_factor_prompt(e: &error::Error) -> bool {
+    matches!(e, error::Error::Unauthorized(m) if m == "two_factor_required")
+}
+
 /// Perform user login with basic credentials
 ///
 /// Request: [crate::data::credentials::Credentials]
@@ -33,7 +41,9 @@ pub(crate) async fn credentials(
     let authenticated = match provider.authenticate(&user_agent, &ip).await {
         Ok(authenticated) => authenticated,
         Err(e) => {
-            crate::rate_limit::charge_failure(identity, &ip, now);
+            if !is_two_factor_prompt(&e) {
+                crate::rate_limit::charge_failure(identity, &ip, now);
+            }
             return Err(e);
         }
     };

@@ -17,6 +17,7 @@ import {
   mdiShieldOff,
   mdiShieldCheck,
   mdiAlertCircleOutline,
+  mdiEmailCheckOutline,
   mdiChevronLeft,
   mdiContentCopy,
   mdiCheck
@@ -101,6 +102,11 @@ const disableTfa = async () => {
   data.value = await users.disableTfa(user.value.id)
 }
 
+const verifyEmail = async () => {
+  if (!user.value) return
+  data.value = await users.verifyEmail(user.value.id)
+}
+
 const remove = async () => {
   if (!user.value) return
   await users.remove(user.value.id)
@@ -150,7 +156,7 @@ watch(
         <CardBox>
           <div class="-mx-4 -my-4 px-6 py-5">
             <div class="flex items-start gap-4">
-              <div class="w-14 h-14 rounded-full bg-redish-500/15 dark:bg-redish-500/20 text-redish-500 dark:text-redish-400 flex items-center justify-center text-2xl font-bold shrink-0 select-none">
+              <div class="w-14 h-14 rounded-full bg-redish-500/15 dark:bg-redish-500/20 text-redish-500 dark:text-redish-100 flex items-center justify-center text-2xl font-bold shrink-0 select-none">
                 {{ initials }}
               </div>
               <div class="flex-1 min-w-0">
@@ -159,25 +165,25 @@ watch(
                   <BaseButton :icon="mdiRefresh" :xs="true" @click="get" :title="$t('common.refresh')" />
                 </div>
                 <div class="flex flex-wrap items-center gap-2 mt-2">
-                  <span v-if="user.role" class="inline-flex items-center text-xs font-semibold uppercase tracking-wider bg-orangy-400/15 text-orangy-400 px-2 py-0.5 rounded-full">
+                  <span v-if="user.role" class="inline-flex items-center text-xs font-semibold bg-orangy-400/15 text-orangy-400 px-2 py-0.5 rounded-full">
                     {{ user.role }}
                   </span>
-                  <span v-else class="inline-flex text-xs bg-brownish-100 dark:bg-brownish-700 text-brownish-400 dark:text-brownish-300 px-2 py-0.5 rounded-full">
+                  <span v-else class="inline-flex text-xs bg-paper-100 dark:bg-brownish-700 text-brownish-400 dark:text-brownish-50 px-2 py-0.5 rounded-full">
                     {{ $t('admin.user.userBadge') }}
                   </span>
-                  <span v-if="emailVerifiedAt" class="inline-flex items-center gap-1 text-xs text-greeny-500 dark:text-greeny-400">
+                  <span v-if="emailVerifiedAt" class="inline-flex items-center gap-1 text-xs text-greeny-500 dark:text-greeny-300">
                     <BaseIcon :path="mdiShieldCheck" :size="13" />
                     {{ $t('admin.user.emailVerified') }}
                   </span>
-                  <span v-else class="inline-flex items-center gap-1 text-xs text-redish-500">
+                  <span v-else class="inline-flex items-center gap-1 text-xs text-redish-500 dark:text-redish-100">
                     <BaseIcon :path="mdiAlertCircleOutline" :size="13" />
                     {{ $t('admin.user.emailUnverified') }}
                   </span>
-                  <span v-if="user.secret" class="inline-flex items-center gap-1 text-xs text-greeny-500 dark:text-greeny-400">
+                  <span v-if="user.secret" class="inline-flex items-center gap-1 text-xs text-greeny-500 dark:text-greeny-300">
                     <BaseIcon :path="mdiShieldCheck" :size="13" />
                     {{ $t('admin.user.tfaOn') }}
                   </span>
-                  <span class="text-xs text-brownish-400">
+                  <span class="text-xs text-brownish-400 dark:text-brownish-50">
                     · {{ $t('admin.user.joined', { date: createdAt }) }}
                     <span v-if="lastActiveAt"> · {{ $t('admin.user.lastActive', { date: lastActiveAt }) }}</span>
                   </span>
@@ -200,15 +206,15 @@ watch(
 
           <div class="-mx-4 -mb-4">
             <!-- Quota display / editor -->
-            <div class="px-4 py-4 border-b border-brownish-100 dark:border-brownish-700/50">
+            <div class="px-4 py-4 border-b border-paper-200 dark:border-brownish-700/50">
               <div v-if="!editQuota" class="flex items-center justify-between">
                 <div>
-                  <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-0.5">{{ $t('admin.user.storageQuota') }}</p>
+                  <p class="text-xs font-medium text-brownish-400 dark:text-brownish-50 mb-0.5">{{ $t('admin.user.storageQuota') }}</p>
                   <p class="text-sm">{{ quota ?? $t('admin.user.quotaDefault') }}</p>
                 </div>
               </div>
               <div v-else class="space-y-3">
-                <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('admin.user.editStorageQuota') }}</p>
+                <p class="text-xs font-medium text-brownish-400 dark:text-brownish-50">{{ $t('admin.user.editStorageQuota') }}</p>
                 <QuotaSlider v-model="user.quota" />
                 <div class="flex items-center gap-2 pt-1">
                   <BaseButtonConfirm
@@ -230,7 +236,7 @@ watch(
 
             <!-- Storage breakdown -->
             <div class="px-4 py-3">
-              <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3">{{ $t('admin.user.storageBreakdown') }}</p>
+              <p class="text-xs font-medium text-brownish-400 dark:text-brownish-50 mb-3">{{ $t('admin.user.storageBreakdown') }}</p>
               <StatsTable :data="data.stats" />
             </div>
           </div>
@@ -243,13 +249,37 @@ watch(
             <CardBoxComponentHeader :title="$t('admin.user.accountControls')" />
 
             <div class="-mx-4 -mb-4">
+              <!-- Email verification -->
+              <div class="flex items-center justify-between px-4 py-4 border-b border-paper-200 dark:border-brownish-700/50">
+                <div>
+                  <p class="text-sm font-medium">{{ $t('admin.user.emailAddress') }}</p>
+                  <p class="text-xs mt-0.5">
+                    <span v-if="emailVerifiedAt" class="text-greeny-500 dark:text-greeny-300">
+                      {{ $t('admin.user.verifiedOn', { date: emailVerifiedAt }) }}
+                    </span>
+                    <span v-else class="text-brownish-400 dark:text-brownish-50">
+                      {{ $t('admin.user.awaitingVerification') }}
+                    </span>
+                  </p>
+                </div>
+                <BaseButtonConfirm
+                  v-if="!emailVerifiedAt"
+                  :icon="mdiEmailCheckOutline"
+                  :small="true"
+                  :label="$t('admin.user.verifyEmail')"
+                  :confirm-label="$t('admin.user.confirmVerifyEmail')"
+                  @confirm="verifyEmail"
+                />
+                <span v-else class="text-xs text-brownish-400 dark:text-brownish-50 italic">—</span>
+              </div>
+
               <!-- Two-factor auth -->
-              <div class="flex items-center justify-between px-4 py-4 border-b border-brownish-100 dark:border-brownish-700/50">
+              <div class="flex items-center justify-between px-4 py-4 border-b border-paper-200 dark:border-brownish-700/50">
                 <div>
                   <p class="text-sm font-medium">{{ $t('admin.user.twoFactorAuth') }}</p>
                   <p class="text-xs mt-0.5">
-                    <span v-if="user.secret" class="text-greeny-500 dark:text-greeny-400">{{ $t('admin.user.tfaEnabled') }}</span>
-                    <span v-else class="text-brownish-400">{{ $t('admin.user.tfaNotEnabled') }}</span>
+                    <span v-if="user.secret" class="text-greeny-500 dark:text-greeny-300">{{ $t('admin.user.tfaEnabled') }}</span>
+                    <span v-else class="text-brownish-400 dark:text-brownish-50">{{ $t('admin.user.tfaNotEnabled') }}</span>
                   </p>
                 </div>
                 <BaseButtonConfirm
@@ -261,7 +291,7 @@ watch(
                   :confirm-label="$t('admin.user.confirmDisable')"
                   @confirm="disableTfa"
                 />
-                <span v-else class="text-xs text-brownish-400 italic">—</span>
+                <span v-else class="text-xs text-brownish-400 dark:text-brownish-50 italic">—</span>
               </div>
 
               <!-- Role management -->
@@ -269,8 +299,8 @@ watch(
                 <div>
                   <p class="text-sm font-medium">{{ $t('admin.role') }}</p>
                   <p class="text-xs mt-0.5">
-                    <span v-if="user.role" class="font-semibold uppercase tracking-wider text-orangy-400">{{ user.role }}</span>
-                    <span v-else class="text-brownish-400">{{ $t('admin.user.regularUser') }}</span>
+                    <span v-if="user.role" class="font-semibold text-orangy-800 dark:text-orangy-400">{{ user.role }}</span>
+                    <span v-else class="text-brownish-400 dark:text-brownish-50">{{ $t('admin.user.regularUser') }}</span>
                   </p>
                 </div>
                 <div class="flex items-center gap-2">
@@ -301,19 +331,19 @@ watch(
             <CardBoxComponentHeader :title="$t('admin.user.encryptionKeys')" />
             <div class="-mx-4 -mb-4 px-4 py-3 space-y-3">
               <div>
-                <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-1">{{ $t('admin.user.publicKey') }}</p>
+                <p class="text-xs font-medium text-brownish-400 dark:text-brownish-50 mb-1">{{ $t('admin.user.publicKey') }}</p>
                 <div class="flex items-start gap-2">
-                  <code class="flex-1 font-mono text-xs break-all text-brownish-400 dark:text-brownish-300 leading-relaxed">{{ user.pubkey }}</code>
-                  <button @click="copyToClipboard(user.pubkey, 'pubkey')" class="shrink-0 mt-0.5 text-brownish-400 hover:text-white transition-colors">
+                  <code class="flex-1 font-mono text-xs break-all text-brownish-400 dark:text-brownish-50 leading-relaxed">{{ user.pubkey }}</code>
+                  <button @click="copyToClipboard(user.pubkey, 'pubkey')" :title="$t('common.copy')" :aria-label="$t('common.copy')" class="shrink-0 mt-0.5 text-brownish-400 dark:text-brownish-50 hover:text-brownish-700 dark:hover:text-white transition-colors">
                     <BaseIcon :path="copiedField === 'pubkey' ? mdiCheck : mdiContentCopy" :size="14" />
                   </button>
                 </div>
               </div>
               <div class="pb-1">
-                <p class="text-xs font-medium uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-1">{{ $t('admin.user.fingerprint') }}</p>
+                <p class="text-xs font-medium text-brownish-400 dark:text-brownish-50 mb-1">{{ $t('admin.user.fingerprint') }}</p>
                 <div class="flex items-start gap-2">
-                  <code class="flex-1 font-mono text-xs break-all text-brownish-400 dark:text-brownish-300">{{ user.fingerprint }}</code>
-                  <button @click="copyToClipboard(user.fingerprint, 'fingerprint')" class="shrink-0 mt-0.5 text-brownish-400 hover:text-white transition-colors">
+                  <code class="flex-1 font-mono text-xs break-all text-brownish-400 dark:text-brownish-50">{{ user.fingerprint }}</code>
+                  <button @click="copyToClipboard(user.fingerprint, 'fingerprint')" :title="$t('common.copy')" :aria-label="$t('common.copy')" class="shrink-0 mt-0.5 text-brownish-400 dark:text-brownish-50 hover:text-brownish-700 dark:hover:text-white transition-colors">
                     <BaseIcon :path="copiedField === 'fingerprint' ? mdiCheck : mdiContentCopy" :size="14" />
                   </button>
                 </div>
@@ -326,14 +356,14 @@ watch(
             <div class="-mx-4 -my-4 border border-redish-500/30 rounded-2xl overflow-hidden">
               <div class="px-4 py-3 border-b border-redish-500/20 bg-redish-500/5">
                 <div class="flex items-center gap-2">
-                  <BaseIcon :path="mdiAlertCircleOutline" :size="16" class="text-redish-500 shrink-0" />
-                  <p class="text-sm font-semibold text-redish-500">{{ $t('admin.user.dangerZone') }}</p>
+                  <BaseIcon :path="mdiAlertCircleOutline" :size="16" class="text-redish-500 dark:text-redish-100 shrink-0" />
+                  <p class="text-sm font-semibold text-redish-500 dark:text-redish-100">{{ $t('admin.user.dangerZone') }}</p>
                 </div>
               </div>
               <div class="px-4 py-4 flex items-center justify-between gap-4">
                 <div>
                   <p class="text-sm font-medium">{{ $t('admin.user.deleteAccount') }}</p>
-                  <p class="text-xs text-brownish-400 mt-0.5">{{ $t('admin.user.deleteAccountWarning') }}</p>
+                  <p class="text-xs text-brownish-400 dark:text-brownish-50 mt-0.5">{{ $t('admin.user.deleteAccountWarning') }}</p>
                 </div>
                 <BaseButtonConfirm
                   :icon="mdiDelete"

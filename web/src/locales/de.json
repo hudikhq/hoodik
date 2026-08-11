@@ -198,10 +198,12 @@
     "user": {
       "accountControls": "Kontoverwaltung",
       "allUsers": "Alle Benutzer",
+      "awaitingVerification": "Bestätigung ausstehend",
       "confirmDelete": "Ja, löschen",
       "confirmDemote": "Ja, zurückstufen",
       "confirmDisable": "Ja, deaktivieren",
       "confirmPromote": "Ja, hochstufen",
+      "confirmVerifyEmail": "Jetzt bestätigen",
       "dangerZone": "Gefahrenzone",
       "deleteAccount": "Dieses Konto löschen",
       "deleteAccountWarning": "Löscht den Benutzer und alle seine Dateien endgültig. Dies kann nicht rückgängig gemacht werden.",
@@ -209,6 +211,7 @@
       "disableTfa": "2FA deaktivieren",
       "editQuota": "Kontingent bearbeiten",
       "editStorageQuota": "Speicherkontingent bearbeiten",
+      "emailAddress": "E-Mail-Adresse",
       "emailUnverified": "E-Mail nicht verifiziert",
       "emailVerified": "E-Mail verifiziert",
       "encryptionKeys": "Verschlüsselungsschlüssel",
@@ -228,7 +231,9 @@
       "tfaNotEnabled": "Nicht aktiviert",
       "tfaOn": "2FA aktiv",
       "twoFactorAuth": "Zwei-Faktor-Authentifizierung",
-      "userBadge": "Benutzer"
+      "userBadge": "Benutzer",
+      "verifiedOn": "Bestätigt am {date}",
+      "verifyEmail": "E-Mail bestätigen"
     },
     "users": {
       "emailActivated": "E-Mail aktiviert",
@@ -260,7 +265,10 @@
     },
     "lock": {
       "description": "Das Konto des Benutzers mit der E-Mail-Adresse {email} wurde in diesem Browser gesperrt, alle anderen Daten wurden entfernt. Wenn Sie nicht der Inhaber dieses Kontos sind, können Sie das Konto verwerfen und sich selbst anmelden oder registrieren.",
-      "forgetAccount": "Konto verwerfen"
+      "forgetAccount": "Konto verwerfen",
+      "forgetConfirmBody": "Dadurch werden das gesperrte Konto und sein verschlüsselter Schlüssel aus diesem Browser entfernt. Das Konto selbst wird nicht gelöscht; Sie können sich jederzeit wieder mit Ihrem Passwort anmelden.",
+      "forgetConfirmLabel": "Ja, verwerfen",
+      "forgetConfirmTitle": "Dieses Konto verwerfen?"
     },
     "lockSetup": {
       "description": "Ihr privater Schlüssel wird verschlüsselt und lokal gespeichert, damit Sie ihn beim nächsten Besuch mit einer einfachen PIN oder einem Passwort entschlüsseln und auf Ihre Dateien zugreifen können.",
@@ -269,10 +277,13 @@
       "title": "Sperrbildschirm einrichten"
     },
     "login": {
+      "codeDigit": "Ziffer {index} von {total}",
       "forgotPassword": "Passwort vergessen?",
       "recoverHere": "Stellen Sie Ihr Konto hier wieder her",
       "title": "Zugriff auf Ihre Dateien",
-      "twoFactorLabel": "2FA-Code (optional)",
+      "twoFactorBody": "Dieses Konto ist durch Zwei-Faktor-Authentifizierung geschützt. Gib den aktuellen Code aus deiner Authenticator-App ein.",
+      "twoFactorLabel": "Authentifizierungscode",
+      "twoFactorTitle": "Zwei-Faktor-Code",
       "withPrivateKey": "Mit privatem Schlüssel anmelden"
     },
     "migration": {
@@ -295,10 +306,10 @@
     },
     "registerKey": {
       "confirmStored": "Ich habe meinen privaten Schlüssel gespeichert",
+      "download": "Schlüssel herunterladen",
       "generating": "...wird erzeugt, bitte warten...",
       "label": "Ihr Wiederherstellungsschlüssel",
-      "lastTimeWarning": "Dies ist das letzte Mal, dass wir Ihnen Ihren Wiederherstellungsschlüssel anzeigen!",
-      "storeSafe": "Bewahren Sie ihn an einem sicheren Ort auf. Sie benötigen ihn, um sich anzumelden oder Ihr Konto wiederherzustellen, falls Sie Ihr Passwort vergessen.",
+      "storeSafe": "Bewahren Sie ihn an einem sicheren Ort auf. Sie benötigen ihn, um sich anzumelden oder Ihr Konto wiederherzustellen, falls Sie Ihr Passwort vergessen. Sie können ihn jederzeit unter Konto → Wiederherstellungsschlüssel erneut anzeigen.",
       "title": "Ihr Wiederherstellungsschlüssel"
     },
     "rememberMe": "Angemeldet bleiben",
@@ -334,6 +345,7 @@
       "privateKeyRequired": "Privater Schlüssel ist erforderlich",
       "pubkeyRequired": "Öffentlicher Schlüssel ist erforderlich",
       "secretRequired": "Geheimnis ist erforderlich",
+      "tokenRequired": "Der Zwei-Faktor-Code ist erforderlich",
       "twoFactorRequired": "Zwei-Faktor-Code ist erforderlich"
     },
     "verifyEmail": {
@@ -354,7 +366,7 @@
     "cancel": "Abbrechen",
     "close": "Schließen",
     "confirm": "Bestätigen",
-    "copied": "Kopiert",
+    "copied": "In die Zwischenablage kopiert",
     "copy": "Kopieren",
     "create": "Erstellen",
     "created": "Erstellt",
@@ -383,6 +395,8 @@
     "retry": "Erneut versuchen",
     "save": "Speichern",
     "search": "Suchen",
+    "selectAll": "Alle auswählen",
+    "selectRow": "{name} auswählen",
     "send": "Senden",
     "settings": "Einstellungen",
     "share": "Teilen",
@@ -401,10 +415,14 @@
     "cannot_set_editable_on_directory": "Ordner können nicht bearbeitbar gemacht werden",
     "cannot_share_not_owner": "Nur der Eigentümer kann dies teilen",
     "cannot_update_not_owner": "Nur der Eigentümer kann dies aktualisieren",
+    "capabilitiesUnavailable": "Freigabefunktionen sind ausgeblendet, weil der Server nicht erreichbar war — lade neu, um es erneut zu versuchen",
     "chunk_already_exists": "Chunk wurde bereits hochgeladen",
     "chunk_out_of_range": "Chunk außerhalb des gültigen Bereichs",
     "chunk_size_exceeds_max": "Chunk-Größe überschreitet das Maximum",
+    "copyFailed": "Kopieren nicht möglich — markiere den Text und kopiere ihn manuell",
+    "deleteFailed": "Löschen nicht möglich — das Element ist noch vorhanden",
     "directory_not_found": "Ordner nicht gefunden",
+    "emailLanguageFailed": "Die Anzeigesprache wurde geändert, konnte aber nicht für E-Mails gespeichert werden",
     "encrypted_private_key_required": "Verschlüsselter privater Schlüssel ist erforderlich",
     "file_already_exists": "Eine Datei mit diesem Namen existiert bereits",
     "file_has_no_chunks": "Datei enthält keine hochgeladenen Daten",
@@ -414,6 +432,7 @@
     "forbidden_not_owner": "Sie sind nicht der Eigentümer",
     "forbidden_read_only": "Diese Freigabe ist schreibgeschützt",
     "inactive_account": "Ihr Konto ist nicht aktiviert",
+    "incomingFailed": "Mit dir geteilte Dateien konnten nicht geladen werden — diese Liste ist möglicherweise unvollständig",
     "invalid": "Ungültiger Wert",
     "invalid_authorization_header": "Ungültiger Authorization-Header",
     "invalid_credentials": "Ungültige E-Mail-Adresse oder ungültiges Passwort",
@@ -432,9 +451,11 @@
     "invitation_not_found": "Einladung nicht gefunden",
     "link_expired": "Dieser Link ist abgelaufen",
     "link_signature_invalid": "Signatur des Links ist ungültig",
+    "listFailed": "Dateien konnten nicht geladen werden — prüfe deine Verbindung und versuche es erneut",
     "login_expired": "Ihre Sitzung ist abgelaufen, bitte melden Sie sich erneut an",
     "missing_refresh_token": "Refresh-Token fehlt, bitte melden Sie sich erneut an",
     "missing_session_token": "Sitzungstoken fehlt, bitte melden Sie sich erneut an",
+    "network": "Server nicht erreichbar — prüfe deine Verbindung und versuche es erneut",
     "new_fingerprint_mismatch": "Fingerabdruck des neuen Schlüssels stimmt nicht überein",
     "no_authorization_header": "Authorization-Header fehlt",
     "no_context": "Anfragekontext fehlt",
@@ -445,6 +466,7 @@
     "ownership_proof_required": "Eigentumsnachweis ist erforderlich",
     "parent_directory_not_found": "Übergeordneter Ordner nicht gefunden",
     "password_not_set": "Passwort ist nicht gesetzt",
+    "pdfImagesDropped": "Einige Bilder konnten nicht in das PDF übernommen werden",
     "pending_chunks_not_set": "Upload-Status ist unvollständig",
     "pending_size_not_set": "Upload-Status ist unvollständig",
     "quota_exceeded": "Speicherkontingent überschritten",
@@ -467,6 +489,8 @@
     "transition_signature_invalid_base64": "Signatur des Schlüsselübergangs ist fehlerhaft",
     "transition_timestamp_skew": "Zeitstempel des Schlüsselübergangs liegt außerhalb des gültigen Bereichs",
     "two_factor_already_enabled": "Zwei-Faktor-Authentifizierung ist bereits aktiviert",
+    "two_factor_required": "Gib deinen Zwei-Faktor-Code ein",
+    "undecryptable": "Mindestens ein Link ließ sich mit deinem aktuellen Schlüssel nicht öffnen und wird nicht angezeigt",
     "unknown": "Etwas ist schiefgelaufen",
     "unknown_cipher": "Unbekanntes Verschlüsselungsverfahren",
     "upgrade_required": "Bitte aktualisieren Sie Ihre App, um fortzufahren",
@@ -478,12 +502,13 @@
   "files": {
     "actions": {
       "details": "Details",
-      "fork": "Eigene Kopie",
+      "fork": "Eigene Kopie speichern",
       "forkTitle": "Unabhängige Kopie in Ihren Dateien speichern – bleibt auch nach Widerruf erhalten",
       "preview": "Vorschau",
       "sharing": "Freigabe"
     },
     "breadcrumbs": "Navigationspfad",
+    "breadcrumbsShowAll": "Alle Ordner anzeigen",
     "browser": {
       "addToDownloadQueue": "Zur Download-Warteschlange hinzufügen",
       "createDirectory": "Ordner erstellen",
@@ -511,7 +536,10 @@
       "confirmFile": "Möchten Sie „{name}“ endgültig löschen?",
       "confirmLabel": "Ja, löschen",
       "confirmMany": "Möchten Sie {count} Elemente löschen?",
-      "selectedTitle": "Auswahl löschen"
+      "confirmManyFolders": "{count} davon ist ein Ordner — alles darin verschwindet mit. | {count} davon sind Ordner — alles darin verschwindet mit.",
+      "selectedTitle": "Auswahl löschen",
+      "typeCount": "{count} eingeben zum Bestätigen",
+      "typeName": "{name} eingeben zum Bestätigen"
     },
     "details": {
       "uploaded": "Hochgeladen"
@@ -539,9 +567,11 @@
     "row": {
       "ownedBy": "Eigentümer: {email}",
       "savingInAnotherSession": "Eine andere Sitzung speichert diese Notiz gerade",
-      "sharedWith": "Mit {count} weiterem Konto geteilt | Mit {count} weiteren Konten geteilt"
+      "sharedWith": "Mit {count} weiterem Konto geteilt | Mit {count} weiteren Konten geteilt",
+      "uploadIncomplete": "Upload unvollständig"
     },
     "search": {
+      "failed": "Suche fehlgeschlagen — prüfe deine Verbindung und versuche es erneut",
       "noMatches": "Keine Dateien entsprechen dieser Suche",
       "notesOnly": "Nur Notizen",
       "placeholder": "Dateien suchen...",
@@ -575,6 +605,44 @@
     },
     "tree": {
       "root": "Hauptordner"
+    },
+    "type": {
+      "archive": "Archiv",
+      "audio": "Audio",
+      "document": "Dokument",
+      "folder": "Ordner",
+      "font": "Schriftart",
+      "image": "Bild",
+      "pdf": "PDF",
+      "presentation": "Präsentation",
+      "spreadsheet": "Tabelle",
+      "text": "Text",
+      "video": "Video"
+    }
+  },
+  "help": {
+    "title": "Hilfe",
+    "shortcuts": {
+      "title": "Tastenkürzel",
+      "search": "Dateien durchsuchen",
+      "help": "Dieses Fenster öffnen",
+      "inNotes": "Im Notiz-Editor",
+      "bold": "Fett",
+      "italic": "Kursiv",
+      "link": "Link",
+      "save": "Speichern",
+      "undoRedo": "Rückgängig / Wiederholen"
+    },
+    "facts": {
+      "title": "Gut zu wissen",
+      "recoveryKey": "Der Wiederherstellungsschlüssel ist der einzige Weg zurück, wenn du dein Passwort vergisst. Er bleibt unter Konto → Wiederherstellungsschlüssel verfügbar.",
+      "sharing": "Eine widerrufene Freigabe stoppt künftige Zugriffe. Was die andere Person bereits heruntergeladen hat, bleibt bei ihr — Verschlüsselung holt das nicht zurück.",
+      "server": "Namen, Inhalte und Vorschaubilder werden vor dem Hochladen im Browser verschlüsselt. Der Server speichert nur Chiffrat und hält niemals deine Schlüssel."
+    },
+    "links": {
+      "title": "Anderswo",
+      "source": "Quellcode und Sicherheitsrichtlinie auf GitHub",
+      "apps": "Apps für Handy und Desktop"
     }
   },
   "links": {
@@ -666,9 +734,11 @@
     "menu": {
       "account": "Konto",
       "files": "Dateien",
+      "help": "Hilfe",
       "lock": "Sperren",
       "notes": "Notizen",
       "share": "Freigabe",
+      "theme": "Darstellung",
       "users": "Benutzer"
     },
     "title": {
@@ -724,6 +794,7 @@
       "empty": "Noch keine Notizen",
       "loading": "Notizen werden geladen...",
       "noMatches": "Keine Notizen passend zu „{query}“",
+      "searchFailed": "Suche fehlgeschlagen — prüfe deine Verbindung und versuche es erneut",
       "searchPlaceholder": "Notizen suchen...",
       "title": "Notizen",
       "today": "Heute",
@@ -747,11 +818,16 @@
       "saved": "Gespeichert",
       "saving": "Wird gespeichert...",
       "strikethrough": "Durchgestrichen",
+      "taskList": "Aufgabenliste",
       "undo": "Rückgängig (Strg+Z)",
       "versionHistory": "Versionsverlauf"
     }
   },
   "preview": {
+    "deleteFile": "Datei löschen",
+    "downloadFile": "Datei herunterladen",
+    "exportPdf": "PDF exportieren",
+    "fileDetails": "Dateidetails",
     "markdown": {
       "conflictBody": "Der Server hat einen nicht abgeschlossenen Speichervorgang für diese Notiz aus einer anderen Sitzung. Wählen Sie {overwrite}, um deren ausstehende Änderung zu verwerfen und Ihre Version zu speichern, oder {cancel}, um Ihre lokalen Änderungen zu verwerfen und den anderen Speichervorgang abschließen zu lassen.",
       "conflictOverwrite": "Entfernte Änderung verwerfen und überschreiben",
@@ -765,7 +841,9 @@
       "moveTitle": "In Ordner verschieben",
       "readOnly": "Diese Markdown-Datei ist schreibgeschützt."
     },
-    "noPreview": "Keine Vorschau verfügbar 🥲",
+    "nextImage": "Nächstes Bild",
+    "noPreview": "Keine Vorschau verfügbar",
+    "previousImage": "Vorheriges Bild",
     "versionHistory": {
       "authorAnonymous": "Anonym",
       "authorOther": "Eine andere Person",
@@ -781,6 +859,7 @@
       "deleteTitle": "Diese Version löschen?",
       "deleteVersion": "Diese Version löschen",
       "empty": "Noch kein Verlauf. Bearbeiten Sie die Notiz, um einen aufzubauen.",
+      "keyUnavailable": "Der Schlüssel dieser Datei ist nicht verfügbar — öffne die Notiz erneut",
       "loading": "Versionen werden geladen…",
       "previewTitle": "Vorschau v{version}",
       "restoreAsNew": "Als neue Notiz wiederherstellen",
@@ -793,7 +872,10 @@
     "video": {
       "loadError": "Video konnte nicht geladen werden: {error}",
       "loading": "Wird geladen… {progress} %"
-    }
+    },
+    "zoomFit": "Bild einpassen",
+    "zoomIn": "Bild vergrößern",
+    "zoomOut": "Bild verkleinern"
   },
   "shares": {
     "add": {
@@ -837,7 +919,7 @@
     },
     "audit": {
       "actions": {
-        "fork": "Kopie erstellt",
+        "fork": "Kopie gespeichert",
         "grant": "Geteilt",
         "keyRotation": "Schlüsselrotation",
         "revoke": "Widerrufen",
@@ -859,16 +941,17 @@
         "sigVerified": "Gegen den öffentlichen Schlüssel des Absenders verifiziert"
       },
       "empty": "Keine Ereignisse entsprechen den aktuellen Filtern.",
+      "emptyAll": "Noch keine Freigabe-Aktivität. Ereignisse erscheinen hier, sobald du eine Datei teilst oder jemand eine mit dir teilt.",
       "filteredBanner": "Gefilterte Ansicht – Kettenverifizierung auf sichtbare Zeilen beschränkt.",
       "filters": {
         "action": "Aktion",
         "allActions": "Alle Aktionen",
+        "allRecipients": "Alle Empfänger",
         "clear": "Filter zurücksetzen",
         "fileId": "Datei-ID",
         "find": "Suchen",
         "from": "Von",
         "recipient": "Empfänger",
-        "recipientPlaceholder": "Benutzer-ID",
         "sender": "Absender",
         "senderPlaceholder": "benutzer{'@'}example.com",
         "to": "Bis"
@@ -901,7 +984,7 @@
         "evict": "{recipient} hat den Zugriff auf {file} verloren (Kaskade)",
         "fallback": "{action} auf {file}",
         "fileId": "Datei {id}…",
-        "fork": "{sender} hat {file} in die eigenen Dateien kopiert",
+        "fork": "{sender} hat eine eigene Kopie von {file} gespeichert",
         "grant": "{sender} hat {file} mit {recipient} geteilt",
         "grantAs": "{sender} hat {file} mit {recipient} als {role} geteilt",
         "keyRotation": "{sender} hat die Verschlüsselungsschlüssel des Kontos rotiert",
@@ -1068,6 +1151,7 @@
   },
   "ui": {
     "aside": {
+      "collapse": "Seitenleiste einklappen",
       "getApps": "Apps herunterladen"
     },
     "fileTree": {

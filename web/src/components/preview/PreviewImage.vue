@@ -181,7 +181,7 @@ watch(
     />
     <div v-else class="flex flex-col justify-center items-center gap-2 w-full h-full">
       <SpinnerIcon />
-      <span v-if="downloadPercent > 0" class="text-sm text-brownish-100">
+      <span v-if="downloadPercent > 0" class="text-sm text-brownish-50">
         {{ downloadPercent }}%
       </span>
     </div>
@@ -191,7 +191,7 @@ watch(
     <div
       v-if="!imageUrl && downloadPercent > 0 && thumbnailUrl"
       class="absolute bottom-20 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-sm
-        bg-brownish-800/85 text-brownish-100 border border-brownish-600/60"
+        bg-brownish-800/85 text-brownish-50 border border-brownish-600/60"
     >
       {{ downloadPercent }}%
     </div>
@@ -205,14 +205,14 @@ watch(
         :icon="mdiMinus"
         small
         @click="minus"
-        title="Decrease image size (+)"
+        :title="$t('preview.zoomOut')"
       />
       <BaseButton
         :disabled="!imageUrl"
         color="dark"
         small
         @click="fit"
-        title="Fit image to screen (space)"
+        :title="$t('preview.zoomFit')"
         :label="percentage > -1 ? `${percentage}%` : ' '"
       />
       <BaseButton
@@ -221,7 +221,7 @@ watch(
         :icon="mdiPlus"
         small
         @click="plus"
-        title="Increase image size (+)"
+        :title="$t('preview.zoomIn')"
       />
     </div>
   </div>

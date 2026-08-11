@@ -46,7 +46,16 @@ const iconSize = computed(() => props.size ?? 16)
 
 <template>
   <span :class="spanClass">
-    <svg viewBox="0 0 24 24" :width="iconSize" :height="iconSize" class="inline-block">
+    <!-- The glyph never carries the meaning on its own: callers supply a
+         label or adjacent text, so announcing it adds a nameless node. -->
+    <svg
+      viewBox="0 0 24 24"
+      :width="iconSize"
+      :height="iconSize"
+      class="inline-block"
+      aria-hidden="true"
+      focusable="false"
+    >
       <path fill="currentColor" :d="path" />
     </svg>
     <slot />

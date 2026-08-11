@@ -30,14 +30,14 @@ const isActive = computed(() => !!props.session.refresh && !expired.value)
     <td :data-label="$t('account.activity.lastSeen')">{{ updatedAt }}</td>
     <td :data-label="$t('account.activity.expires')">
       <span v-if="isCurrent">—</span>
-      <span v-else-if="expired" class="text-brownish-400">{{ $t('account.activity.statusExpired') }}</span>
+      <span v-else-if="expired" class="text-brownish-400 dark:text-brownish-50">{{ $t('account.activity.statusExpired') }}</span>
       <span v-else>{{ expiresAt }}</span>
     </td>
     <td :data-label="$t('account.activity.status')">
-      <span v-if="isCurrent" class="inline-flex items-center text-xs font-medium bg-greeny-500/15 text-greeny-500 dark:text-greeny-400 px-2 py-0.5 rounded-full">{{ $t('account.activity.statusCurrent') }}</span>
-      <span v-else-if="isActive" class="inline-flex items-center text-xs font-medium bg-blueish-500/15 text-blueish-400 px-2 py-0.5 rounded-full">{{ $t('account.activity.statusActive') }}</span>
-      <span v-else-if="expired" class="inline-flex items-center text-xs font-medium bg-brownish-100 dark:bg-brownish-700 text-brownish-400 px-2 py-0.5 rounded-full">{{ $t('account.activity.statusExpired') }}</span>
-      <span v-else class="inline-flex items-center text-xs font-medium bg-redish-500/15 text-redish-500 dark:text-redish-400 px-2 py-0.5 rounded-full">{{ $t('account.activity.statusRevoked') }}</span>
+      <span v-if="isCurrent" class="inline-flex items-center text-xs font-semibold bg-greeny-500/15 text-greeny-500 dark:text-greeny-300 px-2 py-0.5 rounded-full">{{ $t('account.activity.statusCurrent') }}</span>
+      <span v-else-if="isActive" class="inline-flex items-center text-xs font-semibold bg-blueish-500/15 text-blueish-400 px-2 py-0.5 rounded-full">{{ $t('account.activity.statusActive') }}</span>
+      <span v-else-if="expired" class="inline-flex items-center text-xs font-semibold bg-paper-100 dark:bg-brownish-700 text-brownish-400 dark:text-brownish-50 px-2 py-0.5 rounded-full">{{ $t('account.activity.statusExpired') }}</span>
+      <span v-else class="inline-flex items-center text-xs font-semibold bg-redish-500/15 text-redish-500 dark:text-redish-100 px-2 py-0.5 rounded-full">{{ $t('account.activity.statusRevoked') }}</span>
     </td>
     <td>
       <BaseButtonConfirm

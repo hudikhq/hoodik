@@ -5,6 +5,7 @@ sqlite.db
 /data-test/*
 /data-e2e/*
 /data-minio/
+/data-visual*/
 node_modules
 .DS_Store
 .turbo

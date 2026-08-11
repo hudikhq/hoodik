@@ -92,12 +92,12 @@ watch(query, find, { deep: true, immediate: true })
               v-model="search"
               :placeholder="$t('admin.invitations.searchPlaceholder')"
               @keyup.enter="query.search = search"
-              class="h-[34px] w-44 pl-3 pr-8 text-sm rounded-lg transition duration-150 ease-in-out bg-white dark:bg-brownish-800 border border-brownish-50 dark:border-brownish-600 text-brownish-900 dark:text-white placeholder-brownish-100/60 dark:placeholder-brownish-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-redish-400/60 dark:focus:ring-redish-500/50"
+              class="h-[34px] w-44 pl-3 pr-8 text-sm rounded-lg transition duration-150 ease-in-out bg-white dark:bg-brownish-800 border border-paper-300 dark:border-brownish-600 text-brownish-900 dark:text-white placeholder-brownish-100/60 dark:placeholder-brownish-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-redish-400/60 dark:focus:ring-redish-500/50"
             />
             <button
               type="button"
               @click="query.search = search"
-              class="absolute right-2 top-1/2 -translate-y-1/2 text-brownish-400 hover:text-brownish-900 dark:hover:text-white transition-colors"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-brownish-400 dark:text-brownish-50 hover:text-brownish-900 dark:hover:text-white transition-colors"
               :aria-label="$t('common.search')"
             >
               <BaseIcon :path="mdiSearchWeb" :size="15" />
@@ -127,9 +127,9 @@ watch(query, find, { deep: true, immediate: true })
           </tbody>
         </table>
 
-        <div class="flex items-center justify-between px-4 py-3 border-t border-brownish-100 dark:border-brownish-700/50">
+        <div class="flex items-center justify-between px-4 py-3 border-t border-paper-200 dark:border-brownish-700/50">
           <BaseButton :label="$t('admin.pagination.previous')" @click="previousPage" :disabled="disablePreviousPage" :small="true" />
-          <span class="text-xs text-brownish-400">{{ $t('admin.pagination.range', { start: rangeStart, end: rangeEnd, total }) }}</span>
+          <span class="text-xs text-brownish-400 dark:text-brownish-50">{{ $t('admin.pagination.range', { start: rangeStart, end: rangeEnd, total }) }}</span>
           <BaseButton :label="$t('admin.pagination.next')" @click="nextPage" :disabled="disableNextPage" :small="true" />
         </div>
       </div>

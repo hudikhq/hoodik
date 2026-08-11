@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
+import FormError from '@/components/ui/FormError.vue'
 import { AppForm, AppField } from '@/components/form'
 import * as yup from 'yup'
 import type { ErrorResponse } from '!/api'
@@ -73,9 +74,7 @@ init()
         :help="$t('account.tfa.lostAccessHelp')"
       />
 
-      <p v-if="errorMessage" class="text-sm text-redish-900 dark:text-redish-200">
-        {{ errorMessage }}
-      </p>
+      <FormError v-if="errorMessage">{{ errorMessage }}</FormError>
     </CardBoxModal>
   </AppForm>
 </template>

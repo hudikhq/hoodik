@@ -7,7 +7,8 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import { AppField } from '@/components/form'
 
 import { groups as shareGroups } from '!/shares'
-import { errorNotification, notification } from '!/index'
+import { errorNotification, notification, humanizeError } from '!/index'
+import type { ErrorResponse } from '!/api'
 
 import type { AppShareGroup } from 'types'
 
@@ -56,11 +57,12 @@ async function submit(): Promise<void> {
     emit('created', group)
     open.value = false
   } catch (err) {
-    const message = err instanceof Error ? err.message : t('shares.groups.createFailed')
-    errorText.value = /409|conflict|taken/i.test(message)
-      ? t('shares.groups.nameExists')
-      : message
-    errorNotification(err)
+    // The response carries a real status; matching "409" against the
+    // message text broke as soon as the wording changed, and leaked that
+    // wording to the user on every miss.
+    const conflict = (err as ErrorResponse<unknown>)?.status === 409
+    errorText.value = conflict ? t('shares.groups.nameExists') : humanizeError(err)
+    if (!conflict) errorNotification(err)
   } finally {
     submitting.value = false
   }
@@ -93,12 +95,12 @@ function cancel(): void {
       />
       <p
         v-if="errorText"
-        class="text-sm text-redish-700 dark:text-redish-300"
+        class="text-sm text-redish-700 dark:text-redish-100"
         data-testid="group-create-error"
       >
         {{ errorText }}
       </p>
-      <p class="text-xs text-brownish-300">
+      <p class="text-xs text-brownish-300 dark:text-brownish-50">
         {{ $t('shares.groups.createNote') }}
       </p>
     </div>
@@ -111,7 +113,7 @@ function cancel(): void {
         data-testid="group-create-submit"
         @click.prevent="submit"
       />
-      <BaseButton :label="$t('common.cancel')" color="info" outline @click.prevent="cancel" />
+      <BaseButton :label="$t('common.cancel')" color="light" @click.prevent="cancel" />
     </template>
   </CardBoxModal>
 </template>

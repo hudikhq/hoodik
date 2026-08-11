@@ -338,9 +338,7 @@ export const store = defineStore('files', () => {
         )
         rows.forEach((row) => upsertItem(row))
       } catch (e) {
-        error.value = `Seems like we are having some kind of problem with getting the files: ${
-          (e as Error).message
-        }`
+        error.value = 'errors.listFailed'
       } finally {
         loading.value = false
       }
@@ -362,9 +360,7 @@ export const store = defineStore('files', () => {
     try {
       response = await meta.find(query)
     } catch (e) {
-      error.value = `Seems like we are having some kind of problem with getting the files: ${
-        (e as Error).message
-      }`
+      error.value = 'errors.listFailed'
     }
 
     const rows = [...(response.parents || []), ...(response.children || [])]

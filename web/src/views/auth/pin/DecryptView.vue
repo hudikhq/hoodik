@@ -12,6 +12,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ErrorResponse } from '!/api'
 import type { Credentials } from 'types'
+import { humanizeError } from '!/index'
 
 const login = loginStore()
 const router = useRouter()
@@ -57,7 +58,7 @@ const init = () => {
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
-        authenticationError.value = error.description
+        authenticationError.value = humanizeError(err)
       }
     }
   }
@@ -67,9 +68,9 @@ init()
 </script>
 <template>
   <LayoutGuest>
-    <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
+    <SectionFullScreen v-slot="{ cardClass }">
       <CardBox :class="cardClass" v-if="config">
-        <h1 class="text-2xl text-white mb-5">{{ $t('auth.decrypt.title') }}</h1>
+        <h1 class="text-2xl text-brownish-700 dark:text-white mb-5">{{ $t('auth.decrypt.title') }}</h1>
         <p>
           {{ $t('auth.decrypt.aboutToUnlock') }} <strong>{{ email }}</strong>
           {{ $t('auth.decrypt.notYou') }}
@@ -85,11 +86,11 @@ init()
             :label="$t('auth.yourPassword')"
             name="password"
             autocomplete="off"
-            placeholder="********"
+            placeholder="••••••••"
             :autofocus="true"
           />
 
-          <p v-if="authenticationError" class="text-sm text-redish-400">
+          <p v-if="authenticationError" class="text-sm text-redish-400 dark:text-redish-100">
             {{ authenticationError }}
           </p>
 

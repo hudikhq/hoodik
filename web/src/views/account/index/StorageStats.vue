@@ -40,23 +40,23 @@ const usageColor = computed(() => {
 })
 
 const usageTextColor = computed(() => {
-  if (usagePercent.value >= 90) return 'text-redish-500'
-  if (usagePercent.value >= 70) return 'text-orangy-400'
-  return 'text-greeny-500'
+  if (usagePercent.value >= 90) return 'text-redish-500 dark:text-redish-100'
+  if (usagePercent.value >= 70) return 'text-orangy-800 dark:text-orangy-400'
+  return 'text-greeny-500 dark:text-greeny-300'
 })
 </script>
 <template>
   <CardBox :class="props.class">
-    <div class="-mx-4 -mt-4 px-6 py-6 border-b border-brownish-100 dark:border-brownish-700/50 rounded-t-2xl">
+    <div class="-mx-4 -mt-4 px-6 py-6 border-b border-paper-200 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex items-center gap-2 mb-4">
-        <BaseIcon :path="mdiDatabase" :size="14" class="text-brownish-400 dark:text-brownish-100" />
-        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('account.storage.title') }}</p>
+        <BaseIcon :path="mdiDatabase" :size="14" class="text-brownish-400 dark:text-brownish-50" />
+        <p class="text-xs font-semibold text-brownish-400 dark:text-brownish-50">{{ $t('account.storage.title') }}</p>
       </div>
 
       <div class="flex items-end justify-between mb-3">
         <div>
           <span class="text-2xl font-bold" :class="usageTextColor">{{ usedSpace }}</span>
-          <span class="text-sm text-brownish-400 ml-1">
+          <span class="text-sm text-brownish-400 dark:text-brownish-50 ml-1">
             <span v-if="quota">/ {{ quota }}</span>
             <span v-else>/ {{ $t('account.storage.unlimited') }}</span>
           </span>
@@ -64,7 +64,7 @@ const usageTextColor = computed(() => {
         <span v-if="quota" class="text-sm font-semibold" :class="usageTextColor">{{ usagePercent }}%</span>
       </div>
 
-      <div v-if="quota" class="h-3 rounded-full bg-brownish-100 dark:bg-brownish-700 overflow-hidden">
+      <div v-if="quota" class="h-3 rounded-full bg-paper-100 dark:bg-brownish-700 overflow-hidden">
         <div
           class="h-full rounded-full transition-[width] duration-700"
           :class="usageColor"
@@ -76,8 +76,8 @@ const usageTextColor = computed(() => {
     <div v-if="data" class="-mx-4 -mb-4">
       <div class="px-6 pt-4 pb-1">
         <div class="flex items-center gap-2 mb-2">
-          <BaseIcon :path="mdiChartDonut" :size="14" class="text-brownish-400 dark:text-brownish-100" />
-          <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('account.storage.byFileType') }}</p>
+          <BaseIcon :path="mdiChartDonut" :size="14" class="text-brownish-400 dark:text-brownish-50" />
+          <p class="text-xs font-semibold text-brownish-400 dark:text-brownish-50">{{ $t('account.storage.byFileType') }}</p>
         </div>
       </div>
       <div class="px-4 pb-4">

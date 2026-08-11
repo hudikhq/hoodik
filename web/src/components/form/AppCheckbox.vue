@@ -47,7 +47,7 @@ const onChange = (e: Event) => {
     </label>
     <ErrorMessage
       :name="name"
-      class="block text-sm text-redish-700 dark:text-redish-500 ml-2 mb-[-1rem]"
+      class="block text-sm text-redish-700 dark:text-redish-100 ml-2 mb-[-1rem]"
     />
   </div>
 </template>

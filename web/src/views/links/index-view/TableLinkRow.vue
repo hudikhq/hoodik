@@ -90,10 +90,10 @@ const isExpired = computed(() => {
 })
 
 const sharedClass = computed(() => {
-  return 'dark:bg-brownish-900 hover:bg-dirty-white hover:dark:bg-brownish-700'
+  return 'dark:bg-brownish-900 hover:bg-paper-100 hover:dark:bg-brownish-700'
 })
 
-const border = 'sm:border-l sm:border-brownish-50 sm:dark:border-brownish-950'
+const border = 'sm:border-l sm:border-paper-300 sm:dark:border-brownish-950'
 const sizes = computed(() => {
   return {
     checkbox: `${props.sizes.checkbox}`,
@@ -149,7 +149,7 @@ const singleClick = () => {
     }"
   >
     <div :class="sizes.checkbox">
-      <TableCheckboxCell v-model="checked" />
+      <TableCheckboxCell v-model="checked" :label="$t('common.selectRow', { name: link.name })" />
     </div>
 
     <button
@@ -167,7 +167,7 @@ const singleClick = () => {
       <span
         v-else-if="thumbnailLoading"
         name="thumbnail-placeholder"
-        class="inline-block w-6 h-6 mr-2 animate-pulse bg-brownish-100 dark:bg-brownish-700 rounded-md"
+        class="inline-block w-6 h-6 mr-2 animate-pulse bg-paper-100 dark:bg-brownish-700 rounded-md"
       />
 
       <TruncatedSpan :text="linkName" />
@@ -188,7 +188,7 @@ const singleClick = () => {
     </div>
 
     <div :class="sizes.expiresAt" :title="linkExpiresAt">
-      <span v-if="isExpired" class="inline-block text-redish-200">{{ $t('links.table.expired') }}</span>
+      <span v-if="isExpired" class="inline-block text-redish-700 dark:text-redish-100">{{ $t('links.table.expired') }}</span>
       <TruncatedSpan v-else :text="linkExpiresAt" />
     </div>
 

@@ -47,7 +47,11 @@ const remove = (index: number) => {
 }
 
 const inputClass =
-  'h-[34px] w-auto mt-2 text-lg text-gray-900 placeholder-gray-400 transition duration-150 ease-in-out bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-redish-500'
+  'h-[34px] w-auto mt-2 px-3 text-lg rounded-md transition duration-150 ease-in-out ' +
+  'bg-white dark:bg-brownish-800 border border-paper-300 dark:border-brownish-600 ' +
+  'text-brownish-900 dark:text-white placeholder-brownish-100/60 dark:placeholder-brownish-400 ' +
+  'disabled:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-0 ' +
+  'focus:ring-redish-400/60 dark:focus:ring-redish-500/50'
 </script>
 <template>
   <span class="sm:block" for="rules" v-if="label"> {{ label }} </span>

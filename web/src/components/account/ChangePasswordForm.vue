@@ -148,7 +148,7 @@ init()
       />
     </div>
 
-    <div class="border-2 p-2 pb-6 rounded-lg border-brownish-700">
+    <div class="border-2 p-2 pb-6 rounded-lg border-paper-300 dark:border-brownish-700">
       <AppField
         type="password"
         :form="form"
@@ -160,7 +160,7 @@ init()
       />
     </div>
 
-    <p v-if="changePasswordError" class="text-sm text-redish-400">
+    <p v-if="changePasswordError" class="text-sm text-redish-400 dark:text-redish-100">
       {{ changePasswordError }}
     </p>
 

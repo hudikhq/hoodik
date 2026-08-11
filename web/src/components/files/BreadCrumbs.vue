@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { AppFile } from 'types'
 import BaseButton from '../ui/BaseButton.vue'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SHARED_WITH_ME_DIR_ID } from '!/storage'
 
@@ -48,8 +48,10 @@ const visibleParents = computed<AppFile[]>(() => {
   return props.parents.filter((p) => p.id !== SHARED_WITH_ME_DIR_ID)
 })
 
+const expanded = ref(false)
+
 const skipIndexes = computed<number[]>(() => {
-  if (visibleParents.value.length < 3) {
+  if (expanded.value || visibleParents.value.length < 3) {
     return []
   }
   return visibleParents.value
@@ -66,6 +68,7 @@ const skipIndexes = computed<number[]>(() => {
           :to="rootCrumb.to"
           :label="rootCrumb.label"
           :disabled="!visibleParents.length"
+          no-border
           class="pl-1 pr-1 text-lg"
           data-testid="breadcrumb-root"
         />
@@ -77,16 +80,20 @@ const skipIndexes = computed<number[]>(() => {
           <BaseButton
             :to="{ name: 'files', params: { file_id: parent.id } }"
             :label="`${parent.name || '...'}`"
+            no-border
             class="pl-1 pr-1 text-lg"
           />
         </li>
         <li v-else-if="skipIndexes[0] === index">
           <span> / </span>
-          <span
-            class="inline-flex justify-center items-center whitespace-nowrap focus:outline-none transition-colors focus:ring duration-150 rounded border-brownish-100 dark:border-brownish-800 ring-brownish-200 dark:ring-brownish-500 bg-brownish-100 text-black dark:bg-brownish-800 dark:text-white border py-2 px-3 text-lg"
-          >
-            ...
-          </span>
+          <BaseButton
+            label="..."
+            no-border
+            :title="$t('files.breadcrumbsShowAll')"
+            class="pl-1 pr-1 text-lg"
+            data-testid="breadcrumb-expand"
+            @click="expanded = true"
+          />
         </li>
       </template>
     </ol>

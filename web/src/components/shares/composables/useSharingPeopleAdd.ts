@@ -15,7 +15,7 @@ import {
   SUBTREE_HARD_CAP,
   SUBTREE_DETERMINATE_THRESHOLD
 } from '!/shares'
-import { errorNotification, notification } from '!/index'
+import { errorNotification, notification, humanizeError } from '!/index'
 
 import type {
   AppFile,
@@ -325,7 +325,7 @@ export function useSharingPeopleAdd(props: SharingPeopleAddProps, emit: SharingP
             discoverError.value = err.message
         }
       } else {
-        discoverError.value = (err as Error).message || t('shares.add.discoverFailed')
+        discoverError.value = humanizeError(err) || t('shares.add.discoverFailed')
       }
     } finally {
       if (progress.value.phase === 'discovering') {

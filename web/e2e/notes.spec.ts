@@ -30,6 +30,76 @@ test.describe('New File button — A1 create flow', () => {
     await expect(page.locator('.md-raw-textarea')).toHaveValue(/from-browser/)
   })
 
+  test('the toolbar button turns the current line into a task item', async ({ page }) => {
+    await setup(page)
+    await createNoteFromBrowser(page, 'tasks-button.md')
+
+    // Seed a paragraph through the raw view, then click into its text —
+    // clicking rendered text is the one caret placement that's reliable.
+    await openRawMarkdown(page)
+    await typeRawMarkdown(page, '# tasks-button\n\nfrom the button\n')
+    await saveViaButton(page)
+    await page.locator('[name="md-actions"]').click()
+    await page.getByRole('button', { name: 'WYSIWYG editor', exact: true }).click()
+
+    // With the caret on the paragraph, the toolbar button turns it into a
+    // task item — no bracket syntax involved.
+    await page.locator('.ProseMirror').getByText('from the button').click()
+    await page.locator('[name="md-task-list"]').click()
+
+    const box = page.locator('.task-checkbox')
+    await expect(box).toHaveCount(1)
+
+    await saveViaButton(page)
+    await openRawMarkdown(page)
+    await expect(page.locator('.md-raw-textarea')).toHaveValue(/\[ \] from the button/)
+  })
+
+  test('task-list checkboxes toggle by click and serialize as [x]', async ({ page }) => {
+    await setup(page)
+    await createNoteFromBrowser(page, 'tasks.md')
+
+    await openRawMarkdown(page)
+    await typeRawMarkdown(page, '# Tasks\n\n- [ ] buy milk\n- [x] water plants\n')
+    await saveViaButton(page)
+
+    // Back to the WYSIWYG editor — the task items must render real,
+    // clickable checkboxes reflecting the parsed state.
+    await page.locator('[name="md-actions"]').click()
+    await page.getByRole('button', { name: 'WYSIWYG editor', exact: true }).click()
+
+    const boxes = page.locator('.task-checkbox')
+    await expect(boxes).toHaveCount(2)
+    await expect(boxes.nth(0)).not.toBeChecked()
+    await expect(boxes.nth(1)).toBeChecked()
+
+    // The editor owns the checkbox styling — the app's global form reset
+    // must not repaint the checked state in its own colors.
+    await expect(boxes.nth(1)).toHaveCSS('background-color', 'rgb(238, 132, 52)')
+
+    await boxes.nth(0).click()
+    await expect(boxes.nth(0)).toBeChecked()
+    await saveViaButton(page)
+
+    // The toggle must land in the markdown itself.
+    await openRawMarkdown(page)
+    await expect(page.locator('.md-raw-textarea')).toHaveValue(/\[x\] buy milk/)
+  })
+
+  test('the editor canvas follows the app theme', async ({ page }) => {
+    await setup(page)
+    await createNoteFromBrowser(page, 'themed.md')
+
+    const canvas = page.locator('.milkdown-wrapper')
+    await expect(canvas).toHaveCSS('background-color', 'rgb(24, 24, 24)')
+
+    await page.getByTestId('theme-toggle').click()
+    await expect(canvas).toHaveCSS('background-color', 'rgb(250, 250, 249)')
+
+    await page.getByTestId('theme-toggle').click()
+    await expect(canvas).toHaveCSS('background-color', 'rgb(24, 24, 24)')
+  })
+
   test('appends .md extension when the user forgets it', async ({ page }) => {
     await setup(page)
     await createNoteFromBrowser(page, 'shopping-list')
@@ -99,29 +169,16 @@ test.describe('Formatting — A1 toolbar commands', () => {
     await setup(page)
     await createNoteFromBrowser(page, 'bold.md')
 
-    // Switch directly to WYSIWYG (the editor's default mode) and type
-    // into ProseMirror. The raw textarea path is separate and doesn't
-    // go through the toolbar commands.
-    const prose = page.locator('.milkdown-wrapper .ProseMirror').first()
-    await prose.waitFor({ state: 'visible' })
-    await prose.click()
+    // Seed a paragraph through the raw view, then act on its rendered
+    // text — clicking text is the one caret placement that's reliable.
+    await openRawMarkdown(page)
+    await typeRawMarkdown(page, '# bold\n\nMARKER\n')
+    await saveViaButton(page)
+    await page.locator('[name="md-actions"]').click()
+    await page.getByRole('button', { name: 'WYSIWYG editor', exact: true }).click()
 
-    // Move the caret to end of document, then type a marker word.
-    await page.keyboard.press('Control+End')
-    await page.keyboard.type('MARKER')
-
-    // Select the word we just typed by holding Shift while walking the
-    // caret back across the six characters of "MARKER". Holding Shift
-    // throughout (rather than press-and-release per iteration) is what
-    // keeps the selection extending — every Shift keyup between presses
-    // can collapse the ProseMirror selection on slower CI runners.
-    await page.keyboard.down('Shift')
-    for (let i = 0; i < 6; i++) {
-      await page.keyboard.press('ArrowLeft')
-    }
-    await page.keyboard.up('Shift')
-
-    // Apply Bold via the toolbar button.
+    // Double-click selects the word; apply Bold via the toolbar button.
+    await page.locator('.ProseMirror').getByText('MARKER').dblclick()
     await page.locator('[name="md-bold"]').click()
 
     // Explicit save — we want a deterministic flush before reading the

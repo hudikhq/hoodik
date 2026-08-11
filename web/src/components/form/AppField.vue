@@ -8,7 +8,7 @@ const { toClipboard } = useClipboard()
 const originalClass =
   'w-full px-4 py-2 transition duration-150 ease-in-out rounded-lg ' +
   'bg-white dark:bg-brownish-800 ' +
-  'border border-brownish-50 dark:border-brownish-600 ' +
+  'border border-paper-300 dark:border-brownish-600 ' +
   'text-brownish-900 dark:text-white ' +
   'placeholder-brownish-100/60 dark:placeholder-brownish-400 ' +
   'focus:outline-none focus:ring-2 focus:ring-offset-0 ' +
@@ -25,6 +25,7 @@ const props = defineProps<{
   allowCopy?: boolean | undefined
   placeholder?: string | undefined
   disabled?: boolean | undefined
+  readonly?: boolean | undefined
   modelValue?: string | undefined
   required?: boolean | undefined
   error?: string
@@ -104,8 +105,8 @@ const copy = () => {
       </div>
       <div class="float-right w-1/2 mb-2" v-if="allowCopy">
         <button
-          class="float-right text-center justify-center text-xs text-brownish-50 dark:text-brownish-100"
-          :class="{ 'text-greeny-400 dark:text-greeny-300': copied }"
+          class="float-right text-center justify-center text-xs text-brownish-200 dark:text-brownish-50"
+          :class="{ 'text-greeny-500 dark:text-greeny-300': copied }"
           @click.prevent="copy"
         >
           {{ copied ? $t('nav.clipboard.saved') : $t('nav.clipboard.copy') }}
@@ -121,6 +122,7 @@ const copy = () => {
         as="textarea"
         v-model="model"
         :name="name"
+        :readonly="readonly"
         :disabled="disabled || form?.isSubmitting.value"
         ref="input"
         @input="update"
@@ -148,13 +150,13 @@ const copy = () => {
         />
       </Field>
     </div>
-    <div v-if="help" class="text-xs text-brownish-100 dark:text-brownish-100 mt-1">
+    <div v-if="help" class="text-xs text-brownish-200 dark:text-brownish-50 mt-1">
       {{ help }}
     </div>
 
     <ErrorMessage
       :name="name"
-      class="block text-sm text-redish-700 dark:text-redish-500 ml-2 mb-[-1.25rem]"
+      class="block text-sm text-redish-700 dark:text-redish-100 ml-2 mb-[-1.25rem]"
     />
   </div>
 </template>

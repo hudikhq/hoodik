@@ -71,23 +71,25 @@ onMounted(() => loadFolders(currentId.value))
 </script>
 
 <template>
-  <div class="border border-brownish-200 dark:border-brownish-700 rounded-lg overflow-hidden">
+  <div class="border border-paper-300 dark:border-brownish-700 rounded-lg overflow-hidden">
     <div
-      class="flex items-center gap-2 px-3 py-2 bg-brownish-50 dark:bg-brownish-800 border-b border-brownish-200 dark:border-brownish-700 text-sm"
+      class="flex items-center gap-2 px-3 py-2 bg-paper-50 dark:bg-brownish-800 border-b border-paper-300 dark:border-brownish-700 text-sm"
     >
       <button
         v-if="stack.length"
         type="button"
-        class="flex items-center gap-1 text-orangy-500 hover:text-orangy-400 transition-colors"
+        :title="$t('common.back')"
+        :aria-label="$t('common.back')"
+        class="flex items-center gap-1 text-orangy-800 dark:text-orangy-400 hover:text-orangy-900 dark:hover:text-orangy-300 transition-colors"
         @click="back"
       >
         <BaseIcon :path="mdiArrowLeft" :size="14" />
       </button>
-      <BaseIcon :path="mdiFolder" :size="16" class="text-orangy-400" />
-      <span class="text-brownish-600 dark:text-brownish-300 truncate">{{ currentName }}</span>
+      <BaseIcon :path="mdiFolder" :size="16" class="text-orangy-700 dark:text-orangy-400" />
+      <span class="text-brownish-600 dark:text-brownish-50 truncate">{{ currentName }}</span>
     </div>
 
-    <div v-if="loading" class="px-3 py-4 text-center text-sm text-brownish-400">
+    <div v-if="loading" class="px-3 py-4 text-center text-sm text-brownish-400 dark:text-brownish-50">
       {{ $t('common.loading') }}
     </div>
 
@@ -95,15 +97,15 @@ onMounted(() => loadFolders(currentId.value))
       <li
         v-for="folder in folders"
         :key="folder.id"
-        class="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer transition-colors hover:bg-brownish-50 dark:hover:bg-brownish-700/50"
+        class="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer transition-colors hover:bg-paper-50 dark:hover:bg-brownish-700/50"
         @click="open(folder)"
       >
-        <BaseIcon :path="mdiFolder" :size="16" class="flex-shrink-0 text-orangy-400" />
-        <span class="truncate dark:text-brownish-300">{{ folder.name }}</span>
+        <BaseIcon :path="mdiFolder" :size="16" class="flex-shrink-0 text-orangy-700 dark:text-orangy-400" />
+        <span class="truncate dark:text-brownish-50">{{ folder.name }}</span>
       </li>
     </ul>
 
-    <div v-else class="px-3 py-3 text-center text-xs text-brownish-400">
+    <div v-else class="px-3 py-3 text-center text-xs text-brownish-400 dark:text-brownish-50">
       {{ $t('ui.folderPicker.noSubfolders') }}
     </div>
   </div>

@@ -2,12 +2,13 @@
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
+import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import { store } from '!/auth/login'
 import { store as cryptoStore } from '!/crypto'
 import { mdiLock } from '@mdi/js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { useRouter } from 'vue-router'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { hasAuthentication, pk } from '!/auth'
 import * as logger from '!/logger'
 import { AppButton } from '@/components/form'
@@ -64,6 +65,8 @@ const handle = () => {
 /**
  * Forget the stored private key and redirect to login page
  */
+const forgetConfirm = ref(false)
+
 const forget = async () => {
   pk.clearPin()
   router.push({ name: 'login', replace: true })
@@ -73,7 +76,7 @@ handle()
 </script>
 <template>
   <LayoutGuest>
-    <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
+    <SectionFullScreen v-slot="{ cardClass }">
       <CardBox :class="`${cardClass} text-center`">
         <div class="h-5 text-center">
           <p class="text-sm">
@@ -82,14 +85,25 @@ handle()
         </div>
 
         <div class="text-center mt-10 mb-10">
-          <BaseIcon :path="mdiLock" size="150" w="w-50" h="h-50" class="text-greeny-400" />
+          <BaseIcon :path="mdiLock" :size="64" w="w-16" h="h-16" class="text-greeny-500 dark:text-greeny-300" />
         </div>
 
         <BaseButton :to="{ name: 'decrypt' }" class="float-left" :label="$t('auth.unlock')" />
 
-        <AppButton @click="forget" type="button" class="float-right" color="danger">
+        <AppButton @click="forgetConfirm = true" type="button" class="float-right" color="danger">
           {{ $t('auth.lock.forgetAccount') }}
         </AppButton>
+
+        <CardBoxModal
+          v-model="forgetConfirm"
+          :title="$t('auth.lock.forgetConfirmTitle')"
+          button="danger"
+          :button-label="$t('auth.lock.forgetConfirmLabel')"
+          :has-cancel="true"
+          @confirm="forget"
+        >
+          {{ $t('auth.lock.forgetConfirmBody') }}
+        </CardBoxModal>
       </CardBox>
     </SectionFullScreen>
   </LayoutGuest>

@@ -5,11 +5,14 @@ import { RouterLink, RouterView } from 'vue-router'
 
 import LayoutAuthenticatedWithLoader from '@/layouts/LayoutAuthenticatedWithLoader.vue'
 import SectionMain from '@/components/ui/SectionMain.vue'
+import BaseIcon from '@/components/ui/BaseIcon.vue'
+import { mdiAlertCircleOutline } from '@mdi/js'
 import { useCapability } from '@/composables/useCapability'
 import { store as sharesStoreFactory, capabilitiesStore } from '!/shares'
+import { errorNotification } from '!/index'
 
 const { t } = useI18n()
-const { sharingEnabled } = useCapability()
+const { sharingEnabled, fetchError } = useCapability()
 const caps = capabilitiesStore()
 const shares = sharesStoreFactory()
 
@@ -47,9 +50,10 @@ async function refreshIncoming(): Promise<void> {
   if (!sharingEnabled.value) return
   try {
     await shares.loadIncoming(50, 0)
-  } catch {
-    // The store has surfaced the error; the UI keeps rendering whatever
-    // cached rows it already has.
+  } catch (err) {
+    // The store records the failure but nothing renders it, so an empty
+    // list would read as "nobody has shared anything with you".
+    errorNotification(err)
   }
 }
 
@@ -62,11 +66,21 @@ onMounted(() => {
   <LayoutAuthenticatedWithLoader v-slot="{ authenticated, keypair }">
     <SectionMain v-if="authenticated">
       <div class="flex flex-col gap-4">
+        <div
+          v-if="fetchError"
+          role="alert"
+          class="flex items-start gap-2 rounded-md border border-orangy-500/30 bg-orangy-500/10 px-3 py-2 text-sm text-orangy-700 dark:border-orangy-400/25 dark:bg-orangy-400/10 dark:text-orangy-200"
+          data-testid="share-capabilities-error"
+        >
+          <BaseIcon :path="mdiAlertCircleOutline" :size="16" w="w-4" h="h-4" class="mt-0.5 shrink-0" />
+          <span>{{ $t(fetchError) }}</span>
+        </div>
+
         <header class="flex items-center justify-between gap-3">
           <h1 class="text-xl sm:text-2xl font-semibold">{{ $t('common.share') }}</h1>
           <div
             v-if="unreadCount > 0"
-            class="text-xs px-2.5 py-1 rounded-full bg-redish-500 text-white font-medium"
+            class="text-xs px-2.5 py-1 rounded-full bg-redish-500 text-white font-semibold"
             data-testid="share-hub-unread-badge"
           >
             {{ $t('shares.hub.newBadge', { count: unreadCount }) }}
@@ -74,7 +88,7 @@ onMounted(() => {
         </header>
 
         <nav
-          class="flex items-center gap-1 sm:gap-3 border-b border-brownish-200 dark:border-brownish-700 overflow-x-auto scrollbar-hide"
+          class="flex items-center gap-1 sm:gap-3 border-b border-paper-300 dark:border-brownish-700 overflow-x-auto scrollbar-hide"
           data-testid="share-hub-subtabs"
         >
           <RouterLink
@@ -83,9 +97,9 @@ onMounted(() => {
             :to="tab.to"
             :data-testid="tab.testid"
             class="min-h-11 inline-flex items-center px-3 sm:px-4 py-2 text-sm border-b-2 -mb-px whitespace-nowrap transition-colors"
-            active-class="border-redish-500 text-redish-500 dark:text-redish-200 font-medium"
-            exact-active-class="border-redish-500 text-redish-500 dark:text-redish-200 font-medium"
-            :class="'border-transparent text-brownish-400 dark:text-brownish-300 hover:text-brownish-700 dark:hover:text-brownish-100'"
+            active-class="border-redish-500 text-redish-500 dark:text-redish-100 font-medium"
+            exact-active-class="border-redish-500 text-redish-500 dark:text-redish-100 font-medium"
+            :class="'border-transparent text-brownish-400 dark:text-brownish-50 hover:text-brownish-700 dark:hover:text-white'"
           >
             {{ tab.label }}
           </RouterLink>

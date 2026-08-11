@@ -42,7 +42,7 @@ function goToRecoveryKey() {
     @confirm="acknowledge"
   >
     <div class="flex items-start gap-3">
-      <BaseIcon :path="mdiShieldCheck" size="32" class="text-greeny-500 shrink-0 mt-1" />
+      <BaseIcon :path="mdiShieldCheck" size="32" class="text-greeny-500 dark:text-greeny-300 shrink-0 mt-1" />
       <div class="space-y-3 text-sm">
         <p>
           {{ $t('account.migration.body1') }}

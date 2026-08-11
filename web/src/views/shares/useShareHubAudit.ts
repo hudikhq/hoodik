@@ -10,7 +10,7 @@ import {
   DiscoverUserError
 } from '!/shares'
 import { meta as storageMeta } from '!/storage'
-import { errorNotification } from '!/index'
+import { errorNotification, notification } from '!/index'
 
 import type { AuditEventAction, KeyPair, ShareEvent, ShareRole } from 'types'
 
@@ -448,6 +448,23 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
     return expandedRows.value.has(rowId)
   }
 
+  /**
+   * The recipient filter runs client-side over the events already loaded, so
+   * the only ids it can ever match are the ones in that set. Offering those as
+   * a list beats a free-text id field: the log shows recipients by email and
+   * never shows their id, so there was nowhere to copy one from.
+   */
+  const recipientOptions = computed(() => {
+    const seen = new Map<string, string>()
+    for (const row of shares.events) {
+      if (!row.recipient_id || seen.has(row.recipient_id)) continue
+      seen.set(row.recipient_id, recipientEmail(row) || row.recipient_id.slice(0, 8))
+    }
+    return [...seen.entries()]
+      .map(([id, email]) => ({ id, email }))
+      .sort((a, b) => a.email.localeCompare(b.email))
+  })
+
   const hasActiveFilter = computed(() => {
     return Boolean(
       fileIdFilter.value ||
@@ -485,9 +502,12 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
     }
     try {
       await navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
+      notification(t('common.copied'), undefined, 'success')
     } catch {
-      // Clipboard access can fail in narrow embed contexts; the
-      // disclosure remains visible so the user can copy by hand.
+      // Clipboard access can fail in narrow embed contexts. The disclosure
+      // stays on screen either way, but the click has to say which of the
+      // two happened.
+      notification(t('errors.requestFailed'), t('errors.copyFailed'), 'error')
     }
   }
 
@@ -577,6 +597,7 @@ export function useShareHubAudit(keypair: Ref<KeyPair | undefined>) {
     endDate,
     loading,
     filteredRows,
+    recipientOptions,
     hasActiveFilter,
     refresh,
     rowSentence,

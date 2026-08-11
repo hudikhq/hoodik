@@ -45,7 +45,7 @@ onUnmounted(() => {
   />
   <div v-else class="flex flex-col justify-center items-center gap-2 w-full flex-1">
     <SpinnerIcon />
-    <span v-if="downloadPercent > 0" class="text-sm text-brownish-100">
+    <span v-if="downloadPercent > 0" class="text-sm text-brownish-50">
       {{ downloadPercent }}%
     </span>
   </div>

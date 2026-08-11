@@ -2,7 +2,7 @@
 import { ref, watch, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { MilkdownProvider } from '@milkdown/vue'
-import { mdiNotePlusOutline } from '@mdi/js'
+import { mdiAlertCircleOutline, mdiNotePlusOutline } from '@mdi/js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import FolderPicker from '@/components/ui/FolderPicker.vue'
@@ -16,7 +16,7 @@ import { store as loginStore } from '!/auth/login'
 import VersionHistory from '@/components/preview/VersionHistory.vue'
 import { useMarkdownSave } from '@/components/editor/composables/useMarkdownSave'
 import { exportPdf } from '@/components/editor/composables/useMarkdownExport'
-import { notification } from '!/index'
+import { errorNotification, notification } from '!/index'
 import * as meta from '!/storage/meta'
 import { emitFileTreeChange } from '!/storage/events'
 import { store as storageStore } from '!/storage'
@@ -60,8 +60,10 @@ const canConvertToNote = computed(() => {
 
 const markdownContent = ref('')
 const isLoaded = ref(false)
+const loadError = ref('')
 const showRaw = ref(false)
 const isConverting = ref(false)
+const isExporting = ref(false)
 
 const editorRef = ref<InstanceType<typeof MilkdownEditorInner>>()
 const toolbarRef = ref<InstanceType<typeof MarkdownToolbar>>()
@@ -136,7 +138,9 @@ async function convertToNote() {
     await nextTick()
     isLoaded.value = true
   } catch (err) {
-    console.error('Failed to convert file to note:', err)
+    // Nothing on screen changes when this fails, so the button just looks
+    // dead unless the failure is announced.
+    errorNotification(err)
   } finally {
     isConverting.value = false
   }
@@ -194,8 +198,22 @@ async function confirmMove() {
   showMoveModal.value = false
 }
 
-function handleExportPdf() {
-  exportPdf(editorWrapperRef.value, preview.value.name || 'document')
+async function handleExportPdf() {
+  if (isExporting.value) return
+
+  // Rasterizing a long note takes seconds with no visual change, so an
+  // unguarded handler reads as a dead menu item and invites a second click.
+  isExporting.value = true
+  try {
+    const dropped = await exportPdf(editorWrapperRef.value, preview.value.name || 'document')
+    if (dropped > 0) {
+      notification(t('errors.requestFailed'), t('errors.pdfImagesDropped'), 'error')
+    }
+  } catch (err) {
+    errorNotification(err)
+  } finally {
+    isExporting.value = false
+  }
 }
 
 function runCommand(command: string, payload?: unknown) {
@@ -213,13 +231,21 @@ async function load() {
   isDirty.value = false
   saveStatus.value = 'idle'
   editableOverride.value = undefined
+  loadError.value = ''
 
-  const data = await props.modelValue.load()
-  const decoder = new TextDecoder()
-  markdownContent.value = decoder.decode(data)
-  setLastSaved(markdownContent.value)
+  try {
+    const data = await props.modelValue.load()
+    const decoder = new TextDecoder()
+    markdownContent.value = decoder.decode(data)
+    setLastSaved(markdownContent.value)
 
-  isLoaded.value = true
+    isLoaded.value = true
+  } catch (err) {
+    // The whole editor is gated on isLoaded, so a failure here used to
+    // render an empty pane with no explanation and no way back.
+    const failure = err as { description?: string; message?: string }
+    loadError.value = failure.description || failure.message || t('errors.unknown')
+  }
 }
 
 watch(() => props.modelValue, load, { immediate: true })
@@ -333,7 +359,17 @@ defineExpose({ exportPdf: handleExportPdf })
 </script>
 
 <template>
-  <div v-if="isLoaded" class="flex flex-col w-full h-full overflow-hidden">
+  <div
+    v-if="loadError"
+    class="flex flex-col items-center justify-center gap-2 w-full h-full text-redish-700 dark:text-redish-100"
+    role="alert"
+    data-testid="note-load-error"
+  >
+    <BaseIcon :path="mdiAlertCircleOutline" :size="32" />
+    <p class="text-sm">{{ loadError }}</p>
+  </div>
+
+  <div v-else-if="isLoaded" class="flex flex-col w-full h-full overflow-hidden">
     <!-- Toolbar -->
     <div v-if="showToolbar" class="md-toolbar flex items-center gap-1 px-4 py-2 flex-shrink-0 flex-wrap">
       <MarkdownToolbar
@@ -408,7 +444,7 @@ defineExpose({ exportPdf: handleExportPdf })
         :keypair="Crypto.keypair"
         @navigate="({ id, name }) => { moveFolderId = id; moveFolderName = name }"
       />
-      <i18n-t keypath="preview.markdown.moveDestination" tag="p" scope="global" class="mt-2 text-xs text-brownish-400">
+      <i18n-t keypath="preview.markdown.moveDestination" tag="p" scope="global" class="mt-2 text-xs text-brownish-400 dark:text-brownish-50">
         <template #name>{{ preview.name }}</template>
         <template #folder><strong>{{ moveFolderName }}</strong></template>
       </i18n-t>
@@ -482,8 +518,13 @@ defineExpose({ exportPdf: handleExportPdf })
 
 <style scoped>
 .md-toolbar {
+  background: #FAFAF9;
+  border-bottom: 1px solid rgba(238, 132, 52, 0.25);
+}
+
+.dark .md-toolbar {
   background: #1a1a1a;
-  border-bottom: 1px solid rgba(238, 132, 52, 0.15);
+  border-bottom-color: rgba(238, 132, 52, 0.15);
 }
 
 .md-convert-banner {
@@ -491,25 +532,34 @@ defineExpose({ exportPdf: handleExportPdf })
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: rgba(139, 169, 224, 0.06);
-  border-bottom: 1px solid rgba(139, 169, 224, 0.12);
-  color: #8BA9E0;
+  background: rgba(88, 105, 148, 0.08);
+  border-bottom: 1px solid rgba(88, 105, 148, 0.18);
+  color: #4A5A7A;
   font-size: 0.8125rem;
   flex-shrink: 0;
 }
 
+.dark .md-convert-banner {
+  background: rgba(139, 169, 224, 0.06);
+  border-bottom-color: rgba(139, 169, 224, 0.12);
+  color: #8BA9E0;
+}
+
 .md-convert-link {
-  color: #EE9B5C;
+  color: #C76F2C;
   font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 2px;
   transition: color 150ms;
 }
 
-.md-convert-link:hover { color: #F2AC78; }
+.md-convert-link:hover { color: #9F5822; }
+.dark .md-convert-link { color: #EE9B5C; }
+.dark .md-convert-link:hover { color: #F2AC78; }
 .md-convert-link:disabled { opacity: 0.5; cursor: wait; }
 
-.md-raw-wrapper { background: #141414; }
+.md-raw-wrapper { background: #F4F4F3; }
+.dark .md-raw-wrapper { background: #141414; }
 
 .md-raw-textarea {
   width: 100%;
@@ -520,7 +570,7 @@ defineExpose({ exportPdf: handleExportPdf })
   display: block;
   padding: 2rem 2.5rem;
   background: transparent;
-  color: #b0b0b0;
+  color: #4A4A4A;
   font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace;
   font-size: 0.875rem;
   line-height: 1.8;
@@ -530,8 +580,12 @@ defineExpose({ exportPdf: handleExportPdf })
   tab-size: 2;
 }
 
+.dark .md-raw-textarea { color: #b0b0b0; }
+
 .md-raw-wrapper::-webkit-scrollbar { width: 8px; }
 .md-raw-wrapper::-webkit-scrollbar-track { background: transparent; }
-.md-raw-wrapper::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 4px; }
-.md-raw-wrapper::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+.md-raw-wrapper::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); border-radius: 4px; }
+.md-raw-wrapper::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.25); }
+.dark .md-raw-wrapper::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); }
+.dark .md-raw-wrapper::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
 </style>

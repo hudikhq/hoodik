@@ -48,12 +48,12 @@ onMounted(() => {
       :class="{
         '!border !border-greeny-300 dark:!border-greeny-700': props.highlighted
       }"
-      class="w-full flex pl-11 pt-3.5 pb-3.5 dark:bg-brownish-900"
+      class="w-full flex pl-11 pt-3.5 pb-3.5 bg-paper-50 dark:bg-brownish-900"
       v-if="!visible"
     >
       <div class="flex items-start">
-        <div class="w-6 h-6 mr-2 rounded-md bg-brownish-50 dark:bg-brownish-800"></div>
-        <div class="w-32 h-6 mr-2 rounded-md bg-brownish-50 dark:bg-brownish-800"></div>
+        <div class="w-6 h-6 mr-2 rounded-md bg-paper-50 dark:bg-brownish-800"></div>
+        <div class="w-32 h-6 mr-2 rounded-md bg-paper-50 dark:bg-brownish-800"></div>
       </div>
     </div>
     <TableLinkRow

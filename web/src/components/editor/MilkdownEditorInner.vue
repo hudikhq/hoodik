@@ -9,6 +9,7 @@ import { prism } from '@milkdown/plugin-prism'
 import { history } from '@milkdown/plugin-history'
 import { nord } from '@milkdown/theme-nord'
 import { replaceAll, callCommand } from '@milkdown/utils'
+import { taskListItemView, toggleTaskListCommand } from '@hoodik/editor'
 import { createKeyboardShortcutsPlugin } from './plugins/keyboard-shortcuts'
 import { htmlRenderView } from './plugins/html-render'
 import { createHeadingAnchorPlugin } from './plugins/heading-anchor'
@@ -58,6 +59,8 @@ useEditor((container) => {
     .use(prism)
     .use(history)
     .use(htmlRenderView)
+    .use(taskListItemView)
+    .use(toggleTaskListCommand)
     .use(createHeadingAnchorPlugin())
 
   if (props.editable) {
@@ -69,8 +72,24 @@ useEditor((container) => {
 
 const [loadingRef, getEditor] = useInstance()
 
-function runCommand(commandKey: string, payload?: unknown) {
-  if (loadingRef.value) return
+function editorReady(): Promise<void> {
+  if (!loadingRef.value) return Promise.resolve()
+  return new Promise((resolve) => {
+    const stop = watch(loadingRef, (loading) => {
+      if (!loading) {
+        stop()
+        resolve()
+      }
+    })
+  })
+}
+
+// The ProseMirror view renders before the editor finishes initializing,
+// so a toolbar click can arrive while commands aren't callable yet.
+// Waiting instead of dropping the command keeps that click from being
+// a silent no-op.
+async function runCommand(commandKey: string, payload?: unknown) {
+  await editorReady()
   const editor = getEditor()
   if (!editor) return
 

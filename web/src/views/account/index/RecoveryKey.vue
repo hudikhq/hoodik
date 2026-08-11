@@ -55,32 +55,35 @@ async function copy() {
     </i18n-t>
 
     <div class="mt-4 flex flex-wrap gap-2">
-      <AppButton
-        type="button"
-        :icon="revealed ? mdiEyeOff : mdiEye"
-        :label="revealed ? $t('account.recoveryKey.hide') : $t('account.recoveryKey.reveal')"
-        color="info"
-        @click="revealed = !revealed"
-      />
+      <!-- Getting the key off this screen is what the copy above asks for, so
+           downloading is the one filled action here; revealing and copying sit
+           beside it as ordinary controls. -->
       <AppButton
         type="button"
         :icon="mdiDownload"
         :label="$t('common.download')"
-        color="success"
+        color="info"
         @click="download"
+      />
+      <AppButton
+        type="button"
+        :icon="revealed ? mdiEyeOff : mdiEye"
+        :label="revealed ? $t('account.recoveryKey.hide') : $t('account.recoveryKey.reveal')"
+        color="light"
+        @click="revealed = !revealed"
       />
       <AppButton
         type="button"
         :icon="mdiContentCopy"
         :label="$t('common.copy')"
-        color="info"
+        color="light"
         @click="copy"
       />
     </div>
 
     <pre
       v-if="revealed"
-      class="mt-4 p-3 rounded-lg bg-brownish-100 dark:bg-brownish-900 text-xs overflow-x-auto whitespace-pre-wrap break-all"
+      class="mt-4 p-3 rounded-lg bg-paper-100 dark:bg-brownish-900 text-xs overflow-x-auto whitespace-pre-wrap break-all"
       >{{ recoveryKey }}</pre
     >
   </CardBox>

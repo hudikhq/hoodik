@@ -71,12 +71,12 @@ watch(query, find, { deep: true, immediate: true })
 </script>
 <template>
   <CardBox>
-    <div class="-mx-4 -mt-4 px-6 py-4 border-b border-brownish-100 dark:border-brownish-700/50 rounded-t-2xl">
+    <div class="-mx-4 -mt-4 px-6 py-4 border-b border-paper-200 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2">
-          <BaseIcon :path="mdiHistory" :size="14" class="text-brownish-400 dark:text-brownish-100" />
-          <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('account.activity.title') }}</p>
-          <span v-if="total" class="text-xs font-medium bg-brownish-100 dark:bg-brownish-700 text-brownish-400 dark:text-brownish-300 px-2 py-0.5 rounded-full">{{ total }}</span>
+          <BaseIcon :path="mdiHistory" :size="14" class="text-brownish-400 dark:text-brownish-50" />
+          <p class="text-xs font-semibold text-brownish-400 dark:text-brownish-50">{{ $t('account.activity.title') }}</p>
+          <span v-if="total" class="text-xs font-semibold bg-paper-100 dark:bg-brownish-700 text-brownish-400 dark:text-brownish-50 px-2 py-0.5 rounded-full">{{ total }}</span>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
@@ -100,12 +100,12 @@ watch(query, find, { deep: true, immediate: true })
               v-model="search"
               :placeholder="$t('account.activity.searchPlaceholder')"
               @keyup.enter="query.search = search"
-              class="h-[34px] w-44 sm:w-56 pl-3 pr-8 text-sm rounded-lg transition duration-150 ease-in-out bg-white dark:bg-brownish-800 border border-brownish-50 dark:border-brownish-600 text-brownish-900 dark:text-white placeholder-brownish-100/60 dark:placeholder-brownish-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-redish-400/60 dark:focus:ring-redish-500/50"
+              class="h-[34px] w-44 sm:w-56 pl-3 pr-8 text-sm rounded-lg transition duration-150 ease-in-out bg-white dark:bg-brownish-800 border border-paper-300 dark:border-brownish-600 text-brownish-900 dark:text-white placeholder-brownish-100/60 dark:placeholder-brownish-400 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-redish-400/60 dark:focus:ring-redish-500/50"
             />
             <button
               type="button"
               @click="query.search = search"
-              class="absolute right-2 top-1/2 -translate-y-1/2 text-brownish-400 hover:text-brownish-900 dark:hover:text-white transition-colors"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-brownish-400 dark:text-brownish-50 hover:text-brownish-900 dark:hover:text-white transition-colors"
               :aria-label="$t('common.search')"
             >
               <BaseIcon :path="mdiSearchWeb" :size="15" />
@@ -158,18 +158,18 @@ watch(query, find, { deep: true, immediate: true })
       </table>
 
       <div v-else class="px-6 py-16 text-center">
-        <BaseIcon :path="mdiHistory" :size="32" class="text-brownish-300 dark:text-brownish-600 mx-auto mb-3" />
-        <p class="text-sm text-brownish-400">{{ $t('account.activity.empty') }}</p>
+        <BaseIcon :path="mdiHistory" :size="32" class="text-brownish-300 dark:text-brownish-50 mx-auto mb-3" />
+        <p class="text-sm text-brownish-400 dark:text-brownish-50">{{ $t('account.activity.empty') }}</p>
       </div>
 
-      <div v-if="paginated.data.length" class="flex items-center justify-between px-4 py-3 border-t border-brownish-100 dark:border-brownish-700/50">
+      <div v-if="paginated.data.length" class="flex items-center justify-between px-4 py-3 border-t border-paper-200 dark:border-brownish-700/50">
         <BaseButton
           :label="$t('account.activity.previous')"
           @click="previousPage"
           :disabled="disablePreviousPage"
           :small="true"
         />
-        <span class="text-xs text-brownish-400">
+        <span class="text-xs text-brownish-400 dark:text-brownish-50">
           {{ $t('account.activity.range', { start: rangeStart, end: rangeEnd, total }) }}
         </span>
         <BaseButton

@@ -72,15 +72,15 @@ init()
 </script>
 <template>
   <LayoutGuest>
-    <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
+    <SectionFullScreen v-slot="{ cardClass }">
       <CardBox :class="cardClass">
-        <h1 class="text-2xl text-white">{{ $t('auth.register.title') }}</h1>
+        <h1 class="text-2xl text-brownish-700 dark:text-white">{{ $t('auth.register.title') }}</h1>
 
         <div v-if="registrationDisabled" class="mt-8 space-y-6" data-testid="registration-disabled">
-          <p class="text-sm text-dirty-white">
+          <p class="text-sm text-brownish-400 dark:text-brownish-50">
             {{ $t('auth.register.disabled') }}
           </p>
-          <p class="text-sm text-brownish-300">
+          <p class="text-sm text-brownish-300 dark:text-brownish-50">
             {{ $t('auth.register.useInvitation') }}
           </p>
           <BaseButton
@@ -111,7 +111,7 @@ init()
             :label="$t('auth.yourPassword')"
             name="password"
             autocomplete="new-password"
-            placeholder="*********"
+            placeholder="••••••••"
           />
           <AppField
             :allow-copy="false"
@@ -120,15 +120,15 @@ init()
             :label="$t('auth.register.confirmPassword')"
             name="confirm_password"
             autocomplete="new-password"
-            placeholder="*********"
+            placeholder="••••••••"
           />
           <AppButton color="info" type="submit">{{ $t('common.next') }}</AppButton>
 
-          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-100">
+          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-50">
             {{ $t('auth.alreadyHaveAccount') }}
             <router-link
               :to="{ name: 'login' }"
-              class="text-primary-700 hover:underline dark:text-primary-500"
+              class="text-primary-700 hover:underline dark:text-primary-100"
               >{{ $t('common.login') }}</router-link
             >
           </div>

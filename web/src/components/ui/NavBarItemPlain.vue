@@ -20,7 +20,7 @@ const styleStore = store()
       styleStore.navBarItemLabelHoverStyle,
       useMargin ? 'my-2 mx-3' : 'py-2 px-3'
     ]"
-    class="items-center cursor-pointer dark:text-white dark:hover:text-brownish-400"
+    class="items-center cursor-pointer dark:text-white dark:hover:text-brownish-50"
   >
     <slot />
   </div>

@@ -122,7 +122,16 @@ const canDelete = computed(() => {
     @click="emits('details', file)"
     :label="$t('files.actions.details')"
     name="details"
-    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
+    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-paper-100 dark:hover:bg-brownish-600"
+  />
+
+  <PureButton
+    v-if="canRename"
+    :icon="mdiPencil"
+    @click="emits('rename', file)"
+    :label="$t('common.rename')"
+    name="rename"
+    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-paper-100 dark:hover:bg-brownish-600"
   />
 
   <PureButton
@@ -134,7 +143,7 @@ const canDelete = computed(() => {
     }"
     :label="$t('files.actions.preview')"
     name="preview"
-    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
+    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-paper-100 dark:hover:bg-brownish-600"
   />
 
   <PureButton
@@ -143,7 +152,7 @@ const canDelete = computed(() => {
     v-if="hasDownload"
     :label="$t('common.download')"
     name="download"
-    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
+    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-paper-100 dark:hover:bg-brownish-600"
   />
 
   <PureButton
@@ -153,7 +162,7 @@ const canDelete = computed(() => {
     :label="$t('files.actions.sharing')"
     name="sharing"
     data-testid="actions-share-account"
-    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
+    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-paper-100 dark:hover:bg-brownish-600"
   />
 
   <PureButton
@@ -164,7 +173,7 @@ const canDelete = computed(() => {
     :title="$t('files.actions.forkTitle')"
     name="fork"
     data-testid="actions-fork"
-    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
+    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-paper-100 dark:hover:bg-brownish-600"
   />
 
   <PureButton
@@ -174,7 +183,7 @@ const canDelete = computed(() => {
     :label="$t('common.remove')"
     name="leave"
     data-testid="actions-leave"
-    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
+    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-paper-100 dark:hover:bg-brownish-600"
   />
 
   <PureButton
@@ -183,15 +192,6 @@ const canDelete = computed(() => {
     @click="emits('remove', file)"
     :label="$t('common.delete')"
     name="delete"
-    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
-  />
-
-  <PureButton
-    v-if="canRename"
-    :icon="mdiPencil"
-    @click="emits('rename', file)"
-    :label="$t('common.rename')"
-    name="rename"
-    class="block text-left p-2 sm:p-0 border-brownish-800 w-full hover:bg-brownish-600"
+    class="block text-left p-2 sm:p-0 w-full mt-1 pt-1 border-t border-paper-300 dark:border-brownish-600 text-redish-500 dark:text-redish-100 hover:bg-paper-100 dark:hover:bg-brownish-600"
   />
 </template>

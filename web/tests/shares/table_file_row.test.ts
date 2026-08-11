@@ -4,8 +4,9 @@ import { mount } from '@vue/test-utils'
 
 import TableFileRow from '../../src/views/files/index-view/TableFileRow.vue'
 import { SHARED_WITH_ME_DIR_ID } from '../../services/storage'
+import { store as uploadStore } from '../../services/storage/upload'
 import { isPreviewable } from '../../services/preview'
-import type { AppFile } from '../../types'
+import type { AppFile, UploadAppFile } from '../../types'
 
 const routerPush = vi.fn()
 vi.mock('vue-router', () => ({
@@ -168,18 +169,32 @@ describe('isPreviewable: shared image without decrypted thumbnail', () => {
 })
 
 describe('TableFileRow: still-uploading row', () => {
-  it('marks the row as uploading instead of rendering it as complete', () => {
-    const wrapper = mountRow(baseFile({ finished_upload_at: undefined, chunks: 0 }))
+  it('marks the row as uploading while the queue is working on it', () => {
+    const file = baseFile({ finished_upload_at: undefined, chunks: 0 })
+    uploadStore().running.push(file as UploadAppFile)
+
+    const wrapper = mountRow(file)
     const progress = wrapper.find('.border-greeny-500')
 
     expect(wrapper.find('[data-testid="uploading-icon"]').exists()).toBe(true)
     expect(progress.attributes('style')).toContain('width: 0%')
   })
 
+  it('marks an unfinished row with no live transfer as stalled, not uploading', () => {
+    // After a refresh the in-memory queue is empty — the row must not sit
+    // on a progress bar that will never move.
+    const wrapper = mountRow(baseFile({ finished_upload_at: undefined, chunks: 0 }))
+
+    expect(wrapper.find('[data-testid="uploading-icon"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="stalled-upload-icon"]').exists()).toBe(true)
+    expect(wrapper.find('.border-greeny-500').exists()).toBe(false)
+  })
+
   it('leaves a finished row without the uploading affordances', () => {
     const wrapper = mountRow(baseFile())
 
     expect(wrapper.find('[data-testid="uploading-icon"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="stalled-upload-icon"]').exists()).toBe(false)
     expect(wrapper.find('.border-greeny-500').exists()).toBe(false)
   })
 })
@@ -190,12 +205,9 @@ describe('TableFileRow: double-click routing on shared previewable rows', () => 
   })
 
   function doubleClickRow(wrapper: ReturnType<typeof mountRow>): Promise<void> {
-    // The component's single/double-click dispatcher requires two
-    // discrete click events within its 250ms window; firing them in
-    // sequence executes the double-click branch.
-    const button = wrapper.find('button')
-    button.trigger('click')
-    return button.trigger('click') as Promise<void>
+    // The row listens for the browser's own dblclick rather than counting
+    // clicks against a timer, so this drives the real event.
+    return wrapper.find('button').trigger('dblclick') as Promise<void>
   }
 
   it('shared image with finished upload routes to file-preview (B3)', async () => {

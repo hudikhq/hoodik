@@ -125,7 +125,7 @@ await load()
   >
     <div class="absolute bottom-0" v-if="linkExpiresAt">
       <span v-if="!isExpired">{{ $t('links.view.willExpire', { date: linkExpiresAt }) }}</span>
-      <span v-else class="text-redish-300">{{ $t('links.view.hasExpired', { date: linkExpiresAt }) }}</span>
+      <span v-else class="text-redish-300 dark:text-redish-100">{{ $t('links.view.hasExpired', { date: linkExpiresAt }) }}</span>
     </div>
   </PreviewView>
   <LinkUnavailableInner v-else-if="linkUnavailable" />

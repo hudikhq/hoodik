@@ -145,7 +145,13 @@ test.describe('Audit log view', () => {
     })
     await page.getByTestId('share-dialog-role-coowner').check()
     await page.getByTestId('share-dialog-submit').click()
-    await expect(page.getByTestId('share-dialog-target')).toHaveCount(0, { timeout: 30_000 })
+
+    // A role change keeps the dialog open and reloads the roster so the new
+    // role is readable without reopening — that reloaded row is the signal the
+    // change landed, where a fresh share uses the dialog closing.
+    await expect(bobRow).toContainText('Co-owner', { timeout: 30_000 })
+    await page.getByTestId('sharing-modal-close').click()
+    await expect(page.getByTestId('share-dialog-target')).toHaveCount(0, { timeout: 15_000 })
 
     // Navigate to the audit log. The role_change row must render
     // tamper-free AND with a verified signature on disclosure.

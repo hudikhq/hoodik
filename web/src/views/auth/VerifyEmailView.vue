@@ -6,10 +6,10 @@ import { useI18n } from 'vue-i18n'
 import LayoutGuest from '@/layouts/LayoutGuest.vue'
 import SectionFullScreen from '@/components/ui/SectionFullScreen.vue'
 import CardBox from '@/components/ui/CardBox.vue'
-import type { ErrorResponse } from '!/api'
 import PuppyLoader from '@/components/ui/PuppyLoader.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import { mdiCheckCircleOutline, mdiAlertOutline } from '@mdi/js'
+import { humanizeError } from '!/index'
 
 const register = store()
 const router = useRouter()
@@ -44,8 +44,9 @@ const verify = async () => {
       router.push({ name: 'login' })
     }, 10000)
   } catch (err) {
-    const _error = err as ErrorResponse<any>
-    error.value = _error.description
+    // Must never end up empty: the template treats a falsy error as success
+    // and would show a verified checkmark for a failed verification.
+    error.value = humanizeError(err)
     working.value = false
   }
 }
@@ -54,16 +55,16 @@ verify()
 </script>
 <template>
   <LayoutGuest>
-    <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
+    <SectionFullScreen v-slot="{ cardClass }">
       <CardBox :class="`${cardClass} h-[450px] text-center`">
         <PuppyLoader v-model="working" />
 
-        <h1 class="text-2xl text-white">{{ $t('auth.verifyEmail.title') }}</h1>
+        <h1 class="text-2xl text-brownish-700 dark:text-white">{{ $t('auth.verifyEmail.title') }}</h1>
 
         <BaseIcon
           v-if="!error && !working"
           :path="mdiCheckCircleOutline"
-          class="text-greeny-400"
+          class="text-greeny-500 dark:text-greeny-300"
           :size="200"
           w="w-full"
           h="h-80"
@@ -72,20 +73,20 @@ verify()
         <BaseIcon
           v-if="error && !working"
           :path="mdiAlertOutline"
-          class="text-redish-400"
+          class="text-redish-400 dark:text-redish-100"
           :size="200"
           w="w-full"
           h="h-80"
         />
 
         <p class="dark:text-white text-brownish-900" v-if="!working && !error">
-          <span class="text-greeny-400">{{ $t('auth.verifyEmail.success') }}</span> <br />
+          <span class="text-greeny-500 dark:text-greeny-300">{{ $t('auth.verifyEmail.success') }}</span> <br />
           {{ $t('auth.verifyEmail.redirecting') }}
         </p>
 
         <p class="dark:text-white text-brownish-900" v-if="error && !working">
           {{ $t('auth.verifyEmail.failed') }} <br />
-          <span class="text-redish-400">{{ error }}</span>
+          <span class="text-redish-400 dark:text-redish-100">{{ error }}</span>
         </p>
 
         <router-link :to="{ name: 'files' }" class="underline hover:no-underline">

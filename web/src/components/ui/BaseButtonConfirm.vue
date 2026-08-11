@@ -17,13 +17,13 @@ const props = defineProps<{
   type?: string
   color?: ColorType
   as?: string
-  xs?: Boolean
-  small?: Boolean
-  outline?: Boolean
-  active?: Boolean
-  disabled?: Boolean
-  roundedFull?: Boolean
-  noBorder?: Boolean
+  xs?: boolean
+  small?: boolean
+  outline?: boolean
+  active?: boolean
+  disabled?: boolean
+  roundedFull?: boolean
+  noBorder?: boolean
   class?: String
   dropdownEl?: boolean
 }>()

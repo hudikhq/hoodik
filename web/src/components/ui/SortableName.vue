@@ -57,7 +57,7 @@ const set = () => {
 <template>
   <button
     @click="set"
-    class="p-1 m-0 flex hover:bg-brownish-500 rounded-md"
+    class="p-1 m-0 flex hover:bg-paper-200 dark:hover:bg-brownish-500 rounded-md"
     :name="label"
     :title="label"
     :class="props.class"

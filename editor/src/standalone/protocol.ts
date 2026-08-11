@@ -13,6 +13,8 @@ export type HostToEditorMessage =
   | { type: 'runCommand'; command: string; payload?: unknown }
   // Editor font scale — 1.0 = default, <1 zooms out, >1 zooms in.
   | { type: 'setZoom'; scale: number }
+  // Editor theme. The standalone boots dark; hosts with a light UI send this.
+  | { type: 'setTheme'; theme: 'dark' | 'light' }
   // B2: image resolution response from Flutter
   | { type: 'assetResolved'; requestId: string; dataUrl: string }
   | { type: 'assetResolveFailed'; requestId: string; error: string }

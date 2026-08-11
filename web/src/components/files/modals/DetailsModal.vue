@@ -72,27 +72,27 @@ const cancel = () => {
       <BaseButton :icon="mdiClose" color="dark" small rounded-full @click.prevent="cancel" />
     </CardBoxComponentTitle>
 
-    <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+    <div class="flex flex-row p-2 border-b-[1px] border-paper-200 dark:border-brownish-700">
       <div class="flex flex-col w-1/2">{{ $t('common.name') }}</div>
       <div class="flex flex-col w-1/2">{{ file.name }}</div>
     </div>
-    <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+    <div class="flex flex-row p-2 border-b-[1px] border-paper-200 dark:border-brownish-700">
       <div class="flex flex-col w-1/2">{{ $t('common.type') }}</div>
       <div class="flex flex-col w-1/2">{{ file.mime }}</div>
     </div>
-    <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+    <div class="flex flex-row p-2 border-b-[1px] border-paper-200 dark:border-brownish-700">
       <div class="flex flex-col w-1/2">{{ $t('common.size') }}</div>
       <div class="flex flex-col w-1/2">{{ size }}</div>
     </div>
-    <div class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+    <div class="flex flex-row p-2 border-b-[1px] border-paper-200 dark:border-brownish-700">
       <div class="flex flex-col w-1/2">{{ $t('common.modified') }}</div>
       <div class="flex flex-col w-1/2">{{ modified }}</div>
     </div>
-    <div v-if="!isDir" class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+    <div v-if="!isDir" class="flex flex-row p-2 border-b-[1px] border-paper-200 dark:border-brownish-700">
       <div class="flex flex-col w-1/2">{{ $t('files.details.uploaded') }}</div>
       <div class="flex flex-col w-1/2">{{ fileFinishedUploadAt || percentage }}</div>
     </div>
-    <div v-if="!isDir && file.md5" class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+    <div v-if="!isDir && file.md5" class="flex flex-row p-2 border-b-[1px] border-paper-200 dark:border-brownish-700">
       <AppField
         label="MD5"
         name="md5"
@@ -103,7 +103,7 @@ const cancel = () => {
         disabled
       />
     </div>
-    <div v-if="!isDir && file.sha1" class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+    <div v-if="!isDir && file.sha1" class="flex flex-row p-2 border-b-[1px] border-paper-200 dark:border-brownish-700">
       <AppField
         label="SHA1"
         name="sha1"
@@ -114,7 +114,7 @@ const cancel = () => {
         disabled
       />
     </div>
-    <div v-if="!isDir && file.sha256" class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+    <div v-if="!isDir && file.sha256" class="flex flex-row p-2 border-b-[1px] border-paper-200 dark:border-brownish-700">
       <AppField
         label="SHA256"
         name="sha256"
@@ -125,7 +125,7 @@ const cancel = () => {
         disabled
       />
     </div>
-    <div v-if="!isDir && file.blake2b" class="flex flex-row p-2 border-b-[1px] border-brownish-700">
+    <div v-if="!isDir && file.blake2b" class="flex flex-row p-2 border-b-[1px] border-paper-200 dark:border-brownish-700">
       <AppField
         label="BLAKE2b"
         name="blake2b"

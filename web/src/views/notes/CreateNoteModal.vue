@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
+import FormError from '@/components/ui/FormError.vue'
 import FolderPicker from '@/components/ui/FolderPicker.vue'
 import { AppForm, AppField } from '@/components/form'
 import * as yup from 'yup'
@@ -10,6 +11,7 @@ import { createNote } from '!/storage/save'
 import { emitFileTreeChange } from '!/storage/events'
 import type { ErrorResponse } from '!/api'
 import type { KeyPair } from 'types'
+import { humanizeError } from '!/index'
 
 const LAST_FOLDER_KEY = 'hoodik:notes:lastFolder'
 
@@ -86,7 +88,7 @@ const init = () => {
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
-        errorMessage.value = error.description || (err as Error).message
+        errorMessage.value = humanizeError(err)
       }
     }
   }
@@ -107,14 +109,12 @@ onMounted(() => init())
       @cancel="$emit('cancel')"
       :form="form"
     >
-      <p v-if="errorMessage" class="text-sm text-redish-900 dark:text-redish-200 mb-3">
-        {{ errorMessage }}
-      </p>
+      <FormError v-if="errorMessage">{{ errorMessage }}</FormError>
 
       <AppField :form="form" :label="$t('notes.create.nameLabel')" name="name" placeholder="Untitled.md" autofocus />
 
       <div class="mt-4">
-        <label class="block text-sm font-medium text-brownish-600 dark:text-brownish-300 mb-2">
+        <label class="block text-sm font-medium text-brownish-600 dark:text-brownish-50 mb-2">
           {{ $t('notes.create.folderLabel') }}
         </label>
 
@@ -126,7 +126,7 @@ onMounted(() => init())
           @navigate="({ id, name }) => { folderId = id; folderName = name }"
         />
 
-        <i18n-t keypath="notes.create.locationHint" tag="p" class="mt-1 text-xs text-brownish-400">
+        <i18n-t keypath="notes.create.locationHint" tag="p" class="mt-1 text-xs text-brownish-400 dark:text-brownish-50">
           <template #folder>
             <strong>{{ folderName }}</strong>
           </template>

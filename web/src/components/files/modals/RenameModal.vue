@@ -2,10 +2,12 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
+import FormError from '@/components/ui/FormError.vue'
 import { AppForm, AppField } from '@/components/form'
 import * as yup from 'yup'
 import type { ErrorResponse } from '!/api'
 import type { AppFile, CryptoStore, FilesStore } from 'types'
+import { humanizeError } from '!/index'
 
 const props = defineProps<{
   modelValue?: AppFile | undefined
@@ -48,7 +50,7 @@ const init = () => {
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
-        errorMessage.value = error.description
+        errorMessage.value = humanizeError(err)
       }
     }
   }
@@ -71,9 +73,7 @@ watch(() => props.modelValue, init, { immediate: true })
       @cancel="$emit('cancel')"
       :form="form"
     >
-      <p v-if="errorMessage" class="text-sm text-redish-900 dark:text-redish-200">
-        {{ errorMessage }}
-      </p>
+      <FormError v-if="errorMessage">{{ errorMessage }}</FormError>
 
       <AppField
         :form="form"

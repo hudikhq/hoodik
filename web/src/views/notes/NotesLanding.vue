@@ -2,7 +2,7 @@
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { mdiFileDocumentOutline, mdiPlus, mdiMagnify } from '@mdi/js'
+import { mdiAlertCircleOutline, mdiFileDocumentOutline, mdiPlus, mdiMagnify } from '@mdi/js'
 import { formatSize } from '!'
 import { search } from '!/storage'
 import * as meta from '!/storage/meta'
@@ -24,34 +24,45 @@ const router = useRouter()
 const { t } = useI18n()
 const notes = ref<AppFile[]>([])
 const loading = ref(true)
+const failed = ref(false)
 const query = ref('')
 const showCreateModal = ref(false)
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 async function loadRecent() {
   loading.value = true
+  failed.value = false
 
-  const response = await meta.find({
-    editable: true,
-    order: 'desc',
-    order_by: 'modified_at'
-  })
-
-  const privateKey = props.keypair.wrappingPrivate || (props.keypair.input as string)
-
-  const items = await Promise.all(
-    response.children.map(async (item) => {
-      const decrypted = await meta.decrypt(item, privateKey)
-      return { ...item, ...decrypted } as AppFile
+  try {
+    const response = await meta.find({
+      editable: true,
+      order: 'desc',
+      order_by: 'modified_at'
     })
-  )
 
-  notes.value = items.filter((f) => f.mime !== 'dir' && !!f.finished_upload_at && isMarkdownFile(f))
-  loading.value = false
+    const privateKey = props.keypair.wrappingPrivate || (props.keypair.input as string)
+
+    const items = await Promise.all(
+      response.children.map(async (item) => {
+        const decrypted = await meta.decrypt(item, privateKey)
+        return { ...item, ...decrypted } as AppFile
+      })
+    )
+
+    notes.value = items.filter(
+      (f) => f.mime !== 'dir' && !!f.finished_upload_at && isMarkdownFile(f)
+    )
+  } catch {
+    notes.value = []
+    failed.value = true
+  } finally {
+    loading.value = false
+  }
 }
 
 async function searchNotes(q: string) {
   loading.value = true
+  failed.value = false
 
   try {
     const results = await search(q, props.keypair, { editable: true, limit: 50 })
@@ -60,9 +71,12 @@ async function searchNotes(q: string) {
     )
   } catch {
     notes.value = []
+    // Otherwise a failed request renders as "no matches" — the user is told
+    // the note does not exist when it was simply never fetched.
+    failed.value = true
+  } finally {
+    loading.value = false
   }
-
-  loading.value = false
 }
 
 watch(query, (q) => {
@@ -107,7 +121,7 @@ onUnmounted(() => {
 <template>
   <div class="h-full flex flex-col p-6 max-w-4xl mx-auto">
     <div class="flex items-center justify-between mb-6">
-      <h1 class="text-xl font-semibold dark:text-brownish-100">{{ $t('notes.landing.title') }}</h1>
+      <h1 class="text-xl font-semibold dark:text-brownish-50">{{ $t('notes.landing.title') }}</h1>
       <BaseButton
         :icon="mdiPlus"
         :label="$t('notes.create.title')"
@@ -121,21 +135,49 @@ onUnmounted(() => {
       <BaseIcon
         :path="mdiMagnify"
         :size="18"
-        class="absolute left-3 top-1/2 -translate-y-1/2 text-brownish-400"
+        class="absolute left-3 top-1/2 -translate-y-1/2 text-brownish-400 dark:text-brownish-50"
       />
       <input
         v-model="query"
         type="text"
         :placeholder="$t('notes.landing.searchPlaceholder')"
-        class="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-brownish-200 dark:border-brownish-700 bg-white dark:bg-brownish-800 dark:text-brownish-100 focus:outline-none focus:ring-1 focus:ring-orangy-500 focus:border-orangy-500"
+        class="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-paper-300 dark:border-brownish-700 bg-white dark:bg-brownish-800 dark:text-brownish-50 focus:outline-none focus:ring-1 focus:ring-redish-400 focus:border-redish-400"
       />
     </div>
 
-    <div v-if="loading" class="flex-1 flex items-center justify-center text-brownish-400">
-      <p class="text-sm">{{ $t('notes.landing.loading') }}</p>
+    <!-- Placeholder rows in the shape of the list, so the panel fills the way
+         it will once the notes decrypt rather than sitting on a line of text. -->
+    <ul
+      v-if="loading"
+      class="flex-1 space-y-1"
+      data-testid="notes-loading"
+      role="status"
+      :aria-label="$t('notes.landing.loading')"
+    >
+      <li
+        v-for="(width, index) in ['w-2/5', 'w-3/5', 'w-1/3', 'w-1/2', 'w-2/5', 'w-1/4']"
+        :key="index"
+        class="flex items-center gap-3 px-4 py-3 animate-pulse"
+        aria-hidden="true"
+      >
+        <div class="w-5 h-5 rounded shrink-0 bg-paper-200 dark:bg-brownish-700" />
+        <div class="flex-1 min-w-0 space-y-2">
+          <div class="h-3.5 rounded bg-paper-200 dark:bg-brownish-700" :class="width" />
+          <div class="h-3 w-24 rounded bg-paper-200/70 dark:bg-brownish-700/60" />
+        </div>
+      </li>
+    </ul>
+
+    <div
+      v-else-if="failed"
+      class="flex-1 flex flex-col items-center justify-center gap-2 text-redish-700 dark:text-redish-100"
+      role="alert"
+    >
+      <BaseIcon :path="mdiAlertCircleOutline" :size="32" />
+      <p class="text-sm">{{ $t('notes.landing.searchFailed') }}</p>
     </div>
 
-    <div v-else-if="!notes.length && !query" class="flex-1 flex flex-col items-center justify-center text-brownish-400">
+    <div v-else-if="!notes.length && !query" class="flex-1 flex flex-col items-center justify-center text-brownish-400 dark:text-brownish-50">
       <BaseIcon :path="mdiFileDocumentOutline" :size="64" />
       <p class="mt-4 text-sm">{{ $t('notes.landing.empty') }}</p>
       <BaseButton
@@ -148,7 +190,7 @@ onUnmounted(() => {
       />
     </div>
 
-    <div v-else-if="!notes.length && query" class="flex-1 flex items-center justify-center text-brownish-400">
+    <div v-else-if="!notes.length && query" class="flex-1 flex items-center justify-center text-brownish-400 dark:text-brownish-50">
       <p class="text-sm">{{ $t('notes.landing.noMatches', { query }) }}</p>
     </div>
 
@@ -157,13 +199,13 @@ onUnmounted(() => {
         v-for="note in notes"
         :key="note.id"
         :title="note.name"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-colors duration-150 hover:bg-brownish-100 dark:hover:bg-brownish-700/50"
+        class="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-colors duration-150 hover:bg-paper-100 dark:hover:bg-brownish-700/50"
         @click="openNote(note)"
       >
-        <BaseIcon :path="mdiFileDocumentOutline" :size="20" class="flex-shrink-0 text-orangy-400" />
+        <BaseIcon :path="mdiFileDocumentOutline" :size="20" class="flex-shrink-0 text-orangy-700 dark:text-orangy-400" />
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium truncate dark:text-brownish-100">{{ note.name }}</p>
-          <p class="text-xs text-brownish-400 mt-0.5">
+          <p class="text-sm font-medium truncate dark:text-brownish-50">{{ note.name }}</p>
+          <p class="text-xs text-brownish-400 dark:text-brownish-50 mt-0.5">
             {{ formatDate(note.file_modified_at) }}
             <span v-if="note.size" class="ml-2">{{ formatSize(note.size) }}</span>
           </p>

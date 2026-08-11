@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import TableLinkRowWatcher from './TableLinkRowWatcher.vue'
-import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { mdiTrashCanOutline } from '@mdi/js'
 import type { AppLink } from 'types'
@@ -55,7 +54,7 @@ watch(
   }
 )
 
-const borderClass = 'sm:border-l sm:border-brownish-50 sm:dark:border-brownish-950'
+const borderClass = 'sm:border-l sm:border-paper-300 sm:dark:border-brownish-950'
 
 const sizes = {
   checkbox: 'pl-2 pt-3 w-10 shrink-0',
@@ -68,7 +67,7 @@ const sizes = {
 </script>
 
 <template>
-  <div class="w-full p-2 mb-2 flex rounded-t-md bg-brownish-100 dark:bg-brownish-900 gap-4">
+  <div class="w-full p-2 mb-2 flex rounded-t-md bg-paper-100 dark:bg-brownish-900 gap-4">
     <BaseButton
       :title="$t('links.table.deleteSelected')"
       :iconSize="20"
@@ -80,10 +79,10 @@ const sizes = {
     />
   </div>
 
-  <div class="bg-white dark:bg-brownish-900 rounded-lg border border-brownish-200/40 dark:border-brownish-700/40">
-    <div class="w-full flex rounded-t-lg bg-brownish-100 dark:bg-brownish-950 border-b border-brownish-200 dark:border-brownish-700/40">
+  <div class="bg-white dark:bg-brownish-900 rounded-lg border border-paper-300/40 dark:border-brownish-700/40">
+    <div class="w-full flex rounded-t-lg bg-paper-100 dark:bg-brownish-950 border-b border-paper-300 dark:border-brownish-700/40">
       <div :class="sizes.checkbox">
-        <TableCheckboxCell v-model="checked" v-if="!props.hideCheckbox" />
+        <TableCheckboxCell v-model="checked" v-if="!props.hideCheckbox" :label="$t('common.selectAll')" />
       </div>
 
       <div :class="`${sizes.name}`">
@@ -105,21 +104,47 @@ const sizes = {
       <div :class="`${sizes.buttons}`"></div>
     </div>
 
+    <!-- Placeholder rows on the real columns, so the header does not jump when
+         the links land — same treatment as the file listing. -->
     <div
       v-if="props.loading && !items.length"
-      class="w-full pt-20 rounded-b-lg bg-brownish-50 dark:bg-brownish-900 h-52 text-center"
+      class="w-full rounded-b-lg bg-paper-50 dark:bg-brownish-900"
+      data-testid="links-loading"
+      role="status"
+      :aria-label="$t('common.loading')"
     >
-      <span class="w-1/2 h-1/2">
-        <SpinnerIcon :size="200" />
-      </span>
+      <div
+        v-for="(width, index) in ['w-1/2', 'w-2/5', 'w-3/5']"
+        :key="index"
+        class="w-full flex link-row-separator animate-pulse"
+        aria-hidden="true"
+      >
+        <div :class="sizes.checkbox">
+          <div class="w-5 h-5 rounded bg-paper-200 dark:bg-brownish-700" />
+        </div>
+        <div :class="sizes.name">
+          <div class="w-6 h-6 mr-2 rounded-md shrink-0 bg-paper-200 dark:bg-brownish-700" />
+          <div class="h-4 rounded bg-paper-200 dark:bg-brownish-700" :class="width" />
+        </div>
+        <div :class="sizes.size">
+          <div class="h-3 w-12 rounded bg-paper-200/70 dark:bg-brownish-700/60" />
+        </div>
+        <div :class="sizes.createdAt">
+          <div class="h-3 w-28 rounded bg-paper-200/70 dark:bg-brownish-700/60" />
+        </div>
+        <div :class="sizes.expiresAt">
+          <div class="h-3 w-16 rounded bg-paper-200/70 dark:bg-brownish-700/60" />
+        </div>
+        <div :class="sizes.buttons" />
+      </div>
     </div>
     <div
       v-else-if="!items.length"
-      class="w-full rounded-b-lg bg-brownish-50 dark:bg-brownish-900 py-14 flex flex-col items-center gap-1"
+      class="w-full rounded-b-lg bg-paper-50 dark:bg-brownish-900 py-14 flex flex-col items-center gap-1"
       data-testid="links-empty"
     >
-      <span class="text-brownish-300 dark:text-brownish-100">{{ $t('links.table.empty') }}</span>
-      <span class="text-xs text-brownish-200 dark:text-brownish-300">
+      <span class="text-brownish-300 dark:text-brownish-50">{{ $t('links.table.empty') }}</span>
+      <span class="text-xs text-brownish-200 dark:text-brownish-50">
         {{ $t('links.table.emptyHint') }}
       </span>
     </div>

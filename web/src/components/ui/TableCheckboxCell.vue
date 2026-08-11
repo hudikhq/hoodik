@@ -4,6 +4,7 @@ const props = defineProps<{
   class?: string
   modelValue: boolean
   disabled?: boolean
+  label?: string
 }>()
 
 const emit = defineEmits<{
@@ -20,7 +21,13 @@ const check = (event: Event) => {
 <template>
   <component :is="type || 'span'" :class="props.class || 'lg:w-1'">
     <label class="checkbox" :class="{ 'opacity-40 cursor-not-allowed': disabled }">
-      <input :checked="modelValue" :disabled="disabled" @change="check" type="checkbox" />
+      <input
+        :checked="modelValue"
+        :disabled="disabled"
+        :aria-label="label"
+        @change="check"
+        type="checkbox"
+      />
       <span class="check" />
     </label>
   </component>

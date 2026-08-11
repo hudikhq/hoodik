@@ -59,8 +59,7 @@ const verifiedAgeLabel = computed(() => {
         />
         <BaseButton
           :label="$t('common.cancel')"
-          color="info"
-          outline
+          color="light"
           data-testid="fingerprint-mismatch-cancel"
           @click="emit('cancel')"
         />
@@ -77,7 +76,7 @@ const verifiedAgeLabel = computed(() => {
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
         <div>
-          <div class="text-xs uppercase tracking-wider text-brownish-300">
+          <div class="text-xs font-medium text-brownish-300 dark:text-brownish-50">
             {{ $t('shares.fingerprint.cachedLabel') }}
           </div>
           <div
@@ -88,7 +87,7 @@ const verifiedAgeLabel = computed(() => {
           </div>
         </div>
         <div>
-          <div class="text-xs uppercase tracking-wider text-redish-600">
+          <div class="text-xs font-medium text-redish-600 dark:text-redish-100">
             {{ $t('shares.fingerprint.newLabel') }}
           </div>
           <div
@@ -99,7 +98,7 @@ const verifiedAgeLabel = computed(() => {
           </div>
         </div>
       </div>
-      <p class="mt-2 text-brownish-300">
+      <p class="mt-2 text-brownish-300 dark:text-brownish-50">
         {{ $t('shares.fingerprint.confirmHint', { email: recipientEmail }) }}
       </p>
     </div>

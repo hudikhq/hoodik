@@ -48,7 +48,7 @@ function formatTimestamp(unixSeconds: number): string {
 
 <template>
   <li
-    class="p-3 sm:p-4 rounded-lg bg-brownish-50 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700 text-sm"
+    class="p-3 sm:p-4 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700 text-sm"
     :data-testid="`share-hub-audit-row-${row.id}`"
   >
     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -56,7 +56,7 @@ function formatTimestamp(unixSeconds: number): string {
         <BaseIcon
           :path="mdiAccountArrowRight"
           :size="20"
-          class="mt-1 shrink-0 text-brownish-300 dark:text-brownish-200"
+          class="mt-1 shrink-0 text-brownish-300 dark:text-brownish-50"
         />
         <div class="min-w-0">
           <div
@@ -66,7 +66,7 @@ function formatTimestamp(unixSeconds: number): string {
             {{ sentence }}
           </div>
           <div
-            class="text-xs text-brownish-400 mt-0.5"
+            class="text-xs text-brownish-400 dark:text-brownish-50 mt-0.5"
             :title="new Date(row.created_at * 1000).toLocaleString()"
           >
             {{ formatTimestamp(row.created_at) }}
@@ -102,7 +102,7 @@ function formatTimestamp(unixSeconds: number): string {
              + per-row chevron disclosure for the verification breakdown. -->
         <span
           v-if="state === 'system'"
-          class="inline-flex items-center text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-brownish-200 dark:bg-brownish-700 text-brownish-700 dark:text-brownish-200"
+          class="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full bg-paper-200 dark:bg-brownish-700 text-brownish-700 dark:text-brownish-50"
           :data-testid="`share-hub-audit-row-${row.id}-system`"
           :title="row.sender_id ? $t('shares.audit.row.parentTitle', { id: row.sender_id }) : $t('shares.audit.row.systemCascade')"
         >
@@ -111,8 +111,9 @@ function formatTimestamp(unixSeconds: number): string {
         </span>
         <button
           type="button"
-          class="inline-flex items-center text-brownish-300 hover:text-brownish-100 transition"
+          class="inline-flex items-center text-brownish-300 dark:text-brownish-50 hover:text-brownish-100 transition"
           :title="expanded ? $t('shares.audit.row.hideDetails') : $t('shares.audit.row.showDetails')"
+          :aria-label="expanded ? $t('shares.audit.row.hideDetails') : $t('shares.audit.row.showDetails')"
           :data-testid="`share-hub-audit-row-${row.id}-toggle`"
           @click="emit('toggle', row.id)"
         >
@@ -136,7 +137,7 @@ function formatTimestamp(unixSeconds: number): string {
       class="mt-3 -mx-3 sm:-mx-4 -mb-3 sm:-mb-4 px-3 sm:px-4 py-3 bg-redish-100 dark:bg-redish-900/40 border-t border-redish-300 dark:border-redish-700 rounded-b-lg"
       :data-testid="`share-hub-audit-row-${row.id}-tampered-banner`"
     >
-      <div class="flex items-start gap-2 text-redish-700 dark:text-redish-200">
+      <div class="flex items-start gap-2 text-redish-700 dark:text-redish-100">
         <BaseIcon :path="mdiAlertCircle" :size="20" class="shrink-0 mt-0.5" />
         <div class="flex-1 min-w-0">
           <p class="font-semibold text-sm">{{ tamperedHeadline }}</p>
@@ -159,27 +160,27 @@ function formatTimestamp(unixSeconds: number): string {
          lines. Replaces the old always-on badge wall. -->
     <div
       v-if="expanded"
-      class="mt-3 p-3 rounded-lg bg-brownish-100/60 dark:bg-brownish-900/60 border border-brownish-200 dark:border-brownish-700 text-xs space-y-1.5 font-mono text-brownish-600 dark:text-brownish-200"
+      class="mt-3 p-3 rounded-lg bg-paper-100/60 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700 text-xs space-y-1.5 font-mono text-brownish-600 dark:text-brownish-50"
       :data-testid="`share-hub-audit-row-${row.id}-disclosure`"
     >
       <p>
-        <span class="text-brownish-400 dark:text-brownish-300">{{ $t('shares.audit.row.rowId') }}</span>
+        <span class="text-brownish-400 dark:text-brownish-50">{{ $t('shares.audit.row.rowId') }}</span>
         <span class="ml-2">…{{ disclosure.rowIdShort }}</span>
       </p>
       <p>
-        <span class="text-brownish-400 dark:text-brownish-300">{{ $t('shares.audit.row.thisHash') }}</span>
+        <span class="text-brownish-400 dark:text-brownish-50">{{ $t('shares.audit.row.thisHash') }}</span>
         <span class="ml-2">…{{ disclosure.thisHashTail }}</span>
       </p>
       <p>
-        <span class="text-brownish-400 dark:text-brownish-300">{{ $t('shares.audit.row.prevHash') }}</span>
+        <span class="text-brownish-400 dark:text-brownish-50">{{ $t('shares.audit.row.prevHash') }}</span>
         <span class="ml-2">…{{ disclosure.prevHashTail }}</span>
       </p>
       <p v-if="disclosure.senderSigStatus">
-        <span class="text-brownish-400 dark:text-brownish-300">{{ $t('shares.audit.row.signature') }}</span>
+        <span class="text-brownish-400 dark:text-brownish-50">{{ $t('shares.audit.row.signature') }}</span>
         <span class="ml-2">{{ disclosure.senderSigStatus }}</span>
       </p>
       <p v-if="disclosure.chainStatus">
-        <span class="text-brownish-400 dark:text-brownish-300">{{ $t('shares.audit.row.chain') }}</span>
+        <span class="text-brownish-400 dark:text-brownish-50">{{ $t('shares.audit.row.chain') }}</span>
         <span class="ml-2">{{ disclosure.chainStatus }}</span>
       </p>
     </div>

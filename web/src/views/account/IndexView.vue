@@ -31,7 +31,7 @@ const enableTfaModal = ref(false)
     <Suspense>
       <SectionMain v-if="authenticated">
         <div class="mb-8">
-          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">{{ $t('account.sections.profile') }}</h2>
+          <h2 class="text-xs font-semibold text-brownish-400 dark:text-brownish-50 mb-3 px-1">{{ $t('account.sections.profile') }}</h2>
           <div class="flex flex-col lg:flex-row gap-6">
             <MyDetails
               class="w-full lg:w-7/12"
@@ -44,22 +44,22 @@ const enableTfaModal = ref(false)
         </div>
 
         <div class="mb-8">
-          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">{{ $t('account.sections.security') }}</h2>
+          <h2 class="text-xs font-semibold text-brownish-400 dark:text-brownish-50 mb-3 px-1">{{ $t('account.sections.security') }}</h2>
           <RecoveryKey class="w-full" />
         </div>
 
         <div class="mb-8">
-          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">{{ $t('account.sections.sharing') }}</h2>
+          <h2 class="text-xs font-semibold text-brownish-400 dark:text-brownish-50 mb-3 px-1">{{ $t('account.sections.sharing') }}</h2>
           <SharingPreferences :user="authenticated.user" class="w-full" />
         </div>
 
         <div class="mb-8">
-          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">{{ $t('account.preferences') }}</h2>
+          <h2 class="text-xs font-semibold text-brownish-400 dark:text-brownish-50 mb-3 px-1">{{ $t('account.preferences') }}</h2>
           <LanguagePreferences class="w-full" />
         </div>
 
         <div>
-          <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100 mb-3 px-1">{{ $t('account.sections.sessions') }}</h2>
+          <h2 class="text-xs font-semibold text-brownish-400 dark:text-brownish-50 mb-3 px-1">{{ $t('account.sections.sessions') }}</h2>
           <ActivityInner class="w-full" />
         </div>
       </SectionMain>

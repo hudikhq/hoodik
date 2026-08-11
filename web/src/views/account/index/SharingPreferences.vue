@@ -63,24 +63,24 @@ const label = computed(() =>
 <template>
   <CardBox :class="props.class">
     <div class="flex items-center gap-2 mb-4">
-      <BaseIcon :path="mdiEmailFastOutline" :size="14" class="text-brownish-400 dark:text-brownish-100" />
-      <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">
+      <BaseIcon :path="mdiEmailFastOutline" :size="14" class="text-brownish-400 dark:text-brownish-50" />
+      <p class="text-xs font-semibold text-brownish-400 dark:text-brownish-50">
         {{ $t('account.sharing.title') }}
       </p>
     </div>
 
-    <label class="flex items-start gap-3 cursor-pointer">
+    <label class="checkbox items-start gap-3">
       <input
         type="checkbox"
         :checked="enabled"
         :disabled="saving"
-        class="mt-1"
         data-testid="account-share-notifications-toggle"
         @change="toggle"
       />
+      <span class="check mt-0.5" />
       <span>
         <span class="text-sm font-medium">{{ $t('account.sharing.toggleLabel') }}</span>
-        <span class="block text-xs text-brownish-400 mt-1" data-testid="account-share-notifications-label">
+        <span class="block text-xs text-brownish-400 dark:text-brownish-50 mt-1" data-testid="account-share-notifications-label">
           {{ label }}
         </span>
       </span>

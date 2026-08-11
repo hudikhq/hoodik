@@ -301,6 +301,14 @@ where
 
         let mut user = self.get_by_id(session.user_id).await?;
 
+        // The password proof succeeded above, so a missing code is not a failed
+        // authentication — it is the point where a two-step client is told to
+        // ask for one. Kept distinct from a *wrong* code, which is a real guess
+        // and stays chargeable.
+        if user.secret.is_some() && token.is_none() {
+            return Err(Error::Unauthorized("two_factor_required".to_string()));
+        }
+
         if !user.verify_tfa(token) {
             return Err(Error::Unauthorized("invalid_otp_token".to_string()));
         }

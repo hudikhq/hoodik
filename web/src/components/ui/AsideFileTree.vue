@@ -198,6 +198,16 @@ async function loadSharedRoots(): Promise<void> {
 async function loadRoot() {
   rootLoading.value = true
 
+  try {
+    await loadRootInner()
+  } finally {
+    // Without this a single failed listing leaves the tree stuck on
+    // "Loading…" for the rest of the session, with no way to retry.
+    rootLoading.value = false
+  }
+}
+
+async function loadRootInner() {
   let items: AppFile[]
   let incomingShared: boolean
 
@@ -217,7 +227,6 @@ async function loadRoot() {
   treeState.rootNodes = incomingShared ? [syntheticSharedNode(), ...nodes] : nodes
   treeState.loaded = true
   treeState.userFingerprint = props.keypair.fingerprint || undefined
-  rootLoading.value = false
 
   // Auto-expand tree to match the current route
   const folderId = activeFolderId.value
@@ -307,10 +316,13 @@ async function toggleFolder(node: TreeNode) {
     treeState.expanded.add(id)
     if (!node.loaded) {
       node.loading = true
-      const items = await fetchChildren(id)
-      node.children = items.map(toNode)
-      node.loaded = true
-      node.loading = false
+      try {
+        const items = await fetchChildren(id)
+        node.children = items.map(toNode)
+        node.loaded = true
+      } finally {
+        node.loading = false
+      }
     }
   }
 
@@ -404,7 +416,7 @@ watch(
 
 <template>
   <div class="text-xs ml-6 mr-2 my-1 rounded-lg bg-brownish-800/40 overflow-hidden">
-    <div v-if="rootLoading" class="flex items-center justify-center py-4 text-brownish-500">
+    <div v-if="rootLoading" class="flex items-center justify-center py-4 text-brownish-50">
       {{ $t('common.loading') }}
     </div>
     <ul v-else class="flex flex-col py-0.5">
@@ -416,7 +428,7 @@ watch(
           :class="
             node.file.id === activeFolderId
               ? 'bg-orangy-500/15 text-orangy-300'
-              : 'text-brownish-300 hover:bg-brownish-700/50 hover:text-brownish-100'
+              : 'text-brownish-50 hover:bg-brownish-700/50 hover:text-white'
           "
           data-testid="aside-tree-shared-with-me"
           @click="toggleFolder(node)"
@@ -424,7 +436,7 @@ watch(
           <BaseIcon
             :path="treeState.expanded.has(node.file.id) ? mdiChevronDown : mdiChevronRight"
             :size="12"
-            class="flex-shrink-0 text-brownish-500"
+            class="flex-shrink-0 text-brownish-100"
           />
           <BaseIcon :path="iconFor(node.file)" :size="14" class="flex-shrink-0 text-orangy-400" />
           <span class="truncate">{{ node.file.name }}</span>
@@ -437,21 +449,21 @@ watch(
           :class="
             node.file.id === activeFolderId
               ? 'bg-orangy-500/15 text-orangy-300'
-              : 'text-brownish-300 hover:bg-brownish-700/50 hover:text-brownish-100'
+              : 'text-brownish-50 hover:bg-brownish-700/50 hover:text-white'
           "
           @click="toggleFolder(node)"
         >
           <BaseIcon
             :path="treeState.expanded.has(node.file.id) ? mdiChevronDown : mdiChevronRight"
             :size="12"
-            class="flex-shrink-0 text-brownish-500"
+            class="flex-shrink-0 text-brownish-100"
           />
           <BaseIcon :path="iconFor(node.file)" :size="14" class="flex-shrink-0 text-orangy-400" />
           <span class="truncate">{{ node.file.name }}</span>
         </li>
 
         <template v-if="node.file.mime === 'dir' && treeState.expanded.has(node.file.id)">
-          <li v-if="node.loading" class="py-1 text-brownish-500" style="padding-left: 24px">
+          <li v-if="node.loading" class="py-1 text-brownish-50" style="padding-left: 24px">
             {{ $t('common.loading') }}
           </li>
           <template v-else>
@@ -469,7 +481,7 @@ watch(
             />
             <li
               v-if="!node.children.length"
-              class="py-1 text-brownish-500 italic"
+              class="py-1 text-brownish-50 italic"
               style="padding-left: 24px"
               :data-testid="
                 node.file.id === SHARED_WITH_ME_DIR_ID
@@ -493,7 +505,7 @@ watch(
           :class="
             node.file.id === activeFileId
               ? 'bg-orangy-500/15 text-orangy-300'
-              : 'text-brownish-300 hover:bg-brownish-700/50 hover:text-brownish-100'
+              : 'text-brownish-50 hover:bg-brownish-700/50 hover:text-white'
           "
           @click="onFileClick(node.file)"
         >
@@ -503,7 +515,7 @@ watch(
         </li>
       </template>
 
-      <li v-if="!treeState.rootNodes.length && !rootLoading" class="px-3 py-4 text-center text-brownish-500">
+      <li v-if="!treeState.rootNodes.length && !rootLoading" class="px-3 py-4 text-center text-brownish-50">
         {{ $t('ui.fileTree.noFiles') }}
       </li>
     </ul>

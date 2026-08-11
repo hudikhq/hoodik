@@ -191,10 +191,10 @@ window.addEventListener('keydown', (e) => {
       @click="showTable = !showTable"
       :class="{
         'bg-redish-50 dark:bg-redish-700': totalItems > 0,
-        'bg-brownish-100 dark:bg-brownish-600': totalItems === 0
+        'bg-paper-100 dark:bg-brownish-600': totalItems === 0
       }"
     >
-      <span class="text-xs font-medium">{{ headerLabel || $t('files.transfers.title') }}</span>
+      <span class="text-xs font-medium" aria-live="polite">{{ headerLabel || $t('files.transfers.title') }}</span>
       <div class="flex items-center gap-2">
         <span class="text-xs tabular-nums" v-if="showStandaloneCount">{{ totalItems }}</span>
         <BaseIcon :path="showTable ? mdiChevronDown : mdiChevronUp" w="w-4" h="h-4" />
@@ -205,7 +205,7 @@ window.addEventListener('keydown', (e) => {
     <div class="shadow rounded-sm" v-show="showTable">
       <!-- Scrollable pill tabs — overflow-x-auto so they scroll on narrow mobile screens -->
       <div
-        class="flex overflow-x-auto gap-1 px-2 py-1.5 bg-brownish-50 dark:bg-brownish-800 border-b border-brownish-200 dark:border-brownish-700"
+        class="flex overflow-x-auto gap-1 px-2 py-1.5 bg-paper-50 dark:bg-brownish-800 border-b border-paper-300 dark:border-brownish-700"
         style="-webkit-overflow-scrolling: touch; scrollbar-width: none"
       >
         <button
@@ -214,8 +214,8 @@ window.addEventListener('keydown', (e) => {
           class="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap"
           :class="
             currentTab === t.key
-              ? 'bg-brownish-300 dark:bg-brownish-600 text-brownish-900 dark:text-white'
-              : 'text-brownish-500 dark:text-brownish-100 hover:bg-brownish-200 dark:hover:bg-brownish-700'
+              ? 'bg-paper-300 dark:bg-brownish-600 text-brownish-900 dark:text-white'
+              : 'text-brownish-500 dark:text-brownish-50 hover:bg-paper-200 dark:hover:bg-brownish-700'
           "
           @click="tab = t.key === 'all' ? undefined : (t.key as NonNullable<typeof tab>)"
         >
@@ -225,13 +225,13 @@ window.addEventListener('keydown', (e) => {
       </div>
 
       <!-- File list — viewport-capped height on mobile, fixed on larger screens -->
-      <div class="max-h-[50vh] md:max-h-[325px] overflow-y-auto bg-brownish-50 dark:bg-brownish-800">
+      <div class="max-h-[50vh] md:max-h-[325px] overflow-y-auto bg-paper-50 dark:bg-brownish-800">
         <template v-for="item in displaying" :key="`${item.file.id}-${item.type}`">
           <SingleFile :file="item.file" :type="item.type" @remove="remove" />
         </template>
 
         <template v-if="!displaying.length">
-          <div class="text-center pb-3 pt-4 text-sm text-brownish-500 dark:text-brownish-100">
+          <div class="text-center pb-3 pt-4 text-sm text-brownish-500 dark:text-brownish-50">
             {{ $t('files.transfers.noActivity') }}
           </div>
         </template>

@@ -16,14 +16,30 @@ const props = defineProps<{
 }>()
 
 const tooltip = computed(() => props.title ?? props.label)
+
+/** With no visible label the tooltip is the only name a screen reader has;
+ *  `title` alone never reaches touch users, so it is promoted to a label. */
+const iconLabel = computed(() => (props.label || !props.icon ? undefined : tooltip.value))
 </script>
 <template>
-  <router-link v-if="props.to" :to="props.to" :class="props.class || ''" :title="tooltip">
+  <router-link
+    v-if="props.to"
+    :to="props.to"
+    :class="props.class || ''"
+    :title="tooltip"
+    :aria-label="iconLabel"
+  >
     <BaseIcon v-if="props.icon" class="m-1" :path="icon as string" :size="iconSize || 15" />
     <span v-if="props.label">{{ label }}</span>
     <slot></slot>
   </router-link>
-  <button v-else :type="props.type || 'button'" :class="props.class || ''" :title="tooltip">
+  <button
+    v-else
+    :type="props.type || 'button'"
+    :class="props.class || ''"
+    :title="tooltip"
+    :aria-label="iconLabel"
+  >
     <BaseIcon v-if="props.icon" class="m-1" :path="icon as string" :size="iconSize || 15" />
     <span v-if="props.label">{{ label }}</span>
     <slot></slot>

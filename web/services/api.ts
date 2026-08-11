@@ -402,7 +402,7 @@ export default class Api {
 
 
     // Here we'll try to refresh the session if the original request fails
-    if (res.status === 401 && skipRefresh !== true) {
+    if (res.status === 401 && skipRefresh !== true && !Api.isAuthVerdict(path)) {
       await this.refresh()
       return this.make(method, path, query, body, headers, true)
     }
@@ -446,6 +446,21 @@ export default class Api {
   /**
    * Build request parameters
    */
+  /**
+   * On these routes a 401 is the answer, not an expired session — there is no
+   * session yet to refresh. Replaying them is worse than useless: the OPAQUE
+   * login state is single-use, so the retry spends a consumed `login_id` and
+   * comes back `invalid_credentials`, burying the verdict the server actually
+   * gave (a wrong two-factor code, or a request for one).
+   */
+  static isAuthVerdict(path: string): boolean {
+    return (
+      path.startsWith('/api/auth/login') ||
+      path.startsWith('/api/auth/signature') ||
+      path.startsWith('/api/auth/register')
+    )
+  }
+
   static buildRequest<B>(
     method: 'get' | 'post' | 'put' | 'patch' | 'delete',
     path: string,
@@ -471,8 +486,14 @@ export default class Api {
       _headers['Content-Type'] = 'application/json'
     }
 
+    // fetch() normalizes GET, POST, PUT, DELETE, HEAD and OPTIONS to
+    // uppercase but deliberately leaves PATCH alone, and actix matches
+    // methods case-sensitively — so a lowercase 'patch' reaches the server
+    // as `patch` and misses the route entirely.
+    const verb = method.toUpperCase()
+
     const request: Request<B> = {
-      method,
+      method: verb,
       url,
       body,
       query,
@@ -483,7 +504,7 @@ export default class Api {
       cache: 'no-cache',
       credentials: 'include',
       headers: request.headers,
-      method,
+      method: verb,
       mode: 'cors',
       redirect: 'follow'
     }

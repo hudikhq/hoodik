@@ -62,8 +62,7 @@ const buttonLabel = (): string => {
         />
         <BaseButton
           :label="$t('common.cancel')"
-          color="info"
-          outline
+          color="light"
           data-testid="revoke-confirm-modal-cancel"
           @click="emit('cancel')"
         />

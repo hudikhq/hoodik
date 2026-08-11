@@ -14,6 +14,9 @@ export function useCapability(): {
   auditLog: ComputedRef<boolean>
   forkEnabled: ComputedRef<boolean>
   loading: ComputedRef<boolean>
+  /** Set when the advertisement could not be fetched, as opposed to the
+   *  operator genuinely having sharing switched off. */
+  fetchError: ComputedRef<string | null>
   refresh: () => Promise<void>
 } {
   const caps = capabilitiesStore()
@@ -21,8 +24,10 @@ export function useCapability(): {
   onMounted(() => {
     if (!caps.lastFetchedAt) {
       caps.fetch().catch(() => {
-        // The store has already set fail-closed defaults; surfacing the
-        // error in the UI is the caller's job (e.g. an admin banner).
+        // Fail-closed defaults are already installed by the store, and that
+        // is the right security posture. `fetchError` is what lets the view
+        // say the features are missing because of a network failure rather
+        // than an operator decision.
       })
     }
   })
@@ -34,6 +39,7 @@ export function useCapability(): {
     auditLog: computed(() => caps.auditLog),
     forkEnabled: computed(() => caps.forkEnabled),
     loading: computed(() => caps.loading),
+    fetchError: computed(() => caps.fetchError),
     refresh: () => caps.fetch()
   }
 }

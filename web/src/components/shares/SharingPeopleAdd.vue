@@ -64,7 +64,7 @@ const {
     </div>
     <p
       v-else-if="showFolderHint"
-      class="text-xs text-brownish-300"
+      class="text-xs text-brownish-300 dark:text-brownish-50"
       data-testid="share-dialog-folder-hint"
     >
       {{ folderHint }}
@@ -89,7 +89,7 @@ const {
           data-testid="share-dialog-discover"
           @click.prevent="discover"
         />
-        <div v-if="recentRecipients.length" class="text-xs text-brownish-300 flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+        <div v-if="recentRecipients.length" class="text-xs text-brownish-300 dark:text-brownish-50 flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
           <span class="opacity-70 shrink-0">{{ $t('shares.add.recent') }}</span>
           <button
             v-for="value in recentRecipients.slice(0, 3)"
@@ -112,7 +112,7 @@ const {
         <li v-for="group in groupSuggestions" :key="group.id">
           <button
             type="button"
-            class="px-2.5 py-1 rounded-full bg-brownish-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200 hover:bg-brownish-200 dark:hover:bg-brownish-700 transition-colors"
+            class="px-2.5 py-1 rounded-full bg-paper-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-50 hover:bg-paper-200 dark:hover:bg-brownish-700 transition-colors"
             :data-testid="`share-dialog-group-suggestion-${group.id}`"
             :disabled="submitting || readOnly"
             @click.prevent="() => { email = group.name; void discover() }"
@@ -124,7 +124,7 @@ const {
       </ul>
       <p
         v-if="discoverError"
-        class="mt-2 text-sm text-redish-700 dark:text-redish-300"
+        class="mt-2 text-sm text-redish-700 dark:text-redish-100"
         data-testid="share-dialog-discover-error"
       >
         {{ discoverError }}
@@ -166,8 +166,7 @@ const {
     <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
       <BaseButton
         :label="$t('common.cancel')"
-        color="info"
-        outline
+        color="light"
         :disabled="submitting"
         @click.prevent="cancel"
       />
@@ -194,11 +193,11 @@ const {
       >
         <div class="flex flex-col items-center gap-3 px-6 py-4 text-center max-w-full">
           <span
-            class="inline-block w-7 h-7 rounded-full border-2 border-brownish-200 border-t-redish-500 share-dialog-spinner"
+            class="inline-block w-7 h-7 rounded-full border-2 border-paper-300 border-t-redish-500 share-dialog-spinner"
             aria-hidden="true"
           />
           <p
-            class="text-sm text-brownish-700 dark:text-brownish-100 max-w-xs truncate"
+            class="text-sm text-brownish-700 dark:text-brownish-50 max-w-xs truncate"
             data-testid="share-dialog-submit-overlay-status"
             :title="overlayStatus"
           >
@@ -206,7 +205,7 @@ const {
           </p>
           <p
             v-if="progressLabel"
-            class="text-xs text-brownish-400 max-w-xs truncate"
+            class="text-xs text-brownish-400 dark:text-brownish-50 max-w-xs truncate"
             :title="progressLabel"
           >
             {{ progressLabel }}
@@ -214,7 +213,7 @@ const {
           <button
             v-if="(indeterminateActive || determinate) && progress.phase !== 'submitting'"
             type="button"
-            class="text-xs underline text-redish-500 dark:text-redish-200 hover:text-redish-300"
+            class="text-xs underline text-redish-500 dark:text-redish-100 hover:text-redish-300"
             data-testid="share-dialog-submit-overlay-cancel"
             @click.prevent="abortWalk"
           >

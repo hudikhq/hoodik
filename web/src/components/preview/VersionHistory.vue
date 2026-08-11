@@ -21,7 +21,7 @@ import OverlayLayer from '@/components/ui/OverlayLayer.vue'
 import * as cryptfns from '!/cryptfns'
 import * as versions from '!/storage/versions'
 import type { ForkRequest } from '!/storage/versions'
-import { formatPrettyDate } from '!/index'
+import { formatPrettyDate, humanizeError } from '!/index'
 import type { AppFile, FileVersion, KeyPair } from 'types'
 
 import '@/components/editor/markdown-editor.css'
@@ -50,6 +50,9 @@ const busyVersion = ref<number | null>(null)
 const previewVersion = ref<FileVersion | null>(null)
 const previewBytes = ref<string | null>(null)
 const previewError = ref<string | null>(null)
+// A failed restore/fork/delete must not replace the list — the user needs
+// to still see their versions while reading why the action failed.
+const actionError = ref<string | null>(null)
 const confirmingDelete = ref<FileVersion | null>(null)
 const confirmingPurgeAll = ref(false)
 const confirmingRestore = ref<FileVersion | null>(null)
@@ -60,7 +63,7 @@ async function load() {
   try {
     list.value = await versions.list(props.file.id)
   } catch (err) {
-    loadError.value = (err as Error).message
+    loadError.value = humanizeError(err)
   } finally {
     loading.value = false
   }
@@ -107,7 +110,7 @@ async function openPreview(v: FileVersion) {
     const bytes = await decryptVersionBytes(v)
     previewBytes.value = new TextDecoder().decode(bytes)
   } catch (err) {
-    previewError.value = (err as Error).message
+    previewError.value = humanizeError(err)
   }
 }
 
@@ -125,13 +128,14 @@ async function restore() {
   const v = confirmingRestore.value
   if (!v) return
   busyVersion.value = v.version
+  actionError.value = null
   try {
     const updated = await versions.restore(props.file.id, v.version)
     emit('restored', updated)
     confirmingRestore.value = null
     await load()
   } catch (err) {
-    loadError.value = (err as Error).message
+    actionError.value = humanizeError(err)
   } finally {
     busyVersion.value = null
   }
@@ -139,10 +143,11 @@ async function restore() {
 
 async function forkAsNew(v: FileVersion) {
   if (!props.file.key) {
-    loadError.value = 'File key unavailable'
+    actionError.value = t('preview.versionHistory.keyUnavailable')
     return
   }
   busyVersion.value = v.version
+  actionError.value = null
   try {
     const stamp = formatPrettyDate(v.created_at)
     const baseName = props.file.name.replace(/\.md$/i, '')
@@ -168,7 +173,7 @@ async function forkAsNew(v: FileVersion) {
     const newFile = await versions.fork(props.file.id, v.version, payload)
     emit('forked', newFile)
   } catch (err) {
-    loadError.value = (err as Error).message
+    actionError.value = humanizeError(err)
   } finally {
     busyVersion.value = null
   }
@@ -182,26 +187,28 @@ async function confirmDelete() {
   const v = confirmingDelete.value
   if (!v) return
   busyVersion.value = v.version
+  actionError.value = null
   try {
     await versions.remove(props.file.id, v.version)
     confirmingDelete.value = null
     await load()
     emit('changed')
   } catch (err) {
-    loadError.value = (err as Error).message
+    actionError.value = humanizeError(err)
   } finally {
     busyVersion.value = null
   }
 }
 
 async function purgeAll() {
+  actionError.value = null
   try {
     await versions.purgeAll(props.file.id)
     confirmingPurgeAll.value = false
     await load()
     emit('changed')
   } catch (err) {
-    loadError.value = (err as Error).message
+    actionError.value = humanizeError(err)
   }
 }
 </script>
@@ -212,6 +219,11 @@ async function purgeAll() {
       <h3 class="vh-title">{{ $t('preview.versionHistory.title') }}</h3>
       <BaseButton color="dark" :icon="mdiClose" xs :title="$t('common.close')" name="vh-close" @click="emit('close')" />
     </header>
+
+    <div v-if="actionError" class="vh-error" role="alert">
+      <BaseIcon :path="mdiAlertCircleOutline" :size="14" />
+      {{ actionError }}
+    </div>
 
     <div v-if="loading" class="vh-empty">{{ $t('preview.versionHistory.loading') }}</div>
 
@@ -286,7 +298,7 @@ async function purgeAll() {
     <OverlayLayer :visible="!!previewVersion" @overlay-click="closePreview">
       <CardBox
         v-show="!!previewVersion"
-        class="vh-preview-card shadow-lg max-h-modal w-11/12 lg:w-5/6 xl:w-3/4 z-50"
+        class="vh-preview-card relative max-h-modal w-11/12 lg:w-5/6 xl:w-3/4 z-50"
         is-modal
       >
         <CardBoxComponentTitle :title="previewVersion ? $t('preview.versionHistory.previewTitle', { version: previewVersion.version }) : ''" />
@@ -364,9 +376,14 @@ async function purgeAll() {
   flex-direction: column;
   width: 22rem;
   max-width: 100%;
-  background: #181818;
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  background: #FAFAF9;
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
   overflow: hidden;
+}
+
+.dark .vh-panel {
+  background: #181818;
+  border-left-color: rgba(255, 255, 255, 0.08);
 }
 
 .vh-header {
@@ -374,15 +391,19 @@ async function purgeAll() {
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
+
+.dark .vh-header { border-bottom-color: rgba(255, 255, 255, 0.08); }
 
 .vh-title {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #d4d4d4;
+  color: #333333;
   letter-spacing: 0.025em;
 }
+
+.dark .vh-title { color: #d4d4d4; }
 
 .vh-list {
   flex: 1;
@@ -392,8 +413,10 @@ async function purgeAll() {
 
 .vh-item {
   padding: 0.6rem 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
+
+.dark .vh-item { border-bottom-color: rgba(255, 255, 255, 0.04); }
 
 .vh-item-head {
   display: flex;
@@ -405,24 +428,31 @@ async function purgeAll() {
 .vh-item-version {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #EE9B5C;
+  color: #C76F2C;
 }
+
+.dark .vh-item-version { color: #EE9B5C; }
 
 .vh-item-date {
   font-size: 0.75rem;
-  color: #707070;
+  color: #8A8A86;
 }
+
+.dark .vh-item-date { color: #707070; }
 
 .vh-item-meta {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   font-size: 0.7rem;
-  color: #909090;
+  color: #6B6B66;
   margin-top: 0.25rem;
 }
 
-.vh-dot { color: #555; }
+.dark .vh-item-meta { color: #909090; }
+
+.vh-dot { color: #B9B9B4; }
+.dark .vh-dot { color: #555; }
 
 .vh-item-actions {
   display: flex;
@@ -432,24 +462,30 @@ async function purgeAll() {
 
 .vh-footer {
   padding: 0.75rem 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
+
+.dark .vh-footer { border-top-color: rgba(255, 255, 255, 0.08); }
 
 .vh-empty {
   padding: 1.5rem 1rem;
   font-size: 0.8125rem;
-  color: #909090;
+  color: #6B6B66;
   text-align: center;
 }
+
+.dark .vh-empty { color: #909090; }
 
 .vh-error {
   padding: 0.75rem 1rem;
   font-size: 0.8125rem;
-  color: #ff8888;
+  color: #A43144;
   display: flex;
   align-items: center;
   gap: 0.4rem;
 }
+
+.dark .vh-error { color: #ff8888; }
 
 /* The modal itself caps at `calc(100vh - 160px)` (max-h-modal). Inside
    it we lose ~150px to the title, body padding, and footer button.
@@ -460,27 +496,23 @@ async function purgeAll() {
   max-height: calc(100vh - 320px);
   overflow-y: auto;
   overflow-x: hidden;
-  background: #181818;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 0.375rem;
 }
 
-/* Override Milkdown's wrapper-level background so the dark theme is
-   uninterrupted edge-to-edge inside the modal. */
-.vh-preview.milkdown-wrapper {
-  background: #181818;
-}
+.dark .vh-preview { border-color: rgba(255, 255, 255, 0.06); }
 
 /* Match the editor's own scrollbar treatment so the right edge looks
-   intentional instead of revealing the OS-default light scrollbar
-   over the dark canvas. */
+   intentional instead of revealing the OS-default scrollbar over the
+   canvas. The preview's background comes from .milkdown-wrapper, which
+   already follows the theme. */
 .vh-preview::-webkit-scrollbar { width: 10px; }
 .vh-preview::-webkit-scrollbar-track { background: transparent; }
 .vh-preview::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.18);
   border-radius: 5px;
 }
-.vh-preview::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
+.vh-preview::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.3); }
+.dark .vh-preview::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); }
+.dark .vh-preview::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
 </style>

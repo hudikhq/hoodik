@@ -36,6 +36,41 @@ test.describe('Directories', () => {
     await page.getByLabel('Breadcrumb').getByRole('link', { name: 'My Files' }).click()
     await expect(page.getByTestId('file-row-My_Test_Dir')).toBeVisible()
   })
+
+  test('creating a duplicate directory shows an error and keeps the dialog open', async ({ page }) => {
+    await setup(page)
+
+    await page.locator('[name="create-dir"]').click()
+    await page.locator('#name').fill('Dup_Dir')
+    await page.getByRole('button', { name: 'Create', exact: true }).click()
+    await expect(page.getByTestId('file-row-Dup_Dir')).toBeVisible()
+
+    await page.locator('[name="create-dir"]').click()
+    await page.locator('#name').fill('Dup_Dir')
+    await page.getByRole('button', { name: 'Create', exact: true }).click()
+
+    const dialog = page.getByRole('dialog', { name: 'Create a folder' })
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole('alert')).toContainText('already exists')
+  })
+
+  test('dialogs paint above the page content in light theme', async ({ page }) => {
+    await setup(page)
+    await page.getByTestId('theme-toggle').click()
+
+    await page.locator('[name="create-dir"]').click()
+    const dialog = page.getByRole('dialog', { name: 'Create a folder' })
+    await expect(dialog).toBeVisible()
+
+    // The dialog card must win the paint order — a statically positioned
+    // card once rendered underneath the page's own content in light theme.
+    const onTop = await dialog.evaluate((el) => {
+      const rect = el.getBoundingClientRect()
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + 10)
+      return hit !== null && el.contains(hit)
+    })
+    expect(onTop).toBe(true)
+  })
 })
 
 test.describe('Upload', () => {

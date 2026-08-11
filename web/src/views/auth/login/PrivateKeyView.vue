@@ -74,9 +74,9 @@ init()
 </script>
 <template>
   <LayoutGuest>
-    <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
+    <SectionFullScreen v-slot="{ cardClass }">
       <CardBox :class="cardClass">
-        <h1 class="text-2xl text-white">{{ $t('auth.login.title') }}</h1>
+        <h1 class="text-2xl text-brownish-700 dark:text-white">{{ $t('auth.login.title') }}</h1>
         <AppForm v-if="config" :config="config" class="mt-8 space-y-6" v-slot="{ form }">
           <AppField
             textarea
@@ -89,7 +89,7 @@ init()
           />
           <AppCheckbox :label="$t('auth.rememberMe')" :form="form" name="remember" />
 
-          <p v-if="authenticationError" class="text-sm text-redish-400">
+          <p v-if="authenticationError" class="text-sm text-redish-400 dark:text-redish-100">
             {{ authenticationError }}
           </p>
 
@@ -104,12 +104,12 @@ init()
 
           <div
             v-if="register.allowRegister !== false"
-            class="text-sm font-medium text-brownish-500 dark:text-brownish-100"
+            class="text-sm font-medium text-brownish-500 dark:text-brownish-50"
           >
             {{ $t('auth.noAccountYet') }}
             <router-link
               :to="{ name: 'register' }"
-              class="text-primary-700 hover:underline dark:text-primary-500"
+              class="text-primary-700 hover:underline dark:text-primary-100"
               >{{ $t('auth.createAnAccount') }}</router-link
             >
           </div>

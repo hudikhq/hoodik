@@ -44,19 +44,19 @@ onMounted(refresh)
 
       <div class="-mx-4 -mb-4">
         <!-- Usage bar -->
-        <div class="px-4 py-3 border-b border-brownish-100 dark:border-brownish-700/50">
+        <div class="px-4 py-3 border-b border-paper-200 dark:border-brownish-700/50">
           <div class="flex justify-between items-baseline mb-1.5">
             <span class="text-sm font-medium">{{ $t('admin.stats.used', { size: usedSpace }) }}</span>
-            <span class="text-xs text-brownish-400">{{ $t('admin.stats.ofTotal', { size: availableSpace }) }}</span>
+            <span class="text-xs text-brownish-400 dark:text-brownish-50">{{ $t('admin.stats.ofTotal', { size: availableSpace }) }}</span>
           </div>
-          <div class="h-2 bg-brownish-100 dark:bg-brownish-700 rounded-full overflow-hidden">
+          <div class="h-2 bg-paper-100 dark:bg-brownish-700 rounded-full overflow-hidden">
             <div
               :class="usageColor"
               class="h-2 rounded-full transition-[width] duration-700"
               :style="{ width: usagePercent + '%' }"
             />
           </div>
-          <p class="text-xs text-brownish-400 mt-1.5">{{ $t('admin.stats.capacityUsed', { percent: usagePercent }) }}</p>
+          <p class="text-xs text-brownish-400 dark:text-brownish-50 mt-1.5">{{ $t('admin.stats.capacityUsed', { percent: usagePercent }) }}</p>
         </div>
 
         <!-- Breakdown by type -->

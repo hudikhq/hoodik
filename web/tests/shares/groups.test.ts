@@ -12,6 +12,26 @@ import { GroupMemberFingerprintMismatch } from '../../services/shares/groups'
 import ShareHubGroups from '../../src/views/shares/ShareHubGroups.vue'
 import SharingPeopleAdd from '../../src/components/shares/SharingPeopleAdd.vue'
 
+/**
+ * `flushPromises()` drains a single microtask turn. The managed-roster load
+ * awaits a mocked request and then re-renders, so under CPU contention the
+ * row can land a tick after the flush — which made this assertion fail at
+ * random in a full-suite run while passing in isolation. Retry within a
+ * bounded window instead of racing it.
+ */
+async function rowAppears(
+  wrapper: { find: (selector: string) => { exists: () => boolean } },
+  testid: string,
+  tries = 20
+): Promise<boolean> {
+  for (let i = 0; i < tries; i++) {
+    if (wrapper.find(`[data-testid="${testid}"]`).exists()) return true
+    await flushPromises()
+  }
+  return false
+}
+
+
 import type {
   AppShareGroup,
   AppShareGroupWithMembers,
@@ -1151,7 +1171,7 @@ describe('group role UI', () => {
     await flushPromises()
 
     // The owner row is never rendered as a manageable member; only Bob is.
-    expect(wrapper.find(`[data-testid="share-hub-groups-member-of-g-co-member-${MEMBER_A}"]`).exists()).toBe(true)
+    expect(await rowAppears(wrapper, `share-hub-groups-member-of-g-co-member-${MEMBER_A}`)).toBe(true)
     expect(wrapper.find(`[data-testid="share-hub-groups-member-of-g-co-member-${MEMBER_B}"]`).exists()).toBe(false)
   })
 

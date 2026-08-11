@@ -8,7 +8,7 @@ const props = defineProps<{
   color?: ColorType
   w?: string
   h?: string
-  bg?: Boolean
+  bg?: boolean
 }>()
 
 const componentClass = computed(() => {
@@ -18,7 +18,7 @@ const componentClass = computed(() => {
 
   const cls = props.color ? colorsText[props.color] : ''
 
-  return [cls, 'bg-brownish-50 dark:bg-brownish-800']
+  return [cls, 'bg-paper-50 dark:bg-brownish-800']
 })
 </script>
 

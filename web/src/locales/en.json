@@ -40,8 +40,8 @@
       "submit": "Change password",
       "success": "Your password has been changed",
       "title": "Change my password",
-      "tokenHelp": "If you have 2FA enabled, enter your token here.",
-      "tokenLabel": "2FA token (optional)",
+      "tokenHelp": "If you have 2FA enabled, enter your code here.",
+      "tokenLabel": "2FA code (optional)",
       "usePrivateKey": "Change with private key"
     },
     "details": {
@@ -60,7 +60,7 @@
       "tfaOffHint": "Add an extra layer of login security.",
       "tfaOnHint": "Protected with a TOTP authenticator app.",
       "title": "Account Details",
-      "twoFactor": "Two-Factor Auth",
+      "twoFactor": "Two-factor authentication",
       "verified": "verified {date}"
     },
     "invite": {
@@ -115,15 +115,15 @@
     },
     "tfa": {
       "disable": "Disable",
-      "disableTitle": "Disable two factor authentication",
+      "disableTitle": "Disable two-factor authentication",
       "enable": "Enable",
-      "enableTitle": "Enable two factor authentication",
-      "lostAccessHelp": "If you have lost access to your two factor account, contact the app admin",
-      "scanQr": "Scan the QR code with your two factor application, or simply copy and paste the secret code below",
-      "secretLabel": "Your two factor secret",
+      "enableTitle": "Enable two-factor authentication",
+      "lostAccessHelp": "If you have lost access to your authenticator app, contact the app admin",
+      "scanQr": "Scan the QR code with your authenticator app, or simply copy and paste the secret code below",
+      "secretLabel": "Your 2FA secret",
       "secretRequired": "Secret is required",
-      "tokenLabel": "Enter your two factor token",
-      "tokenRequired": "Two factor token is required"
+      "tokenLabel": "Enter your 2FA code",
+      "tokenRequired": "Two-factor code is required"
     }
   },
   "admin": {
@@ -198,17 +198,20 @@
     "user": {
       "accountControls": "Account Controls",
       "allUsers": "All Users",
+      "awaitingVerification": "Awaiting verification",
       "confirmDelete": "Yes, delete",
       "confirmDemote": "Yes, demote",
       "confirmDisable": "Yes, disable",
       "confirmPromote": "Yes, promote",
+      "confirmVerifyEmail": "Verify now",
       "dangerZone": "Danger Zone",
       "deleteAccount": "Delete this account",
       "deleteAccountWarning": "Permanently deletes the user and all their files. This cannot be undone.",
       "deleteUser": "Delete user",
-      "disableTfa": "Disable TFA",
+      "disableTfa": "Disable 2FA",
       "editQuota": "Edit quota",
       "editStorageQuota": "Edit Storage Quota",
+      "emailAddress": "Email address",
       "emailUnverified": "email unverified",
       "emailVerified": "email verified",
       "encryptionKeys": "Encryption Keys",
@@ -226,9 +229,11 @@
       "storageQuota": "Storage Quota",
       "tfaEnabled": "Enabled",
       "tfaNotEnabled": "Not enabled",
-      "tfaOn": "TFA on",
-      "twoFactorAuth": "Two-Factor Auth",
-      "userBadge": "user"
+      "tfaOn": "2FA on",
+      "twoFactorAuth": "Two-factor authentication",
+      "userBadge": "user",
+      "verifiedOn": "Verified {date}",
+      "verifyEmail": "Verify email"
     },
     "users": {
       "emailActivated": "Email Activated",
@@ -236,7 +241,7 @@
       "joined": "Joined",
       "lastActive": "Last Active",
       "searchPlaceholder": "Search by ID or email",
-      "tfa": "TFA",
+      "tfa": "2FA",
       "tfaEnabled": "enabled",
       "tfaOff": "off",
       "title": "Users ({total})",
@@ -259,8 +264,11 @@
       "title": "Recover your account"
     },
     "lock": {
-      "description": "An account for the user with email {email} has been locked on this browser all other data has been removed. If you are not the owner of this account, you can forget the account and login or register yourself.",
-      "forgetAccount": "Forget account"
+      "description": "The account for {email} has been locked on this browser and all other data has been removed. If you are not the owner of this account, you can forget it and log in or register yourself.",
+      "forgetAccount": "Forget account",
+      "forgetConfirmBody": "This removes the locked account and its encrypted key from this browser. The account itself is not deleted, and you can sign back in with your password at any time.",
+      "forgetConfirmLabel": "Yes, forget it",
+      "forgetConfirmTitle": "Forget this account?"
     },
     "lockSetup": {
       "description": "Your private key will be encrypted and stored locally so the next time you come back you can decrypt it and access your files with a simple pin/password.",
@@ -269,10 +277,13 @@
       "title": "Setup Lock Screen"
     },
     "login": {
+      "codeDigit": "Digit {index} of {total}",
       "forgotPassword": "Forgot your password?",
       "recoverHere": "Recover your account here",
       "title": "Access Your Files",
-      "twoFactorLabel": "2FA token (optional)",
+      "twoFactorBody": "This account is protected by two-factor authentication. Enter the current code from your authenticator app.",
+      "twoFactorLabel": "Authentication code",
+      "twoFactorTitle": "Two-factor code",
       "withPrivateKey": "Login With Private Key"
     },
     "migration": {
@@ -295,16 +306,16 @@
     },
     "registerKey": {
       "confirmStored": "I have stored my private key",
+      "download": "Download key",
       "generating": "...is being generated, please wait...",
       "label": "Your recovery key",
-      "lastTimeWarning": "This is the last time we'll show you your recovery key!",
-      "storeSafe": "Store it somewhere safe. You will need this to login or recover your account if you forget your password.",
+      "storeSafe": "Store it somewhere safe. You will need it to log in or to recover your account if you forget your password. You can view it again anytime under Account → Recovery key.",
       "title": "Your Recovery Key"
     },
     "rememberMe": "Remember me",
     "resend": {
       "alreadyActivated": "Already activated an account?",
-      "description1": "We have sent you an activation email that contains link you have to visit in order to active your account.",
+      "description1": "We have sent you an activation email with a link you need to visit to activate your account.",
       "description2": "In case you haven't received an email, you can request another one by filling out the form below.",
       "resend": "Re-send",
       "resendCount": "Re-send ({count})",
@@ -312,13 +323,13 @@
       "title": "Activation pending"
     },
     "twoFactor": {
-      "generating": "We are generating your two factor secret...",
-      "registerButton": "Register with Two Factor",
-      "scanQr": "Scan the QR code with your two factor application, or simply copy and paste the secret code below",
-      "secretLabel": "Your two factor secret",
+      "generating": "We are generating your 2FA secret...",
+      "registerButton": "Register with 2FA",
+      "scanQr": "Scan the QR code with your authenticator app, or simply copy and paste the secret code below",
+      "secretLabel": "Your 2FA secret",
       "skip": "Skip",
-      "title": "Two Factor Authentication",
-      "tokenLabel": "Enter your two factor token"
+      "title": "Two-factor authentication",
+      "tokenLabel": "Enter your 2FA code"
     },
     "unlock": "Unlock",
     "validation": {
@@ -334,7 +345,8 @@
       "privateKeyRequired": "Private key is required",
       "pubkeyRequired": "Public key is required",
       "secretRequired": "Secret is required",
-      "twoFactorRequired": "Two factor token is required"
+      "tokenRequired": "Two-factor code is required",
+      "twoFactorRequired": "Two-factor code is required"
     },
     "verifyEmail": {
       "failed": "Email verification failed:",
@@ -354,7 +366,7 @@
     "cancel": "Cancel",
     "close": "Close",
     "confirm": "Confirm",
-    "copied": "Copied",
+    "copied": "Copied to clipboard",
     "copy": "Copy",
     "create": "Create",
     "created": "Created",
@@ -383,6 +395,8 @@
     "retry": "Retry",
     "save": "Save",
     "search": "Search",
+    "selectAll": "Select all",
+    "selectRow": "Select {name}",
     "send": "Send",
     "settings": "Settings",
     "share": "Share",
@@ -401,10 +415,14 @@
     "cannot_set_editable_on_directory": "Folders cannot be made editable",
     "cannot_share_not_owner": "Only the owner can share this",
     "cannot_update_not_owner": "Only the owner can update this",
+    "capabilitiesUnavailable": "Sharing features are hidden because we couldn't reach the server — reload to try again",
     "chunk_already_exists": "Chunk already uploaded",
     "chunk_out_of_range": "Chunk out of range",
     "chunk_size_exceeds_max": "Chunk size exceeds the maximum",
+    "copyFailed": "Couldn't copy — select the text and copy it manually",
+    "deleteFailed": "Couldn't delete — the item is still there",
     "directory_not_found": "Folder not found",
+    "emailLanguageFailed": "Your display language changed, but we couldn't save it for emails",
     "encrypted_private_key_required": "Encrypted private key is required",
     "file_already_exists": "A file with this name already exists",
     "file_has_no_chunks": "File has no uploaded data",
@@ -414,6 +432,7 @@
     "forbidden_not_owner": "You are not the owner",
     "forbidden_read_only": "This share is read-only",
     "inactive_account": "Your account is not activated",
+    "incomingFailed": "Couldn't load shares sent to you — this list may be incomplete",
     "invalid": "Invalid value",
     "invalid_authorization_header": "Invalid authorization header",
     "invalid_credentials": "Invalid email or password",
@@ -432,9 +451,11 @@
     "invitation_not_found": "Invitation not found",
     "link_expired": "This link has expired",
     "link_signature_invalid": "Link signature is invalid",
+    "listFailed": "Couldn't load your files — check your connection and try again",
     "login_expired": "Your session has expired, please log in again",
     "missing_refresh_token": "Missing refresh token, please log in again",
     "missing_session_token": "Missing session token, please log in again",
+    "network": "Can't reach the server — check your connection and try again",
     "new_fingerprint_mismatch": "New key fingerprint does not match",
     "no_authorization_header": "Missing authorization header",
     "no_context": "Request context is missing",
@@ -445,6 +466,7 @@
     "ownership_proof_required": "Ownership proof is required",
     "parent_directory_not_found": "Parent folder not found",
     "password_not_set": "Password is not set",
+    "pdfImagesDropped": "Some images could not be included in the PDF",
     "pending_chunks_not_set": "Upload state is incomplete",
     "pending_size_not_set": "Upload state is incomplete",
     "quota_exceeded": "Storage quota exceeded",
@@ -467,6 +489,8 @@
     "transition_signature_invalid_base64": "Key transition signature is malformed",
     "transition_timestamp_skew": "Key transition timestamp is out of range",
     "two_factor_already_enabled": "Two-factor authentication is already enabled",
+    "two_factor_required": "Enter your two-factor code",
+    "undecryptable": "One or more of your links could not be opened with your current key and are not listed",
     "unknown": "Something went wrong",
     "unknown_cipher": "Unknown cipher",
     "upgrade_required": "Please update your app to continue",
@@ -478,15 +502,16 @@
   "files": {
     "actions": {
       "details": "Details",
-      "fork": "Fork",
+      "fork": "Save my own copy",
       "forkTitle": "Save an independent copy to your drive — survives revocation",
       "preview": "Preview",
       "sharing": "Sharing"
     },
     "breadcrumbs": "Breadcrumb",
+    "breadcrumbsShowAll": "Show all folders",
     "browser": {
       "addToDownloadQueue": "Add to download queue",
-      "createDirectory": "Create directory",
+      "createDirectory": "Create folder",
       "emptyFolder": "This folder is empty",
       "emptyFolderHint": "Drop files here or use the upload button to add some",
       "newFile": "New file",
@@ -496,10 +521,10 @@
       "uploadFolder": "Upload folder"
     },
     "createDirectory": {
-      "nameLabel": "Directory name",
+      "nameLabel": "Folder name",
       "namePlaceholder": "Documents",
-      "nameRequired": "Directory name is required",
-      "title": "Create a directory"
+      "nameRequired": "Folder name is required",
+      "title": "Create a folder"
     },
     "createFile": {
       "nameLabel": "File name",
@@ -507,18 +532,21 @@
       "title": "Create a new file"
     },
     "delete": {
-      "confirmDirectory": "Are you sure you want to delete forever '{name}' directory?",
-      "confirmFile": "Are you sure you want to delete forever '{name}'?",
+      "confirmDirectory": "Are you sure you want to delete the folder '{name}' forever?",
+      "confirmFile": "Are you sure you want to delete '{name}' forever?",
       "confirmLabel": "Yes, delete",
       "confirmMany": "Are you sure you want to delete {count} items?",
-      "selectedTitle": "Delete selected"
+      "confirmManyFolders": "{count} of them is a folder — everything inside goes too. | {count} of them are folders — everything inside goes too.",
+      "selectedTitle": "Delete selected",
+      "typeCount": "Type {count} to confirm",
+      "typeName": "Type {name} to confirm"
     },
     "details": {
       "uploaded": "Uploaded"
     },
     "move": {
       "home": "Home",
-      "selectTarget": "Select target directory"
+      "selectTarget": "Select target folder"
     },
     "moveShare": {
       "andMore": "{names} and {count} more",
@@ -531,7 +559,7 @@
     },
     "myFiles": "My Files",
     "rename": {
-      "directoryTitle": "Rename a directory",
+      "directoryTitle": "Rename a folder",
       "fileTitle": "Rename a file",
       "namePlaceholder": "new name",
       "nameRequired": "New name is required"
@@ -539,9 +567,11 @@
     "row": {
       "ownedBy": "Owned by {email}",
       "savingInAnotherSession": "Another session is saving this note",
-      "sharedWith": "Shared with {count} other account | Shared with {count} other accounts"
+      "sharedWith": "Shared with {count} other account | Shared with {count} other accounts",
+      "uploadIncomplete": "Upload incomplete"
     },
     "search": {
+      "failed": "Search failed — check your connection and try again",
       "noMatches": "No files match that search",
       "notesOnly": "Notes only",
       "placeholder": "Search files...",
@@ -575,6 +605,44 @@
     },
     "tree": {
       "root": "Root"
+    },
+    "type": {
+      "archive": "Archive",
+      "audio": "Audio",
+      "document": "Document",
+      "folder": "Folder",
+      "font": "Font",
+      "image": "Image",
+      "pdf": "PDF",
+      "presentation": "Presentation",
+      "spreadsheet": "Spreadsheet",
+      "text": "Text",
+      "video": "Video"
+    }
+  },
+  "help": {
+    "title": "Help",
+    "shortcuts": {
+      "title": "Keyboard shortcuts",
+      "search": "Search your files",
+      "help": "Open this panel",
+      "inNotes": "In the note editor",
+      "bold": "Bold",
+      "italic": "Italic",
+      "link": "Link",
+      "save": "Save",
+      "undoRedo": "Undo / Redo"
+    },
+    "facts": {
+      "title": "Good to know",
+      "recoveryKey": "Your recovery key is the only way back in if you forget your password. It stays available under Account → Recovery key.",
+      "sharing": "Revoking a share stops future reads. Whatever the other person already downloaded stays with them — encryption cannot take it back.",
+      "server": "Names, contents and thumbnails are encrypted in your browser before they are uploaded. The server stores ciphertext and never holds your keys."
+    },
+    "links": {
+      "title": "Elsewhere",
+      "source": "Source code and security policy on GitHub",
+      "apps": "Apps for phone and desktop"
     }
   },
   "links": {
@@ -642,7 +710,7 @@
   },
   "nav": {
     "activation": {
-      "notice": "You account is not activated, please check your email for the activation link, it might end up in spam folder, so check that too. You can also try to {resend} the activation email.",
+      "notice": "Your account is not activated. Please check your email for the activation link; it might end up in the spam folder, so check that too. You can also try to {resend} the activation email.",
       "resend": "resend",
       "resendFailed": "Couldn't resend activation email"
     },
@@ -651,7 +719,7 @@
       "saved": "Saved in clipboard"
     },
     "fork": {
-      "cancelledText": "The fork was cancelled before it completed.",
+      "cancelledText": "The copy was cancelled before it finished.",
       "cancelledTitle": "Save cancelled",
       "noSession": "Cannot save without an active session.",
       "progress": "Saving to your drive",
@@ -666,9 +734,11 @@
     "menu": {
       "account": "Account",
       "files": "Files",
+      "help": "Help",
       "lock": "Lock",
       "notes": "Notes",
       "share": "Sharing",
+      "theme": "Theme",
       "users": "Users"
     },
     "title": {
@@ -691,12 +761,12 @@
       "registerCredentials": "Create Account - Credentials",
       "registerKey": "Create Account - Your Private Key",
       "registerResend": "Create Account - Resend Activation Email",
-      "registerTwoFactor": "Create Account - Two Factor Authentication",
+      "registerTwoFactor": "Create Account - Two-Factor Authentication",
       "setupLockScreen": "Setup Lock Screen",
       "verifyEmail": "Create Account - Verify Email"
     },
     "upload": {
-      "fileIsDirectory": "File {name} is a directory"
+      "fileIsDirectory": "{name} is a folder"
     }
   },
   "notes": {
@@ -724,6 +794,7 @@
       "empty": "No notes yet",
       "loading": "Loading notes...",
       "noMatches": "No notes matching \"{query}\"",
+      "searchFailed": "Search failed — check your connection and try again",
       "searchPlaceholder": "Search notes...",
       "title": "Notes",
       "today": "Today",
@@ -747,11 +818,16 @@
       "saved": "Saved",
       "saving": "Saving...",
       "strikethrough": "Strikethrough",
+      "taskList": "Task list",
       "undo": "Undo (Ctrl+Z)",
       "versionHistory": "Version history"
     }
   },
   "preview": {
+    "deleteFile": "Delete file",
+    "downloadFile": "Download file",
+    "exportPdf": "Export PDF",
+    "fileDetails": "File details",
     "markdown": {
       "conflictBody": "The server has an unfinished save for this note from another session. Choose {overwrite} to drop their pending edit and save your version, or {cancel} to drop your local changes and let the other save finish.",
       "conflictOverwrite": "Discard remote and overwrite",
@@ -765,7 +841,9 @@
       "moveTitle": "Move to folder",
       "readOnly": "This markdown file is read-only."
     },
-    "noPreview": "No preview available 🥲",
+    "nextImage": "Next image",
+    "noPreview": "No preview available",
+    "previousImage": "Previous image",
     "versionHistory": {
       "authorAnonymous": "Anonymous",
       "authorOther": "Another collaborator",
@@ -781,6 +859,7 @@
       "deleteTitle": "Delete this version?",
       "deleteVersion": "Delete this version",
       "empty": "No history yet. Edit the note to start building one.",
+      "keyUnavailable": "This file's key is unavailable — try reopening the note",
       "loading": "Loading versions…",
       "previewTitle": "Preview v{version}",
       "restoreAsNew": "Restore as new note",
@@ -793,7 +872,10 @@
     "video": {
       "loadError": "Could not load video: {error}",
       "loading": "Loading… {progress}%"
-    }
+    },
+    "zoomFit": "Fit image to screen",
+    "zoomIn": "Increase image size",
+    "zoomOut": "Decrease image size"
   },
   "shares": {
     "add": {
@@ -837,7 +919,7 @@
     },
     "audit": {
       "actions": {
-        "fork": "Forked",
+        "fork": "Saved a copy",
         "grant": "Shared",
         "keyRotation": "Key rotation",
         "revoke": "Revoked",
@@ -859,16 +941,17 @@
         "sigVerified": "Verified against sender pubkey"
       },
       "empty": "No events match the current filters.",
+      "emptyAll": "No sharing activity yet. Events appear here once you share a file or someone shares one with you.",
       "filteredBanner": "Filtered view — chain verification limited to visible rows.",
       "filters": {
         "action": "Action",
         "allActions": "All actions",
+        "allRecipients": "All recipients",
         "clear": "Clear filters",
         "fileId": "File id",
         "find": "Find",
         "from": "From",
         "recipient": "Recipient",
-        "recipientPlaceholder": "user id",
         "sender": "Sender",
         "senderPlaceholder": "user{'@'}example.com",
         "to": "To"
@@ -901,7 +984,7 @@
         "evict": "{recipient} lost access to {file} (cascade)",
         "fallback": "{action} on {file}",
         "fileId": "file {id}…",
-        "fork": "{sender} forked {file} into their drive",
+        "fork": "{sender} saved their own copy of {file}",
         "grant": "{sender} shared {file} with {recipient}",
         "grantAs": "{sender} shared {file} with {recipient} as {role}",
         "keyRotation": "{sender} rotated their account encryption keys",
@@ -1068,6 +1151,7 @@
   },
   "ui": {
     "aside": {
+      "collapse": "Collapse sidebar",
       "getApps": "Get the apps"
     },
     "fileTree": {

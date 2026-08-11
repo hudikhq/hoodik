@@ -135,3 +135,50 @@ async fn test_delete_user() {
 
     repository.users().delete(user.id).await.unwrap();
 }
+
+#[async_std::test]
+async fn test_verify_email_clears_pending_activation() {
+    use entity::{ActiveValue, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter};
+
+    let context = Context::mock_sqlite().await;
+    let repository = super::get_repo(&context).await;
+    let user = entity::mock::create_user(&context.db, "unverified@test.com", None).await;
+
+    entity::users::Entity::update(entity::users::ActiveModel {
+        id: ActiveValue::Set(user.id),
+        email_verified_at: ActiveValue::Set(None),
+        ..Default::default()
+    })
+    .exec(&context.db)
+    .await
+    .unwrap();
+
+    entity::user_actions::Entity::insert(entity::user_actions::ActiveModel {
+        id: ActiveValue::Set(entity::Uuid::new_v4()),
+        user_id: ActiveValue::Set(user.id),
+        email: ActiveValue::Set(user.email.clone()),
+        action: ActiveValue::Set("activate-email".to_string()),
+        created_at: ActiveValue::Set(chrono::Utc::now().timestamp()),
+    })
+    .exec_without_returning(&context.db)
+    .await
+    .unwrap();
+
+    repository.users().verify_email(user.id).await.unwrap();
+
+    let updated = entity::users::Entity::find_by_id(user.id)
+        .one(&context.db)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert!(updated.email_verified_at.is_some());
+
+    let pending = entity::user_actions::Entity::find()
+        .filter(entity::user_actions::Column::UserId.eq(user.id))
+        .count(&context.db)
+        .await
+        .unwrap();
+
+    assert_eq!(pending, 0);
+}

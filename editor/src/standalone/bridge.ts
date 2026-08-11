@@ -77,6 +77,10 @@ export class EditorBridgeHost {
         this.applyZoom(msg.scale)
         break
 
+      case 'setTheme':
+        document.documentElement.classList.toggle('dark', msg.theme === 'dark')
+        break
+
       default:
         // Future message types (assetResolved, setNoteList, etc.)
         // will be handled here as they're implemented

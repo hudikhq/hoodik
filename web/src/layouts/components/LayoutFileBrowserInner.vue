@@ -617,7 +617,7 @@ watch(
 
   <div
     v-if="forkingId && forkProgress"
-    class="fixed bottom-4 right-4 z-50 p-3 rounded-lg bg-brownish-100 dark:bg-brownish-800 shadow-lg text-sm"
+    class="fixed bottom-4 right-4 z-50 p-3 rounded-lg bg-paper-100 dark:bg-brownish-800 shadow-lg text-sm"
     data-testid="fork-progress"
   >
     <div class="flex items-center gap-2">
@@ -631,7 +631,7 @@ watch(
       </span>
       <button
         type="button"
-        class="underline text-redish-500"
+        class="underline text-redish-500 dark:text-redish-100"
         data-testid="fork-progress-cancel"
         @click.prevent="cancelFork"
       >{{ $t('common.cancel') }}</button>

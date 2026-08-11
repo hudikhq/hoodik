@@ -58,6 +58,12 @@ impl AuthProvider for CredentialsProvider<'_> {
             return Err(Error::Unauthorized("invalid_credentials".to_string()));
         }
 
+        // Password verified above; a missing code asks for a second step rather
+        // than reporting a failed login. A supplied-but-wrong code still does.
+        if user.secret.is_some() && token.is_none() {
+            return Err(Error::Unauthorized("two_factor_required".to_string()));
+        }
+
         if !user.verify_tfa(token) {
             return Err(Error::Unauthorized("invalid_otp_token".to_string()));
         }

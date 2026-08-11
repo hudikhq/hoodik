@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
+import FormError from '@/components/ui/FormError.vue'
 import { AppForm, AppField } from '@/components/form'
 import QuotaSlider from '@/components/ui/QuotaSlider.vue'
 import * as yup from 'yup'
@@ -8,6 +9,7 @@ import type { ErrorResponse } from '!/api'
 import { create } from '!/admin/invitations'
 import type { Create } from 'types/admin/invitations'
 import { useI18n } from 'vue-i18n'
+import { humanizeError } from '!/index'
 
 const props = defineProps<{
   modelValue?: boolean | undefined
@@ -41,7 +43,7 @@ const init = () => {
       } catch (err) {
         const error = err as ErrorResponse<unknown>
         config.value.initialErrors = error.validation || {}
-        errorMessage.value = error.description
+        errorMessage.value = humanizeError(err)
       }
     }
   }
@@ -62,9 +64,7 @@ init()
       @cancel="$emit('cancel')"
       :form="form"
     >
-      <p v-if="errorMessage" class="text-sm text-redish-900 dark:text-redish-200">
-        {{ errorMessage }}
-      </p>
+      <FormError v-if="errorMessage">{{ errorMessage }}</FormError>
 
       <AppField :form="form" :label="$t('common.email')" name="email" autofocus />
       <AppField

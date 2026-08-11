@@ -9,13 +9,13 @@ const puppyLoader = ref(true)
 
 <template>
   <div :class="{ dark: styleStore.darkMode }">
-    <div class="bg-brownish-50 text-brownish-900 dark:bg-brownish-800 dark:text-dirty-white">
+    <div class="bg-paper-50 text-brownish-900 dark:bg-brownish-800 dark:text-dirty-white">
       <Suspense>
         <slot />
 
         <template #fallback>
           <div
-            class="flex min-h-screen items-center justify-center bg-gradient-to-tr from-brownish-700 via-brownish-900 to-brownish-800"
+            class="flex min-h-screen items-center justify-center bg-gradient-to-tr from-paper-100 via-paper-50 to-paper-100 dark:from-brownish-700 dark:via-brownish-900 dark:to-brownish-800"
           >
             <PuppyLoader v-model="puppyLoader" />
           </div>

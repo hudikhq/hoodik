@@ -96,8 +96,8 @@ onUnmounted(() => {
     class="fixed bottom-2 left-2 z-[100] px-3 py-2 rounded-lg font-mono text-[11px] leading-relaxed
       pointer-events-none select-none
       bg-white/85 dark:bg-brownish-900/85 backdrop-blur-sm
-      border border-brownish-200/40 dark:border-brownish-600/60
-      text-brownish-400 dark:text-brownish-100"
+      border border-paper-300/40 dark:border-brownish-600/60
+      text-brownish-400 dark:text-brownish-50"
   >
     <div>wasm main: {{ formatSize(mainWasm) }}</div>
     <div v-for="(bytes, name) in workerWasm" :key="name">

@@ -1,5 +1,18 @@
 /* eslint-env node */
 
+const redish = {
+  50: '#F58596',
+  100: '#E2677B',
+  200: '#D8566B',
+  300: '#BA4054',
+  400: '#A63446', // native
+  500: '#A43144',
+  600: '#96293B',
+  700: '#811C2C',
+  800: '#610F1C',
+  900: '#300C13',
+  950: '#1C0508'
+}
 
 module.exports = {
   content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
@@ -9,21 +22,23 @@ module.exports = {
       transparent: 'transparent',
       white: '#FFFFFF',
       'dirty-white': '#EEEEEE',
-      redish: {
-        50: '#F58596',
-        100: '#E2677B',
-        200: '#D8566B',
-        300: '#BA4054',
-        400: '#A63446', // native
-        500: '#A43144',
-        600: '#96293B',
-        700: '#811C2C',
-        800: '#610F1C',
-        900: '#300C13',
-        950: '#1C0508'
+      // Light-mode neutrals. The brownish ramp starts at #898989, which is
+      // why early light surfaces came out mid-gray; paper carries the light
+      // end of the scale instead.
+      paper: {
+        50: '#FAFAF9',
+        100: '#F1F1EF',
+        200: '#E5E5E2',
+        300: '#D2D2CE',
+        400: '#B9B9B4'
       },
+      redish,
+      primary: redish,
       brownish: {
-        50: '#898989',
+        // 50 is the muted-text step. It sits at #939393 rather than the
+        // older #898989, which measured 4.49:1 against the #232323 panel —
+        // a hair under AA for the small text it carries.
+        50: '#939393',
         100: '#787878',
         200: '#666666',
         300: '#555555',

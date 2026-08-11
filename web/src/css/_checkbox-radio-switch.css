@@ -33,7 +33,7 @@
   }
 
   .switch input[type='checkbox'] + .check {
-    @apply flex items-center shrink-0 w-12 h-6 p-0.5 bg-brownish-200;
+    @apply flex items-center shrink-0 w-12 h-6 p-0.5 bg-paper-300 dark:bg-brownish-500;
   }
 
   .radio input[type='radio'] + .check,
@@ -67,7 +67,7 @@
   }
 
   .switch input[type='checkbox']:checked + .check:before {
-    transform: tranbrownish3d(110%, 0, 0);
+    transform: translate3d(110%, 0, 0);
     @apply border-redish-600;
   }
 }

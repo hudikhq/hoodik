@@ -19,6 +19,38 @@ html {
   scroll-behavior: smooth;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  /* Travel across the screen is the vestibular trigger, so transforms stop
+     transitioning and land at their end state immediately. Color and opacity
+     are how this interface reports state — a blanket duration kill takes that
+     feedback with it, which is worse than the motion it removes. */
+  *,
+  *::before,
+  *::after {
+    transition-property: color, background-color, border-color, text-decoration-color,
+      fill, stroke, opacity, box-shadow;
+  }
+
+}
+
+/* Every keyframe animation in this app reports progress, so none of them are
+   frozen under reduced motion — a stalled spinner reads as a hung app. The two
+   bars that travel swap to this in-place pulse instead; the rule lives in each
+   component's scoped block, where it can out-specify the animation it replaces. */
+@keyframes working-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
