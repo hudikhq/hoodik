@@ -298,7 +298,7 @@ async function purgeAll() {
     <OverlayLayer :visible="!!previewVersion" @overlay-click="closePreview">
       <CardBox
         v-show="!!previewVersion"
-        class="vh-preview-card relative shadow-lg max-h-modal w-11/12 lg:w-5/6 xl:w-3/4 z-50"
+        class="vh-preview-card relative max-h-modal w-11/12 lg:w-5/6 xl:w-3/4 z-50"
         is-modal
       >
         <CardBoxComponentTitle :title="previewVersion ? $t('preview.versionHistory.previewTitle', { version: previewVersion.version }) : ''" />

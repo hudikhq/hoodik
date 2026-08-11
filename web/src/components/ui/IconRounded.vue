@@ -8,7 +8,7 @@ const props = defineProps<{
   color?: ColorType
   w?: string
   h?: string
-  bg?: Boolean
+  bg?: boolean
 }>()
 
 const componentClass = computed(() => {

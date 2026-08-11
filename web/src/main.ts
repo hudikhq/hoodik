@@ -3,7 +3,7 @@ import App from './App.vue'
 import router from './router'
 import { createPinia } from '!/init'
 import { store as style } from '!/style'
-import { lightModeKey, styleKey } from '@/config'
+import { lightModeKey } from '@/config'
 import { greeting } from '!/logger'
 import { humanizeError } from '!/index'
 import { i18n, currentLocale } from '@/i18n'
@@ -32,9 +32,6 @@ createApp(App).use(i18n).use(Notifications).use(router).use(pinia).mount('#app')
 
 /* Init Pinia stores */
 const styleStore = style(pinia)
-
-/* App style */
-styleStore.setStyle(localStorage[styleKey] ?? 'basic')
 
 /* Theme: dark unless the user explicitly stored a light preference */
 styleStore.setDarkMode(localStorage[lightModeKey] !== '1')

@@ -225,7 +225,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
 <template>
   <div data-testid="share-hub-groups">
     <header class="flex items-center justify-between gap-3 mb-3">
-      <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-300">{{ $t('shares.groups.owned') }}</h2>
+      <h2 class="text-xs font-semibold text-brownish-300 dark:text-brownish-50">{{ $t('shares.groups.owned') }}</h2>
       <BaseButton
         :icon="mdiPlus"
         color="info"
@@ -236,7 +236,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
       />
     </header>
 
-    <p v-if="loading" class="text-sm text-brownish-300" data-testid="share-hub-groups-loading">
+    <p v-if="loading" class="text-sm text-brownish-300 dark:text-brownish-50" data-testid="share-hub-groups-loading">
       {{ $t('shares.groups.loading') }}
     </p>
 
@@ -249,14 +249,14 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
       >
         <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div class="flex items-center gap-2 min-w-0">
-            <BaseIcon :path="mdiAccountMultipleOutline" :size="20" class="shrink-0 text-brownish-300 dark:text-brownish-200" />
+            <BaseIcon :path="mdiAccountMultipleOutline" :size="20" class="shrink-0 text-brownish-300 dark:text-brownish-50" />
             <span
               class="text-sm font-medium truncate"
               :data-testid="`share-hub-groups-owned-${group.id}-name`"
             >
               {{ group.name }}
             </span>
-            <span class="text-xs text-brownish-300 shrink-0">
+            <span class="text-xs text-brownish-300 dark:text-brownish-50 shrink-0">
               · {{ $t('shares.groups.memberCount', group.members.length) }}
             </span>
           </div>
@@ -302,7 +302,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
           >
             <div class="min-w-0">
               <div class="truncate">{{ member.email }}</div>
-              <span class="font-mono text-xs text-brownish-400">
+              <span class="font-mono text-xs text-brownish-400 dark:text-brownish-50">
                 {{ shortFingerprint(member.fingerprint) }}
               </span>
             </div>
@@ -320,7 +320,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
               </select>
               <span
                 v-else
-                class="text-xs text-brownish-400"
+                class="text-xs text-brownish-400 dark:text-brownish-50"
                 :data-testid="`share-hub-groups-owned-${group.id}-member-${member.user_id}-role-label`"
               >
                 {{ roleLabel(member.group_role) }}
@@ -339,7 +339,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
         </ul>
         <p
           v-else
-          class="mt-3 text-xs text-brownish-300"
+          class="mt-3 text-xs text-brownish-300 dark:text-brownish-50"
           :data-testid="`share-hub-groups-owned-${group.id}-empty`"
         >
           {{ $t('shares.groups.noMembers') }}
@@ -349,14 +349,14 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
 
     <p
       v-else-if="!loading"
-      class="text-sm text-brownish-300 p-4 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700"
+      class="text-sm text-brownish-300 dark:text-brownish-50 p-4 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700"
       data-testid="share-hub-groups-owned-empty"
     >
       {{ $t('shares.groups.ownedEmpty') }}
     </p>
 
     <header class="flex items-center justify-between mt-6 mb-3">
-      <h2 class="text-xs font-semibold uppercase tracking-wider text-brownish-300">{{ $t('shares.groups.memberOf') }}</h2>
+      <h2 class="text-xs font-semibold text-brownish-300 dark:text-brownish-50">{{ $t('shares.groups.memberOf') }}</h2>
     </header>
     <ul
       v-if="memberOfHasGroups"
@@ -372,11 +372,11 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
         <div class="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
           <div class="flex flex-wrap items-baseline gap-x-2 min-w-0">
             <span class="font-medium truncate">{{ group.name }}</span>
-            <span class="text-xs text-brownish-300">{{ $t('shares.groups.ownedBy', { email: group.owner_email }) }}</span>
+            <span class="text-xs text-brownish-300 dark:text-brownish-50">{{ $t('shares.groups.ownedBy', { email: group.owner_email }) }}</span>
           </div>
           <span
             v-if="shareGroups"
-            class="text-xs px-2 py-0.5 rounded-full bg-paper-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200 shrink-0"
+            class="text-xs px-2 py-0.5 rounded-full bg-paper-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-50 shrink-0"
             :data-testid="`share-hub-groups-member-of-${group.id}-role`"
           >
             {{ $t('shares.groups.yourRole', { role: roleLabel(group.group_role) }) }}
@@ -386,7 +386,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
         <template v-if="shareGroups">
           <p
             v-if="group.group_role === 'editor'"
-            class="mt-2 text-xs text-brownish-300"
+            class="mt-2 text-xs text-brownish-300 dark:text-brownish-50"
             :data-testid="`share-hub-groups-member-of-${group.id}-editor-hint`"
           >
             {{ $t('shares.groups.editorHint') }}
@@ -430,7 +430,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
               >
                 <div class="min-w-0">
                   <div class="truncate">{{ member.email }}</div>
-                  <span class="font-mono text-xs text-brownish-400">
+                  <span class="font-mono text-xs text-brownish-400 dark:text-brownish-50">
                     {{ shortFingerprint(member.fingerprint) }}
                   </span>
                 </div>
@@ -448,7 +448,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
                   </select>
                   <span
                     v-else
-                    class="text-xs text-brownish-400"
+                    class="text-xs text-brownish-400 dark:text-brownish-50"
                     :data-testid="`share-hub-groups-member-of-${group.id}-member-${member.user_id}-role-label`"
                   >
                     {{ roleLabel(member.group_role) }}
@@ -472,7 +472,7 @@ const addDialogCanGrantCoOwner = computed(() => addingTo.value?.canGrantCoOwner 
     </ul>
     <p
       v-else-if="!loading"
-      class="text-sm text-brownish-300 p-4 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700"
+      class="text-sm text-brownish-300 dark:text-brownish-50 p-4 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700"
       data-testid="share-hub-groups-member-of-empty"
     >
       {{ $t('shares.groups.memberOfEmpty') }}

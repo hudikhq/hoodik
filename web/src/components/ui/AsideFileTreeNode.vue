@@ -71,7 +71,7 @@ async function fetchAndExpand(node: TreeNode) {
     :class="
       node.file.id === activeFolderId
         ? 'bg-orangy-500/15 text-orangy-300'
-        : 'text-brownish-300 hover:bg-brownish-700/50 hover:text-brownish-100'
+        : 'text-brownish-50 hover:bg-brownish-700/50 hover:text-white'
     "
     :style="padLeft"
     @click="fetchAndExpand(node)"
@@ -79,14 +79,14 @@ async function fetchAndExpand(node: TreeNode) {
     <BaseIcon
       :path="expanded.has(node.file.id) ? mdiChevronDown : mdiChevronRight"
       :size="12"
-      class="flex-shrink-0 text-brownish-500"
+      class="flex-shrink-0 text-brownish-100"
     />
     <BaseIcon :path="iconFor(node.file)" :size="14" class="flex-shrink-0 text-orangy-400" />
     <span class="truncate">{{ node.file.name }}</span>
   </li>
 
   <template v-if="node.file.mime === 'dir' && expanded.has(node.file.id)">
-    <li v-if="node.loading" class="py-1 text-brownish-500" :style="`padding-left: ${(depth + 1) * 16 + 24}px`">
+    <li v-if="node.loading" class="py-1 text-brownish-50" :style="`padding-left: ${(depth + 1) * 16 + 24}px`">
       {{ $t('common.loading') }}
     </li>
     <template v-else>
@@ -104,7 +104,7 @@ async function fetchAndExpand(node: TreeNode) {
       />
       <li
         v-if="!node.children.length"
-        class="py-1 text-brownish-500 italic"
+        class="py-1 text-brownish-50 italic"
         :style="`padding-left: ${(depth + 1) * 16 + 24}px`"
       >
         {{ $t('ui.fileTree.empty') }}
@@ -119,7 +119,7 @@ async function fetchAndExpand(node: TreeNode) {
     :class="
       node.file.id === activeFileId
         ? 'bg-orangy-500/15 text-orangy-300'
-        : 'text-brownish-300 hover:bg-brownish-700/50 hover:text-brownish-100'
+        : 'text-brownish-50 hover:bg-brownish-700/50 hover:text-white'
     "
     :style="padLeft"
     @click="emit('file-click', node.file)"

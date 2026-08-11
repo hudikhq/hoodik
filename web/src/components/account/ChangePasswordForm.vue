@@ -160,7 +160,7 @@ init()
       />
     </div>
 
-    <p v-if="changePasswordError" class="text-sm text-redish-400">
+    <p v-if="changePasswordError" class="text-sm text-redish-400 dark:text-redish-100">
       {{ changePasswordError }}
     </p>
 

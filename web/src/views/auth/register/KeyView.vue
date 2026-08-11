@@ -86,7 +86,7 @@ const downloadKey = (bundle: string) => {
 </script>
 <template>
   <LayoutGuest>
-    <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
+    <SectionFullScreen v-slot="{ cardClass }">
       <CardBox :class="cardClass">
         <h1 class="text-2xl text-brownish-700 dark:text-white">{{ $t('auth.registerKey.title') }}</h1>
 
@@ -98,7 +98,7 @@ const downloadKey = (bundle: string) => {
         <AppForm v-else :config="config" class="mt-8 space-y-6" v-slot="{ form }">
           <div class="flex items-start">
             <div class="flex items-center h-5">
-              <p class="text-sm text-brownish-500 dark:text-brownish-100">
+              <p class="text-sm text-brownish-500 dark:text-brownish-50">
                 {{ $t('auth.registerKey.storeSafe') }}
               </p>
             </div>
@@ -130,11 +130,11 @@ const downloadKey = (bundle: string) => {
             {{ $t('common.next') }}
           </AppButton>
 
-          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-100">
+          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-50">
             {{ $t('auth.alreadyHaveAccount') }}
             <router-link
               :to="{ name: 'login' }"
-              class="text-primary-700 hover:underline dark:text-primary-500"
+              class="text-primary-700 hover:underline dark:text-primary-100"
               >{{ $t('common.login') }}</router-link
             >
           </div>

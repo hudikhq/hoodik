@@ -72,10 +72,10 @@ watch(
         </div>
       </div>
       <div class="flex flex-row p-2 border-b-[1px] border-paper-200 dark:border-brownish-700" v-else>
-        <div class="flex flex-col w-full text-greeny-400" v-if="signatureValid">
+        <div class="flex flex-col w-full text-greeny-500 dark:text-greeny-300" v-if="signatureValid">
           {{ $t('links.details.signatureValid', { email: link.owner_email }) }}
         </div>
-        <div class="flex flex-col w-full text-redish-400" v-else>
+        <div class="flex flex-col w-full text-redish-400 dark:text-redish-100" v-else>
           {{ $t('links.details.signatureInvalid') }}
         </div>
       </div>

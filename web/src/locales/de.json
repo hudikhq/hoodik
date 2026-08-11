@@ -198,10 +198,12 @@
     "user": {
       "accountControls": "Kontoverwaltung",
       "allUsers": "Alle Benutzer",
+      "awaitingVerification": "Bestätigung ausstehend",
       "confirmDelete": "Ja, löschen",
       "confirmDemote": "Ja, zurückstufen",
       "confirmDisable": "Ja, deaktivieren",
       "confirmPromote": "Ja, hochstufen",
+      "confirmVerifyEmail": "Jetzt bestätigen",
       "dangerZone": "Gefahrenzone",
       "deleteAccount": "Dieses Konto löschen",
       "deleteAccountWarning": "Löscht den Benutzer und alle seine Dateien endgültig. Dies kann nicht rückgängig gemacht werden.",
@@ -209,6 +211,7 @@
       "disableTfa": "2FA deaktivieren",
       "editQuota": "Kontingent bearbeiten",
       "editStorageQuota": "Speicherkontingent bearbeiten",
+      "emailAddress": "E-Mail-Adresse",
       "emailUnverified": "E-Mail nicht verifiziert",
       "emailVerified": "E-Mail verifiziert",
       "encryptionKeys": "Verschlüsselungsschlüssel",
@@ -228,7 +231,9 @@
       "tfaNotEnabled": "Nicht aktiviert",
       "tfaOn": "2FA aktiv",
       "twoFactorAuth": "Zwei-Faktor-Authentifizierung",
-      "userBadge": "Benutzer"
+      "userBadge": "Benutzer",
+      "verifiedOn": "Bestätigt am {date}",
+      "verifyEmail": "E-Mail bestätigen"
     },
     "users": {
       "emailActivated": "E-Mail aktiviert",
@@ -272,10 +277,13 @@
       "title": "Sperrbildschirm einrichten"
     },
     "login": {
+      "codeDigit": "Ziffer {index} von {total}",
       "forgotPassword": "Passwort vergessen?",
       "recoverHere": "Stellen Sie Ihr Konto hier wieder her",
       "title": "Zugriff auf Ihre Dateien",
-      "twoFactorLabel": "2FA-Code (optional)",
+      "twoFactorBody": "Dieses Konto ist durch Zwei-Faktor-Authentifizierung geschützt. Gib den aktuellen Code aus deiner Authenticator-App ein.",
+      "twoFactorLabel": "Authentifizierungscode",
+      "twoFactorTitle": "Zwei-Faktor-Code",
       "withPrivateKey": "Mit privatem Schlüssel anmelden"
     },
     "migration": {
@@ -337,6 +345,7 @@
       "privateKeyRequired": "Privater Schlüssel ist erforderlich",
       "pubkeyRequired": "Öffentlicher Schlüssel ist erforderlich",
       "secretRequired": "Geheimnis ist erforderlich",
+      "tokenRequired": "Der Zwei-Faktor-Code ist erforderlich",
       "twoFactorRequired": "Zwei-Faktor-Code ist erforderlich"
     },
     "verifyEmail": {
@@ -480,6 +489,7 @@
     "transition_signature_invalid_base64": "Signatur des Schlüsselübergangs ist fehlerhaft",
     "transition_timestamp_skew": "Zeitstempel des Schlüsselübergangs liegt außerhalb des gültigen Bereichs",
     "two_factor_already_enabled": "Zwei-Faktor-Authentifizierung ist bereits aktiviert",
+    "two_factor_required": "Gib deinen Zwei-Faktor-Code ein",
     "undecryptable": "Mindestens ein Link ließ sich mit deinem aktuellen Schlüssel nicht öffnen und wird nicht angezeigt",
     "unknown": "Etwas ist schiefgelaufen",
     "unknown_cipher": "Unbekanntes Verschlüsselungsverfahren",
@@ -492,7 +502,7 @@
   "files": {
     "actions": {
       "details": "Details",
-      "fork": "Eigene Kopie",
+      "fork": "Eigene Kopie speichern",
       "forkTitle": "Unabhängige Kopie in Ihren Dateien speichern – bleibt auch nach Widerruf erhalten",
       "preview": "Vorschau",
       "sharing": "Freigabe"
@@ -526,7 +536,10 @@
       "confirmFile": "Möchten Sie „{name}“ endgültig löschen?",
       "confirmLabel": "Ja, löschen",
       "confirmMany": "Möchten Sie {count} Elemente löschen?",
-      "selectedTitle": "Auswahl löschen"
+      "confirmManyFolders": "{count} davon ist ein Ordner — alles darin verschwindet mit. | {count} davon sind Ordner — alles darin verschwindet mit.",
+      "selectedTitle": "Auswahl löschen",
+      "typeCount": "{count} eingeben zum Bestätigen",
+      "typeName": "{name} eingeben zum Bestätigen"
     },
     "details": {
       "uploaded": "Hochgeladen"
@@ -605,6 +618,31 @@
       "spreadsheet": "Tabelle",
       "text": "Text",
       "video": "Video"
+    }
+  },
+  "help": {
+    "title": "Hilfe",
+    "shortcuts": {
+      "title": "Tastenkürzel",
+      "search": "Dateien durchsuchen",
+      "help": "Dieses Fenster öffnen",
+      "inNotes": "Im Notiz-Editor",
+      "bold": "Fett",
+      "italic": "Kursiv",
+      "link": "Link",
+      "save": "Speichern",
+      "undoRedo": "Rückgängig / Wiederholen"
+    },
+    "facts": {
+      "title": "Gut zu wissen",
+      "recoveryKey": "Der Wiederherstellungsschlüssel ist der einzige Weg zurück, wenn du dein Passwort vergisst. Er bleibt unter Konto → Wiederherstellungsschlüssel verfügbar.",
+      "sharing": "Eine widerrufene Freigabe stoppt künftige Zugriffe. Was die andere Person bereits heruntergeladen hat, bleibt bei ihr — Verschlüsselung holt das nicht zurück.",
+      "server": "Namen, Inhalte und Vorschaubilder werden vor dem Hochladen im Browser verschlüsselt. Der Server speichert nur Chiffrat und hält niemals deine Schlüssel."
+    },
+    "links": {
+      "title": "Anderswo",
+      "source": "Quellcode und Sicherheitsrichtlinie auf GitHub",
+      "apps": "Apps für Handy und Desktop"
     }
   },
   "links": {
@@ -696,6 +734,7 @@
     "menu": {
       "account": "Konto",
       "files": "Dateien",
+      "help": "Hilfe",
       "lock": "Sperren",
       "notes": "Notizen",
       "share": "Freigabe",
@@ -880,7 +919,7 @@
     },
     "audit": {
       "actions": {
-        "fork": "Kopie erstellt",
+        "fork": "Kopie gespeichert",
         "grant": "Geteilt",
         "keyRotation": "Schlüsselrotation",
         "revoke": "Widerrufen",
@@ -902,16 +941,17 @@
         "sigVerified": "Gegen den öffentlichen Schlüssel des Absenders verifiziert"
       },
       "empty": "Keine Ereignisse entsprechen den aktuellen Filtern.",
+      "emptyAll": "Noch keine Freigabe-Aktivität. Ereignisse erscheinen hier, sobald du eine Datei teilst oder jemand eine mit dir teilt.",
       "filteredBanner": "Gefilterte Ansicht – Kettenverifizierung auf sichtbare Zeilen beschränkt.",
       "filters": {
         "action": "Aktion",
         "allActions": "Alle Aktionen",
+        "allRecipients": "Alle Empfänger",
         "clear": "Filter zurücksetzen",
         "fileId": "Datei-ID",
         "find": "Suchen",
         "from": "Von",
         "recipient": "Empfänger",
-        "recipientPlaceholder": "Benutzer-ID",
         "sender": "Absender",
         "senderPlaceholder": "benutzer{'@'}example.com",
         "to": "Bis"
@@ -944,7 +984,7 @@
         "evict": "{recipient} hat den Zugriff auf {file} verloren (Kaskade)",
         "fallback": "{action} auf {file}",
         "fileId": "Datei {id}…",
-        "fork": "{sender} hat {file} in die eigenen Dateien kopiert",
+        "fork": "{sender} hat eine eigene Kopie von {file} gespeichert",
         "grant": "{sender} hat {file} mit {recipient} geteilt",
         "grantAs": "{sender} hat {file} mit {recipient} als {role} geteilt",
         "keyRotation": "{sender} hat die Verschlüsselungsschlüssel des Kontos rotiert",
@@ -1111,6 +1151,7 @@
   },
   "ui": {
     "aside": {
+      "collapse": "Seitenleiste einklappen",
       "getApps": "Apps herunterladen"
     },
     "fileTree": {

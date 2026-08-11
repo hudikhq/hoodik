@@ -293,7 +293,7 @@ function cancelRevoke(): void {
 <template>
   <div data-testid="folder-members-view">
     <div class="flex items-center justify-between gap-3 mb-2">
-      <span class="text-xs uppercase tracking-wider text-brownish-300 min-w-0 truncate">
+      <span class="text-xs font-medium text-brownish-300 dark:text-brownish-50 min-w-0 truncate">
         {{ $t('shares.members.heading', { count: members.length }) }}
       </span>
       <BaseButton
@@ -308,12 +308,12 @@ function cancelRevoke(): void {
       />
     </div>
 
-    <p v-if="loading" class="text-xs text-brownish-300" data-testid="folder-members-view-loading">
+    <p v-if="loading" class="text-xs text-brownish-300 dark:text-brownish-50" data-testid="folder-members-view-loading">
       {{ $t('shares.members.loading') }}
     </p>
     <p
       v-else-if="loadError"
-      class="text-sm text-redish-700 dark:text-redish-300"
+      class="text-sm text-redish-700 dark:text-redish-100"
       data-testid="folder-members-view-error"
     >
       {{ loadError }}
@@ -341,14 +341,14 @@ function cancelRevoke(): void {
             </span>
             <span
               v-else
-              class="font-medium text-brownish-300 truncate min-w-0 font-mono"
+              class="font-medium text-brownish-300 dark:text-brownish-50 truncate min-w-0 font-mono"
               :data-testid="`folder-members-view-row-${member.user_id}-id`"
             >
               {{ member.user_id }}
             </span>
             <span
               v-if="!member.is_owner"
-              class="text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full"
+              class="text-xs font-medium px-2 py-0.5 rounded-full"
               :class="roleBadgeClass(member.share_role)"
               :title="roleBadgeTitle(member.share_role)"
               :data-testid="`folder-members-view-row-${member.user_id}-role`"
@@ -357,7 +357,7 @@ function cancelRevoke(): void {
             </span>
             <span
               v-if="member.share_role !== 'reader' && !member.is_owner"
-              class="text-[11px] text-brownish-500 dark:text-brownish-300 shrink-0"
+              class="text-[11px] text-brownish-500 dark:text-brownish-50 shrink-0"
               :title="$t('shares.members.canUploadTitle', { folder: folder.name })"
               :data-testid="`folder-members-view-row-${member.user_id}-can-upload`"
             >
@@ -365,13 +365,13 @@ function cancelRevoke(): void {
             </span>
             <span
               v-if="member.is_owner"
-              class="text-[11px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-greeny-200 text-greeny-900 dark:bg-greeny-800 dark:text-greeny-100"
+              class="text-xs font-semibold px-2 py-0.5 rounded-full bg-greeny-200 text-greeny-900 dark:bg-greeny-800 dark:text-greeny-100"
               :data-testid="`folder-members-view-row-${member.user_id}-owner-badge`"
             >
               {{ $t('shares.members.ownerBadge') }}
             </span>
           </div>
-          <div class="flex items-center gap-2 text-xs text-brownish-300 mt-0.5">
+          <div class="flex items-center gap-2 text-xs text-brownish-300 dark:text-brownish-50 mt-0.5">
             <span
               class="font-mono truncate"
               :title="chunkedFingerprint(member.pubkey_fingerprint)"
@@ -397,7 +397,7 @@ function cancelRevoke(): void {
               </span>
               <span
                 v-else-if="signatureStatus[member.user_id] === 'failed'"
-                class="inline-flex items-center text-redish-600 dark:text-redish-200 shrink-0"
+                class="inline-flex items-center text-redish-600 dark:text-redish-100 shrink-0"
                 :data-testid="`folder-members-view-row-${member.user_id}-sig-failed`"
                 :title="$t('shares.members.sigFailed')"
               >
@@ -405,7 +405,7 @@ function cancelRevoke(): void {
               </span>
               <span
                 v-else
-                class="inline-flex items-center text-brownish-400 shrink-0"
+                class="inline-flex items-center text-brownish-400 dark:text-brownish-50 shrink-0"
                 :data-testid="`folder-members-view-row-${member.user_id}-sig-unsigned`"
                 :title="$t('shares.members.sigLegacy')"
               >

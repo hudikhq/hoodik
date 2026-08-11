@@ -8,7 +8,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 
 const props = defineProps<{
   icon?: string
-  outline?: Boolean
+  outline?: boolean
   color: ColorType
 }>()
 

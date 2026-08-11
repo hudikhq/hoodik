@@ -34,8 +34,8 @@ function change() {
 <template>
   <CardBox :class="props.class">
     <div class="flex items-center gap-2 mb-4">
-      <BaseIcon :path="mdiTranslate" :size="14" class="text-brownish-400 dark:text-brownish-100" />
-      <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">
+      <BaseIcon :path="mdiTranslate" :size="14" class="text-brownish-400 dark:text-brownish-50" />
+      <p class="text-xs font-semibold text-brownish-400 dark:text-brownish-50">
         {{ $t('account.language.title') }}
       </p>
     </div>
@@ -52,7 +52,7 @@ function change() {
           {{ label }}
         </option>
       </select>
-      <span class="block text-xs text-brownish-400 mt-1">
+      <span class="block text-xs text-brownish-400 dark:text-brownish-50 mt-1">
         {{ $t('account.language.description') }}
       </span>
     </label>

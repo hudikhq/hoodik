@@ -17,6 +17,8 @@ const props = defineProps<{
   hasCancel?: boolean
   hasClose?: boolean
   hideSubmit?: boolean
+  /** Holds the confirm button shut until the caller's own gate is satisfied. */
+  confirmDisabled?: boolean
   modelValue: boolean | undefined
   form?: FormType
 }>()
@@ -35,6 +37,7 @@ const isOpen = computed(() => !!props.modelValue)
 useFocusTrap(cardEl, isOpen)
 
 const confirm = async () => {
+  if (props.confirmDisabled) return
   if (!props.form) {
     value.value = false
     emit('confirm')
@@ -69,7 +72,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       aria-modal="true"
       :aria-label="title"
       tabindex="-1"
-      class="relative shadow-lg max-h-modal w-11/12 md:w-3/5 lg:w-2/5 xl:w-4/12 z-50 focus:outline-none"
+      class="relative max-h-modal w-11/12 md:w-3/5 lg:w-2/5 xl:w-4/12 z-50 focus:outline-none"
       is-modal
       has-component-layout
     >
@@ -97,7 +100,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
               v-if="!hideSubmit"
               :label="buttonLabel"
               :color="button || 'info'"
-              :disabled="form?.isSubmitting.value"
+              :disabled="confirmDisabled || form?.isSubmitting.value"
               @click="confirm"
               type="submit"
               @keyup.enter="confirm()"

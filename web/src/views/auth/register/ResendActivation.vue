@@ -54,7 +54,7 @@ init()
 </script>
 <template>
   <LayoutGuest>
-    <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
+    <SectionFullScreen v-slot="{ cardClass }">
       <CardBox :class="cardClass" v-if="config">
         <h1 class="text-2xl text-brownish-700 dark:text-white mb-5">{{ $t('auth.resend.title') }}</h1>
         <div class="flex items-start">
@@ -75,7 +75,7 @@ init()
             :autofocus="true"
           />
 
-          <p v-if="resendError" class="text-sm text-redish-400">
+          <p v-if="resendError" class="text-sm text-redish-400 dark:text-redish-100">
             {{ resendError }}
           </p>
 
@@ -84,11 +84,11 @@ init()
             <span v-else> {{ $t('auth.resend.resend') }} </span>
           </AppButton>
 
-          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-100">
+          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-50">
             {{ $t('auth.resend.alreadyActivated') }}
             <router-link
               :to="{ name: 'login' }"
-              class="text-primary-700 hover:underline dark:text-primary-500"
+              class="text-primary-700 hover:underline dark:text-primary-100"
               >{{ $t('common.login') }}</router-link
             >
           </div>

@@ -95,12 +95,12 @@ function cancel(): void {
       />
       <p
         v-if="errorText"
-        class="text-sm text-redish-700 dark:text-redish-300"
+        class="text-sm text-redish-700 dark:text-redish-100"
         data-testid="group-create-error"
       >
         {{ errorText }}
       </p>
-      <p class="text-xs text-brownish-300">
+      <p class="text-xs text-brownish-300 dark:text-brownish-50">
         {{ $t('shares.groups.createNote') }}
       </p>
     </div>

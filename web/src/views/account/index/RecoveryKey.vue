@@ -55,25 +55,28 @@ async function copy() {
     </i18n-t>
 
     <div class="mt-4 flex flex-wrap gap-2">
-      <AppButton
-        type="button"
-        :icon="revealed ? mdiEyeOff : mdiEye"
-        :label="revealed ? $t('account.recoveryKey.hide') : $t('account.recoveryKey.reveal')"
-        color="info"
-        @click="revealed = !revealed"
-      />
+      <!-- Getting the key off this screen is what the copy above asks for, so
+           downloading is the one filled action here; revealing and copying sit
+           beside it as ordinary controls. -->
       <AppButton
         type="button"
         :icon="mdiDownload"
         :label="$t('common.download')"
-        color="success"
+        color="info"
         @click="download"
+      />
+      <AppButton
+        type="button"
+        :icon="revealed ? mdiEyeOff : mdiEye"
+        :label="revealed ? $t('account.recoveryKey.hide') : $t('account.recoveryKey.reveal')"
+        color="light"
+        @click="revealed = !revealed"
       />
       <AppButton
         type="button"
         :icon="mdiContentCopy"
         :label="$t('common.copy')"
-        color="info"
+        color="light"
         @click="copy"
       />
     </div>

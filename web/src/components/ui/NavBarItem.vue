@@ -52,8 +52,8 @@ const styleStore = store()
 const componentClass = computed(() => {
   const base = [
     isDropdownActive.value
-      ? `${styleStore.navBarItemLabelActiveColorStyle} dark:text-brownish-400`
-      : `${styleStore.navBarItemLabelStyle} dark:text-white dark:hover:text-brownish-400 ${styleStore.navBarItemLabelHoverStyle}`,
+      ? `${styleStore.navBarItemLabelActiveColorStyle} dark:text-redish-100`
+      : `${styleStore.navBarItemLabelStyle} dark:text-white dark:hover:text-brownish-50 ${styleStore.navBarItemLabelHoverStyle}`,
     props.item.menu ? 'lg:py-2 lg:px-3' : 'py-2 px-3'
   ]
 

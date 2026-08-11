@@ -32,6 +32,7 @@ const emits = defineEmits<{
   (event: 'fork', file: AppFile): void
   (event: 'leave', file: AppFile): void
   (event: 'select-one', value: boolean, file: AppFile): void
+  (event: 'select-range', file: AppFile): void
   (event: 'upload-many', files: FileList, dirId?: string): void
 }>()
 
@@ -92,6 +93,7 @@ onUnmounted(() => {
       @fork="(f: AppFile) => emits('fork', f)"
       @leave="(f: AppFile) => emits('leave', f)"
       @select-one="(v: boolean, f: AppFile) => emits('select-one', v, f)"
+      @select-range="(f: AppFile) => emits('select-range', f)"
       @upload-many="(f: FileList, d?: string) => emits('upload-many', f, d)"
     />
   </Suspense>

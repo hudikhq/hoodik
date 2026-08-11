@@ -16,7 +16,6 @@ import { useCapability } from '@/composables/useCapability'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import SortableName from '@/components/ui/SortableName.vue'
 import TableFileRowWatcher from './TableFileRowWatcher.vue'
-import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { computed, ref, watch } from 'vue'
 import type { AppFile } from 'types'
@@ -81,6 +80,58 @@ const checkedIds = computed(() => new Set(props.selected.map((file) => file.id))
 const checkedRows = computed(() => {
   return props.items.filter((item) => checkedIds.value.has(item.id))
 })
+
+const listEl = ref<HTMLElement | null>(null)
+
+/**
+ * Anchor for shift-click. A plain click sets it; a shift-click fills in
+ * everything between it and the clicked row, the way every file manager
+ * behaves. Selection still flows out through `select-one`, so the parent
+ * stays the single owner of what is checked.
+ */
+const anchorId = ref<string | null>(null)
+
+const selectOneAt = (value: boolean, file: AppFile) => {
+  anchorId.value = file.id
+  emits('select-one', value, file)
+}
+
+const selectRange = (file: AppFile) => {
+  const rows = props.items
+  const to = rows.findIndex((f) => f.id === file.id)
+  if (to < 0) return
+
+  const from = anchorId.value ? rows.findIndex((f) => f.id === anchorId.value) : -1
+  if (from < 0) {
+    selectOneAt(true, file)
+    return
+  }
+
+  const [start, end] = from <= to ? [from, to] : [to, from]
+  for (let i = start; i <= end; i++) {
+    if (!checkedIds.value.has(rows[i].id)) emits('select-one', true, rows[i])
+  }
+}
+
+/**
+ * Arrow keys walk the row buttons so the browser is operable without a
+ * pointer. Enter is the button's own activation and Space is handled on the
+ * row, which leaves only the movement to do here.
+ */
+const onListKeydown = (event: KeyboardEvent) => {
+  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+
+  const target = event.target as HTMLElement | null
+  if (!target?.hasAttribute('data-row-nav')) return
+
+  const buttons = [...(listEl.value?.querySelectorAll<HTMLElement>('[data-row-nav]') ?? [])]
+  const index = buttons.indexOf(target)
+  const next = buttons[index + (event.key === 'ArrowDown' ? 1 : -1)]
+  if (index < 0 || !next) return
+
+  event.preventDefault()
+  next.focus()
+}
 
 const showDeleteAll = computed(() => {
   return checkedRows.value.length > 0 && !props.hideDelete
@@ -211,7 +262,7 @@ const sizes = {
     <span
       v-if="checkedRows.length"
       data-testid="files-selected-count"
-      class="self-center text-sm text-brownish-700 dark:text-brownish-200"
+      class="self-center text-sm text-brownish-700 dark:text-brownish-50"
     >{{ $t('files.browser.selectedCount', { count: checkedRows.length }) }}</span>
 
     <BaseButton
@@ -402,34 +453,60 @@ const sizes = {
       class="w-full rounded-b-lg bg-paper-50 dark:bg-brownish-900 py-10 flex flex-col items-center gap-3"
       data-testid="files-error"
     >
-      <span class="text-sm text-brownish-300 dark:text-brownish-100 px-6 text-center">
+      <span class="text-sm text-brownish-300 dark:text-brownish-50 px-6 text-center">
         {{ $t(props.error) }}
       </span>
       <BaseButton color="info" small :label="$t('common.retry')" @click="emits('retry')" />
     </div>
-    <!-- Cached rows for the target folder render immediately; the spinner
-         only covers a folder we know nothing about yet. -->
+    <!-- Cached rows for the target folder render immediately; this only covers
+         a folder we know nothing about yet. Placeholder rows on the real
+         columns say what is arriving and stop the header jumping when it does,
+         which a spinner in the middle of the panel does neither of. -->
     <div
       v-else-if="props.loading && !props.items.length"
-      class="w-full pt-20 rounded-b-lg bg-paper-50 dark:bg-brownish-900 h-52 text-center"
+      class="w-full rounded-b-lg bg-paper-50 dark:bg-brownish-900"
+      data-testid="files-loading"
+      role="status"
+      :aria-label="$t('common.loading')"
     >
-      <span class="w-1/2 h-1/2">
-        <SpinnerIcon :size="200" />
-      </span>
+      <div
+        v-for="(width, index) in ['w-2/5', 'w-3/5', 'w-1/3', 'w-1/2', 'w-2/5']"
+        :key="index"
+        class="w-full flex file-row-separator animate-pulse"
+        aria-hidden="true"
+      >
+        <div :class="sizes.checkbox">
+          <div class="w-5 h-5 rounded bg-paper-200 dark:bg-brownish-700" />
+        </div>
+        <div :class="sizes.name">
+          <div class="w-6 h-6 mr-2 rounded-md shrink-0 bg-paper-200 dark:bg-brownish-700" />
+          <div class="h-4 rounded bg-paper-200 dark:bg-brownish-700" :class="width" />
+        </div>
+        <div :class="sizes.size">
+          <div class="h-3 w-12 rounded bg-paper-200/70 dark:bg-brownish-700/60" />
+        </div>
+        <div :class="sizes.type">
+          <div class="h-3 w-12 rounded bg-paper-200/70 dark:bg-brownish-700/60" />
+        </div>
+        <div :class="sizes.modifiedAt">
+          <div class="h-3 w-28 rounded bg-paper-200/70 dark:bg-brownish-700/60" />
+        </div>
+        <div :class="sizes.buttons" />
+      </div>
     </div>
     <div
       v-else-if="!props.items.length"
       class="w-full rounded-b-lg bg-paper-50 dark:bg-brownish-900 py-14 flex flex-col items-center gap-1"
       data-testid="files-empty"
     >
-      <span class="text-brownish-300 dark:text-brownish-100">{{
+      <span class="text-brownish-300 dark:text-brownish-50">{{
         $t('files.browser.emptyFolder')
       }}</span>
-      <span class="text-xs text-brownish-200 dark:text-brownish-300">
+      <span class="text-xs text-brownish-200 dark:text-brownish-50">
         {{ $t('files.browser.emptyFolderHint') }}
       </span>
     </div>
-    <div v-else class="flex flex-col rounded-b-lg">
+    <div v-else ref="listEl" class="flex flex-col rounded-b-lg" @keydown="onListKeydown">
       <template v-for="file in props.items" :key="file.id">
         <TableFileRowWatcher
           :file="file"
@@ -448,7 +525,8 @@ const sizes = {
           @sharing="(f: AppFile) => emits('sharing', f)"
           @fork="(f: AppFile) => emits('fork', f)"
           @leave="(f: AppFile) => emits('leave', f)"
-          @select-one="(v: boolean, f: AppFile) => emits('select-one', v, f)"
+          @select-one="selectOneAt"
+          @select-range="selectRange"
           @upload-many="(f: FileList, d?: string) => emits('upload-many', f, d)"
         />
       </template>

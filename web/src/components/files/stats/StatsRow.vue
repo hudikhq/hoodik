@@ -58,7 +58,7 @@ const maxSize = computed(() => (props.max ? formatSize(props.max) : t('files.sta
   >
     <div class="flex items-center gap-2">
       <span class="flex-1 min-w-0 truncate text-sm">{{ label }}</span>
-      <span class="text-xs text-brownish-400 shrink-0">{{ count }}×</span>
+      <span class="text-xs text-brownish-400 dark:text-brownish-50 shrink-0">{{ count }}×</span>
       <span class="text-xs font-medium min-w-[3.5rem] whitespace-nowrap text-right shrink-0">{{ size }}</span>
     </div>
     <div v-if="max" class="mt-1.5 h-1 bg-paper-100 dark:bg-brownish-700 rounded-full overflow-hidden">

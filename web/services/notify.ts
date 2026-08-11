@@ -39,6 +39,14 @@ export function humanizeError(error: unknown): string {
     return i18n.global.t('errors.network')
   }
 
+  // Errors thrown inside the client carry a code the same way the server's do.
+  // Translate it when the dictionary knows it, so an internal identifier never
+  // reaches the screen just because it was raised locally instead of remotely.
+  const key = `errors.${message.split(':')[0]}`
+  if (i18n.global.te(key)) {
+    return i18n.global.t(key)
+  }
+
   return message
 }
 

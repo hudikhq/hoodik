@@ -229,7 +229,7 @@ const showUnknownPill = computed(
         </div>
         <p
           v-if="errorText"
-          class="mt-2 text-sm text-redish-700 dark:text-redish-300"
+          class="mt-2 text-sm text-redish-700 dark:text-redish-100"
           data-testid="group-add-member-error"
         >
           {{ errorText }}
@@ -241,25 +241,25 @@ const showUnknownPill = computed(
         class="border border-paper-300 dark:border-brownish-700 rounded-lg p-3 space-y-3"
       >
         <div>
-          <div class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('shares.groups.memberHeading') }}</div>
+          <div class="text-xs font-medium text-brownish-300 dark:text-brownish-50">{{ $t('shares.groups.memberHeading') }}</div>
           <div class="text-sm truncate" data-testid="group-add-member-email">
             {{ recipient.email }}
           </div>
         </div>
         <div>
-          <div class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('shares.groups.fingerprintHeading') }}</div>
+          <div class="text-xs font-medium text-brownish-300 dark:text-brownish-50">{{ $t('shares.groups.fingerprintHeading') }}</div>
           <div
-            class="text-xs font-mono break-all text-brownish-700 dark:text-brownish-200"
+            class="text-xs font-mono break-all text-brownish-700 dark:text-brownish-50"
             data-testid="group-add-member-fingerprint"
           >
             {{ formattedFingerprint }}
           </div>
         </div>
         <div class="space-y-1.5">
-          <div class="text-xs uppercase tracking-wider text-brownish-300">
+          <div class="text-xs font-medium text-brownish-300 dark:text-brownish-50">
             {{ $t('shares.groups.roleHeading') }}
           </div>
-          <p class="text-xs text-brownish-300">
+          <p class="text-xs text-brownish-300 dark:text-brownish-50">
             {{ $t('shares.groups.roleNote') }}
           </p>
           <label class="flex gap-2 items-center text-sm min-h-[2rem] cursor-pointer">
@@ -306,7 +306,7 @@ const showUnknownPill = computed(
         </div>
         <div
           v-if="showUnknownPill"
-          class="px-3 py-2 bg-paper-100 dark:bg-brownish-800/60 text-brownish-700 dark:text-brownish-200 rounded-lg text-xs flex items-start gap-2"
+          class="px-3 py-2 bg-paper-100 dark:bg-brownish-800/60 text-brownish-700 dark:text-brownish-50 rounded-lg text-xs flex items-start gap-2"
           data-testid="group-add-member-unknown"
         >
           <BaseIcon :path="mdiShieldKeyOutline" :size="14" class="mt-0.5 shrink-0" />
@@ -316,7 +316,7 @@ const showUnknownPill = computed(
         </div>
         <div
           v-if="trustStatus === 'mismatch'"
-          class="px-3 py-2 bg-redish-100 dark:bg-redish-900/40 text-redish-700 dark:text-redish-200 rounded-lg text-xs flex items-start gap-2"
+          class="px-3 py-2 bg-redish-100 dark:bg-redish-900/40 text-redish-700 dark:text-redish-100 rounded-lg text-xs flex items-start gap-2"
           data-testid="group-add-member-mismatch"
         >
           <BaseIcon :path="mdiAlertCircleOutline" :size="14" class="mt-0.5 shrink-0" />

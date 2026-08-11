@@ -198,10 +198,12 @@
     "user": {
       "accountControls": "Account Controls",
       "allUsers": "All Users",
+      "awaitingVerification": "Awaiting verification",
       "confirmDelete": "Yes, delete",
       "confirmDemote": "Yes, demote",
       "confirmDisable": "Yes, disable",
       "confirmPromote": "Yes, promote",
+      "confirmVerifyEmail": "Verify now",
       "dangerZone": "Danger Zone",
       "deleteAccount": "Delete this account",
       "deleteAccountWarning": "Permanently deletes the user and all their files. This cannot be undone.",
@@ -209,6 +211,7 @@
       "disableTfa": "Disable 2FA",
       "editQuota": "Edit quota",
       "editStorageQuota": "Edit Storage Quota",
+      "emailAddress": "Email address",
       "emailUnverified": "email unverified",
       "emailVerified": "email verified",
       "encryptionKeys": "Encryption Keys",
@@ -228,7 +231,9 @@
       "tfaNotEnabled": "Not enabled",
       "tfaOn": "2FA on",
       "twoFactorAuth": "Two-factor authentication",
-      "userBadge": "user"
+      "userBadge": "user",
+      "verifiedOn": "Verified {date}",
+      "verifyEmail": "Verify email"
     },
     "users": {
       "emailActivated": "Email Activated",
@@ -272,10 +277,13 @@
       "title": "Setup Lock Screen"
     },
     "login": {
+      "codeDigit": "Digit {index} of {total}",
       "forgotPassword": "Forgot your password?",
       "recoverHere": "Recover your account here",
       "title": "Access Your Files",
-      "twoFactorLabel": "2FA code (optional)",
+      "twoFactorBody": "This account is protected by two-factor authentication. Enter the current code from your authenticator app.",
+      "twoFactorLabel": "Authentication code",
+      "twoFactorTitle": "Two-factor code",
       "withPrivateKey": "Login With Private Key"
     },
     "migration": {
@@ -337,6 +345,7 @@
       "privateKeyRequired": "Private key is required",
       "pubkeyRequired": "Public key is required",
       "secretRequired": "Secret is required",
+      "tokenRequired": "Two-factor code is required",
       "twoFactorRequired": "Two-factor code is required"
     },
     "verifyEmail": {
@@ -480,6 +489,7 @@
     "transition_signature_invalid_base64": "Key transition signature is malformed",
     "transition_timestamp_skew": "Key transition timestamp is out of range",
     "two_factor_already_enabled": "Two-factor authentication is already enabled",
+    "two_factor_required": "Enter your two-factor code",
     "undecryptable": "One or more of your links could not be opened with your current key and are not listed",
     "unknown": "Something went wrong",
     "unknown_cipher": "Unknown cipher",
@@ -492,7 +502,7 @@
   "files": {
     "actions": {
       "details": "Details",
-      "fork": "Fork",
+      "fork": "Save my own copy",
       "forkTitle": "Save an independent copy to your drive — survives revocation",
       "preview": "Preview",
       "sharing": "Sharing"
@@ -526,7 +536,10 @@
       "confirmFile": "Are you sure you want to delete '{name}' forever?",
       "confirmLabel": "Yes, delete",
       "confirmMany": "Are you sure you want to delete {count} items?",
-      "selectedTitle": "Delete selected"
+      "confirmManyFolders": "{count} of them is a folder — everything inside goes too. | {count} of them are folders — everything inside goes too.",
+      "selectedTitle": "Delete selected",
+      "typeCount": "Type {count} to confirm",
+      "typeName": "Type {name} to confirm"
     },
     "details": {
       "uploaded": "Uploaded"
@@ -607,6 +620,31 @@
       "video": "Video"
     }
   },
+  "help": {
+    "title": "Help",
+    "shortcuts": {
+      "title": "Keyboard shortcuts",
+      "search": "Search your files",
+      "help": "Open this panel",
+      "inNotes": "In the note editor",
+      "bold": "Bold",
+      "italic": "Italic",
+      "link": "Link",
+      "save": "Save",
+      "undoRedo": "Undo / Redo"
+    },
+    "facts": {
+      "title": "Good to know",
+      "recoveryKey": "Your recovery key is the only way back in if you forget your password. It stays available under Account → Recovery key.",
+      "sharing": "Revoking a share stops future reads. Whatever the other person already downloaded stays with them — encryption cannot take it back.",
+      "server": "Names, contents and thumbnails are encrypted in your browser before they are uploaded. The server stores ciphertext and never holds your keys."
+    },
+    "links": {
+      "title": "Elsewhere",
+      "source": "Source code and security policy on GitHub",
+      "apps": "Apps for phone and desktop"
+    }
+  },
   "links": {
     "deleteModal": {
       "body": "Are you sure you want to delete {count} item? | Are you sure you want to delete {count} items?",
@@ -681,7 +719,7 @@
       "saved": "Saved in clipboard"
     },
     "fork": {
-      "cancelledText": "The fork was cancelled before it completed.",
+      "cancelledText": "The copy was cancelled before it finished.",
       "cancelledTitle": "Save cancelled",
       "noSession": "Cannot save without an active session.",
       "progress": "Saving to your drive",
@@ -696,6 +734,7 @@
     "menu": {
       "account": "Account",
       "files": "Files",
+      "help": "Help",
       "lock": "Lock",
       "notes": "Notes",
       "share": "Sharing",
@@ -880,7 +919,7 @@
     },
     "audit": {
       "actions": {
-        "fork": "Forked",
+        "fork": "Saved a copy",
         "grant": "Shared",
         "keyRotation": "Key rotation",
         "revoke": "Revoked",
@@ -902,16 +941,17 @@
         "sigVerified": "Verified against sender pubkey"
       },
       "empty": "No events match the current filters.",
+      "emptyAll": "No sharing activity yet. Events appear here once you share a file or someone shares one with you.",
       "filteredBanner": "Filtered view — chain verification limited to visible rows.",
       "filters": {
         "action": "Action",
         "allActions": "All actions",
+        "allRecipients": "All recipients",
         "clear": "Clear filters",
         "fileId": "File id",
         "find": "Find",
         "from": "From",
         "recipient": "Recipient",
-        "recipientPlaceholder": "user id",
         "sender": "Sender",
         "senderPlaceholder": "user{'@'}example.com",
         "to": "To"
@@ -944,7 +984,7 @@
         "evict": "{recipient} lost access to {file} (cascade)",
         "fallback": "{action} on {file}",
         "fileId": "file {id}…",
-        "fork": "{sender} forked {file} into their drive",
+        "fork": "{sender} saved their own copy of {file}",
         "grant": "{sender} shared {file} with {recipient}",
         "grantAs": "{sender} shared {file} with {recipient} as {role}",
         "keyRotation": "{sender} rotated their account encryption keys",
@@ -1111,6 +1151,7 @@
   },
   "ui": {
     "aside": {
+      "collapse": "Collapse sidebar",
       "getApps": "Get the apps"
     },
     "fileTree": {

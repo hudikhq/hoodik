@@ -114,7 +114,7 @@ onMounted(() => init())
       <AppField :form="form" :label="$t('notes.create.nameLabel')" name="name" placeholder="Untitled.md" autofocus />
 
       <div class="mt-4">
-        <label class="block text-sm font-medium text-brownish-600 dark:text-brownish-300 mb-2">
+        <label class="block text-sm font-medium text-brownish-600 dark:text-brownish-50 mb-2">
           {{ $t('notes.create.folderLabel') }}
         </label>
 
@@ -126,7 +126,7 @@ onMounted(() => init())
           @navigate="({ id, name }) => { folderId = id; folderName = name }"
         />
 
-        <i18n-t keypath="notes.create.locationHint" tag="p" class="mt-1 text-xs text-brownish-400">
+        <i18n-t keypath="notes.create.locationHint" tag="p" class="mt-1 text-xs text-brownish-400 dark:text-brownish-50">
           <template #folder>
             <strong>{{ folderName }}</strong>
           </template>

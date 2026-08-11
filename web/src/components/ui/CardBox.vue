@@ -15,7 +15,6 @@ const props = defineProps({
   hasComponentLayout: Boolean,
   hasTable: Boolean,
   isForm: Boolean,
-  isHoverable: Boolean,
   isModal: Boolean
 })
 
@@ -31,22 +30,17 @@ const componentClass = computed(() => {
   // nothing separated the dialog from what it covered. Modals get the lighter
   // surface, a border that survives against the scrim, and a real shadow;
   // inline cards keep the flatter treatment that suits them in a page flow.
-  const base = [
+  // Inline cards carry their edge on the seam alone — a resting shadow would
+  // float them off a page that is meant to read as one flat surface.
+  return [
     props.rounded,
     props.flex,
     'border',
     props.isModal
-      ? 'border-paper-300 dark:border-brownish-600'
-      : 'border-paper-300/40 dark:border-brownish-700/40',
-    props.isModal ? 'shadow-2xl' : 'shadow-sm dark:shadow-none',
+      ? 'border-paper-300 dark:border-brownish-600 shadow-2xl'
+      : 'border-paper-300 dark:border-brownish-700/40',
     props.isModal ? 'dark:bg-brownish-800' : 'dark:bg-brownish-900'
   ]
-
-  if (props.isHoverable) {
-    base.push('hover:shadow-lg transition-shadow duration-500')
-  }
-
-  return base
 })
 
 const submit = (event: Event) => {

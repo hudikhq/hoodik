@@ -76,7 +76,7 @@ handle()
 </script>
 <template>
   <LayoutGuest>
-    <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
+    <SectionFullScreen v-slot="{ cardClass }">
       <CardBox :class="`${cardClass} text-center`">
         <div class="h-5 text-center">
           <p class="text-sm">
@@ -85,7 +85,7 @@ handle()
         </div>
 
         <div class="text-center mt-10 mb-10">
-          <BaseIcon :path="mdiLock" size="150" w="w-50" h="h-50" class="text-greeny-400" />
+          <BaseIcon :path="mdiLock" :size="64" w="w-16" h="h-16" class="text-greeny-500 dark:text-greeny-300" />
         </div>
 
         <BaseButton :to="{ name: 'decrypt' }" class="float-left" :label="$t('auth.unlock')" />

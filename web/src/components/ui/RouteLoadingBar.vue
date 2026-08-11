@@ -61,4 +61,12 @@ onBeforeUnmount(() => {
     transform: translateX(400%);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .route-loading-slide {
+    animation: working-pulse 1.6s ease-in-out infinite;
+    width: 100%;
+    transform: none;
+  }
+}
 </style>

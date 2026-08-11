@@ -72,9 +72,10 @@ test.describe('Password manager hints', () => {
 
     await expect(page.locator('#email')).toHaveAttribute('autocomplete', 'username')
     await expect(page.locator('#password')).toHaveAttribute('autocomplete', 'current-password')
-    await expect(page.locator('#token')).toHaveAttribute('autocomplete', 'one-time-code')
-    await expect(page.locator('#token')).toHaveAttribute('inputmode', 'numeric')
-    await expect(page.locator('#token')).toHaveAttribute('type', 'text')
+
+    // The code field lives on the second step now, so it is not on this screen
+    // at all until an account with 2FA gets that far.
+    await expect(page.locator('#token')).toHaveCount(0)
   })
 
   test('registration fields are annotated with autocomplete', async ({ page }) => {
@@ -103,11 +104,11 @@ test.describe('Theme', () => {
   }) => {
     await page.goto('/auth/login')
 
-    // dark:text-primary-500 resolves to the redish ramp — the palette these
-    // classes point at has to actually exist in the tailwind config.
+    // dark:text-primary-100 is the crimson step that clears AA as text on the
+    // dark card; the deeper fill steps measure ~2.6:1 and are not for text.
     const link = page.getByRole('link', { name: 'Create an Account' })
     await expect(link).toBeVisible()
-    await expect(link).toHaveCSS('color', 'rgb(164, 49, 68)')
+    await expect(link).toHaveCSS('color', 'rgb(226, 103, 123)')
 
     await expect(page.getByRole('button', { name: 'Login', exact: true })).toHaveCSS(
       'background-color',

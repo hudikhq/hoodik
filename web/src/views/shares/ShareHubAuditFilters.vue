@@ -12,6 +12,7 @@ defineProps<{
   senderError: string | null
   senderResolving: boolean
   recipientFilter: string
+  recipientOptions: { id: string; email: string }[]
   startDate: string
   endDate: string
 }>()
@@ -33,7 +34,7 @@ const emit = defineEmits<{
     class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 mb-4 p-3 sm:p-4 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700"
   >
     <label class="text-xs sm:col-span-2 lg:col-span-2">
-      <span class="block uppercase tracking-wider mb-1 text-brownish-300">{{ $t('shares.audit.filters.fileId') }}</span>
+      <span class="block mb-1 text-brownish-300 dark:text-brownish-50">{{ $t('shares.audit.filters.fileId') }}</span>
       <input
         :value="fileIdFilter"
         type="text"
@@ -44,7 +45,7 @@ const emit = defineEmits<{
       />
     </label>
     <label class="text-xs">
-      <span class="block uppercase tracking-wider mb-1 text-brownish-300">{{ $t('shares.audit.filters.action') }}</span>
+      <span class="block mb-1 text-brownish-300 dark:text-brownish-50">{{ $t('shares.audit.filters.action') }}</span>
       <select
         :value="actionFilter"
         data-testid="share-hub-audit-action-filter"
@@ -60,7 +61,7 @@ const emit = defineEmits<{
       </select>
     </label>
     <label class="text-xs">
-      <span class="block uppercase tracking-wider mb-1 text-brownish-300">{{ $t('shares.audit.filters.sender') }}</span>
+      <span class="block mb-1 text-brownish-300 dark:text-brownish-50">{{ $t('shares.audit.filters.sender') }}</span>
       <div class="flex gap-2">
         <input
           :value="senderEmailInput"
@@ -73,7 +74,7 @@ const emit = defineEmits<{
         />
         <button
           type="button"
-          class="shrink-0 px-3 py-2 text-xs uppercase tracking-wider rounded-lg bg-paper-200 dark:bg-brownish-700 hover:bg-paper-300 dark:hover:bg-brownish-600 disabled:opacity-50"
+          class="shrink-0 px-3 py-2 text-xs font-medium rounded-lg bg-paper-200 dark:bg-brownish-700 hover:bg-paper-300 dark:hover:bg-brownish-600 disabled:opacity-50"
           :disabled="senderResolving"
           data-testid="share-hub-audit-sender-resolve"
           @click.prevent="emit('resolve-sender')"
@@ -83,25 +84,26 @@ const emit = defineEmits<{
       </div>
       <p
         v-if="senderError"
-        class="mt-1 text-redish-600 dark:text-redish-300"
+        class="mt-1 text-redish-600 dark:text-redish-100"
         data-testid="share-hub-audit-sender-error"
       >
         {{ senderError }}
       </p>
     </label>
     <label class="text-xs">
-      <span class="block uppercase tracking-wider mb-1 text-brownish-300">{{ $t('shares.audit.filters.recipient') }}</span>
-      <input
+      <span class="block mb-1 text-brownish-300 dark:text-brownish-50">{{ $t('shares.audit.filters.recipient') }}</span>
+      <select
         :value="recipientFilter"
-        type="text"
-        :placeholder="$t('shares.audit.filters.recipientPlaceholder')"
-        class="w-full bg-white dark:bg-brownish-800 border border-paper-300 dark:border-brownish-700 text-sm rounded-lg px-3 py-2 font-mono focus:outline-none focus:border-redish-500"
+        class="w-full bg-white dark:bg-brownish-800 border border-paper-300 dark:border-brownish-700 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-redish-500"
         data-testid="share-hub-audit-recipient-filter"
-        @input="emit('update:recipientFilter', ($event.target as HTMLInputElement).value)"
-      />
+        @change="emit('update:recipientFilter', ($event.target as HTMLSelectElement).value)"
+      >
+        <option value="">{{ $t('shares.audit.filters.allRecipients') }}</option>
+        <option v-for="r in recipientOptions" :key="r.id" :value="r.id">{{ r.email }}</option>
+      </select>
     </label>
     <label class="text-xs">
-      <span class="block uppercase tracking-wider mb-1 text-brownish-300">{{ $t('shares.audit.filters.from') }}</span>
+      <span class="block mb-1 text-brownish-300 dark:text-brownish-50">{{ $t('shares.audit.filters.from') }}</span>
       <input
         :value="startDate"
         type="date"
@@ -111,7 +113,7 @@ const emit = defineEmits<{
       />
     </label>
     <label class="text-xs">
-      <span class="block uppercase tracking-wider mb-1 text-brownish-300">{{ $t('shares.audit.filters.to') }}</span>
+      <span class="block mb-1 text-brownish-300 dark:text-brownish-50">{{ $t('shares.audit.filters.to') }}</span>
       <input
         :value="endDate"
         type="date"

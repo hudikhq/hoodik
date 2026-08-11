@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { FormType } from '.'
-import { computed } from 'vue'
+import { computed, useAttrs } from 'vue'
 import { getButtonColor, type ColorType } from '@/colors'
 import BaseIcon from '../ui/BaseIcon.vue'
 
@@ -25,6 +25,10 @@ const props = defineProps<{
   small?: boolean
 }>()
 
+// Dense controls — icon-only buttons and the xs/small steps — keep the tighter
+// 4px corner; anything standard-sized takes the 8px button radius.
+const isDense = computed(() => (!props.label && !!props.icon) || !!props.xs || !!props.small)
+
 const componentClass = computed(() => {
   let base = [
     props.dropdownEl ? '' : 'inline-flex',
@@ -37,7 +41,7 @@ const componentClass = computed(() => {
     'duration-150',
     props.classAdd || '',
     props.disabled ? 'cursor-not-allowed' : 'cursor-pointer',
-    props.roundedFull ? 'rounded-full' : 'rounded',
+    props.roundedFull ? 'rounded-full' : isDense.value ? 'rounded' : 'rounded-lg',
     getButtonColor(props.color || 'light', !!props.outline, !props.disabled, !!props.active)
   ]
 
@@ -96,6 +100,18 @@ const reset = (e: Event) => {
 const isDisabled = computed(() => {
   return props.disabled || props.form?.isSubmitting.value
 })
+
+const attrs = useAttrs()
+
+/**
+ * An icon with no visible label has no accessible name of its own. `title`
+ * alone never reaches touch users, so the tooltip text is promoted to a real
+ * label. An explicit `aria-label` from the caller always wins.
+ */
+const iconLabel = computed(() => {
+  if (props.label || !props.icon) return undefined
+  return (attrs['aria-label'] as string) ?? (attrs.title as string) ?? undefined
+})
 </script>
 <template>
   <button
@@ -103,6 +119,7 @@ const isDisabled = computed(() => {
     :disabled="isDisabled || false"
     @click="reset"
     :class="componentClass"
+    :aria-label="iconLabel"
   >
     <BaseIcon v-if="icon" :path="icon" :size="iconSize" />
     <span v-if="label" :class="labelClass">{{ label }}</span>

@@ -192,6 +192,6 @@ const canDelete = computed(() => {
     @click="emits('remove', file)"
     :label="$t('common.delete')"
     name="delete"
-    class="block text-left p-2 sm:p-0 w-full mt-1 pt-1 border-t border-paper-300 dark:border-brownish-600 text-redish-500 dark:text-redish-200 hover:bg-paper-100 dark:hover:bg-brownish-600"
+    class="block text-left p-2 sm:p-0 w-full mt-1 pt-1 border-t border-paper-300 dark:border-brownish-600 text-redish-500 dark:text-redish-100 hover:bg-paper-100 dark:hover:bg-brownish-600"
   />
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useAttrs } from 'vue'
 import { getButtonColor, type ColorType } from '@/colors'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import type { RouteLocation } from 'vue-router'
@@ -14,14 +14,17 @@ const props = defineProps<{
   type?: string
   color?: ColorType
   as?: string
-  xs?: Boolean
-  small?: Boolean
-  outline?: Boolean
-  active?: Boolean
-  disabled?: Boolean
-  roundedFull?: Boolean
-  notRounded?: Boolean
-  noBorder?: Boolean
+  // Primitive `boolean`, not the `Boolean` wrapper: Vue only applies
+  // valueless-attribute casting for the primitive, so `<BaseButton small />`
+  // used to arrive as the empty string and every flag silently did nothing.
+  xs?: boolean
+  small?: boolean
+  outline?: boolean
+  active?: boolean
+  disabled?: boolean
+  roundedFull?: boolean
+  notRounded?: boolean
+  noBorder?: boolean
   class?: String
   dropdownEl?: boolean
 }>()
@@ -62,6 +65,23 @@ const labelClass = computed(() => {
   return 'px-2'
 })
 
+// Dense controls — toolbar icons and the xs/small steps — keep the tighter
+// 4px corner; anything standard-sized takes the 8px button radius.
+const isDense = computed(() => !!props.icon || !!props.xs || !!props.small)
+
+const attrs = useAttrs()
+
+/**
+ * An icon with no visible label has no accessible name of its own. `title`
+ * alone technically supplies one, but it never reaches touch users and only
+ * reaches keyboard users on hover, so the tooltip text is promoted to a real
+ * label. An explicit `aria-label` from the caller always wins.
+ */
+const iconLabel = computed(() => {
+  if (props.label || !props.icon) return undefined
+  return (attrs['aria-label'] as string) ?? (attrs.title as string) ?? undefined
+})
+
 const componentClass = computed(() => {
   let base = [
     props.dropdownEl ? '' : 'inline-flex',
@@ -73,7 +93,7 @@ const componentClass = computed(() => {
     'focus-visible:ring',
     'duration-150',
     props.disabled ? 'cursor-not-allowed' : 'cursor-pointer',
-    props.roundedFull ? 'rounded-full' : props.notRounded ? '' : 'rounded',
+    props.roundedFull ? 'rounded-full' : props.notRounded ? '' : isDense.value ? 'rounded' : 'rounded-lg',
     getButtonColor(props.color || 'light', !!props.outline, !props.disabled, !!props.active)
   ]
 
@@ -114,6 +134,7 @@ const componentClass = computed(() => {
     :to="to"
     :target="target"
     :disabled="disabled"
+    :aria-label="iconLabel"
   >
     <BaseIcon v-if="icon" :path="icon" :size="iconSize" />
     <span v-if="label" :class="labelClass">{{ label }}</span>
@@ -125,6 +146,7 @@ const componentClass = computed(() => {
     :to="to"
     :target="target"
     :disabled="disabled"
+    :aria-label="iconLabel"
   >
     <BaseIcon v-if="icon" :path="icon" :size="iconSize" />
     <span v-if="label" :class="labelClass">{{ label }}</span>

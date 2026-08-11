@@ -110,7 +110,11 @@ export async function clientLoginFinish(
   )
 
   if (!json) {
-    throw new Error('opaque_client_login_finish failed')
+    // OPAQUE finishes on the client: the server's response only opens with the
+    // right password, and an unknown email gets a decoy that never opens at
+    // all. So there is exactly one thing this can mean to the person typing,
+    // and it is not the name of a Rust function.
+    throw new Error('invalid_credentials')
   }
 
   const parsed = JSON.parse(json)

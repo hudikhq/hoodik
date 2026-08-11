@@ -125,7 +125,7 @@ watch(
           <BaseIcon
             :path="mdiMagnify"
             :size="18"
-            class="absolute inset-y-0 left-3 text-brownish-300 dark:text-brownish-100 pointer-events-none"
+            class="absolute inset-y-0 left-3 text-brownish-300 dark:text-brownish-50 pointer-events-none"
           />
           <input
             type="text"
@@ -146,7 +146,7 @@ watch(
         </div>
       </Field>
 
-      <label class="checkbox gap-2 mt-2 text-sm text-brownish-400 dark:text-brownish-100 hover:text-brownish-600 dark:hover:text-brownish-50 transition-colors select-none">
+      <label class="checkbox gap-2 mt-2 text-sm text-brownish-400 dark:text-brownish-50 hover:text-brownish-600 dark:hover:text-brownish-50 transition-colors select-none">
         <input type="checkbox" v-model="notesOnly" />
         <span class="check" />
         <BaseIcon :path="mdiFileDocumentOutline" :size="14" />
@@ -175,15 +175,15 @@ watch(
          a wall of empty space, and `auto` keeps the scrollbar gutter from
          being painted when there's nothing to scroll. -->
     <div
-      class="w-full mt-4 flex flex-col items-center justify-center gap-2 h-40 text-brownish-300 dark:text-brownish-100"
+      class="w-full mt-4 flex flex-col items-center justify-center gap-2 h-40 text-brownish-300 dark:text-brownish-50"
       v-else-if="!results.length"
     >
       <BaseIcon
         :path="failed ? mdiAlertCircleOutline : searched ? mdiFileSearchOutline : mdiMagnify"
         :size="28"
-        :class="failed ? 'text-redish-500 dark:text-redish-400' : ''"
+        :class="failed ? 'text-redish-500 dark:text-redish-100' : ''"
       />
-      <span class="text-sm" :class="failed ? 'text-redish-700 dark:text-redish-200' : ''">
+      <span class="text-sm" :class="failed ? 'text-redish-700 dark:text-redish-100' : ''">
         {{
           failed
             ? $t('files.search.failed')

@@ -25,7 +25,7 @@ function chipClass(value: ShareRole, muted = false): string {
   const active =
     'border-redish-500 bg-redish-500 text-white font-medium'
   const inactive =
-    'border-paper-300 dark:border-brownish-700 text-brownish-700 dark:text-brownish-200 hover:border-brownish-300 dark:hover:border-brownish-500'
+    'border-paper-300 dark:border-brownish-700 text-brownish-700 dark:text-brownish-50 hover:border-brownish-300 dark:hover:border-brownish-500'
   const mutedClass = muted ? ' opacity-50 cursor-not-allowed' : ''
   return `${base} ${props.modelValue === value ? active : inactive}${mutedClass}`
 }

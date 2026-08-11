@@ -1,7 +1,9 @@
-export const gradientBgBase = 'bg-gradient-to-tr'
-export const gradientBgPurplePink = `${gradientBgBase} from-greeny-400 via-orangy-500 to-redish-500`
-export const gradientBgDark = `${gradientBgBase} from-brownish-700 via-brownish-900 to-brownish-800`
-export const gradientBgPinkRed = `${gradientBgBase} from-redish-400 via-redish-500 to-orangy-500`
+// The full-screen backdrop behind auth and link-entry cards. Named for the
+// hues they actually run through — the old purplePink/pinkRed labels described
+// neither, and the purple one had no caller.
+const gradientBase = 'bg-gradient-to-tr'
+export const gradientDark = `${gradientBase} from-brownish-700 via-brownish-900 to-brownish-800`
+export const gradientCrimsonEmber = `${gradientBase} from-redish-400 via-redish-500 to-orangy-500`
 export type ColorType =
   | 'dark'
   | 'light'
@@ -23,14 +25,16 @@ export const colorsBgLight = {
   empty: 'bg-transparent text-brownish-700 dark:text-white'
 }
 
+// Outline and tinted-text modes put these on a charcoal surface, so each hue
+// takes the step that clears AA there — the fill steps are far too dark as text.
 export const colorsText = {
-  light: 'text-brownish-700 dark:text-brownish-400',
-  dark: 'text-brownish-700 dark:text-brownish-400',
+  light: 'text-brownish-700 dark:text-brownish-50',
+  dark: 'text-brownish-700 dark:text-brownish-50',
   contrast: 'dark:text-white',
-  success: 'text-greeny-500',
-  danger: 'text-redish-500',
-  warning: 'text-orangy-500',
-  info: 'text-redish-500',
+  success: 'text-greeny-500 dark:text-greeny-300',
+  danger: 'text-redish-700 dark:text-redish-100',
+  warning: 'text-orangy-800 dark:text-orangy-400',
+  info: 'text-redish-700 dark:text-redish-100',
   empty: 'text-brownish-700 dark:text-white'
 }
 
@@ -104,14 +108,16 @@ export const getButtonColor = (
       info: 'border-redish-500 dark:border-redish-400 ',
       empty: 'border-transparent'
     },
+    // Outline buttons draw this hue as text on a charcoal panel, so every step
+    // here is the AA-clearing text step rather than the fill step.
     text: {
-      light: 'text-brownish-100 dark:text-brownish-800 ',
-      dark: 'text-brownish-100 dark:text-brownish-800 ',
-      contrast: 'dark:text-brownish-100 ',
-      success: 'text-greeny-600 dark:text-greeny-500 ',
-      danger: 'text-redish-600 dark:text-redish-500 ',
-      warning: 'text-orangy-600 dark:text-orangy-500 ',
-      info: 'text-redish-500 dark:text-redish-200 ',
+      light: 'text-brownish-700 dark:text-brownish-50 ',
+      dark: 'text-brownish-700 dark:text-brownish-50 ',
+      contrast: 'dark:text-brownish-50 ',
+      success: 'text-greeny-500 dark:text-greeny-300 ',
+      danger: 'text-redish-700 dark:text-redish-100 ',
+      warning: 'text-orangy-800 dark:text-orangy-400 ',
+      info: 'text-redish-700 dark:text-redish-100 ',
       empty: 'text-brownish-700 dark:text-white'
     },
     outlineHover: {

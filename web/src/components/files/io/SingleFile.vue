@@ -163,21 +163,27 @@ const progressBarColor = computed(() => {
 const showProgress = computed(
   () => props.type.endsWith('running') || props.type.endsWith('waiting')
 )
+
+// The dismiss control cancels a live transfer and clears a finished one, so
+// the same button needs two names. It carries no text, which makes this its
+// only accessible name as well as its tooltip.
+const dismissLabel = computed(() =>
+  props.type.endsWith('running')
+    ? t('files.transfers.cancelTransfer')
+    : t('files.transfers.removeFromList')
+)
 </script>
 
 <template>
-  <div :title="titleText" class="border-l-4 px-3 py-2 min-w-0" :class="accentClass">
+  <div :title="titleText" class="border-l px-3 py-2 min-w-0" :class="accentClass">
     <!-- Row 1: dismiss + direction + state icon | filename | right meta -->
     <div class="flex items-center gap-2 min-w-0">
       <!-- Left icon cluster — shrink-0 so icons never compress -->
       <div class="flex items-center shrink-0 -ml-1">
         <button
           class="min-h-[36px] min-w-[36px] flex items-center justify-center rounded hover:bg-paper-200 dark:hover:bg-brownish-700 transition-colors"
-          :title="
-            props.type.endsWith('running')
-              ? $t('files.transfers.cancelTransfer')
-              : $t('files.transfers.removeFromList')
-          "
+          :title="dismissLabel"
+          :aria-label="dismissLabel"
           @click="emits('remove', file, props.type)"
         >
           <BaseIcon :path="mdiClose" h="h-4" w="w-4" />
@@ -198,14 +204,14 @@ const showProgress = computed(
         <div class="text-sm truncate">{{ name }}</div>
         <div
           v-if="props.type.endsWith('failed') && error"
-          class="text-xs text-redish-800 dark:text-redish-400 truncate"
+          class="text-xs text-redish-800 dark:text-redish-100 truncate"
         >
           {{ error }}
         </div>
       </div>
 
       <!-- Right: speed+ETA for running, size for others -->
-      <div class="shrink-0 text-xs text-right tabular-nums text-brownish-600 dark:text-brownish-300">
+      <div class="shrink-0 text-xs text-right tabular-nums text-brownish-600 dark:text-brownish-50">
         <template v-if="props.type.endsWith('running')">
           {{ speed }}<span v-if="eta" class="ml-1 opacity-60 hidden sm:inline">{{ eta }}</span>
         </template>

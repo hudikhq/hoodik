@@ -106,7 +106,7 @@ const copy = () => {
       <div class="float-right w-1/2 mb-2" v-if="allowCopy">
         <button
           class="float-right text-center justify-center text-xs text-brownish-200 dark:text-brownish-50"
-          :class="{ 'text-greeny-400 dark:text-greeny-300': copied }"
+          :class="{ 'text-greeny-500 dark:text-greeny-300': copied }"
           @click.prevent="copy"
         >
           {{ copied ? $t('nav.clipboard.saved') : $t('nav.clipboard.copy') }}
@@ -156,7 +156,7 @@ const copy = () => {
 
     <ErrorMessage
       :name="name"
-      class="block text-sm text-redish-700 dark:text-redish-500 ml-2 mb-[-1.25rem]"
+      class="block text-sm text-redish-700 dark:text-redish-100 ml-2 mb-[-1.25rem]"
     />
   </div>
 </template>

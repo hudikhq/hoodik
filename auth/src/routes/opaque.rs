@@ -15,6 +15,14 @@ use crate::{
 };
 use entity::Uuid;
 
+/// A login that stalls only because the account wants its second factor has
+/// already proven the password. Charging it would spend the guessing budget on
+/// the honest path and, on a shared address, let ordinary two-factor logins
+/// crowd out the signal the limiter exists to read.
+fn is_two_factor_prompt(e: &error::Error) -> bool {
+    matches!(e, error::Error::Unauthorized(m) if m == "two_factor_required")
+}
+
 /// Begin registering (or re-registering) the OPAQUE password file for the
 /// authenticated user.
 ///
@@ -126,7 +134,9 @@ pub(crate) async fn login_finish(
     {
         Ok(authenticated) => authenticated,
         Err(e) => {
-            crate::rate_limit::charge_failure(None, &ip, now);
+            if !is_two_factor_prompt(&e) {
+                crate::rate_limit::charge_failure(None, &ip, now);
+            }
             return Err(e);
         }
     };

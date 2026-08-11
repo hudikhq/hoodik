@@ -7,16 +7,16 @@ import { mdiLinkOff } from '@mdi/js'
 </script>
 <template>
   <LayoutGuest>
-    <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
+    <SectionFullScreen v-slot="{ cardClass }">
       <CardBox :class="cardClass" data-testid="link-unavailable">
         <div class="flex flex-col items-center text-center gap-4 py-4">
           <span
-            class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-redish-100/80 text-redish-500 dark:bg-redish-900/40 dark:text-redish-200"
+            class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-redish-100/80 text-redish-500 dark:bg-redish-900/40 dark:text-redish-100"
           >
             <BaseIcon :path="mdiLinkOff" :size="32" />
           </span>
           <h1 class="text-2xl font-semibold">{{ $t('links.unavailable.title') }}</h1>
-          <p class="text-sm text-brownish-500 dark:text-brownish-200 max-w-sm">
+          <p class="text-sm text-brownish-500 dark:text-brownish-50 max-w-sm">
             {{ $t('links.unavailable.description') }}
           </p>
         </div>

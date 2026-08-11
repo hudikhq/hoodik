@@ -56,7 +56,7 @@ config.value = {
 </script>
 <template>
   <LayoutAuthenticatedWithLoader clear>
-    <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
+    <SectionFullScreen v-slot="{ cardClass }">
       <CardBox :class="cardClass">
         <h1 class="text-2xl text-brownish-700 dark:text-white mb-5">{{ $t('auth.lockSetup.title') }}</h1>
         <div class="flex items-start">

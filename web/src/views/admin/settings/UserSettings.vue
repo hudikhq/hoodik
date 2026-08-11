@@ -27,8 +27,8 @@ const data = computed({
   <CardBox :class="props.class" v-if="data">
     <div class="-mx-4 -mt-4 px-6 py-5 border-b border-paper-200 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex items-center gap-2">
-        <BaseIcon :path="mdiAccountPlus" :size="14" class="text-brownish-400 dark:text-brownish-100" />
-        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('admin.settings.registration') }}</p>
+        <BaseIcon :path="mdiAccountPlus" :size="14" class="text-brownish-400 dark:text-brownish-50" />
+        <p class="text-xs font-semibold text-brownish-400 dark:text-brownish-50">{{ $t('admin.settings.registration') }}</p>
       </div>
 
       <div class="mt-4 space-y-3">
@@ -39,7 +39,7 @@ const data = computed({
             v-model="data.users.enforce_email_activation"
             :disabled="loading"
           />
-          <p class="text-xs text-brownish-400 dark:text-brownish-100 pl-7 leading-relaxed mt-1">
+          <p class="text-xs text-brownish-400 dark:text-brownish-50 pl-7 leading-relaxed mt-1">
             {{ $t('admin.settings.requireEmailVerificationHint') }}
           </p>
         </div>
@@ -51,7 +51,7 @@ const data = computed({
             v-model="data.users.allow_register"
             :disabled="loading"
           />
-          <p class="text-xs text-brownish-400 dark:text-brownish-100 pl-7 leading-relaxed mt-1">
+          <p class="text-xs text-brownish-400 dark:text-brownish-50 pl-7 leading-relaxed mt-1">
             {{ $t('admin.settings.allowRegistrationHint') }}
           </p>
         </div>
@@ -60,14 +60,14 @@ const data = computed({
 
     <div class="-mx-4 px-6 py-5 border-b border-paper-200 dark:border-brownish-700/50">
       <div class="flex items-center gap-2 mb-4">
-        <BaseIcon :path="mdiEmailSearch" :size="14" class="text-brownish-400 dark:text-brownish-100" />
-        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('admin.settings.emailFilters') }}</p>
+        <BaseIcon :path="mdiEmailSearch" :size="14" class="text-brownish-400 dark:text-brownish-50" />
+        <p class="text-xs font-semibold text-brownish-400 dark:text-brownish-50">{{ $t('admin.settings.emailFilters') }}</p>
       </div>
 
       <div class="space-y-4">
         <div class="space-y-2">
           <ListInput v-model="data.users.email_whitelist" :label="$t('admin.settings.whitelist')" :disabled="loading" />
-          <i18n-t keypath="admin.settings.whitelistHint" tag="p" class="text-xs text-brownish-400 dark:text-brownish-100 leading-relaxed">
+          <i18n-t keypath="admin.settings.whitelistHint" tag="p" class="text-xs text-brownish-400 dark:text-brownish-50 leading-relaxed">
             <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->
             <template #exampleDomain><code class="font-mono bg-paper-100 dark:bg-brownish-700 px-1 rounded">*@company.com</code></template>
             <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->
@@ -77,7 +77,7 @@ const data = computed({
 
         <div class="space-y-2">
           <ListInput v-model="data.users.email_blacklist" :label="$t('admin.settings.blacklist')" :disabled="loading" />
-          <p class="text-xs text-brownish-400 dark:text-brownish-100 leading-relaxed">
+          <p class="text-xs text-brownish-400 dark:text-brownish-50 leading-relaxed">
             {{ $t('admin.settings.blacklistHint') }}
           </p>
         </div>
@@ -86,8 +86,8 @@ const data = computed({
 
     <div class="-mx-4 px-6 py-5 border-b border-paper-200 dark:border-brownish-700/50">
       <div class="flex items-center gap-2 mb-3">
-        <BaseIcon :path="mdiShareVariantOutline" :size="14" class="text-brownish-400 dark:text-brownish-100" />
-        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('admin.settings.sharing') }}</p>
+        <BaseIcon :path="mdiShareVariantOutline" :size="14" class="text-brownish-400 dark:text-brownish-50" />
+        <p class="text-xs font-semibold text-brownish-400 dark:text-brownish-50">{{ $t('admin.settings.sharing') }}</p>
       </div>
 
       <div class="space-y-3">
@@ -99,14 +99,14 @@ const data = computed({
             :disabled="loading"
             data-testid="admin-sharing-enabled-toggle"
           />
-          <i18n-t keypath="admin.settings.sharingHint" tag="p" class="text-xs text-brownish-400 dark:text-brownish-100 pl-7 leading-relaxed mt-1">
+          <i18n-t keypath="admin.settings.sharingHint" tag="p" class="text-xs text-brownish-400 dark:text-brownish-50 pl-7 leading-relaxed mt-1">
             <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->
             <template #endpoint><code class="font-mono bg-paper-100 dark:bg-brownish-700 px-1 rounded">/api/shares/*</code></template>
           </i18n-t>
         </div>
 
         <div class="p-3 rounded-xl bg-paper-200 dark:bg-brownish-700/20 border border-paper-200/50 dark:border-brownish-700/30">
-          <label class="block text-xs uppercase tracking-wider mb-1 text-brownish-300" for="default_cipher">{{ $t('admin.settings.defaultCipher') }}</label>
+          <label class="block text-xs font-medium mb-1 text-brownish-300 dark:text-brownish-50" for="default_cipher">{{ $t('admin.settings.defaultCipher') }}</label>
           <select
             id="default_cipher"
             v-model="data.sharing.default_cipher"
@@ -121,7 +121,7 @@ const data = computed({
             <option value="chacha20poly1305">ChaCha20-Poly1305</option>
             <!-- eslint-enable @intlify/vue-i18n/no-raw-text -->
           </select>
-          <p class="text-xs text-brownish-400 dark:text-brownish-100 leading-relaxed mt-1">
+          <p class="text-xs text-brownish-400 dark:text-brownish-50 leading-relaxed mt-1">
             {{ $t('admin.settings.defaultCipherHint') }}
           </p>
         </div>
@@ -130,10 +130,10 @@ const data = computed({
 
     <div class="-mx-4 px-6 py-5 border-b border-paper-200 dark:border-brownish-700/50">
       <div class="flex items-center gap-2 mb-3">
-        <BaseIcon :path="mdiDatabase" :size="14" class="text-brownish-400 dark:text-brownish-100" />
-        <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('admin.settings.defaultQuota') }}</p>
+        <BaseIcon :path="mdiDatabase" :size="14" class="text-brownish-400 dark:text-brownish-50" />
+        <p class="text-xs font-semibold text-brownish-400 dark:text-brownish-50">{{ $t('admin.settings.defaultQuota') }}</p>
       </div>
-      <p class="text-xs text-brownish-400 dark:text-brownish-100 leading-relaxed mb-3">{{ $t('admin.settings.defaultQuotaHint') }}</p>
+      <p class="text-xs text-brownish-400 dark:text-brownish-50 leading-relaxed mb-3">{{ $t('admin.settings.defaultQuotaHint') }}</p>
       <QuotaSlider
         v-model="data.users.quota_bytes"
         :disabled="loading"
@@ -142,7 +142,7 @@ const data = computed({
 
     <div class="-mx-4 -mb-4 px-6 py-4 rounded-b-2xl">
       <div v-if="error" class="rounded-lg bg-redish-500/10 border border-redish-500/30 px-4 py-3 mb-3">
-        <p class="text-sm text-redish-400">{{ error }}</p>
+        <p class="text-sm text-redish-400 dark:text-redish-100">{{ error }}</p>
       </div>
 
       <BaseButton

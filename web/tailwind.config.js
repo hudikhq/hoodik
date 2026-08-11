@@ -35,7 +35,10 @@ module.exports = {
       redish,
       primary: redish,
       brownish: {
-        50: '#898989',
+        // 50 is the muted-text step. It sits at #939393 rather than the
+        // older #898989, which measured 4.49:1 against the #232323 panel —
+        // a hair under AA for the small text it carries.
+        50: '#939393',
         100: '#787878',
         200: '#666666',
         300: '#555555',

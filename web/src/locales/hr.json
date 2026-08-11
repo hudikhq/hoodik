@@ -198,10 +198,12 @@
     "user": {
       "accountControls": "Upravljanje računom",
       "allUsers": "Svi korisnici",
+      "awaitingVerification": "Čeka potvrdu",
       "confirmDelete": "Da, obriši",
       "confirmDemote": "Da, ukloni ulogu",
       "confirmDisable": "Da, isključi",
       "confirmPromote": "Da, postavi za admina",
+      "confirmVerifyEmail": "Potvrdi sada",
       "dangerZone": "Opasna zona",
       "deleteAccount": "Obriši ovaj račun",
       "deleteAccountWarning": "Trajno briše korisnika i sve njegove datoteke. Ovo se ne može poništiti.",
@@ -209,6 +211,7 @@
       "disableTfa": "Isključi 2FA",
       "editQuota": "Uredi kvotu",
       "editStorageQuota": "Uredi kvotu pohrane",
+      "emailAddress": "Email adresa",
       "emailUnverified": "email nije potvrđen",
       "emailVerified": "email potvrđen",
       "encryptionKeys": "Enkripcijski ključevi",
@@ -228,7 +231,9 @@
       "tfaNotEnabled": "Nije uključena",
       "tfaOn": "2FA uključen",
       "twoFactorAuth": "Dvofaktorska autentifikacija",
-      "userBadge": "korisnik"
+      "userBadge": "korisnik",
+      "verifiedOn": "Potvrđeno {date}",
+      "verifyEmail": "Potvrdi email"
     },
     "users": {
       "emailActivated": "Email aktiviran",
@@ -272,10 +277,13 @@
       "title": "Postavljanje zaključanog ekrana"
     },
     "login": {
+      "codeDigit": "Znamenka {index} od {total}",
       "forgotPassword": "Zaboravljena lozinka?",
       "recoverHere": "Oporavi svoj račun ovdje",
       "title": "Pristupi svojim datotekama",
-      "twoFactorLabel": "2FA token (neobavezno)",
+      "twoFactorBody": "Ovaj račun štiti dvofaktorska autentifikacija. Upiši trenutni kod iz svoje aplikacije za autentifikaciju.",
+      "twoFactorLabel": "Kod za autentifikaciju",
+      "twoFactorTitle": "Kod za dvofaktorsku prijavu",
       "withPrivateKey": "Prijava privatnim ključem"
     },
     "migration": {
@@ -337,6 +345,7 @@
       "privateKeyRequired": "Privatni ključ je obavezan",
       "pubkeyRequired": "Javni ključ je obavezan",
       "secretRequired": "Tajni kod je obavezan",
+      "tokenRequired": "Kod za dvofaktorsku prijavu je obavezan",
       "twoFactorRequired": "2FA token je obavezan"
     },
     "verifyEmail": {
@@ -480,6 +489,7 @@
     "transition_signature_invalid_base64": "Potpis tranzicije ključa nije ispravno kodiran",
     "transition_timestamp_skew": "Vremenska oznaka tranzicije ključa je izvan raspona",
     "two_factor_already_enabled": "Dvofaktorska autentifikacija je već uključena",
+    "two_factor_required": "Upiši svoj kod za dvofaktorsku prijavu",
     "undecryptable": "Jedan ili više tvojih linkova nije moguće otvoriti trenutnim ključem pa nisu prikazani",
     "unknown": "Nešto je pošlo po zlu",
     "unknown_cipher": "Nepoznat cipher",
@@ -492,7 +502,7 @@
   "files": {
     "actions": {
       "details": "Detalji",
-      "fork": "Fork",
+      "fork": "Spremi vlastitu kopiju",
       "forkTitle": "Spremi neovisnu kopiju u svoje datoteke; ostaje ti i nakon opoziva dijeljenja",
       "preview": "Pregled",
       "sharing": "Dijeljenje"
@@ -526,7 +536,10 @@
       "confirmFile": "Sigurno želiš zauvijek obrisati '{name}'?",
       "confirmLabel": "Da, obriši",
       "confirmMany": "Sigurno želiš obrisati odabrane stavke ({count})?",
-      "selectedTitle": "Obriši odabrano"
+      "confirmManyFolders": "{count} od njih je mapa — nestaje i sve unutra. | {count} su mape — nestaje i sve unutra.",
+      "selectedTitle": "Obriši odabrano",
+      "typeCount": "Upiši {count} za potvrdu",
+      "typeName": "Upiši {name} za potvrdu"
     },
     "details": {
       "uploaded": "Uploadano"
@@ -607,6 +620,31 @@
       "video": "Video"
     }
   },
+  "help": {
+    "title": "Pomoć",
+    "shortcuts": {
+      "title": "Tipkovni prečaci",
+      "search": "Pretraži datoteke",
+      "help": "Otvori ovaj prozor",
+      "inNotes": "U uređivaču bilješki",
+      "bold": "Podebljano",
+      "italic": "Kurziv",
+      "link": "Poveznica",
+      "save": "Spremi",
+      "undoRedo": "Poništi / Ponovi"
+    },
+    "facts": {
+      "title": "Dobro je znati",
+      "recoveryKey": "Ključ za oporavak jedini je način povratka ako zaboraviš lozinku. Uvijek je dostupan pod Račun → Ključ za oporavak.",
+      "sharing": "Ukidanje dijeljenja zaustavlja buduća čitanja. Ono što je druga osoba već preuzela ostaje kod nje; enkripcija to ne može povući.",
+      "server": "Nazivi, sadržaj i sličice šifriraju se u tvom pregledniku prije slanja. Poslužitelj čuva samo šifrat i nikad ne drži tvoje ključeve."
+    },
+    "links": {
+      "title": "Drugdje",
+      "source": "Izvorni kod i sigurnosna politika na GitHubu",
+      "apps": "Aplikacije za mobitel i računalo"
+    }
+  },
   "links": {
     "deleteModal": {
       "body": "Sigurno želiš obrisati {count} stavku? | Sigurno želiš obrisati {count} stavke? | Sigurno želiš obrisati {count} stavki?",
@@ -681,7 +719,7 @@
       "saved": "Spremljeno u međuspremnik"
     },
     "fork": {
-      "cancelledText": "Fork je otkazan prije dovršetka.",
+      "cancelledText": "Kopiranje je otkazano prije dovršetka.",
       "cancelledTitle": "Spremanje otkazano",
       "noSession": "Spremanje nije moguće bez aktivne sesije.",
       "progress": "Spremanje u tvoje datoteke",
@@ -696,6 +734,7 @@
     "menu": {
       "account": "Račun",
       "files": "Datoteke",
+      "help": "Pomoć",
       "lock": "Zaključaj",
       "notes": "Bilješke",
       "share": "Dijeljenje",
@@ -880,7 +919,7 @@
     },
     "audit": {
       "actions": {
-        "fork": "Fork",
+        "fork": "Spremljena kopija",
         "grant": "Podijeljeno",
         "keyRotation": "Rotacija ključeva",
         "revoke": "Opozvano",
@@ -901,17 +940,18 @@
         "sigPending": "Provjera u tijeku",
         "sigVerified": "Provjereno prema javnom ključu pošiljatelja"
       },
-      "empty": "Nijedan događaj ne odgovara trenutnim filterima.",
+      "empty": "Nijedan događaj ne odgovara postavljenim filtrima.",
+      "emptyAll": "Još nema aktivnosti dijeljenja. Događaji se pojavljuju ovdje kad podijeliš datoteku ili netko podijeli s tobom.",
       "filteredBanner": "Filtrirani prikaz – provjera lanca ograničena je na vidljive retke.",
       "filters": {
         "action": "Radnja",
         "allActions": "Sve radnje",
+        "allRecipients": "Svi primatelji",
         "clear": "Očisti filtere",
         "fileId": "ID datoteke",
         "find": "Pronađi",
         "from": "Od",
         "recipient": "Primatelj",
-        "recipientPlaceholder": "ID korisnika",
         "sender": "Pošiljatelj",
         "senderPlaceholder": "korisnik{'@'}primjer.com",
         "to": "Do"
@@ -944,7 +984,7 @@
         "evict": "{recipient} više ne može otvoriti {file} (kaskadni opoziv)",
         "fallback": "{action} – {file}",
         "fileId": "datoteku {id}…",
-        "fork": "{sender} je forkao {file} u svoje datoteke",
+        "fork": "{sender} je spremio/la vlastitu kopiju datoteke {file}",
         "grant": "{sender} je podijelio {file} s {recipient}",
         "grantAs": "{sender} je podijelio {file} s {recipient} kao {role}",
         "keyRotation": "{sender} je rotirao enkripcijske ključeve svog računa",
@@ -1111,6 +1151,7 @@
   },
   "ui": {
     "aside": {
+      "collapse": "Sakrij bočnu traku",
       "getApps": "Preuzmi aplikacije"
     },
     "fileTree": {

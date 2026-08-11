@@ -1,6 +1,6 @@
 use chrono::Utc;
 use entity::{
-    paginated::Paginated, sessions, sort::Sortable, users, ActiveValue, ColumnTrait,
+    paginated::Paginated, sessions, sort::Sortable, user_actions, users, ActiveValue, ColumnTrait,
     ConnectionTrait, EntityTrait, Expr, IntoCondition, JoinType, ModelTrait, NullOrdering, Order,
     PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, RelationTrait, Select, Uuid,
 };
@@ -177,6 +177,38 @@ where
         self.repository.files().delete_many(files).await?;
 
         user.delete(self.repository.connection()).await?;
+
+        Ok(())
+    }
+
+    /// Mark a user's email verified without them following the activation link,
+    /// for instances where the mail never arrives.
+    ///
+    /// The pending `activate-email` action is dropped along with it so a link
+    /// still sitting in an inbox cannot be replayed later. Verifying an
+    /// already-verified account is a no-op, not an error.
+    pub(crate) async fn verify_email(&self, user_id: Uuid) -> AppResult<()> {
+        let user = users::Entity::find_by_id(user_id)
+            .one(self.repository.connection())
+            .await?
+            .ok_or_else(|| Error::NotFound("user_not_found".to_string()))?;
+
+        if user.email_verified_at.is_none() {
+            users::Entity::update(users::ActiveModel {
+                id: ActiveValue::Set(user.id),
+                email_verified_at: ActiveValue::Set(Some(Utc::now().timestamp())),
+                updated_at: ActiveValue::Set(Utc::now().timestamp()),
+                ..Default::default()
+            })
+            .exec(self.repository.connection())
+            .await?;
+        }
+
+        user_actions::Entity::delete_many()
+            .filter(user_actions::Column::UserId.eq(user_id))
+            .filter(user_actions::Column::Action.eq("activate-email"))
+            .exec(self.repository.connection())
+            .await?;
 
         Ok(())
     }

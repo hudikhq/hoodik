@@ -86,7 +86,7 @@ init()
 </script>
 <template>
   <LayoutGuest>
-    <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
+    <SectionFullScreen v-slot="{ cardClass }">
       <CardBox :class="cardClass">
         <h1 class="text-2xl text-brownish-700 dark:text-white">{{ $t('auth.twoFactor.title') }}</h1>
 
@@ -143,11 +143,11 @@ init()
             {{ $t('auth.twoFactor.skip') }}
           </AppButton>
 
-          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-100">
+          <div class="text-sm font-medium text-brownish-500 dark:text-brownish-50">
             {{ $t('auth.alreadyHaveAccount') }}
             <router-link
               :to="{ name: 'login' }"
-              class="text-primary-700 hover:underline dark:text-primary-500"
+              class="text-primary-700 hover:underline dark:text-primary-100"
               >{{ $t('common.login') }}</router-link
             >
           </div>

@@ -97,7 +97,7 @@ watch(query, find, { deep: true, immediate: true })
             <button
               type="button"
               @click="query.search = search"
-              class="absolute right-2 top-1/2 -translate-y-1/2 text-brownish-400 hover:text-brownish-900 dark:hover:text-white transition-colors"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-brownish-400 dark:text-brownish-50 hover:text-brownish-900 dark:hover:text-white transition-colors"
               :aria-label="$t('common.search')"
             >
               <BaseIcon :path="mdiSearchWeb" :size="15" />
@@ -129,7 +129,7 @@ watch(query, find, { deep: true, immediate: true })
 
         <div class="flex items-center justify-between px-4 py-3 border-t border-paper-200 dark:border-brownish-700/50">
           <BaseButton :label="$t('admin.pagination.previous')" @click="previousPage" :disabled="disablePreviousPage" :small="true" />
-          <span class="text-xs text-brownish-400">{{ $t('admin.pagination.range', { start: rangeStart, end: rangeEnd, total }) }}</span>
+          <span class="text-xs text-brownish-400 dark:text-brownish-50">{{ $t('admin.pagination.range', { start: rangeStart, end: rangeEnd, total }) }}</span>
           <BaseButton :label="$t('admin.pagination.next')" @click="nextPage" :disabled="disableNextPage" :small="true" />
         </div>
       </div>

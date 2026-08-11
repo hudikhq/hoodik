@@ -102,8 +102,16 @@ export async function loginWithTwoFactor(page: Page, email: string, password: st
   await page.goto('/auth/login')
   await page.locator('#email').fill(email)
   await page.locator('#password').fill(password)
-  await page.locator('#token').fill(authenticator.generate(secret))
   await page.getByRole('button', { name: 'Login' }).click()
+
+  // Credentials alone are rejected for a 2FA account, which is what moves the
+  // form to its second step; the code boxes only exist once that happens.
+  await page.locator('#token-0').waitFor()
+  await page.locator('#token-0').click()
+
+  // Type it the way a person does — focus advances box to box, and the form
+  // submits itself on the sixth digit.
+  await page.keyboard.type(authenticator.generate(secret))
   await page.waitForURL('**/')
 }
 

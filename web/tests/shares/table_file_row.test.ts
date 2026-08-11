@@ -205,12 +205,9 @@ describe('TableFileRow: double-click routing on shared previewable rows', () => 
   })
 
   function doubleClickRow(wrapper: ReturnType<typeof mountRow>): Promise<void> {
-    // The component's single/double-click dispatcher requires two
-    // discrete click events within its 250ms window; firing them in
-    // sequence executes the double-click branch.
-    const button = wrapper.find('button')
-    button.trigger('click')
-    return button.trigger('click') as Promise<void>
+    // The row listens for the browser's own dblclick rather than counting
+    // clicks against a timer, so this drives the real event.
+    return wrapper.find('button').trigger('dblclick') as Promise<void>
   }
 
   it('shared image with finished upload routes to file-preview (B3)', async () => {

@@ -27,11 +27,11 @@ const isExpired = computed(() => {
     <td :data-label="$t('admin.status')">
       <span
         v-if="isExpired"
-        class="inline-flex items-center text-xs font-medium bg-paper-100 dark:bg-brownish-700 text-brownish-400 px-2 py-0.5 rounded-full"
+        class="inline-flex items-center text-xs font-semibold bg-paper-100 dark:bg-brownish-700 text-brownish-400 dark:text-brownish-50 px-2 py-0.5 rounded-full"
       >{{ $t('admin.invitations.expired') }}</span>
       <span
         v-else
-        class="inline-flex items-center text-xs font-medium bg-greeny-500/15 text-greeny-500 dark:text-greeny-400 px-2 py-0.5 rounded-full"
+        class="inline-flex items-center text-xs font-semibold bg-greeny-500/15 text-greeny-500 dark:text-greeny-300 px-2 py-0.5 rounded-full"
       >{{ $t('admin.invitations.pending') }}</span>
     </td>
     <td>

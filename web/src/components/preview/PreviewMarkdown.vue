@@ -361,7 +361,7 @@ defineExpose({ exportPdf: handleExportPdf })
 <template>
   <div
     v-if="loadError"
-    class="flex flex-col items-center justify-center gap-2 w-full h-full text-redish-700 dark:text-redish-200"
+    class="flex flex-col items-center justify-center gap-2 w-full h-full text-redish-700 dark:text-redish-100"
     role="alert"
     data-testid="note-load-error"
   >
@@ -444,7 +444,7 @@ defineExpose({ exportPdf: handleExportPdf })
         :keypair="Crypto.keypair"
         @navigate="({ id, name }) => { moveFolderId = id; moveFolderName = name }"
       />
-      <i18n-t keypath="preview.markdown.moveDestination" tag="p" scope="global" class="mt-2 text-xs text-brownish-400">
+      <i18n-t keypath="preview.markdown.moveDestination" tag="p" scope="global" class="mt-2 text-xs text-brownish-400 dark:text-brownish-50">
         <template #name>{{ preview.name }}</template>
         <template #folder><strong>{{ moveFolderName }}</strong></template>
       </i18n-t>

@@ -60,7 +60,7 @@ const fileSize = computed(() => {
     :to="url"
     @click="emits('clicked', props.file)"
   >
-    <div class="shrink-0 text-brownish-300 dark:text-brownish-100">
+    <div class="shrink-0 text-brownish-300 dark:text-brownish-50">
       <FileThumbnail :file="props.file" img-class="w-10 h-10 rounded-md">
         <BaseIcon
           v-if="props.file.mime === 'dir'"
@@ -74,11 +74,11 @@ const fileSize = computed(() => {
     </div>
     <div class="min-w-0 flex-1 text-left">
       <div class="truncate">{{ name }}</div>
-      <div class="truncate text-sm text-brownish-300 dark:text-brownish-100">
+      <div class="truncate text-sm text-brownish-300 dark:text-brownish-50">
         {{ props.file.mime }}
       </div>
     </div>
-    <div class="shrink-0 text-sm text-brownish-300 dark:text-brownish-100">
+    <div class="shrink-0 text-sm text-brownish-300 dark:text-brownish-50">
       {{ fileSize || '-' }}
     </div>
   </router-link>

@@ -13,6 +13,11 @@ defineProps({
   buttonIcon: {
     type: String,
     default: null
+  },
+  /** Names the icon-only header button; it has no text of its own. */
+  buttonLabel: {
+    type: String,
+    default: null
   }
 })
 
@@ -32,6 +37,8 @@ const buttonClick = (event: Event) => {
       <h1 class="text-2xl">{{ title }}</h1>
       <button
         v-if="buttonIcon"
+        :title="buttonLabel ?? title"
+        :aria-label="buttonLabel ?? title"
         class="flex items-center ml-2 justify-center ring-redish-700 focus:ring"
         @click="buttonClick"
       >

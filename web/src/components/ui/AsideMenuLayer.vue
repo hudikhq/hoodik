@@ -58,10 +58,15 @@ function toggleExpand(item: AsideMenuItemType) {
 const emit = defineEmits(['menu-click', 'aside-lg-close-click'])
 const styleStore = style()
 
+// Signing out is not the primary action on any screen, so it reads as a
+// destructive list item — a seam, crimson text, neutral hover — rather than a
+// solid crimson bar competing with whatever the view is actually for. The rail
+// is charcoal in both themes, so these steps are unconditional.
 const lockAccountItem = computed(() => ({
   label: t('common.logout'),
   icon: mdiLogout,
-  color: 'info',
+  class:
+    'border-t border-brownish-600 text-redish-100 hover:bg-brownish-700/50 hover:text-white',
   isLogout: true
 }))
 
@@ -108,7 +113,12 @@ const logoutAction = async () => {
             {{ name }} <span class="text-xs">{{ version }}</span>
           </b>
         </div>
-        <button class="hidden lg:inline-block xl:hidden p-3" @click.prevent="asideLgCloseClick">
+        <button
+          class="hidden lg:inline-block xl:hidden p-3"
+          :title="$t('ui.aside.collapse')"
+          :aria-label="$t('ui.aside.collapse')"
+          @click.prevent="asideLgCloseClick"
+        >
           <BaseIcon :path="mdiClose" />
         </button>
       </div>

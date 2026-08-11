@@ -1,41 +1,28 @@
 import { defineStore } from 'pinia'
-import * as styles from '@/styles'
-import { lightModeKey, styleKey } from '@/config'
+import { basic } from '@/styles'
+import { lightModeKey } from '@/config'
 
+/**
+ * The shell's chrome classes came from a two-variant theme picker inherited
+ * with the dashboard template. Only `basic` was ever reachable — nothing wrote
+ * the stored key — so the variants collapse into the one set that ships, and
+ * theming is what `darkMode` does.
+ */
 export const store = defineStore('style', {
   state: () => ({
-    /* Styles */
-    asideStyle: 'basic',
-    asideBrandStyle: 'basic',
-    asideMenuItemStyle: 'basic',
-    asideMenuItemActiveStyle: 'basic',
-    asideMenuDropdownStyle: 'basic',
-    navBarItemLabelStyle: 'basic',
-    navBarItemLabelHoverStyle: 'basic',
-    navBarItemLabelActiveColorStyle: 'basic',
-    overlayStyle: 'basic',
+    asideStyle: basic.aside,
+    asideBrandStyle: basic.asideBrand,
+    asideMenuItemStyle: basic.asideMenuItem,
+    asideMenuItemActiveStyle: basic.asideMenuItemActive,
+    asideMenuDropdownStyle: basic.asideMenuDropdown,
+    navBarItemLabelStyle: basic.navBarItemLabel,
+    navBarItemLabelHoverStyle: basic.navBarItemLabelHover,
+    navBarItemLabelActiveColorStyle: basic.navBarItemLabelActiveColor,
+    overlayStyle: basic.overlay,
 
-    /* Dark mode */
     darkMode: true
   }),
   actions: {
-    setStyle(payload: 'white' | 'basic') {
-      if (!styles[payload]) {
-        return
-      }
-
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(styleKey, payload)
-      }
-
-      const style = styles[payload]
-
-      for (const key in style) {
-        // @ts-ignore
-        this[`${key}Style`] = style[key]
-      }
-    },
-
     setDarkMode(payload?: boolean) {
       this.darkMode = payload ?? !this.darkMode
 

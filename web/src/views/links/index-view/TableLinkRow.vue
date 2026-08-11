@@ -188,7 +188,7 @@ const singleClick = () => {
     </div>
 
     <div :class="sizes.expiresAt" :title="linkExpiresAt">
-      <span v-if="isExpired" class="inline-block text-redish-200">{{ $t('links.table.expired') }}</span>
+      <span v-if="isExpired" class="inline-block text-redish-700 dark:text-redish-100">{{ $t('links.table.expired') }}</span>
       <TruncatedSpan v-else :text="linkExpiresAt" />
     </div>
 

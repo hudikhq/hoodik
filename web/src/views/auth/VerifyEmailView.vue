@@ -55,7 +55,7 @@ verify()
 </script>
 <template>
   <LayoutGuest>
-    <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
+    <SectionFullScreen v-slot="{ cardClass }">
       <CardBox :class="`${cardClass} h-[450px] text-center`">
         <PuppyLoader v-model="working" />
 
@@ -64,7 +64,7 @@ verify()
         <BaseIcon
           v-if="!error && !working"
           :path="mdiCheckCircleOutline"
-          class="text-greeny-400"
+          class="text-greeny-500 dark:text-greeny-300"
           :size="200"
           w="w-full"
           h="h-80"
@@ -73,20 +73,20 @@ verify()
         <BaseIcon
           v-if="error && !working"
           :path="mdiAlertOutline"
-          class="text-redish-400"
+          class="text-redish-400 dark:text-redish-100"
           :size="200"
           w="w-full"
           h="h-80"
         />
 
         <p class="dark:text-white text-brownish-900" v-if="!working && !error">
-          <span class="text-greeny-400">{{ $t('auth.verifyEmail.success') }}</span> <br />
+          <span class="text-greeny-500 dark:text-greeny-300">{{ $t('auth.verifyEmail.success') }}</span> <br />
           {{ $t('auth.verifyEmail.redirecting') }}
         </p>
 
         <p class="dark:text-white text-brownish-900" v-if="error && !working">
           {{ $t('auth.verifyEmail.failed') }} <br />
-          <span class="text-redish-400">{{ error }}</span>
+          <span class="text-redish-400 dark:text-redish-100">{{ error }}</span>
         </p>
 
         <router-link :to="{ name: 'files' }" class="underline hover:no-underline">

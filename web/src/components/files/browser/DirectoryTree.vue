@@ -227,7 +227,7 @@ watch(
         :class="[
           isActive
             ? styleStore.asideMenuItemActiveStyle
-            : `${styleStore.asideMenuItemStyle} dark:text-brownish-100 dark:hover:text-white`
+            : `${styleStore.asideMenuItemStyle} dark:text-brownish-50 dark:hover:text-white`
         ]"
         @click="opened = !opened"
       >
@@ -271,7 +271,7 @@ watch(
         :class="[
           isActive
             ? styleStore.asideMenuItemActiveStyle
-            : `${styleStore.asideMenuItemStyle} dark:text-brownish-100 dark:hover:text-white`
+            : `${styleStore.asideMenuItemStyle} dark:text-brownish-50 dark:hover:text-white`
         ]"
       >
         <span

@@ -56,6 +56,7 @@ const emits = defineEmits<{
   (event: 'fork', file: AppFile): void
   (event: 'leave', file: AppFile): void
   (event: 'select-one', value: boolean, file: AppFile): void
+  (event: 'select-range', file: AppFile): void
   (event: 'upload-many', files: FileList, dirId?: string): void
 }>()
 
@@ -179,28 +180,17 @@ const sizes = computed(() => {
   }
 })
 
-const clicks = ref(0)
-const timer = ref()
-
 /**
- * Click listener
- * that handles single and double clicks
+ * The browser already knows what a double click is, and it knows it at the
+ * speed the reader configured. This used to be a hand-rolled 250ms counter,
+ * which made diving into folders feel like it was thinking about it.
  */
-const click = () => {
-  clicks.value++
-  if (clicks.value === 1) {
-    singleClick()
-
-    timer.value = setTimeout(() => {
-      clicks.value = 0
-    }, 250)
+const click = (event: MouseEvent) => {
+  if (event.shiftKey) {
+    emits('select-range', props.file)
+    return
   }
-
-  if (clicks.value === 2) {
-    clicks.value = 0
-    clearTimeout(timer.value)
-    doubleClick()
-  }
+  singleClick()
 }
 
 const doubleClick = () => {
@@ -305,23 +295,26 @@ const drop = (e: DragEvent) => {
     </div>
 
     <button
-      :class="`${sizes.name} flex justify-start cursor-pointer prevent-select text-left`"
+      :class="`${sizes.name} flex justify-start cursor-pointer prevent-select text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-redish-400/60 dark:focus:ring-redish-500/50`"
       :title="fileName"
+      data-row-nav
       @click="click"
+      @dblclick="doubleClick"
+      @keydown.space.prevent="singleClick"
     >
       <FileThumbnail :file="file" img-class="w-6 h-6 mr-2 rounded-md">
         <BaseIcon
           v-if="showProgress"
           :path="mdiUploadOutline"
           :size="16"
-          class="mr-2 text-greeny-500 dark:text-greeny-400"
+          class="mr-2 text-greeny-500 dark:text-greeny-300"
           data-testid="uploading-icon"
         />
         <BaseIcon
           v-else-if="isStalledUpload"
           :path="mdiAlertCircleOutline"
           :size="16"
-          class="mr-2 text-orangy-500 dark:text-orangy-400"
+          class="mr-2 text-orangy-800 dark:text-orangy-400"
           :title="$t('files.row.uploadIncomplete')"
           data-testid="stalled-upload-icon"
         />
@@ -331,14 +324,14 @@ const drop = (e: DragEvent) => {
         v-if="file.id === SHARED_WITH_ME_DIR_ID"
         :path="mdiFolderAccount"
         :size="18"
-        class="mr-2 text-orangy-400"
+        class="mr-2 text-orangy-800 dark:text-orangy-400"
         data-testid="shared-with-me-folder-icon"
       />
 
       <TruncatedSpan :text="fileName" />
       <span
         v-if="isSharedOut"
-        class="ml-2 inline-flex items-center text-brownish-400 dark:text-brownish-300"
+        class="ml-2 inline-flex items-center text-brownish-400 dark:text-brownish-50"
         :title="sharedOutTitle"
         data-testid="shared-out-badge"
       >
@@ -349,14 +342,14 @@ const drop = (e: DragEvent) => {
            heads-up before they try to edit and run into a 409. -->
       <span
         v-if="file.pending_version != null"
-        class="ml-2 inline-flex items-center text-orangy-400"
+        class="ml-2 inline-flex items-center text-orangy-800 dark:text-orangy-400"
         :title="$t('files.row.savingInAnotherSession')"
       >
         <BaseIcon :path="mdiCloudSyncOutline" :size="14" />
       </span>
       <span
         v-if="ownerBadgeEmail"
-        class="ml-2 inline-flex items-center max-w-[10rem] truncate px-2 py-0.5 rounded-full text-[11px] uppercase tracking-wider bg-paper-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-200"
+        class="ml-2 inline-flex items-center max-w-[10rem] truncate px-2 py-0.5 rounded-full text-xs font-semibold bg-paper-100 dark:bg-brownish-800 text-brownish-700 dark:text-brownish-50"
         :title="$t('files.row.ownedBy', { email: ownerBadgeEmail })"
         data-testid="shared-by-badge"
       >

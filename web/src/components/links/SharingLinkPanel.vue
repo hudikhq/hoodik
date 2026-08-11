@@ -185,7 +185,7 @@ watch(
     <div v-if="link" class="space-y-3">
       <div
         v-if="isExpired"
-        class="px-3 py-2 rounded-lg bg-redish-100 dark:bg-redish-900/40 text-redish-700 dark:text-redish-200 text-sm"
+        class="px-3 py-2 rounded-lg bg-redish-100 dark:bg-redish-900/40 text-redish-700 dark:text-redish-100 text-sm"
       >
         {{ $t('links.panel.expiredNotice') }}
       </div>
@@ -227,29 +227,29 @@ watch(
         class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 px-3 py-3 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700 text-sm"
       >
         <div class="flex justify-between sm:flex-col gap-1">
-          <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('common.name') }}</dt>
+          <dt class="text-xs font-medium text-brownish-300 dark:text-brownish-50">{{ $t('common.name') }}</dt>
           <dd class="truncate text-right sm:text-left" :title="link.name">{{ link.name }}</dd>
         </div>
         <div class="flex justify-between sm:flex-col gap-1">
-          <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('common.type') }}</dt>
+          <dt class="text-xs font-medium text-brownish-300 dark:text-brownish-50">{{ $t('common.type') }}</dt>
           <dd class="truncate text-right sm:text-left" :title="link.file_mime">
             {{ prettyMime(link.file_mime) }}
           </dd>
         </div>
         <div class="flex justify-between sm:flex-col gap-1">
-          <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('common.size') }}</dt>
+          <dt class="text-xs font-medium text-brownish-300 dark:text-brownish-50">{{ $t('common.size') }}</dt>
           <dd class="text-right sm:text-left">{{ size }}</dd>
         </div>
         <div class="flex justify-between sm:flex-col gap-1">
-          <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('links.panel.downloads') }}</dt>
+          <dt class="text-xs font-medium text-brownish-300 dark:text-brownish-50">{{ $t('links.panel.downloads') }}</dt>
           <dd class="text-right sm:text-left">{{ downloads }}</dd>
         </div>
         <div class="flex justify-between sm:flex-col gap-1">
-          <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('links.panel.fileCreated') }}</dt>
+          <dt class="text-xs font-medium text-brownish-300 dark:text-brownish-50">{{ $t('links.panel.fileCreated') }}</dt>
           <dd class="text-right sm:text-left">{{ fileModifiedAt }}</dd>
         </div>
         <div class="flex justify-between sm:flex-col gap-1">
-          <dt class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('links.panel.linkCreated') }}</dt>
+          <dt class="text-xs font-medium text-brownish-300 dark:text-brownish-50">{{ $t('links.panel.linkCreated') }}</dt>
           <dd class="text-right sm:text-left">{{ created }}</dd>
         </div>
       </dl>
@@ -259,7 +259,7 @@ watch(
         v-if="!editExpire"
       >
         <div class="min-w-0">
-          <div class="text-xs uppercase tracking-wider text-brownish-300">{{ $t('links.expires') }}</div>
+          <div class="text-xs font-medium text-brownish-300 dark:text-brownish-50">{{ $t('links.expires') }}</div>
           <div class="text-sm truncate">{{ linkExpiresAt || $t('links.panel.noExpiry') }}</div>
         </div>
         <div class="flex gap-1.5 shrink-0">
@@ -327,7 +327,7 @@ watch(
       </div>
     </div>
     <div v-else class="space-y-4 px-3 py-4 rounded-lg bg-paper-50 dark:bg-brownish-900/60 border border-paper-300 dark:border-brownish-700">
-      <p class="text-sm text-brownish-700 dark:text-brownish-200">
+      <p class="text-sm text-brownish-700 dark:text-brownish-50">
         {{ $t('links.panel.noLinkYet') }}
       </p>
       <BaseButton

@@ -38,6 +38,15 @@ export async function disableTfa(id: string): Promise<Response> {
 }
 
 /**
+ * Mark the users email as verified on their behalf
+ */
+export async function verifyEmail(id: string): Promise<Response> {
+  await Api.post<undefined, undefined>(`/api/admin/users/${id}/verify-email`)
+
+  return get(id)
+}
+
+/**
  * Delete the user and all of its files
  */
 export async function remove(id: string): Promise<void> {

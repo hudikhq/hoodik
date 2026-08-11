@@ -68,7 +68,7 @@ init()
 </script>
 <template>
   <LayoutGuest>
-    <SectionFullScreen v-slot="{ cardClass }" bg="pinkRed">
+    <SectionFullScreen v-slot="{ cardClass }">
       <CardBox :class="cardClass" v-if="config">
         <h1 class="text-2xl text-brownish-700 dark:text-white mb-5">{{ $t('auth.decrypt.title') }}</h1>
         <p>
@@ -90,7 +90,7 @@ init()
             :autofocus="true"
           />
 
-          <p v-if="authenticationError" class="text-sm text-redish-400">
+          <p v-if="authenticationError" class="text-sm text-redish-400 dark:text-redish-100">
             {{ authenticationError }}
           </p>
 

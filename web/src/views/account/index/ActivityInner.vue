@@ -74,9 +74,9 @@ watch(query, find, { deep: true, immediate: true })
     <div class="-mx-4 -mt-4 px-6 py-4 border-b border-paper-200 dark:border-brownish-700/50 rounded-t-2xl">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2">
-          <BaseIcon :path="mdiHistory" :size="14" class="text-brownish-400 dark:text-brownish-100" />
-          <p class="text-xs font-semibold uppercase tracking-wider text-brownish-400 dark:text-brownish-100">{{ $t('account.activity.title') }}</p>
-          <span v-if="total" class="text-xs font-medium bg-paper-100 dark:bg-brownish-700 text-brownish-400 dark:text-brownish-300 px-2 py-0.5 rounded-full">{{ total }}</span>
+          <BaseIcon :path="mdiHistory" :size="14" class="text-brownish-400 dark:text-brownish-50" />
+          <p class="text-xs font-semibold text-brownish-400 dark:text-brownish-50">{{ $t('account.activity.title') }}</p>
+          <span v-if="total" class="text-xs font-semibold bg-paper-100 dark:bg-brownish-700 text-brownish-400 dark:text-brownish-50 px-2 py-0.5 rounded-full">{{ total }}</span>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
@@ -105,7 +105,7 @@ watch(query, find, { deep: true, immediate: true })
             <button
               type="button"
               @click="query.search = search"
-              class="absolute right-2 top-1/2 -translate-y-1/2 text-brownish-400 hover:text-brownish-900 dark:hover:text-white transition-colors"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-brownish-400 dark:text-brownish-50 hover:text-brownish-900 dark:hover:text-white transition-colors"
               :aria-label="$t('common.search')"
             >
               <BaseIcon :path="mdiSearchWeb" :size="15" />
@@ -158,8 +158,8 @@ watch(query, find, { deep: true, immediate: true })
       </table>
 
       <div v-else class="px-6 py-16 text-center">
-        <BaseIcon :path="mdiHistory" :size="32" class="text-brownish-300 dark:text-brownish-600 mx-auto mb-3" />
-        <p class="text-sm text-brownish-400">{{ $t('account.activity.empty') }}</p>
+        <BaseIcon :path="mdiHistory" :size="32" class="text-brownish-300 dark:text-brownish-50 mx-auto mb-3" />
+        <p class="text-sm text-brownish-400 dark:text-brownish-50">{{ $t('account.activity.empty') }}</p>
       </div>
 
       <div v-if="paginated.data.length" class="flex items-center justify-between px-4 py-3 border-t border-paper-200 dark:border-brownish-700/50">
@@ -169,7 +169,7 @@ watch(query, find, { deep: true, immediate: true })
           :disabled="disablePreviousPage"
           :small="true"
         />
-        <span class="text-xs text-brownish-400">
+        <span class="text-xs text-brownish-400 dark:text-brownish-50">
           {{ $t('account.activity.range', { start: rangeStart, end: rangeEnd, total }) }}
         </span>
         <BaseButton
