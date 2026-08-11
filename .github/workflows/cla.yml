@@ -2,7 +2,8 @@ name: Contributor License Agreement
 
 # Asks first-time contributors to sign CLA.md before their pull request can be
 # merged. Signatures are stored in signatures/cla.json in this repository, so
-# no third-party service holds contributor data.
+# no third-party service holds contributor data. They live on their own branch
+# because signing is a direct write, which branch protection on master rejects.
 on:
   issue_comment:
     types: [created]
@@ -27,5 +28,5 @@ jobs:
         with:
           path-to-signatures: signatures/cla.json
           path-to-document: https://github.com/hudikhq/hoodik/blob/master/CLA.md
-          branch: master
+          branch: cla-signatures
           allowlist: htunlogic,dependabot[bot]
