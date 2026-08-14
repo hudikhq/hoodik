@@ -44,6 +44,19 @@
       "tokenLabel": "2FA code (optional)",
       "usePrivateKey": "Change with private key"
     },
+    "connectDevice": {
+      "body": "Scan this with your phone and the Hoodik app fills in your server address and email for you. Without the app installed, the code leads to the App Store or Google Play.",
+      "continueOnWeb": "Continue in the browser",
+      "noSecrets": "The code carries no password and no keys. You still sign in on the phone.",
+      "onThisDevice": "Set up the app on this phone",
+      "openApp": "Open the Hoodik app",
+      "promptBody": "Scan this with your phone to set the Hoodik app up against this server. It fills in the address and your email so you only type your password.",
+      "promptBodyMobile": "The Hoodik app keeps your files on this phone, encrypted, and available offline. It signs in to this server for you.",
+      "promptDone": "Done",
+      "promptLater": "Later, show me where to find this",
+      "promptTitle": "Take your files with you",
+      "title": "Set up the mobile app"
+    },
     "details": {
       "change": "Change",
       "copiedTooltip": "Copied!",
@@ -94,6 +107,7 @@
       "title": "Recovery key"
     },
     "sections": {
+      "devices": "Devices",
       "profile": "Profile",
       "security": "Security",
       "sessions": "Sessions",

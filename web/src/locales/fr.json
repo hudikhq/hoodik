@@ -44,6 +44,19 @@
       "tokenLabel": "Code 2FA (facultatif)",
       "usePrivateKey": "Changer avec la clé privée"
     },
+    "connectDevice": {
+      "body": "Scannez ce code avec votre téléphone et l'application Hoodik y saisit l'adresse de votre serveur et votre e-mail à votre place. Sans l'application installée, le code mène à l'App Store ou à Google Play.",
+      "continueOnWeb": "Continuer dans le navigateur",
+      "noSecrets": "Le code ne contient ni mot de passe ni clé. Vous vous connectez toujours depuis le téléphone.",
+      "onThisDevice": "Configurer l'application sur ce téléphone",
+      "openApp": "Ouvrir l'application Hoodik",
+      "promptBody": "Scannez ce code avec votre téléphone pour configurer l'application Hoodik sur ce serveur. Elle y saisit l'adresse et votre e-mail, vous ne tapez que votre mot de passe.",
+      "promptBodyMobile": "L'application Hoodik garde vos fichiers chiffrés sur ce téléphone et accessibles hors ligne. Elle se connecte à ce serveur pour vous.",
+      "promptDone": "Terminé",
+      "promptLater": "Plus tard, montrez-moi où le retrouver",
+      "promptTitle": "Emportez vos fichiers avec vous",
+      "title": "Configurer l'application mobile"
+    },
     "details": {
       "change": "Modifier",
       "copiedTooltip": "Copié !",
@@ -94,6 +107,7 @@
       "title": "Clé de récupération"
     },
     "sections": {
+      "devices": "Appareils",
       "profile": "Profil",
       "security": "Sécurité",
       "sessions": "Sessions",

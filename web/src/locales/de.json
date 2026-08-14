@@ -44,6 +44,19 @@
       "tokenLabel": "2FA-Code (optional)",
       "usePrivateKey": "Mit privatem Schlüssel ändern"
     },
+    "connectDevice": {
+      "body": "Scannen Sie diesen Code mit Ihrem Telefon, dann trägt die Hoodik-App Ihre Serveradresse und E-Mail-Adresse für Sie ein. Ohne installierte App führt der Code zum App Store oder zu Google Play.",
+      "continueOnWeb": "Im Browser weitermachen",
+      "noSecrets": "Der Code enthält kein Passwort und keine Schlüssel. Angemeldet wird weiterhin auf dem Telefon.",
+      "onThisDevice": "App auf diesem Telefon einrichten",
+      "openApp": "Hoodik-App öffnen",
+      "promptBody": "Scannen Sie diesen Code mit Ihrem Telefon, um die Hoodik-App für diesen Server einzurichten. Adresse und E-Mail trägt sie selbst ein, Sie tippen nur Ihr Passwort.",
+      "promptBodyMobile": "Die Hoodik-App hält Ihre Dateien verschlüsselt auf diesem Telefon und offline verfügbar. Bei diesem Server meldet sie sich für Sie an.",
+      "promptDone": "Fertig",
+      "promptLater": "Später, zeigen Sie mir, wo ich das finde",
+      "promptTitle": "Nehmen Sie Ihre Dateien mit",
+      "title": "Mobile App einrichten"
+    },
     "details": {
       "change": "Ändern",
       "copiedTooltip": "Kopiert!",
@@ -94,6 +107,7 @@
       "title": "Wiederherstellungsschlüssel"
     },
     "sections": {
+      "devices": "Geräte",
       "profile": "Profil",
       "security": "Sicherheit",
       "sessions": "Sitzungen",

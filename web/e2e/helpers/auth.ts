@@ -10,6 +10,24 @@ export function randomPassword() {
 }
 
 /**
+ * Clear the one-time modal that offers to set up the mobile app. It covers the
+ * whole app for a freshly signed-in user, so every flow that logs in has to get
+ * past it before it can touch anything else. A no-op once dismissed.
+ */
+export async function dismissConnectPrompt(page: Page) {
+  // Two shapes: a QR code on a desktop, an open-the-app button on a phone.
+  const prompt = page
+    .getByTestId('connect-prompt-qr')
+    .or(page.getByTestId('connect-prompt-open-app'))
+    .first()
+
+  if (!(await prompt.isVisible().catch(() => false))) return
+
+  await page.getByRole('button', { name: /^(Done|Continue in the browser)$/ }).click()
+  await prompt.waitFor({ state: 'hidden' })
+}
+
+/**
  * Register a new user and skip 2FA.
  * Returns the captured recovery key (curve bundle) along with the credentials.
  * `privateKey` is the recovery bundle — the material accepted by
@@ -30,6 +48,7 @@ export async function createUser(page: Page, email: string, password: string) {
   await page.getByRole('button', { name: 'Skip' }).click()
   // Wait until the app has fully redirected to the file browser
   await page.waitForURL('**/', { waitUntil: 'load' })
+  await dismissConnectPrompt(page)
 
   return { email, password, privateKey }
 }
@@ -65,6 +84,8 @@ export async function createUserWithTwoFactor(page: Page, email: string, passwor
   const token = authenticator.generate(secret)
   await page.locator('#token').fill(token)
   await page.getByRole('button', { name: 'Register with 2FA' }).click()
+  await page.waitForURL('**/')
+  await dismissConnectPrompt(page)
 
   return { email, password, privateKey, secret }
 }
@@ -93,6 +114,7 @@ export async function loginAsUser(
   }
   await page.getByRole('button', { name: 'Login' }).click()
   await page.waitForURL('**/')
+  await dismissConnectPrompt(page)
 }
 
 /**
@@ -113,6 +135,7 @@ export async function loginWithTwoFactor(page: Page, email: string, password: st
   // submits itself on the sixth digit.
   await page.keyboard.type(authenticator.generate(secret))
   await page.waitForURL('**/')
+  await dismissConnectPrompt(page)
 }
 
 /**
@@ -125,4 +148,5 @@ export async function loginWithPrivateKey(page: Page, privateKey: string) {
   await page.locator('#privateKey').fill(privateKey)
   await page.getByRole('button', { name: 'Login' }).click()
   await page.waitForURL('**/')
+  await dismissConnectPrompt(page)
 }

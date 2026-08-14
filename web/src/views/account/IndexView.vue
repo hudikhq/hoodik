@@ -6,6 +6,7 @@ import StorageStats from './index/StorageStats.vue'
 import SharingPreferences from './index/SharingPreferences.vue'
 import LanguagePreferences from './index/LanguagePreferences.vue'
 import RecoveryKey from './index/RecoveryKey.vue'
+import ConnectDevice from './index/ConnectDevice.vue'
 import EnableTfaModal from '@/components/modals/EnableTfaModal.vue'
 import DisableTfaModal from '@/components/modals/DisableTfaModal.vue'
 import { ref } from 'vue'
@@ -46,6 +47,11 @@ const enableTfaModal = ref(false)
         <div class="mb-8">
           <h2 class="text-xs font-semibold text-brownish-400 dark:text-brownish-50 mb-3 px-1">{{ $t('account.sections.security') }}</h2>
           <RecoveryKey class="w-full" />
+        </div>
+
+        <div class="mb-8">
+          <h2 class="text-xs font-semibold text-brownish-400 dark:text-brownish-50 mb-3 px-1">{{ $t('account.sections.devices') }}</h2>
+          <ConnectDevice :user="authenticated.user" class="w-full" />
         </div>
 
         <div class="mb-8">

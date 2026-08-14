@@ -44,6 +44,19 @@
       "tokenLabel": "2FA token (neobavezno)",
       "usePrivateKey": "Promijeni privatnim ključem"
     },
+    "connectDevice": {
+      "body": "Skeniraj ovo telefonom i Hoodik aplikacija sama upiše adresu tvog servera i email. Ako aplikaciju još nemaš, kod vodi na App Store ili Google Play.",
+      "continueOnWeb": "Nastavi u pregledniku",
+      "noSecrets": "Kod ne nosi lozinku ni ključeve. Prijava se i dalje radi na telefonu.",
+      "onThisDevice": "Postavi aplikaciju na ovom telefonu",
+      "openApp": "Otvori Hoodik aplikaciju",
+      "promptBody": "Skeniraj ovo telefonom da postaviš Hoodik aplikaciju na ovaj server. Sama upiše adresu i tvoj email, ti utipkaš samo lozinku.",
+      "promptBodyMobile": "Hoodik aplikacija drži tvoje datoteke enkriptirane na ovom telefonu i dostupne offline. Na ovaj server te prijavi sama.",
+      "promptDone": "Gotovo",
+      "promptLater": "Kasnije, pokaži mi gdje ovo mogu naći",
+      "promptTitle": "Ponesi datoteke sa sobom",
+      "title": "Postavi mobilnu aplikaciju"
+    },
     "details": {
       "change": "Promijeni",
       "copiedTooltip": "Kopirano!",
@@ -94,6 +107,7 @@
       "title": "Ključ za oporavak"
     },
     "sections": {
+      "devices": "Uređaji",
       "profile": "Profil",
       "security": "Sigurnost",
       "sessions": "Sesije",
