@@ -3,6 +3,7 @@
 //! Routes for manipulating files and folders, plus the chunked upload and
 //! download endpoints. Sharing routes live in the `links` crate.
 
+pub mod by_hash;
 pub mod chunk_urls;
 pub mod create;
 pub mod delete;
@@ -38,6 +39,7 @@ pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
     // actix-web walks services in registration order, so the download route
     // otherwise matches this path with `file_id = "reindex"` and fails on the
     // UUID parse.
+    cfg.service(by_hash::by_hash);
     cfg.service(reindex::pending);
     cfg.service(download::download);
     cfg.service(download::head);

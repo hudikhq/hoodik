@@ -1331,3 +1331,34 @@ async fn test_reindex_pending_route_is_not_swallowed_by_the_download_route() {
 
     let _ = context;
 }
+
+/// `GET /api/storage/by-hash/{hash}` must reach its own handler.
+///
+/// The reindex route shipped once matching `GET /api/storage/{file_id}` with
+/// `file_id = "reindex"`, which silently disabled the whole re-index sweep.
+/// This path has a literal first segment so it is not exposed to that exact
+/// collision, but registration order is invisible at the call site and the
+/// failure mode is a 4xx that looks like a client bug rather than a routing
+/// one — cheap to pin, expensive to debug.
+#[actix_web::test]
+async fn test_by_hash_route_reaches_its_own_handler() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let jwt = helpers::register_curve25519(&app, "byhash@test.com").await.jwt;
+
+    let req = test::TestRequest::get()
+        .uri("/api/storage/by-hash/deadbeef")
+        .cookie(jwt)
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let body: serde_json::Value =
+        serde_json::from_slice(&test::read_body(resp).await).expect("by-hash response is json");
+
+    assert!(body.is_array(), "expected a list of files, got {body}");
+
+    let _ = context;
+}

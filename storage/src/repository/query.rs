@@ -2,8 +2,8 @@
 //! them for only the files where the user has the file shared with him.
 
 use entity::{
-    files, numeric::Numeric, user_files, ColumnTrait, ConnectionTrait, EntityTrait, Expr,
-    IntoCondition, JoinType, QueryFilter, QuerySelect, RelationTrait, Uuid,
+    files, links, numeric::Numeric, user_files, ColumnTrait, Condition, ConnectionTrait,
+    EntityTrait, Expr, IntoCondition, JoinType, QueryFilter, QuerySelect, RelationTrait, Uuid,
 };
 use error::AppResult;
 
@@ -32,6 +32,43 @@ where
         let file = self.repository.by_id(id, self.user_id).await?;
 
         Ok(file)
+    }
+
+    /// Files whose bytes hash to `hash`, in any of the four digests stored at
+    /// upload.
+    ///
+    /// Deliberately independent of the search index. "Do you already have
+    /// these bytes" is a question about content, and answering it through the
+    /// token index made it depend on whether a file happened to be indexed —
+    /// so a file uploaded by a client that never wrote tags was invisible to a
+    /// lookup that has nothing to do with tags.
+    ///
+    /// Access is still the `user_files` join, so a digest guessed or lifted
+    /// from elsewhere reveals nothing the caller could not already list.
+    pub(crate) async fn by_hash(&self, hash: &str, compact: bool) -> AppResult<Vec<AppFile>> {
+        let selector = match compact {
+            true => self.repository.compact_selector(self.user_id, false),
+            false => self.repository.selector(self.user_id, false),
+        };
+
+        let results = selector
+            .filter(
+                Condition::any()
+                    .add(files::Column::Md5.eq(hash))
+                    .add(files::Column::Sha1.eq(hash))
+                    .add(files::Column::Sha256.eq(hash))
+                    .add(files::Column::Blake2b.eq(hash)),
+            )
+            // The selector left-joins `links`, so a file shared through more
+            // than one link would otherwise come back once per link.
+            .group_by(files::Column::Id)
+            .group_by(user_files::Column::Id)
+            .group_by(links::Column::Id)
+            .into_model::<AppFile>()
+            .all(self.repository.connection())
+            .await?;
+
+        Ok(results)
     }
 
     /// Sum all of the used space for the user so we can check if the user is over the quota limit

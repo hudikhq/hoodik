@@ -353,3 +353,117 @@ async fn create_files_and_try_getting_total_used_space() {
 
     assert_eq!(total, used_space)
 }
+
+/// A file with no index rows is still findable by its content digest.
+///
+/// This is the case the old shape got wrong: the hash lived as a branch of the
+/// tag filter, and the tag query inner-joins the index, so a file that was
+/// never indexed could not come back from a lookup that has nothing to do with
+/// indexing. Anything that syncs or backs up asks exactly this question about
+/// files it may have just uploaded.
+#[actix_web::test]
+async fn content_hash_finds_a_file_with_no_index_rows() {
+    let context = Context::mock_sqlite().await;
+    let repository = Repository::new(&context.db);
+    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
+
+    let file = create_file(&context, &user, "hello", None, Some("image/png"))
+        .await
+        .unwrap();
+
+    file_tokens::Entity::delete_many()
+        .filter(file_tokens::Column::FileId.eq(file.id))
+        .exec(&context.db)
+        .await
+        .unwrap();
+
+    let found = repository
+        .query(user.id)
+        .by_hash("asd", false)
+        .await
+        .unwrap();
+
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].id, file.id);
+
+    // And through search, which is the path a user typing a digest takes.
+    let search = Search {
+        hash: Some("asd".to_string()),
+        ..Default::default()
+    };
+    let hits = repository.tokens(user.id).search(search).await.unwrap();
+
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].id, file.id);
+}
+
+/// The lookup is access-controlled like everything else: a digest lifted from
+/// somewhere else is not a way to reach another account's files.
+#[actix_web::test]
+async fn content_hash_does_not_cross_accounts() {
+    let context = Context::mock_sqlite().await;
+    let repository = Repository::new(&context.db);
+    let owner = entity::mock::create_user(&context.db, "owner@test.com", None).await;
+    let stranger = entity::mock::create_user(&context.db, "stranger@test.com", None).await;
+
+    create_file(&context, &owner, "hello", None, Some("image/png"))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        repository.query(owner.id).by_hash("asd", false).await.unwrap().len(),
+        1
+    );
+    assert!(repository
+        .query(stranger.id)
+        .by_hash("asd", false)
+        .await
+        .unwrap()
+        .is_empty());
+}
+
+/// A shared file answers the lookup for its recipient — the backup case for an
+/// account that holds incoming shares.
+#[actix_web::test]
+async fn content_hash_reaches_shared_files() {
+    let context = Context::mock_sqlite().await;
+    let repository = Repository::new(&context.db);
+    let owner = entity::mock::create_user(&context.db, "owner@test.com", None).await;
+    let recipient = entity::mock::create_user(&context.db, "recipient@test.com", None).await;
+
+    let file = create_file(&context, &owner, "hello", None, Some("image/png"))
+        .await
+        .unwrap();
+    share_with(&context, file.id, recipient.id).await;
+
+    let found = repository
+        .query(recipient.id)
+        .by_hash("asd", false)
+        .await
+        .unwrap();
+
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].id, file.id);
+}
+
+/// Tag hits and a digest hit in one query come back once each, not twice.
+#[actix_web::test]
+async fn search_merges_tag_and_hash_hits_without_duplicates() {
+    let context = Context::mock_sqlite().await;
+    let repository = Repository::new(&context.db);
+    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
+
+    let file = create_file(&context, &user, "hello", None, Some("image/png"))
+        .await
+        .unwrap();
+
+    let search = Search {
+        root_tags: Some(query_tags(&search_key(), "hello")),
+        hash: Some("asd".to_string()),
+        ..Default::default()
+    };
+    let hits = repository.tokens(user.id).search(search).await.unwrap();
+
+    assert_eq!(hits.len(), 1, "the same file matched both ways");
+    assert_eq!(hits[0].id, file.id);
+}

@@ -140,6 +140,8 @@ where
             query = query.filter(files::Column::Editable.eq(editable));
         }
 
+        let root_tags_empty = root_tags.is_empty();
+        let file_tags_empty = file_tags.is_empty();
         let mut filter = Condition::any();
 
         for (scope, tags) in [(Scope::Root, root_tags), (Scope::File, file_tags)] {
@@ -151,19 +153,6 @@ where
                 file_tokens::Column::Scope
                     .eq(i32::from(scope))
                     .and(file_tokens::Column::Tag.is_in(tags)),
-            );
-        }
-
-        // A query that is itself a content digest matches the file whose
-        // bytes hash to it. Only added when the client sent one, so an
-        // ordinary search never compares against these columns.
-        if let Some(hash) = hash {
-            filter = filter.add(
-                files::Column::Md5
-                    .eq(&hash)
-                    .or(files::Column::Sha1.eq(&hash))
-                    .or(files::Column::Sha256.eq(&hash))
-                    .or(files::Column::Blake2b.eq(&hash)),
             );
         }
 
@@ -190,10 +179,37 @@ where
             query = query.offset(skip);
         }
 
-        let results = query
-            .into_model::<AppFile>()
-            .all(self.repository.connection())
-            .await?;
+        let mut results = if root_tags_empty && file_tags_empty {
+            // No tags to match. Skipping the query matters: an unfiltered one
+            // would join every indexed row the caller can see and return the
+            // whole drive.
+            vec![]
+        } else {
+            query
+                .into_model::<AppFile>()
+                .all(self.repository.connection())
+                .await?
+        };
+
+        // A query that is itself a content digest also matches the file whose
+        // bytes hash to it. Run as its own lookup rather than another branch
+        // of the tag filter: the tag query inner-joins the index, so a file
+        // with no tags could never come back from it — and whether a file is
+        // indexed has nothing to do with whether its bytes match.
+        if let Some(hash) = hash {
+            let seen: Vec<Uuid> = results.iter().map(|f| f.id).collect();
+
+            for file in self
+                .repository
+                .query(self.user_id)
+                .by_hash(&hash, compact)
+                .await?
+            {
+                if !seen.contains(&file.id) {
+                    results.push(file);
+                }
+            }
+        }
 
         Ok(results)
     }
