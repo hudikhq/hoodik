@@ -67,6 +67,29 @@ pub fn app(
 /// build time — no runtime config, nothing to misconfigure.
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Oldest app this server can serve at all. Declared in
+/// `[package.metadata.compat]` and lifted in by `build.rs`, so a release bumps
+/// it next to the version it ships with.
+///
+/// Below this a client is refused rather than nudged: 2.5.0 moved the search
+/// index to tags keyed on material the server never sees, and an older app
+/// can only produce the reversible digests this server no longer stores. Its
+/// search would return an empty list forever with nothing to explain it.
+///
+/// Advertised rather than enforced here — the routes that genuinely cannot
+/// serve an old client refuse on their own (see `Error::UpgradeRequired`).
+/// Publishing it lets the app say so in its own language, at the moment the
+/// user tries the thing that would fail.
+const MINIMUM_CLIENT_VERSION: &str = env!("HOODIK_MINIMUM_CLIENT_VERSION");
+
+/// App version this server is built to work with.
+///
+/// Between this and [`MINIMUM_CLIENT_VERSION`] everything still works, so a
+/// client below it gets a nudge and nothing more. Raising this is cheap;
+/// raising the minimum breaks people, so they are deliberately separate
+/// numbers rather than one.
+const RECOMMENDED_CLIENT_VERSION: &str = env!("HOODIK_RECOMMENDED_CLIENT_VERSION");
+
 async fn liveness(method: &'static str) -> actix_web::HttpResponse {
     // `METHOD` and `message` are kept for backward compatibility: existing
     // monitors that parse those fields pre-date the version addition, and
@@ -75,6 +98,8 @@ async fn liveness(method: &'static str) -> actix_web::HttpResponse {
         "METHOD": method,
         "message": "I am alive",
         "version": SERVER_VERSION,
+        "minimum_client_version": MINIMUM_CLIENT_VERSION,
+        "recommended_client_version": RECOMMENDED_CLIENT_VERSION,
     }))
 }
 
