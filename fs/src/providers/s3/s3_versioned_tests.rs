@@ -496,6 +496,67 @@ async fn presigned_put_writes_a_chunk_the_provider_can_read_back() {
     s.clean().await;
 }
 
+/// A first upload writes where the non-versioned read path looks.
+///
+/// This is the shape every ordinary file takes: version 1, nothing in the
+/// bucket yet, and `use_versioned_layout` false because the file is not
+/// editable — so `finalize` counts chunks with `get_uploaded_chunks`, the flat
+/// layout. Signing versioned keys regardless put the bytes somewhere that
+/// listing never reaches, and every such upload failed as `chunks_missing`
+/// after a PUT that had returned 200.
+///
+/// The test above uses version 5, where the legacy probe never fires, which is
+/// why it did not catch this.
+#[tokio::test]
+async fn presigned_put_on_a_first_upload_lands_in_the_flat_layout() {
+    let s = scope().await;
+    let filename = fname();
+    let body = b"first-upload-straight-into-the-bucket";
+
+    let urls = s
+        .p()
+        .direct_put_urls(&filename, 1, &[(0, body.len() as u64)])
+        .await
+        .unwrap()
+        .expect("s3 provider should offer direct urls when direct_transfer is on");
+
+    let response = reqwest::Client::new()
+        .put(&urls[0])
+        .header("content-length", body.len().to_string())
+        .body(body.to_vec())
+        .send()
+        .await
+        .expect("presigned PUT should reach the bucket");
+    assert!(
+        response.status().is_success(),
+        "presigned PUT was rejected with {}",
+        response.status()
+    );
+
+    // What `finalize` runs for a non-editable file. Empty here means the
+    // upload is uncommittable however well the write went.
+    assert_eq!(
+        s.p().get_uploaded_chunks(&filename).await.unwrap(),
+        vec![0],
+        "a direct write has to be visible to the flat listing finalize uses"
+    );
+    assert_eq!(s.p().pull(&filename, 0).await.unwrap(), body);
+
+    // And the read manifest has to point back at the same object, or the file
+    // uploads and then cannot be downloaded.
+    let read = s
+        .p()
+        .direct_get_urls(&filename, 1, &[0])
+        .await
+        .unwrap()
+        .expect("read urls");
+    let fetched = reqwest::Client::new().get(&read[0]).send().await.unwrap();
+    assert_eq!(fetched.status().as_u16(), 200);
+    assert_eq!(fetched.bytes().await.unwrap().as_ref(), body);
+
+    s.clean().await;
+}
+
 /// The signed `content-length` is a limit, not a hint. This is what replaces
 /// the per-chunk size cap the relaying upload route applies — without it a
 /// presigned write would be an unbounded one.

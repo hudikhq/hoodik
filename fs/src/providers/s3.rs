@@ -736,10 +736,20 @@ impl FsProviderContract for S3Provider {
         }
 
         let filename = filename.filename()?;
+        // The same probe the read side runs, for the same reason: the layout
+        // belongs to the file, not to how a particular chunk happened to be
+        // written. Signing versioned keys unconditionally put a direct upload
+        // somewhere `get_uploaded_chunks` never looks, so every non-editable
+        // file finalized as `chunks_missing` however well the writes went.
+        let legacy = self.should_use_legacy(&filename, version).await?;
 
         let mut urls = Vec::with_capacity(chunks.len());
         for (chunk, len) in chunks {
-            let key = self.versioned_chunk_key(&filename, version, *chunk);
+            let key = if legacy {
+                self.object_key(&filename.clone().with_chunk(*chunk))
+            } else {
+                self.versioned_chunk_key(&filename, version, *chunk)
+            };
             urls.push(self.presign_put(&key, *len).await?);
         }
 
