@@ -101,11 +101,11 @@ function ownedFile(): AppFile | undefined {
 }
 
 function save() {
-  doSave(ownedFile(), markdownContent.value)
+  doSave(ownedFile(), markdownContent.value, Crypto.keypair)
 }
 
 async function onResolveConflict() {
-  await resolveConflict(ownedFile())
+  await resolveConflict(ownedFile(), Crypto.keypair)
 }
 
 function onDiscardConflict() {

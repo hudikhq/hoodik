@@ -31,7 +31,7 @@ vi.mock('!/storage/save', () => {
 
 import { useMarkdownSave } from '../src/components/editor/composables/useMarkdownSave'
 import { saveFileContent, SaveConflictError } from '!/storage/save'
-import type { AppFile } from 'types'
+import type { AppFile, KeyPair } from 'types'
 
 function makeFile(overrides: Partial<AppFile> = {}): AppFile {
   return {
@@ -58,6 +58,8 @@ function makeFile(overrides: Partial<AppFile> = {}): AppFile {
 
 const saveMock = saveFileContent as unknown as ReturnType<typeof vi.fn>
 
+const keypair = { input: 'private-key' } as unknown as KeyPair
+
 describe('useMarkdownSave — state machine', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -78,7 +80,7 @@ describe('useMarkdownSave — state machine', () => {
     expect(ms.isDirty.value).toBe(true)
     expect(ms.saveStatus.value).toBe('idle')
 
-    const savePromise = ms.save(makeFile(), 'hello')
+    const savePromise = ms.save(makeFile(), 'hello', keypair)
     // Synchronously after kicking off: we flipped to saving
     expect(ms.saveStatus.value).toBe('saving')
     expect(ms.isSaving.value).toBe(true)
@@ -94,7 +96,7 @@ describe('useMarkdownSave — state machine', () => {
     saveMock.mockResolvedValue(makeFile())
     const ms = useMarkdownSave()
     ms.markDirty('x')
-    await ms.save(makeFile(), 'x')
+    await ms.save(makeFile(), 'x', keypair)
     expect(ms.saveStatus.value).toBe('saved')
 
     vi.advanceTimersByTime(3000)
@@ -107,7 +109,7 @@ describe('useMarkdownSave — state machine', () => {
 
     const ms = useMarkdownSave()
     ms.markDirty('draft-content')
-    await ms.save(makeFile(), 'draft-content')
+    await ms.save(makeFile(), 'draft-content', keypair)
 
     expect(ms.saveStatus.value).toBe('conflict')
     expect(ms.conflictedContent.value).toBe('draft-content')
@@ -120,7 +122,7 @@ describe('useMarkdownSave — state machine', () => {
 
     const ms = useMarkdownSave()
     ms.markDirty('x')
-    await ms.save(makeFile(), 'x')
+    await ms.save(makeFile(), 'x', keypair)
     expect(ms.saveStatus.value).toBe('error')
     expect(errSpy).toHaveBeenCalled()
 
@@ -134,7 +136,7 @@ describe('useMarkdownSave — state machine', () => {
   it('UNIT: save is a no-op when not dirty and force=false', async () => {
     const ms = useMarkdownSave()
     // Fresh composable: isDirty is false, no markDirty called.
-    await ms.save(makeFile(), 'anything')
+    await ms.save(makeFile(), 'anything', keypair)
     expect(saveMock).not.toHaveBeenCalled()
     expect(ms.saveStatus.value).toBe('idle')
   })
@@ -142,7 +144,7 @@ describe('useMarkdownSave — state machine', () => {
   it('UNIT: save is a no-op without a file key', async () => {
     const ms = useMarkdownSave()
     ms.markDirty('dirty')
-    await ms.save(makeFile({ key: undefined }), 'content')
+    await ms.save(makeFile({ key: undefined }), 'content', keypair)
     expect(saveMock).not.toHaveBeenCalled()
   })
 
@@ -158,11 +160,11 @@ describe('useMarkdownSave — state machine', () => {
 
     const ms = useMarkdownSave()
     ms.markDirty('x')
-    const p1 = ms.save(makeFile(), 'x')
+    const p1 = ms.save(makeFile(), 'x', keypair)
     expect(ms.isSaving.value).toBe(true)
 
     // While first save is still hanging, try again
-    const p2 = ms.save(makeFile(), 'y')
+    const p2 = ms.save(makeFile(), 'y', keypair)
     await p2
     expect(saveMock).toHaveBeenCalledTimes(1)
 
@@ -259,7 +261,7 @@ describe('useMarkdownSave — auto-save debounce', () => {
 
     const ms = useMarkdownSave()
     ms.markDirty('draft')
-    await ms.save(makeFile(), 'draft')
+    await ms.save(makeFile(), 'draft', keypair)
     expect(ms.saveStatus.value).toBe('conflict')
 
     const doSave = vi.fn()
@@ -292,13 +294,13 @@ describe('useMarkdownSave — conflict resolution', () => {
 
     const ms = useMarkdownSave()
     ms.markDirty('my draft')
-    await ms.save(makeFile(), 'my draft')
+    await ms.save(makeFile(), 'my draft', keypair)
     expect(ms.saveStatus.value).toBe('conflict')
 
-    await ms.resolveConflict(makeFile())
+    await ms.resolveConflict(makeFile(), keypair)
 
     expect(saveMock).toHaveBeenCalledTimes(2)
-    const [, content, force] = saveMock.mock.calls[1]
+    const [, content, , force] = saveMock.mock.calls[1]
     expect(content).toBe('my draft')
     expect(force).toBe(true)
     expect(ms.saveStatus.value).toBe('saved')
@@ -307,7 +309,7 @@ describe('useMarkdownSave — conflict resolution', () => {
 
   it('UNIT: resolveConflict is a no-op when there is no conflicted content', async () => {
     const ms = useMarkdownSave()
-    await ms.resolveConflict(makeFile())
+    await ms.resolveConflict(makeFile(), keypair)
     expect(saveMock).not.toHaveBeenCalled()
   })
 
@@ -315,7 +317,7 @@ describe('useMarkdownSave — conflict resolution', () => {
     saveMock.mockRejectedValueOnce(new SaveConflictError('file-1', 'draft'))
     const ms = useMarkdownSave()
     ms.markDirty('draft')
-    await ms.save(makeFile(), 'draft')
+    await ms.save(makeFile(), 'draft', keypair)
     expect(ms.saveStatus.value).toBe('conflict')
     expect(ms.conflictedContent.value).toBe('draft')
     expect(ms.isDirty.value).toBe(true)

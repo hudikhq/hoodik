@@ -172,6 +172,12 @@ export async function forkFile(
   // and on the per-user row.
   const wrappedKey = await shareCrypto.wrapForRecipient(newKeyHex, callerRecipient)
 
+  // The fork is a distinct file under a fresh key, so its file scope is keyed
+  // on `newKey` — tagging under the source's key would index it for whoever
+  // holds the original instead.
+  const rootKey = cryptfns.searchRootKey(keypair)
+  const fileKey = cryptfns.searchFileKey(newKey)
+
   // Re-encrypt the source's plaintext name + thumbnail under the new
   // key so the server's encrypted_metadata column carries the right
   // ciphertext for the forked file. Listings no longer carry thumbnail
@@ -214,14 +220,15 @@ export async function forkFile(
     new_file_id: newFileId,
     encrypted_metadata: encryptedName,
     encrypted_thumbnail: encryptedThumbnail,
-    name_hash: cryptfns.sha256.digest(source.name),
+    name_hash: cryptfns.searchTag(rootKey, source.name),
     mime: source.mime,
     size: totalBytes,
     chunks: expectedChunks,
     sha256,
     cipher,
     encrypted_key: wrappedKey,
-    search_tokens_hashed: cryptfns.stringToHashedTokens(source.name.toLowerCase()),
+    search_tokens_root: cryptfns.searchTags(rootKey, source.name.toLowerCase()),
+    search_tokens_file: cryptfns.searchTags(fileKey, source.name.toLowerCase()),
     event_signature: eventSignature,
     timestamp
   }

@@ -11,6 +11,18 @@ pub struct Capabilities {
     pub audit_log: bool,
     pub fork: bool,
     pub default_cipher: String,
+
+    /// Whether chunks can be read and written straight from the storage
+    /// bucket instead of through this server.
+    ///
+    /// A property of how this instance is deployed, not of its version: two
+    /// servers on the same release differ by environment and by whether
+    /// their bucket answers a CORS preflight. Clients must read it here
+    /// rather than inferring it from a version number, and treat its
+    /// absence as `false` — which is what an older server, or an errored
+    /// response, amounts to.
+    #[serde(default)]
+    pub direct_transfer: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -20,7 +32,7 @@ pub struct SharingCapabilities {
 }
 
 impl Capabilities {
-    pub fn for_enabled(enabled: bool, default_cipher: String) -> Self {
+    pub fn for_enabled(enabled: bool, default_cipher: String, direct_transfer: bool) -> Self {
         Self {
             sharing: SharingCapabilities {
                 enabled,
@@ -35,6 +47,7 @@ impl Capabilities {
             audit_log: true,
             fork: true,
             default_cipher,
+            direct_transfer,
         }
     }
 }

@@ -891,6 +891,14 @@
     "zoomIn": "Increase image size",
     "zoomOut": "Decrease image size"
   },
+  "reindex": {
+    "background": "Continue in background",
+    "cancel": "Cancel",
+    "explanation": "We improved how your search index is protected, so it can no longer be read from the database. Your files need to be re-indexed on this device to work with it. Notes are downloaded and decrypted here to be re-indexed, which is why this can take a moment. Files that haven't been processed yet won't turn up in search.",
+    "failed": "{count} files couldn't be re-indexed and will be retried next time.",
+    "progress": "{done} of {total} files",
+    "title": "Search has been hardened"
+  },
   "shares": {
     "add": {
       "accessHeading": "Access",

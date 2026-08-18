@@ -86,9 +86,18 @@ async fn liveness(method: &'static str) -> actix_web::HttpResponse {
 async fn readiness(context: web::Data<Context>) -> actix_web::HttpResponse {
     let db_ok = context.db.ping().await.is_ok();
     let storage_ok = Fs::new(&context.config).health_check().await.is_ok();
+    let direct = config::direct::verdict();
 
     if db_ok && storage_ok {
-        actix_web::HttpResponse::Ok().json(serde_json::json!({ "status": "ready" }))
+        actix_web::HttpResponse::Ok().json(serde_json::json!({
+            "status": "ready",
+            // Reported even when ready: a bucket that cannot serve clients
+            // directly is a working deployment, just not the one the
+            // operator asked for, and the reasons are the only place they
+            // will see why.
+            "direct_transfer": direct.enabled,
+            "direct_transfer_blockers": direct.blockers,
+        }))
     } else {
         actix_web::HttpResponse::ServiceUnavailable().json(serde_json::json!({
             "status": "not_ready",
@@ -100,6 +109,12 @@ async fn readiness(context: web::Data<Context>) -> actix_web::HttpResponse {
 
 /// Start the server
 pub async fn engage(context: Context) -> AppResult<()> {
+    // Settle direct transfer before anything can ask about it. It reaches the
+    // storage bucket over the network, so it happens once here rather than
+    // per request, and a bucket that answers badly costs a log line instead
+    // of the boot.
+    fs::direct::probe(&context.config).await;
+
     let bind_address = context.config.get_full_bind_address();
     let disabled = context.config.ssl.disabled;
     let app_url = context.config.get_app_url();

@@ -1,55 +1,86 @@
 use context::Context;
+use entity::{
+    file_tokens::{self, Scope},
+    user_files, ActiveValue, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, Uuid,
+};
 
-use crate::{data::search::Search, mock::create_file, repository::Repository};
+use crate::{
+    data::search::Search,
+    mock::{create_file, file_search_key, index_tags, query_tags, search_key},
+    repository::Repository,
+};
 
-#[actix_web::test]
-async fn create_token_and_get_it() {
-    let context = Context::mock_sqlite().await;
-    let repository = Repository::new(&context.db);
-    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
-    let tokens = repository.tokens(user.id);
+/// Give `user_id` non-owner access to `file_id`, the way a share grant does.
+/// Deliberately touches nothing but `user_files`: the point of the scheme is
+/// that sharing writes no index rows at all.
+async fn share_with(context: &Context, file_id: Uuid, user_id: Uuid) {
+    user_files::Entity::insert(user_files::ActiveModel {
+        id: ActiveValue::Set(Uuid::new_v4()),
+        file_id: ActiveValue::Set(file_id),
+        user_id: ActiveValue::Set(user_id),
+        encrypted_key: ActiveValue::Set("key".to_string()),
+        is_owner: ActiveValue::Set(false),
+        created_at: ActiveValue::Set(0),
+        expires_at: ActiveValue::Set(None),
+        share_role: ActiveValue::Set("reader".to_string()),
+        shared_at: ActiveValue::Set(Some(0)),
+        shared_by_user_id: ActiveValue::Set(None),
+        member_signature: ActiveValue::Set(None),
+        member_signed_at: ActiveValue::Set(None),
+    })
+    .exec_without_returning(&context.db)
+    .await
+    .unwrap();
+}
 
-    let token = cryptfns::tokenizer::Token {
-        token: "hello".to_string(),
-        weight: 1,
-    };
-
-    let model = tokens.create(token).await.unwrap();
-    let gotten = tokens.get(&model.hash).await.unwrap();
-
-    assert_eq!(model.hash, gotten.hash);
-    assert_eq!(model.id, gotten.id);
+async fn count_tags(context: &Context, file_id: Uuid, scope: Scope) -> u64 {
+    file_tokens::Entity::find()
+        .filter(file_tokens::Column::FileId.eq(file_id))
+        .filter(file_tokens::Column::Scope.eq(i32::from(scope)))
+        .count(&context.db)
+        .await
+        .unwrap()
 }
 
 #[actix_web::test]
-async fn create_file_with_tokens() {
+async fn indexing_writes_both_scopes() {
     let context = Context::mock_sqlite().await;
-    let repository = Repository::new(&context.db);
     let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
 
     let name = "hello_world.txt";
-    let initial_tokens = cryptfns::tokenizer::into_hashed_tokens(name).unwrap();
-
     let dir = create_file(&context, &user, name, None, Some("dir"))
         .await
         .unwrap();
 
-    let tokens = repository.tokens(user.id).get_tokens(dir.id).await.unwrap();
+    let expected = index_tags(&search_key(), name).len() as u64;
 
-    assert_eq!(initial_tokens.len(), tokens.len());
-
-    for token in tokens {
-        let initial = initial_tokens
-            .iter()
-            .find(|t| t.token == token.token)
-            .unwrap();
-
-        assert_eq!(initial.weight, token.weight);
-    }
+    assert_eq!(count_tags(&context, dir.id, Scope::Root).await, expected);
+    assert_eq!(count_tags(&context, dir.id, Scope::File).await, expected);
 }
 
 #[actix_web::test]
-async fn create_files_and_try_searching() {
+async fn root_tags_find_an_owned_file() {
+    let context = Context::mock_sqlite().await;
+    let repository = Repository::new(&context.db);
+    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
+
+    let dir = create_file(&context, &user, "hello", None, Some("dir"))
+        .await
+        .unwrap();
+
+    let search = Search {
+        root_tags: Some(query_tags(&search_key(), "hello")),
+        ..Default::default()
+    };
+
+    let results = repository.tokens(user.id).search(search).await.unwrap();
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].id, dir.id);
+}
+
+#[actix_web::test]
+async fn heavier_matches_rank_first() {
     let context = Context::mock_sqlite().await;
     let repository = Repository::new(&context.db);
     let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
@@ -63,7 +94,7 @@ async fn create_files_and_try_searching() {
         .unwrap();
 
     let search = Search {
-        search: Some("hello".to_string()),
+        root_tags: Some(query_tags(&search_key(), "hello")),
         ..Default::default()
     };
 
@@ -72,113 +103,87 @@ async fn create_files_and_try_searching() {
     let second = results.pop().unwrap();
     let first = results.pop().unwrap();
 
-    // println!("First {:#?}", first);
-    // println!("Second {:#?}", second);
-
     assert_eq!(first.id, dir2.id);
     assert_eq!(second.id, dir.id);
 }
 
-fn wire_tokens(input: &str) -> Vec<String> {
-    cryptfns::tokenizer::into_hashed_tokens(input)
-        .unwrap()
-        .into_iter()
-        .map(|t| format!("{}:{}", t.token, t.weight))
-        .collect()
-}
-
-#[test]
-fn into_tuple_prefers_client_hashed_tokens_and_ignores_plaintext() {
-    let search = Search {
-        search: Some("this plaintext must not be tokenized".to_string()),
-        search_tokens_hashed: Some(wire_tokens("hello")),
-        ..Default::default()
-    };
-
-    let (_, hash, tokens, _, _, _) = search.into_tuple();
-
-    // No `hash` on the request, so the plaintext must not leak into the
-    // hash-column comparison either.
-    assert_eq!(hash, None);
-
-    let expected = cryptfns::tokenizer::into_hashed_tokens("hello").unwrap();
-    assert_eq!(tokens.len(), expected.len());
-    for token in &tokens {
-        let matching = expected.iter().find(|t| t.token == token.token).unwrap();
-        assert_eq!(token.weight, matching.weight);
-    }
-}
-
-#[test]
-fn into_tuple_carries_the_content_hash_when_the_client_sends_one() {
-    let sha256 = "a".repeat(64);
-    let search = Search {
-        search_tokens_hashed: Some(wire_tokens("hello")),
-        hash: Some(sha256.clone()),
-        ..Default::default()
-    };
-
-    let (_, hash, _, _, _, _) = search.into_tuple();
-
-    assert_eq!(hash, Some(sha256));
-}
-
-#[test]
-fn into_tuple_tokenizes_plaintext_for_legacy_clients() {
-    let search = Search {
-        search: Some("hello world".to_string()),
-        ..Default::default()
-    };
-
-    let (_, hash, tokens, _, _, _) = search.into_tuple();
-
-    // The one string a legacy client sends still doubles as the hash
-    // lookup, preserving how the route behaved for those clients.
-    assert_eq!(hash.as_deref(), Some("hello world"));
-
-    let expected = cryptfns::tokenizer::into_hashed_tokens("hello world").unwrap();
-    assert_eq!(tokens.len(), expected.len());
-    for token in &tokens {
-        assert!(expected.iter().any(|t| t.token == token.token));
-    }
-}
-
+/// The property the whole scheme exists for: a recipient searches a shared
+/// file through the file scope, and the grant itself wrote nothing.
 #[actix_web::test]
-async fn search_with_client_hashed_tokens_finds_file() {
+async fn a_share_costs_no_index_rows_and_stays_searchable() {
     let context = Context::mock_sqlite().await;
     let repository = Repository::new(&context.db);
-    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
+    let owner = entity::mock::create_user(&context.db, "owner@test.com", None).await;
+    let recipient = entity::mock::create_user(&context.db, "recipient@test.com", None).await;
 
-    let dir = create_file(&context, &user, "hello", None, Some("dir"))
+    let name = "quarterly";
+    let file = create_file(&context, &owner, name, None, Some("dir"))
         .await
         .unwrap();
 
+    let before = count_tags(&context, file.id, Scope::File).await;
+    share_with(&context, file.id, recipient.id).await;
+
+    assert_eq!(count_tags(&context, file.id, Scope::File).await, before);
+    assert_eq!(
+        count_tags(&context, file.id, Scope::Root).await,
+        index_tags(&search_key(), name).len() as u64
+    );
+
     let search = Search {
-        search_tokens_hashed: Some(wire_tokens("hello")),
+        file_tags: Some(query_tags(&file_search_key(name), name)),
         ..Default::default()
     };
 
-    let results = repository.tokens(user.id).search(search).await.unwrap();
+    let results = repository.tokens(recipient.id).search(search).await.unwrap();
 
     assert_eq!(results.len(), 1);
-    assert_eq!(results[0].id, dir.id);
+    assert_eq!(results[0].id, file.id);
 }
 
+/// A recipient holds the file key but not the owner's root key, so the owner's
+/// scope must be useless to them even though the rows are right there.
 #[actix_web::test]
-async fn hashed_tokens_present_means_plaintext_is_never_used() {
+async fn a_recipient_cannot_match_the_owners_scope() {
+    let context = Context::mock_sqlite().await;
+    let repository = Repository::new(&context.db);
+    let owner = entity::mock::create_user(&context.db, "owner@test.com", None).await;
+    let recipient = entity::mock::create_user(&context.db, "recipient@test.com", None).await;
+
+    let name = "quarterly";
+    let file = create_file(&context, &owner, name, None, Some("dir"))
+        .await
+        .unwrap();
+    share_with(&context, file.id, recipient.id).await;
+
+    // File-scope tags sent against the root scope match nothing, and vice
+    // versa — the scopes are keyed independently.
+    let search = Search {
+        root_tags: Some(query_tags(&file_search_key(name), name)),
+        ..Default::default()
+    };
+
+    let results = repository.tokens(recipient.id).search(search).await.unwrap();
+
+    assert!(results.is_empty());
+}
+
+/// Scope 0 and scope 1 are never both sent for one file, so a file cannot be
+/// counted twice and outrank a genuinely better match.
+#[actix_web::test]
+async fn scopes_do_not_cross_match() {
     let context = Context::mock_sqlite().await;
     let repository = Repository::new(&context.db);
     let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
 
-    create_file(&context, &user, "hello", None, Some("dir"))
+    let name = "hello";
+    create_file(&context, &user, name, None, Some("dir"))
         .await
         .unwrap();
 
-    // The plaintext names an existing file; the hashed tokens do not. A
-    // server that still tokenized the plaintext would return a hit here.
     let search = Search {
-        search: Some("hello".to_string()),
-        search_tokens_hashed: Some(wire_tokens("xylophone")),
+        root_tags: Some(query_tags(&file_search_key(name), name)),
+        file_tags: Some(query_tags(&search_key(), name)),
         ..Default::default()
     };
 
@@ -187,8 +192,100 @@ async fn hashed_tokens_present_means_plaintext_is_never_used() {
     assert!(results.is_empty());
 }
 
+/// The re-index sweep is resumable because "pending" is derived from the
+/// absence of root tags rather than tracked separately: writing a file's tags
+/// is what takes it off the list.
 #[actix_web::test]
-async fn search_by_content_hash_finds_file_without_any_tokens() {
+async fn pending_reindex_shrinks_as_files_are_indexed() {
+    let context = Context::mock_sqlite().await;
+    let repository = Repository::new(&context.db);
+    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
+
+    let a = create_file(&context, &user, "alpha", None, Some("dir"))
+        .await
+        .unwrap();
+    create_file(&context, &user, "beta", None, Some("dir"))
+        .await
+        .unwrap();
+
+    // Freshly created files are already indexed, so nothing is pending.
+    assert!(repository
+        .tokens(user.id)
+        .pending_reindex(100)
+        .await
+        .unwrap()
+        .is_empty());
+
+    // Clear one file's root scope, standing in for what the migration did.
+    file_tokens::Entity::delete_many()
+        .filter(file_tokens::Column::FileId.eq(a.id))
+        .filter(file_tokens::Column::Scope.eq(i32::from(Scope::Root)))
+        .exec(&context.db)
+        .await
+        .unwrap();
+
+    let pending = repository.tokens(user.id).pending_reindex(100).await.unwrap();
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].id, a.id);
+
+    // Re-indexing it takes it off the list, with no progress state anywhere.
+    repository
+        .tokens(user.id)
+        .reindex(
+            a.id,
+            entity::file_tokens::SearchTags::new(Some(index_tags(&search_key(), "alpha")), None),
+        )
+        .await
+        .unwrap();
+
+    assert!(repository
+        .tokens(user.id)
+        .pending_reindex(100)
+        .await
+        .unwrap()
+        .is_empty());
+}
+
+/// Another user's unindexed files must never appear in this user's sweep.
+#[actix_web::test]
+async fn pending_reindex_is_scoped_to_the_caller() {
+    let context = Context::mock_sqlite().await;
+    let repository = Repository::new(&context.db);
+    let owner = entity::mock::create_user(&context.db, "owner@test.com", None).await;
+    let other = entity::mock::create_user(&context.db, "other@test.com", None).await;
+
+    let file = create_file(&context, &owner, "alpha", None, Some("dir"))
+        .await
+        .unwrap();
+    file_tokens::Entity::delete_many()
+        .filter(file_tokens::Column::FileId.eq(file.id))
+        .exec(&context.db)
+        .await
+        .unwrap();
+
+    // Even shared, it is not the recipient's to re-index — they cannot
+    // produce the owner's root tags.
+    share_with(&context, file.id, other.id).await;
+
+    assert_eq!(
+        repository
+            .tokens(owner.id)
+            .pending_reindex(100)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(repository
+        .tokens(other.id)
+        .pending_reindex(100)
+        .await
+        .unwrap()
+        .is_empty());
+}
+
+#[actix_web::test]
+async fn search_by_content_hash_finds_file_without_any_tags() {
     let context = Context::mock_sqlite().await;
     let repository = Repository::new(&context.db);
     let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
@@ -198,7 +295,6 @@ async fn search_by_content_hash_finds_file_without_any_tokens() {
         .unwrap();
 
     let search = Search {
-        search_tokens_hashed: Some(vec![]),
         hash: Some("asd".to_string()), // mock files carry "asd" in every hash column
         ..Default::default()
     };
@@ -210,7 +306,7 @@ async fn search_by_content_hash_finds_file_without_any_tokens() {
 }
 
 #[actix_web::test]
-async fn search_with_no_tokens_matches_nothing() {
+async fn search_with_no_tags_matches_nothing() {
     let context = Context::mock_sqlite().await;
     let repository = Repository::new(&context.db);
     let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
@@ -219,10 +315,10 @@ async fn search_with_no_tokens_matches_nothing() {
         .await
         .unwrap();
 
-    // No tokens and no hash — the absent hash must not degrade into an
+    // No tags and no hash — the absent hash must not degrade into an
     // empty-string comparison that matches rows.
     let search = Search {
-        search_tokens_hashed: Some(vec![]),
+        root_tags: Some(vec![]),
         ..Default::default()
     };
 

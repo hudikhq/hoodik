@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::types::{Auth, ChunkResponse, DownloadSource, FileHashes};
+use crate::types::{Auth, ChunkResponse, ChunkTarget, FileHashes};
 
 /// Platform-agnostic HTTP client for upload/download chunk requests.
 pub trait HttpClient {
@@ -15,6 +15,10 @@ pub trait HttpClient {
 
     /// Download a single encrypted chunk as raw bytes.
     ///
+    /// The [`ChunkTarget`] decides both where the request goes and whether it
+    /// may carry credentials — see that type. Implementations must not reach
+    /// for auth outside what the target hands them.
+    ///
     /// `on_bytes` is invoked with the number of bytes received *so far for
     /// this chunk* as the response body streams in — starting from the first
     /// read, not from chunk completion. Implementations that cannot stream
@@ -23,8 +27,7 @@ pub trait HttpClient {
     /// total across retries.
     fn download_chunk<'a>(
         &'a self,
-        auth: &Auth,
-        source: DownloadSource<'_>,
+        target: ChunkTarget<'_>,
         chunk_index: u64,
         on_bytes: Box<dyn Fn(u64) + 'a>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + 'a>>;

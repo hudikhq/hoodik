@@ -22,6 +22,7 @@ cached = { workspace = true }
 sha2 = "0.10"
 
 auth = { path = "../auth" }
+config = { path = "../config" }
 context = { path = "../context" }
 cryptfns = { path = "../cryptfns" }
 entity = { path = "../entity" }

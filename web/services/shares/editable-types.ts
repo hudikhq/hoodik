@@ -106,7 +106,9 @@ export interface SharedFolderFilePayload {
   cipher: string
   editable?: boolean
   fileModifiedAt?: string
-  searchTokensHashed?: string[]
+  searchTokensRoot?: string[]
+
+  searchTokensFile?: string[]
 }
 
 export interface UploadIntoSharedFolderArgs {

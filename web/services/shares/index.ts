@@ -4,18 +4,15 @@ import { ref, computed } from 'vue'
 import type {
   AppShare,
   AuditUserRef,
-  Capabilities,
   CreateShareEnvelope,
   ForkBody,
   ForkResponse,
   IncomingShare,
   RevokeShareBody,
   ShareEvent,
-  ShareRole,
   TrustedFingerprintEntry
 } from 'types'
 
-import { setDefaultCipher } from '!/cryptfns/cipher'
 import { store as storageStore } from '!/storage'
 
 import * as api from './api'
@@ -26,6 +23,8 @@ import * as groups from './groups'
 import * as subtree from './subtree'
 
 export { api, crypto, editable, fork, groups, subtree }
+export { capabilitiesStore } from './capabilities'
+export type { CapabilitiesStore } from './capabilities'
 export { GroupMemberFingerprintMismatch } from './groups'
 export { grantsStore } from './grants'
 export type { Grant, UserGrant, LinkGrant, GrantsStore } from './grants'
@@ -59,14 +58,6 @@ export {
   SUBTREE_HARD_CAP,
   SUBTREE_DETERMINATE_THRESHOLD
 } from './subtree'
-
-const FAIL_CLOSED_CAPABILITIES: Capabilities = {
-  sharing: { enabled: false, roles: [] },
-  editable_folders: false,
-  share_groups: false,
-  audit_log: false,
-  fork: false
-}
 
 /**
  * Primary share state. `incoming` carries the recipient-side list rendered
@@ -347,74 +338,5 @@ export const trustedFingerprintsStore = defineStore('trustedFingerprints', () =>
   }
 })
 
-/**
- * Capability advertisement, fetched from the public `GET /api/capabilities`
- * endpoint at app boot and on every successful login. Every getter
- * defaults to `false` so a missing or failed fetch fails closed.
- */
-export const capabilitiesStore = defineStore('capabilities', () => {
-  const caps = ref<Capabilities | null>(null)
-  const loading = ref(false)
-  const lastFetchedAt = ref<number | null>(null)
-  const fetchError = ref<string | null>(null)
-
-  const sharingEnabled = computed<boolean>(() => caps.value?.sharing.enabled === true)
-
-  const roles = computed<ShareRole[]>(() => caps.value?.sharing.roles ?? [])
-
-  const editableFolders = computed<boolean>(
-    () => sharingEnabled.value && caps.value?.editable_folders === true
-  )
-
-  const shareGroups = computed<boolean>(
-    () => sharingEnabled.value && caps.value?.share_groups === true
-  )
-
-  const auditLog = computed<boolean>(
-    () => sharingEnabled.value && caps.value?.audit_log === true
-  )
-
-  const forkEnabled = computed<boolean>(
-    () => sharingEnabled.value && caps.value?.fork === true
-  )
-
-  async function fetch(): Promise<void> {
-    loading.value = true
-    fetchError.value = null
-    try {
-      caps.value = await api.getCapabilities()
-      setDefaultCipher(caps.value.default_cipher ?? 'aegis128l')
-      lastFetchedAt.value = Math.floor(Date.now() / 1000)
-    } catch (e) {
-      caps.value = FAIL_CLOSED_CAPABILITIES
-      fetchError.value = 'errors.capabilitiesUnavailable'
-    } finally {
-      loading.value = false
-    }
-  }
-
-  function reset(): void {
-    caps.value = null
-    lastFetchedAt.value = null
-    fetchError.value = null
-  }
-
-  return {
-    caps,
-    loading,
-    lastFetchedAt,
-    fetchError,
-    sharingEnabled,
-    roles,
-    editableFolders,
-    shareGroups,
-    auditLog,
-    forkEnabled,
-    fetch,
-    reset
-  }
-})
-
 export type SharesStore = ReturnType<typeof store>
 export type TrustedFingerprintsStore = ReturnType<typeof trustedFingerprintsStore>
-export type CapabilitiesStore = ReturnType<typeof capabilitiesStore>

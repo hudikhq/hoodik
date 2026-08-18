@@ -55,6 +55,52 @@ impl<'a> DownloadSource<'a> {
     }
 }
 
+/// Where a transport should go for one chunk, and — the point of the type —
+/// what it is allowed to carry when it gets there.
+///
+/// [`Self::Direct`] holds a URL and nothing else. A transport matching on it
+/// has no [`Auth`] in scope, so it cannot attach a session cookie, a bearer
+/// token, or a refresh header to a request leaving for the storage bucket.
+/// That is not a rule a transport is asked to remember; there is simply
+/// nothing there to send.
+///
+/// Worth spelling out because the alternative was a boolean and an `if` in
+/// each of three transports, and the security history of this codebase is
+/// that a rule stated in a doc comment held for the entire life of a feature
+/// while the code underneath it did the opposite.
+#[derive(Debug, Clone, Copy)]
+pub enum ChunkTarget<'a> {
+    /// This instance's own API, which the caller is authenticated against.
+    Api {
+        auth: &'a Auth,
+        source: DownloadSource<'a>,
+    },
+    /// A presigned URL at the storage bucket. Credentials would at best be
+    /// ignored and at worst be handed to a third party; several S3
+    /// implementations also reject a request that carries both a signature
+    /// and an `Authorization` header.
+    Direct(&'a str),
+}
+
+impl<'a> ChunkTarget<'a> {
+    /// The id progress events are keyed by. Direct transfers are keyed by the
+    /// same id as the API path they replace, so callers thread it through.
+    pub fn url(&self, chunk: u64) -> String {
+        match self {
+            Self::Api { auth, source } => source.chunk_url(&auth.base_url, chunk),
+            Self::Direct(url) => (*url).to_string(),
+        }
+    }
+
+    /// Presigned URLs are signed for one method, and it is never `POST`.
+    pub fn method(&self) -> &'static str {
+        match self {
+            Self::Api { source, .. } => source.method(),
+            Self::Direct(_) => "GET",
+        }
+    }
+}
+
 /// Metadata about a chunk upload response from the server.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChunkResponse {

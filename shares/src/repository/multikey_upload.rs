@@ -18,10 +18,10 @@ use cryptfns::asn1::{
 };
 use cryptfns::identity::KeyType;
 use entity::{
-    file_tokens, files,
+    file_tokens::{self, Scope, SearchTags},
+    files,
     permission::{permission, SharePermission},
-    tokens, user_files, users, ActiveValue, ColumnTrait, EntityTrait, QueryFilter,
-    TransactionTrait, Uuid,
+    user_files, users, ActiveValue, ColumnTrait, EntityTrait, QueryFilter, TransactionTrait, Uuid,
 };
 use error::{AppResult, Error};
 
@@ -212,11 +212,15 @@ impl Repository<'_> {
                 .await?;
         }
 
-        if let Some(token_hashes) = body.search_tokens_hashed.clone() {
-            if !token_hashes.is_empty() {
-                upsert_tokens(&tx, new_file_id, token_hashes).await?;
-            }
-        }
+        upsert_tokens(
+            &tx,
+            new_file_id,
+            SearchTags::new(
+                body.search_tokens_root.clone(),
+                body.search_tokens_file.clone(),
+            ),
+        )
+        .await?;
 
         audit::append_event(
             &tx,
@@ -703,59 +707,39 @@ fn parse_modified_at(input: Option<&str>, fallback: i64) -> i64 {
         .unwrap_or(fallback)
 }
 
+/// Index a file uploaded into a folder someone else shares.
+///
+/// The uploader owns the row they just created, so they can produce both
+/// scopes here — unlike an editor saving over an existing shared file, who can
+/// only refresh the file scope.
 pub(crate) async fn upsert_tokens<C: entity::ConnectionTrait>(
     tx: &C,
     file_id: Uuid,
-    hashed_tokens: Vec<String>,
+    tags: SearchTags,
 ) -> AppResult<()> {
-    let parsed = cryptfns::tokenizer::from_vec(hashed_tokens)?;
-    if parsed.is_empty() {
+    let rows = [(Scope::Root, tags.root), (Scope::File, tags.file)]
+        .into_iter()
+        .filter_map(|(scope, tagged)| Some((scope, tagged?)))
+        .flat_map(|(scope, tagged)| {
+            cryptfns::search::from_wire(tagged)
+                .into_iter()
+                .map(move |(tag, weight)| file_tokens::ActiveModel {
+                    id: ActiveValue::Set(Uuid::new_v4()),
+                    file_id: ActiveValue::Set(file_id),
+                    scope: ActiveValue::Set(scope.into()),
+                    tag: ActiveValue::Set(tag),
+                    weight: ActiveValue::Set(weight),
+                })
+        })
+        .collect::<Vec<_>>();
+
+    if rows.is_empty() {
         return Ok(());
     }
 
-    let existing = tokens::Entity::find()
-        .filter(
-            tokens::Column::Hash.is_in(
-                parsed
-                    .iter()
-                    .map(|t| t.token.clone())
-                    .collect::<Vec<String>>(),
-            ),
-        )
-        .all(tx)
+    file_tokens::Entity::insert_many(rows)
+        .exec_without_returning(tx)
         .await?;
 
-    let mut new_tokens: Vec<tokens::ActiveModel> = Vec::new();
-    let mut links: Vec<file_tokens::ActiveModel> = Vec::new();
-
-    for token in parsed {
-        let token_id = if let Some(existing) = existing.iter().find(|t| t.hash == token.token) {
-            existing.id
-        } else {
-            let id = Uuid::new_v4();
-            new_tokens.push(tokens::ActiveModel {
-                id: ActiveValue::Set(id),
-                hash: ActiveValue::Set(token.token.clone()),
-            });
-            id
-        };
-        links.push(file_tokens::ActiveModel {
-            id: ActiveValue::Set(Uuid::new_v4()),
-            file_id: ActiveValue::Set(file_id),
-            token_id: ActiveValue::Set(token_id),
-            weight: ActiveValue::Set(token.weight as i32),
-        });
-    }
-
-    if !new_tokens.is_empty() {
-        tokens::Entity::insert_many(new_tokens)
-            .exec_without_returning(tx)
-            .await?;
-    }
-    if !links.is_empty() {
-        file_tokens::Entity::insert_many(links)
-            .exec_without_returning(tx)
-            .await?;
-    }
     Ok(())
 }

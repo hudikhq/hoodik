@@ -17,7 +17,8 @@ export interface ReplaceContentRequest {
   chunks: number
   encrypted_name?: string
   encrypted_thumbnail?: string
-  search_tokens_hashed?: string[]
+  search_tokens_root?: string[]
+  search_tokens_file?: string[]
   /**
    * Abandon any in-flight pending edit on the server and start fresh.
    * Set when the previous save died mid-way (the user picks "discard"
@@ -69,6 +70,7 @@ export async function replaceContent(
 export async function saveFileContent(
   file: AppFile,
   content: string,
+  keypair: KeyPair,
   force = false
 ): Promise<AppFile> {
   if (!file.key) {
@@ -81,14 +83,22 @@ export async function saveFileContent(
   const contentBytes = encoder.encode(safeContent)
   const size = contentBytes.length
   const chunkCount = Math.ceil(size / CHUNK_SIZE_BYTES) || 1
-  const searchTokens = cryptfns.stringToHashedTokens(safeContent)
+  // A note's whole body is indexed, which is why the old unsalted digests
+  // leaked note contents and not just names. An editor who is not the owner
+  // can only refresh the file scope; the owner's stays as they last wrote it
+  // and is not consulted while the file is shared.
+  const fileTags = cryptfns.searchTags(cryptfns.searchFileKey(file.key), safeContent)
+  const rootTags = file.is_owner
+    ? cryptfns.searchTags(cryptfns.searchRootKey(keypair), safeContent)
+    : undefined
 
   let updatedFile: AppFile
   try {
     updatedFile = await replaceContent(file.id, {
       size,
       chunks: chunkCount,
-      search_tokens_hashed: searchTokens,
+      search_tokens_root: rootTags,
+      search_tokens_file: fileTags,
       force
     })
   } catch (err) {
@@ -163,7 +173,6 @@ export async function createNote(
   callerUserId?: string
 ): Promise<AppFile> {
   const fileName = name.endsWith('.md') ? name : `${name}.md`
-  const tokens = cryptfns.stringToHashedTokens(fileName.toLowerCase())
 
   const initialContent = `# ${fileName.replace(/\.md$/i, '')}\n`
   const contentBytes = new TextEncoder().encode(initialContent)
@@ -195,8 +204,7 @@ export async function createNote(
       callerUserId,
       parent: parentFile,
       fileName,
-      contentBytes,
-      tokens
+      contentBytes
     })
   }
 
@@ -206,7 +214,6 @@ export async function createNote(
     editable: true,
     size: contentBytes.length,
     chunks: 1,
-    search_tokens_hashed: tokens,
     file_id: parentFile?.id ?? (typeof parent === 'string' ? parent : undefined),
     cipher: cryptfns.cipher.defaultCipher()
   }
@@ -237,13 +244,14 @@ async function createNoteInSharedFolder(args: {
   parent: AppFile
   fileName: string
   contentBytes: Uint8Array
-  tokens: string[]
 }): Promise<AppFile> {
   const cipher = cryptfns.cipher.defaultCipher()
   const fileKey = await cryptfns.cipher.generateKey(cipher)
   const fileKeyHex = cryptfns.uint8.toHex(fileKey)
   const encryptedName = await cryptfns.cipher.encryptString(cipher, args.fileName, fileKey)
-  const nameHash = cryptfns.sha256.digest(args.fileName)
+  const rootKey = cryptfns.searchRootKey(args.keypair)
+  const nameHash = cryptfns.searchTag(rootKey, args.fileName)
+  const indexed = args.fileName.toLowerCase()
   const newFileId = uuidv4()
   const modified = new Date()
 
@@ -263,7 +271,8 @@ async function createNoteInSharedFolder(args: {
       cipher,
       editable: true,
       fileModifiedAt: utcStringFromLocal(modified),
-      searchTokensHashed: args.tokens
+      searchTokensRoot: cryptfns.searchTags(rootKey, indexed),
+      searchTokensFile: cryptfns.searchTags(cryptfns.searchFileKey(fileKey), indexed)
     },
     trustedFingerprints: trustedFingerprintsStore(),
     onUnknownMember: async () => true

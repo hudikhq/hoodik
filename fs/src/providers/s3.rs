@@ -3,6 +3,9 @@ use async_trait::async_trait;
 use error::{AppResult, Error};
 use futures::stream::{StreamExt, TryStreamExt};
 use s3::error::S3Error;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::sync::Mutex;
 
 use crate::{
     contract::FsProviderContract,
@@ -13,48 +16,154 @@ use crate::{
 
 mod bulk_delete;
 
+thread_local! {
+    /// Buckets already built on this thread, keyed by the settings that
+    /// identify the connection.
+    ///
+    /// `Bucket::new` reads the whole operating-system trust store to build a
+    /// TLS client before it has been asked to talk to anything, and
+    /// `Fs::provider()` builds a provider for every storage call — so a single
+    /// download used to re-parse every system certificate several times.
+    ///
+    /// Per thread rather than per process on purpose. The HTTP client inside a
+    /// `Bucket` owns a connection pool tied to the runtime it was built on, and
+    /// actix gives each worker its own runtime; one shared pool across all of
+    /// them is a question this cache has no need to raise. A worker builds one
+    /// client and reuses it, which is the whole win.
+    static BUCKETS: RefCell<HashMap<BucketKey, s3::Bucket>> = RefCell::new(HashMap::new());
+}
+
+/// What distinguishes one bucket connection from another. The key prefix is
+/// deliberately absent: it is applied per request when building object keys,
+/// never baked into the connection.
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct BucketKey {
+    bucket: String,
+    region: String,
+    endpoint: Option<String>,
+    access_key: String,
+    path_style: bool,
+}
+
+/// Serialises TLS client construction across the whole process.
+///
+/// Building an S3 client reads the operating system's trust store. On macOS
+/// that goes through Security.framework, which returns `errSecIO` (-36) when
+/// several threads reach it at once, and sometimes on the very first call in a
+/// process. It surfaces as `io: I/O error` from `Bucket::new`, which reads as
+/// an unreachable bucket and is nothing of the sort — the endpoint,
+/// credentials and network are all fine.
+///
+/// Holding a lock here costs nothing in practice: construction is cached per
+/// thread, so a worker takes this once and never again.
+static BUCKET_CONSTRUCTION: Mutex<()> = Mutex::new(());
+
+/// Backoff between attempts at building the client. Bounded and short: a
+/// genuinely broken configuration — wrong region, malformed endpoint — fails
+/// the same way every time and should surface in well under a second rather
+/// than being retried into a slow death.
+const CONSTRUCTION_BACKOFF: [std::time::Duration; 3] = [
+    std::time::Duration::from_millis(50),
+    std::time::Duration::from_millis(150),
+    std::time::Duration::from_millis(400),
+];
+
+fn build_bucket(config: &config::s3::S3Config) -> s3::Bucket {
+    let region = match &config.endpoint {
+        Some(endpoint) => s3::Region::Custom {
+            region: config.region.clone(),
+            endpoint: endpoint.clone(),
+        },
+        None => config
+            .region
+            .parse()
+            .expect("Invalid S3 region. Check S3_REGION configuration."),
+    };
+
+    let credentials = s3::creds::Credentials::new(
+        Some(&config.access_key),
+        Some(&config.secret_key),
+        None,
+        None,
+        None,
+    )
+    .expect("Invalid S3 credentials. Check S3_ACCESS_KEY and S3_SECRET_KEY.");
+
+    let _serialised = BUCKET_CONSTRUCTION
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+
+    let mut last_error = None;
+    let mut built = None;
+
+    for (attempt, backoff) in CONSTRUCTION_BACKOFF.iter().enumerate() {
+        match s3::Bucket::new(&config.bucket, region.clone(), credentials.clone()) {
+            Ok(bucket) => {
+                built = Some(bucket);
+                break;
+            }
+            Err(e) => {
+                log::debug!(
+                    "S3 client construction attempt {} failed ({e:?})",
+                    attempt + 1
+                );
+                last_error = Some(e);
+                std::thread::sleep(*backoff);
+            }
+        }
+    }
+
+    // Debug, not Display: `S3Error`'s Display renders an underlying `io::Error`
+    // as the bare string "I/O error", which tells an operator nothing about
+    // whether their endpoint, credentials or trust store is at fault.
+    let mut bucket = built.unwrap_or_else(|| {
+        panic!(
+            "Failed to create S3 bucket handle for '{}' after {} attempts: {:?}",
+            &config.bucket,
+            CONSTRUCTION_BACKOFF.len(),
+            last_error
+        )
+    });
+
+    if config.path_style {
+        bucket.set_path_style();
+    }
+
+    *bucket
+}
+
 pub struct S3Provider {
     bucket: s3::Bucket,
     prefix: String,
+    direct_transfer: bool,
+    direct_expiry_secs: u32,
 }
 
 impl S3Provider {
     pub fn new(config: &config::s3::S3Config) -> Self {
-        let region = match &config.endpoint {
-            Some(endpoint) => s3::Region::Custom {
-                region: config.region.clone(),
-                endpoint: endpoint.clone(),
-            },
-            None => config
-                .region
-                .parse()
-                .expect("Invalid S3 region. Check S3_REGION configuration."),
+        let key = BucketKey {
+            bucket: config.bucket.clone(),
+            region: config.region.clone(),
+            endpoint: config.endpoint.clone(),
+            access_key: config.access_key.clone(),
+            path_style: config.path_style,
         };
 
-        let credentials = s3::creds::Credentials::new(
-            Some(&config.access_key),
-            Some(&config.secret_key),
-            None,
-            None,
-            None,
-        )
-        .expect("Invalid S3 credentials. Check S3_ACCESS_KEY and S3_SECRET_KEY.");
+        let bucket = BUCKETS.with(|buckets| {
+            if let Some(bucket) = buckets.borrow().get(&key) {
+                return bucket.clone();
+            }
 
-        let mut bucket = s3::Bucket::new(&config.bucket, region, credentials)
-            .unwrap_or_else(|e| {
-                panic!(
-                    "Failed to create S3 bucket handle for '{}': {}",
-                    &config.bucket, e
-                )
-            });
-
-        if config.path_style {
-            bucket.set_path_style();
-        }
+            let bucket = build_bucket(config);
+            buckets.borrow_mut().insert(key, bucket.clone());
+            bucket
+        });
 
         Self {
-            bucket: *bucket,
+            bucket,
             prefix: config.prefix.clone().unwrap_or_default(),
+            direct_transfer: config.direct_transfer,
+            direct_expiry_secs: config.direct_expiry_secs,
         }
     }
 
@@ -148,6 +257,40 @@ impl S3Provider {
     fn is_not_found(err: &S3Error) -> bool {
         let s = err.to_string();
         s.contains("404") || s.contains("NoSuchKey") || s.contains("Not Found")
+    }
+
+    /// Sign a URL that reads one object. Pure local HMAC — no round trip to
+    /// the store — so signing a whole file's worth costs microseconds.
+    pub(crate) async fn presign_get(&self, key: &str) -> AppResult<String> {
+        self.bucket
+            .presign_get(key, self.direct_expiry_secs, None)
+            .await
+            .map_err(|e| {
+                Error::StorageError(format!("S3 presign_get failed for '{}': {}", key, e))
+            })
+    }
+
+    /// Sign a URL that writes one object of exactly `len` bytes.
+    ///
+    /// `content-length` goes in as a signed header, which binds it into the
+    /// signature: a client that sends a different number of bytes fails the
+    /// signature check at the store. Without it a presigned write would be
+    /// an unbounded one, since nothing of ours sits in front of it.
+    async fn presign_put(&self, key: &str, len: u64) -> AppResult<String> {
+        let mut headers = http::HeaderMap::new();
+        headers.insert(
+            http::header::CONTENT_LENGTH,
+            http::HeaderValue::from_str(&len.to_string()).map_err(|e| {
+                Error::InternalError(format!("Invalid content-length for '{}': {}", key, e))
+            })?,
+        );
+
+        self.bucket
+            .presign_put(key, self.direct_expiry_secs, Some(headers), None)
+            .await
+            .map_err(|e| {
+                Error::StorageError(format!("S3 presign_put failed for '{}': {}", key, e))
+            })
     }
 
     /// True when `version == 1` and the versioned directory is empty. Used
@@ -552,6 +695,55 @@ impl FsProviderContract for S3Provider {
         }
 
         self.purge(&filename).await
+    }
+
+    async fn direct_get_urls<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+        chunks: &[i64],
+    ) -> AppResult<Option<Vec<String>>> {
+        if !self.direct_transfer {
+            return Ok(None);
+        }
+
+        let filename = filename.filename()?;
+        // One probe for the whole set. Asking per chunk would turn a
+        // manifest into a LIST storm.
+        let legacy = self.should_use_legacy(&filename, version).await?;
+
+        let mut urls = Vec::with_capacity(chunks.len());
+        for chunk in chunks {
+            let key = if legacy {
+                self.object_key(&filename.clone().with_chunk(*chunk))
+            } else {
+                self.versioned_chunk_key(&filename, version, *chunk)
+            };
+            urls.push(self.presign_get(&key).await?);
+        }
+
+        Ok(Some(urls))
+    }
+
+    async fn direct_put_urls<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+        chunks: &[(i64, u64)],
+    ) -> AppResult<Option<Vec<String>>> {
+        if !self.direct_transfer {
+            return Ok(None);
+        }
+
+        let filename = filename.filename()?;
+
+        let mut urls = Vec::with_capacity(chunks.len());
+        for (chunk, len) in chunks {
+            let key = self.versioned_chunk_key(&filename, version, *chunk);
+            urls.push(self.presign_put(&key, *len).await?);
+        }
+
+        Ok(Some(urls))
     }
 }
 

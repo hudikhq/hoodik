@@ -1,6 +1,7 @@
 pub mod app;
 pub mod auth;
 pub mod config;
+pub mod direct;
 pub mod email;
 pub(crate) mod helpers;
 pub mod s3;

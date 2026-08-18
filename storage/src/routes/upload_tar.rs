@@ -239,7 +239,11 @@ fn content_length_header(req: &HttpRequest) -> Option<u64> {
 /// Silently skipped if the claims don't carry a quota (transfer tokens, for
 /// example) — the running-total check inside the stream loop is the safety
 /// net in that case.
-async fn enforce_quota_pre_read(
+///
+/// Shared with the direct-upload manifest, where the declared chunk sizes are
+/// the advertised total and this is the only quota gate before the client
+/// starts writing into the bucket on its own.
+pub(super) async fn enforce_quota_pre_read(
     context: &Context,
     claims: &StorageClaims,
     advertised: u64,
@@ -298,7 +302,10 @@ async fn remaining_quota_bytes(context: &Context, claims: &StorageClaims) -> Opt
 /// Same transactional commit the per-chunk path runs: snapshot + swap +
 /// prune in one DB transaction, then best-effort-purge the pruned version
 /// directories. See [`super::upload::upload`] for the long-form rationale.
-async fn finalize_file(
+///
+/// Also the finalize the direct-upload path calls once its chunks are in the
+/// bucket, so all three upload routes commit a file the same way.
+pub(super) async fn finalize_file(
     context: &Context,
     storage: &Fs<'_>,
     claims: &StorageClaims,

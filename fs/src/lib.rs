@@ -1,4 +1,5 @@
 mod contract;
+pub mod direct;
 mod filename;
 mod fs;
 mod providers;

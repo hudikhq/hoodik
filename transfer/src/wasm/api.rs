@@ -2,7 +2,7 @@ use crate::config::{
     UploadHashOptions, HASH_DISABLE_BLAKE2B, HASH_DISABLE_MD5, HASH_DISABLE_SHA1,
     HASH_OFFLOAD_SHA256,
 };
-use crate::types::{Auth, DownloadSource, FileHashes};
+use crate::types::{Auth, ChunkTarget, DownloadSource, FileHashes};
 use crate::wasm::http::WasmHttpClient;
 use crate::wasm::progress::JsProgressReporter;
 use crate::wasm::source::FileSource;
@@ -196,6 +196,8 @@ pub struct TransferDownloader {
     cipher: String,
     /// Chunks come from the anonymous public-link route instead of storage.
     public_link: bool,
+    /// Presigned bucket URLs by chunk index, when the host fetched a manifest.
+    direct_urls: Option<Vec<String>>,
 }
 
 fn source_of(id: &str, public_link: bool) -> DownloadSource<'_> {
@@ -240,6 +242,7 @@ impl TransferDownloader {
             decryption_key,
             cipher: cryptfns::cipher::DEFAULT.to_string(),
             public_link: false,
+            direct_urls: None,
         }
     }
 
@@ -270,6 +273,7 @@ impl TransferDownloader {
             decryption_key,
             cipher: cryptfns::cipher::DEFAULT.to_string(),
             public_link: true,
+            direct_urls: None,
         }
     }
 
@@ -279,6 +283,21 @@ impl TransferDownloader {
     #[wasm_bindgen(js_name = "set_cipher")]
     pub fn set_cipher(&mut self, cipher: String) {
         self.cipher = cipher;
+    }
+
+    /// Fetch chunks from these presigned bucket URLs, ordered by chunk index,
+    /// rather than from this instance.
+    ///
+    /// The host fetches the manifest because the host is what already reads
+    /// `/api/capabilities` and holds the session. Indices the list does not
+    /// cover fall back to the API, so a short list degrades rather than
+    /// failing. Must be called before `download`.
+    ///
+    /// Requests built from these URLs carry no cookie, bearer token or
+    /// refresh header — see `ChunkTarget`.
+    #[wasm_bindgen(js_name = "set_direct_urls")]
+    pub fn set_direct_urls(&mut self, urls: Vec<String>) {
+        self.direct_urls = Some(urls);
     }
 
     /// Download and decrypt the file, returning the complete plaintext as a `Uint8Array`.
@@ -302,11 +321,13 @@ impl TransferDownloader {
         let decryption_key = self.decryption_key.clone();
         let cipher = self.cipher.clone();
         let public_link = self.public_link;
+        let direct_urls = self.direct_urls.clone();
 
         let http = WasmHttpClient::new();
         let reporter = JsProgressReporter::new(on_progress, is_cancelled);
 
-        crate::download::download_file_from(
+        let mut result = Vec::with_capacity(file_size as usize);
+        crate::download::download_file_streaming(
             &http,
             &reporter,
             &auth,
@@ -315,9 +336,13 @@ impl TransferDownloader {
             chunk_count,
             &decryption_key,
             &cipher,
+            direct_urls.as_deref(),
+            &mut |chunk| result.extend_from_slice(&chunk),
         )
         .await
-        .map_err(|e| JsValue::from_str(&format!("{e}")))
+        .map_err(|e| JsValue::from_str(&format!("{e}")))?;
+
+        Ok(result)
     }
 
     /// Download the file, handing each decrypted chunk to `on_chunk` in
@@ -341,6 +366,7 @@ impl TransferDownloader {
         let decryption_key = self.decryption_key.clone();
         let cipher = self.cipher.clone();
         let public_link = self.public_link;
+        let direct_urls = self.direct_urls.clone();
 
         let http = WasmHttpClient::new();
         let reporter = JsProgressReporter::new(on_progress, is_cancelled);
@@ -354,6 +380,7 @@ impl TransferDownloader {
             chunk_count,
             &decryption_key,
             &cipher,
+            direct_urls.as_deref(),
             &mut |chunk| {
                 let array = js_sys::Uint8Array::from(chunk.as_slice());
                 let _ = on_chunk.call1(&JsValue::NULL, &array);
@@ -384,10 +411,24 @@ impl TransferDownloader {
 
         let http = WasmHttpClient::new();
 
+        // Progressive consumers land here one chunk at a time, so an index the
+        // manifest covers goes to the bucket and anything else keeps using the
+        // API — same rule the whole-file pipeline follows.
+        let target = match self
+            .direct_urls
+            .as_ref()
+            .and_then(|urls| urls.get(chunk_index as usize))
+        {
+            Some(url) => ChunkTarget::Direct(url),
+            None => ChunkTarget::Api {
+                auth: &auth,
+                source: source_of(&file_id, public_link),
+            },
+        };
+
         let (_, result) = crate::download::fetch_and_decrypt(
             &http,
-            &auth,
-            source_of(&file_id, public_link),
+            target,
             chunk_index as u64,
             &decryption_key,
             &cipher,

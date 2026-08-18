@@ -3,6 +3,7 @@
 //! Routes for manipulating files and folders, plus the chunked upload and
 //! download endpoints. Sharing routes live in the `links` crate.
 
+pub mod chunk_urls;
 pub mod create;
 pub mod delete;
 pub mod delete_many;
@@ -11,6 +12,7 @@ pub mod index;
 pub mod metadata;
 pub mod move_many;
 pub mod name_hash;
+pub mod reindex;
 pub mod rename;
 pub mod replace_content;
 pub mod search;
@@ -25,15 +27,25 @@ pub mod versions;
 /// Register the storage routes
 /// on to the application server
 pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
+    cfg.service(chunk_urls::download_urls);
+    cfg.service(chunk_urls::upload_urls);
+    cfg.service(chunk_urls::finalize);
+    cfg.service(chunk_urls::version_urls);
     cfg.service(create::create);
     cfg.service(delete_many::delete_many);
     cfg.service(delete::delete);
+    // Registers before the catch-all `GET /api/storage/{file_id}` below —
+    // actix-web walks services in registration order, so the download route
+    // otherwise matches this path with `file_id = "reindex"` and fails on the
+    // UUID parse.
+    cfg.service(reindex::pending);
     cfg.service(download::download);
     cfg.service(download::head);
     cfg.service(index::index);
     cfg.service(metadata::metadata);
     cfg.service(move_many::move_many);
     cfg.service(name_hash::name_hash);
+    cfg.service(reindex::reindex);
     cfg.service(rename::rename);
     cfg.service(replace_content::replace_content);
     cfg.service(search::search);

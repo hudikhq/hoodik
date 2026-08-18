@@ -68,19 +68,31 @@ export async function encrypt(
  * Reads `encrypted.cipher` to determine which cipher was used when the file was created.
  * Falls back to `"ascon128a"` for existing files that predate the cipher field.
  */
+/**
+ * Unwrap a file key from the form it is stored in on the caller's row.
+ *
+ * Curve accounts wrap the raw key bytes with the hybrid construction; legacy
+ * accounts wrap the hex-encoded key with RSA. Split out of [[decrypt]] because
+ * search needs keys on their own, with no name or thumbnail to decrypt.
+ */
+export async function decryptFileKey(
+  encryptedKey: string,
+  privateKey: string
+): Promise<Uint8Array> {
+  if (isRsaKey(privateKey)) {
+    return cryptfns.uint8.fromHex(await cryptfns.rsa.decryptMessage(privateKey, encryptedKey))
+  }
+
+  return cryptfns.wrapping.unwrap(encryptedKey, privateKey)
+}
+
 export async function decrypt(
   encrypted: AppFileEncryptedPart,
   privateKey: string
 ): Promise<AppFileUnencryptedPart> {
   const cipher = encrypted.cipher
 
-  let key: Uint8Array
-  if (isRsaKey(privateKey)) {
-    const keyHex = await cryptfns.rsa.decryptMessage(privateKey, encrypted.encrypted_key)
-    key = cryptfns.uint8.fromHex(keyHex)
-  } else {
-    key = await cryptfns.wrapping.unwrap(encrypted.encrypted_key, privateKey)
-  }
+  const key = await decryptFileKey(encrypted.encrypted_key, privateKey)
 
   const name = await cryptfns.cipher.decryptString(cipher, encrypted.encrypted_name, key)
   const thumbnail = encrypted.encrypted_thumbnail
@@ -107,11 +119,20 @@ export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise
   }
 
   const wrapPub = keypair.wrappingPublic || keypair.publicKey
-  const encryptedParts = await encrypt(unencrypted, wrapPub, unencrypted.cipher)
+  const cipher = unencrypted.cipher || cryptfns.cipher.defaultCipher()
+  // Resolved here rather than inside `encrypt` so the file's search key can be
+  // derived from the same bytes the content is encrypted with.
+  const key = unencrypted.key || (await cryptfns.cipher.generateKey(cipher))
+  const encryptedParts = await encrypt({ ...unencrypted, key }, wrapPub, cipher)
+
+  const rootKey = cryptfns.searchRootKey(keypair)
+  const fileKey = cryptfns.searchFileKey(key)
+  const indexed = unencrypted.name.toLowerCase()
 
   const createFile: EncryptedCreateFile = {
-    search_tokens_hashed: unencrypted.search_tokens_hashed,
-    name_hash: cryptfns.sha256.digest(unencrypted.name),
+    search_tokens_root: cryptfns.searchTags(rootKey, indexed),
+    search_tokens_file: cryptfns.searchTags(fileKey, indexed),
+    name_hash: cryptfns.searchTag(rootKey, unencrypted.name),
     mime: unencrypted.mime,
     size: unencrypted.size,
     chunks: unencrypted.chunks,
@@ -163,9 +184,20 @@ export async function rename(
   const wrapPub = keypair.wrappingPublic || keypair.publicKey
   const encryptedParts = await encrypt({ key: file.key, name: unencrypted.name }, wrapPub)
 
+  if (!file.key) {
+    throw new Error('Cannot rename a file without its key')
+  }
+
+  const rootKey = cryptfns.searchRootKey(keypair)
+  const indexed = unencrypted.name.toLowerCase()
+
   const rename: EncryptedRename = {
-    search_tokens_hashed: unencrypted.search_tokens_hashed,
-    name_hash: cryptfns.sha256.digest(unencrypted.name),
+    // An editor renaming someone else's file holds the file key but not the
+    // owner's root key, so they refresh only the scope they can produce and
+    // the server leaves the other one alone.
+    search_tokens_root: file.is_owner ? cryptfns.searchTags(rootKey, indexed) : undefined,
+    search_tokens_file: cryptfns.searchTags(cryptfns.searchFileKey(file.key), indexed),
+    name_hash: cryptfns.searchTag(rootKey, unencrypted.name),
     encrypted_name: encryptedParts.encrypted_name
   }
 
@@ -220,7 +252,7 @@ export async function getByName(
     throw new Error('Cannot get file without private key')
   }
 
-  const nameHash = cryptfns.sha256.digest(name)
+  const nameHash = cryptfns.searchTag(cryptfns.searchRootKey(keypair), name)
 
   if (parent_id !== undefined && typeof parent_id !== 'string') {
     parent_id = undefined
@@ -297,6 +329,14 @@ const HEX_HASH_LENGTHS = [32, 40, 64, 128]
  * the client and the server already stores all four, so it carries nothing
  * the server does not have. Anything else stays on the client.
  */
+/**
+ * Indexing sends `"{tag}:{weight}"`; the search route wants bare tags, since
+ * the weight that ranks a hit is the stored one, not the query's.
+ */
+function stripWeight(entry: string): string {
+  return entry.split(':')[0]
+}
+
 function hashLookup(input: string): string | undefined {
   const candidate = input.trim()
 
@@ -306,17 +346,30 @@ function hashLookup(input: string): string | undefined {
 }
 
 /**
- * Full text search. The query is tokenized and hashed here so the plaintext
- * term never leaves the browser — the server matches the hashes against the
- * token index built the same way at upload time (which lowercases the name,
- * hence the lowercasing before tokenizing).
+ * Full text search. The query is tokenized and tagged here, so neither the
+ * plaintext term nor anything reversible reaches the server.
+ *
+ * Two scopes go out. Root tags cover everything the caller owns and cost one
+ * tag per query word however large the drive is. File tags cover files shared
+ * *with* the caller, one per (word, file), because those are keyed on each
+ * file's own key — which is exactly what lets a share grant skip the index
+ * entirely. Callers never send file tags for files they own, so a file can
+ * only match through one scope and the weight ranking stays honest.
  */
 export async function search(
   input: string,
+  keypair: KeyPair,
+  sharedKeys: Uint8Array[] = [],
   options?: { dir_id?: string; editable?: boolean; limit?: number }
 ): Promise<EncryptedAppFile[]> {
+  const term = input.toLowerCase()
+  const rootKey = cryptfns.searchRootKey(keypair)
+
   const body: SearchQuery = {
-    search_tokens_hashed: cryptfns.stringToHashedTokens(input.toLowerCase()),
+    root_tags: cryptfns.searchTags(rootKey, term).map(stripWeight),
+    file_tags: sharedKeys.flatMap((key) =>
+      cryptfns.searchTags(cryptfns.searchFileKey(key), term).map(stripWeight)
+    ),
     hash: hashLookup(input),
     dir_id: options?.dir_id,
     editable: options?.editable,

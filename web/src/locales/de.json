@@ -891,6 +891,14 @@
     "zoomIn": "Bild vergrößern",
     "zoomOut": "Bild verkleinern"
   },
+  "reindex": {
+    "background": "Im Hintergrund fortsetzen",
+    "cancel": "Abbrechen",
+    "explanation": "Wir haben den Schutz deines Suchindex verbessert, sodass er nicht mehr aus der Datenbank gelesen werden kann. Deine Dateien müssen dafür auf diesem Gerät neu indexiert werden. Notizen werden hier heruntergeladen und entschlüsselt, um neu indexiert zu werden, deshalb kann das einen Moment dauern. Noch nicht verarbeitete Dateien erscheinen nicht in der Suche.",
+    "failed": "{count} Dateien konnten nicht neu indexiert werden und werden beim nächsten Mal erneut versucht.",
+    "progress": "{done} von {total} Dateien",
+    "title": "Die Suche wurde abgesichert"
+  },
   "shares": {
     "add": {
       "accessHeading": "Zugriff",

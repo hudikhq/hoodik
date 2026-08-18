@@ -1,5 +1,6 @@
 import Api from '../../api'
 import { TransferDownloader } from 'transfer'
+import { fileChunkUrls } from './direct'
 
 import type { DownloadProgressFunction, AppFile } from '../../../types'
 
@@ -8,8 +9,12 @@ import type { DownloadProgressFunction, AppFile } from '../../../types'
  * the whole transfer — HTTP, retries, ordering, decryption — so nothing
  * derived from the plaintext ever exists outside it until the result is
  * handed back. Callers must `free()` it (or go through the helpers below).
+ *
+ * When the server offers direct transfer, chunks are fetched from the storage
+ * bucket instead of from the server. Decryption is unchanged and still happens
+ * here: the bucket holds ciphertext and has never held a key.
  */
-function fileDownloader(file: AppFile): TransferDownloader {
+async function fileDownloader(file: AppFile): Promise<TransferDownloader> {
   if (!file.key) {
     throw new Error('Cannot download file without key')
   }
@@ -25,6 +30,11 @@ function fileDownloader(file: AppFile): TransferDownloader {
     file.key as Uint8Array
   )
   downloader.set_cipher(file.cipher)
+
+  const direct = await fileChunkUrls(file.id)
+  if (direct) {
+    downloader.set_direct_urls(direct)
+  }
 
   return downloader
 }
@@ -50,7 +60,7 @@ export async function downloadAndDecrypt(
   file: AppFile,
   onBytes?: (bytes: number) => void
 ): Promise<Uint8Array> {
-  const downloader = fileDownloader(file)
+  const downloader = await fileDownloader(file)
 
   try {
     return await downloader.download(bytesFromProgress(onBytes), () => false)
@@ -112,7 +122,7 @@ export async function downloadChunk(file: AppFile, chunk: number, signal?: Abort
     throw new DOMException('Download aborted', 'AbortError')
   }
 
-  const downloader = fileDownloader(file)
+  const downloader = await fileDownloader(file)
 
   try {
     return await downloader.downloadChunk(chunk, undefined)

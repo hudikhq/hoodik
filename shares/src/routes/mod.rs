@@ -7,6 +7,7 @@ pub mod evict_from_folder;
 pub mod folder_members;
 pub mod fork;
 pub mod groups;
+pub mod keys;
 pub mod list;
 pub mod mine;
 pub mod move_into_shared;
@@ -41,6 +42,7 @@ pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
     // More-specific paths must register before the catch-all
     // `/api/shares/{file_id}` route, or actix-web routes `/mine` and
     // `/events` into the path-param handler.
+    cfg.service(keys::keys);
     cfg.service(mine::mine_by);
     cfg.service(mine::mine);
     cfg.service(events::events);

@@ -159,15 +159,21 @@ async function forkAsNew(v: FileVersion) {
     // New file is owned by the same user and shares the source's
     // symmetric key (chunks are server-copied verbatim), so the
     // existing RSA-wrapped encrypted_key is reusable as-is.
+    // This fork reuses the source's symmetric key verbatim (the comment
+    // above), so its file scope is keyed on that same key.
+    const rootKey = cryptfns.searchRootKey(props.keypair)
+    const fileKey = cryptfns.searchFileKey(props.file.key)
+
     const payload: ForkRequest = {
-      name_hash: cryptfns.sha256.digest(newName),
+      name_hash: cryptfns.searchTag(rootKey, newName),
       encrypted_name: encryptedName,
       encrypted_key: props.file.encrypted_key,
       mime: 'text/markdown',
       cipher,
       editable: true,
       file_id: props.file.file_id ?? undefined,
-      search_tokens_hashed: cryptfns.stringToHashedTokens(newName.toLowerCase())
+      search_tokens_root: cryptfns.searchTags(rootKey, newName.toLowerCase()),
+      search_tokens_file: cryptfns.searchTags(fileKey, newName.toLowerCase())
     }
 
     const newFile = await versions.fork(props.file.id, v.version, payload)

@@ -3,7 +3,9 @@
 //! it is sent. And a new name_hash needs to be generated.
 use ::error::AppResult;
 use chrono::Utc;
-use entity::{files::ActiveModel as ActiveModelFile, ActiveValue, Uuid};
+use entity::{
+    file_tokens::SearchTags, files::ActiveModel as ActiveModelFile, ActiveValue, Uuid,
+};
 use serde::{Deserialize, Serialize};
 use validr::*;
 
@@ -14,9 +16,13 @@ pub struct Rename {
     pub name_hash: Option<String>,
     /// File name encrypted with the AES file key
     pub encrypted_name: Option<String>,
-    /// Tokens by which this file will be searchable broken down
-    /// into tokens using the tokenizing methods
-    pub search_tokens_hashed: Option<Vec<String>>,
+    /// Tags for the new name under the caller's account-wide search key.
+    /// Absent when the caller is an editor rather than the owner — they hold
+    /// the file key but not the owner's root key, and the writer leaves the
+    /// scope it was not given alone.
+    pub search_tokens_root: Option<Vec<String>>,
+    /// Tags for the new name under the file's own key.
+    pub search_tokens_file: Option<Vec<String>>,
 }
 
 impl Validation for Rename {
@@ -26,7 +32,7 @@ impl Validation for Rename {
 }
 
 impl Rename {
-    pub fn into_active_model(self, id: Uuid) -> AppResult<(ActiveModelFile, Vec<String>, String)> {
+    pub fn into_active_model(self, id: Uuid) -> AppResult<(ActiveModelFile, SearchTags, String)> {
         let data = self.validate()?;
         let now = Utc::now().naive_utc();
         let name_hash = data.name_hash.unwrap();
@@ -39,7 +45,7 @@ impl Rename {
                 file_modified_at: ActiveValue::Set(now.and_utc().timestamp()),
                 ..Default::default()
             },
-            data.search_tokens_hashed.unwrap_or_default(),
+            SearchTags::new(data.search_tokens_root, data.search_tokens_file),
             name_hash,
         ))
     }

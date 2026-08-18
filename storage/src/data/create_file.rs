@@ -8,7 +8,10 @@
 //! If not, the file will be corrupted and we have no way of knowing if that is the case.
 use ::error::AppResult;
 use chrono::Utc;
-use entity::{files::ActiveModel as ActiveModelFile, option_string_to_uuid, ActiveValue, Uuid};
+use entity::{
+    file_tokens::SearchTags, files::ActiveModel as ActiveModelFile, option_string_to_uuid,
+    ActiveValue, Uuid,
+};
 use serde::{Deserialize, Serialize};
 use validr::*;
 
@@ -23,9 +26,12 @@ pub struct CreateFile {
     pub encrypted_name: Option<String>,
     /// File thumbnail encrypted with the AES file key
     pub encrypted_thumbnail: Option<String>,
-    /// Tokens by which this file will be searchable broken down
-    /// into tokens using the tokenizing methods
-    pub search_tokens_hashed: Option<Vec<String>>,
+    /// Tags by which this file will be searchable, tokenized and tagged on
+    /// the client under the uploader's account-wide search key.
+    pub search_tokens_root: Option<Vec<String>>,
+    /// The same tokens tagged under the file's own key, so that sharing this
+    /// file later needs no re-index.
+    pub search_tokens_file: Option<Vec<String>>,
     /// Mime type of the file or "dir" for directory
     pub mime: Option<String>,
     /// Total size of the file
@@ -134,7 +140,7 @@ impl Validation for CreateFile {
     }
 }
 
-pub type CreateFileData = (ActiveModelFile, String, Vec<String>, i64, Option<Uuid>);
+pub type CreateFileData = (ActiveModelFile, String, SearchTags, i64, Option<Uuid>);
 
 impl CreateFile {
     pub fn into_active_model(self) -> AppResult<CreateFileData> {
@@ -191,7 +197,7 @@ impl CreateFile {
                 members_list_signed_by_user_id: ActiveValue::Set(None),
             },
             data.encrypted_key.unwrap(),
-            data.search_tokens_hashed.unwrap_or_default(),
+            SearchTags::new(data.search_tokens_root, data.search_tokens_file),
             data.size.unwrap_or(0),
             file_id,
         ))

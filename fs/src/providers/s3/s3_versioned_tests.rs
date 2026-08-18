@@ -25,6 +25,12 @@ use uuid::Uuid;
 /// Build a MinIO-backed provider with a unique key prefix. The prefix is
 /// torn down by `TestScope::drop` regardless of test outcome.
 async fn scope() -> TestScope {
+    scope_with_direct_transfer(true).await
+}
+
+/// Same, with direct transfer switched off, so a test can observe the
+/// provider withholding URLs.
+async fn scope_with_direct_transfer(direct_transfer: bool) -> TestScope {
     let run_id = Uuid::new_v4();
     let prefix = format!("it-{}/", run_id);
     let config = config::s3::S3Config {
@@ -39,6 +45,11 @@ async fn scope() -> TestScope {
             .map(|v| v == "true")
             .unwrap_or(true),
         prefix: Some(prefix.clone()),
+        // The transport preconditions are a startup concern and never gate
+        // the provider itself, so nothing here depends on them.
+        direct_transfer,
+        direct_expiry_secs: 3600,
+        direct_allow_insecure: true,
     };
     let provider = S3Provider::new(&config);
 
@@ -359,6 +370,215 @@ async fn s3_purge_version_batch_gt_1000_chunks() {
 
     let after = s.p().get_uploaded_chunks_v(&filename, 7).await.unwrap();
     assert!(after.is_empty(), "{} chunks survived purge_version", after.len());
+
+    s.clean().await;
+}
+
+// ---------------------------------------------------------------------------
+// Direct transfer
+//
+// These are the only tests that prove a presigned URL is usable. Everything
+// else about the feature can compile and still hand clients URLs that 403,
+// because the signature is computed locally and never checked until something
+// fetches it. So each of these goes over real HTTP to MinIO.
+// ---------------------------------------------------------------------------
+
+/// A signed read URL returns exactly the bytes that were pushed, to a client
+/// that presents no credentials of any kind.
+#[tokio::test]
+async fn presigned_get_returns_the_chunk_to_an_unauthenticated_client() {
+    let s = scope().await;
+    let filename = fname();
+    let body = b"ciphertext-for-the-signed-url";
+
+    s.p().push_v(&filename, 3, 0, body).await.unwrap();
+
+    let urls = s
+        .p()
+        .direct_get_urls(&filename, 3, &[0])
+        .await
+        .unwrap()
+        .expect("s3 provider should offer direct urls when direct_transfer is on");
+    assert_eq!(urls.len(), 1);
+
+    // A bare client: no access key, no session, nothing but the URL. This is
+    // the client the feature actually ships to.
+    let fetched = reqwest::Client::new()
+        .get(&urls[0])
+        .send()
+        .await
+        .expect("presigned GET should reach MinIO");
+
+    assert_eq!(fetched.status().as_u16(), 200, "presigned GET was rejected");
+    assert_eq!(fetched.bytes().await.unwrap().as_ref(), body);
+
+    s.clean().await;
+}
+
+/// URLs come back aligned with the chunk indices that were asked for, and each
+/// one addresses its own chunk. A transposition here would decrypt as garbage.
+#[tokio::test]
+async fn presigned_get_urls_map_to_the_right_chunks() {
+    let s = scope().await;
+    let filename = fname();
+
+    for i in 0..4i64 {
+        s.p()
+            .push_v(&filename, 1, i, format!("chunk-{i}").as_bytes())
+            .await
+            .unwrap();
+    }
+
+    let requested = [3i64, 0, 2, 1];
+    let urls = s
+        .p()
+        .direct_get_urls(&filename, 1, &requested)
+        .await
+        .unwrap()
+        .unwrap();
+
+    let client = reqwest::Client::new();
+    for (position, chunk) in requested.iter().enumerate() {
+        let body = client
+            .get(&urls[position])
+            .send()
+            .await
+            .unwrap()
+            .bytes()
+            .await
+            .unwrap();
+        assert_eq!(
+            body.as_ref(),
+            format!("chunk-{chunk}").as_bytes(),
+            "url at position {position} did not address chunk {chunk}"
+        );
+    }
+
+    s.clean().await;
+}
+
+/// A signed write URL accepts the exact body it was signed for, and the object
+/// it produces is indistinguishable from one pushed through the server.
+#[tokio::test]
+async fn presigned_put_writes_a_chunk_the_provider_can_read_back() {
+    let s = scope().await;
+    let filename = fname();
+    let body = b"written-straight-into-the-bucket";
+
+    let urls = s
+        .p()
+        .direct_put_urls(&filename, 5, &[(0, body.len() as u64)])
+        .await
+        .unwrap()
+        .expect("s3 provider should offer direct urls when direct_transfer is on");
+
+    let response = reqwest::Client::new()
+        .put(&urls[0])
+        .header("content-length", body.len().to_string())
+        .body(body.to_vec())
+        .send()
+        .await
+        .expect("presigned PUT should reach MinIO");
+    assert!(
+        response.status().is_success(),
+        "presigned PUT was rejected with {}",
+        response.status()
+    );
+
+    // The server's own read path has to see it, or finalize would never
+    // count it and the upload would hang at 'chunks missing'.
+    assert_eq!(s.p().pull_v(&filename, 5, 0).await.unwrap(), body);
+    assert_eq!(
+        s.p().get_uploaded_chunks_v(&filename, 5).await.unwrap(),
+        vec![0]
+    );
+
+    s.clean().await;
+}
+
+/// The signed `content-length` is a limit, not a hint. This is what replaces
+/// the per-chunk size cap the relaying upload route applies — without it a
+/// presigned write would be an unbounded one.
+#[tokio::test]
+async fn presigned_put_rejects_a_body_of_the_wrong_length() {
+    let s = scope().await;
+    let filename = fname();
+
+    let urls = s
+        .p()
+        .direct_put_urls(&filename, 1, &[(0, 8)])
+        .await
+        .unwrap()
+        .unwrap();
+
+    let oversized = vec![b'x'; 4096];
+    let response = reqwest::Client::new()
+        .put(&urls[0])
+        .header("content-length", oversized.len().to_string())
+        .body(oversized)
+        .send()
+        .await
+        .expect("request should reach MinIO even when it is refused");
+
+    assert!(
+        !response.status().is_success(),
+        "a body longer than the signed content-length was accepted ({}); \
+         presigned writes would be unbounded",
+        response.status()
+    );
+
+    s.clean().await;
+}
+
+/// Reading a pre-migration file goes through the legacy flat layout, so the
+/// signed URL has to address the legacy key rather than a versioned one that
+/// holds nothing.
+#[tokio::test]
+async fn presigned_get_addresses_legacy_chunks_for_unmigrated_files() {
+    let s = scope().await;
+    let filename = fname_with_timestamp();
+    let body = b"stored-before-versioning-existed";
+
+    s.p().push(&filename, 0, body).await.unwrap();
+
+    let urls = s
+        .p()
+        .direct_get_urls(&filename, 1, &[0])
+        .await
+        .unwrap()
+        .unwrap();
+
+    let fetched = reqwest::Client::new().get(&urls[0]).send().await.unwrap();
+    assert_eq!(
+        fetched.status().as_u16(),
+        200,
+        "legacy chunk was not reachable through its signed url"
+    );
+    assert_eq!(fetched.bytes().await.unwrap().as_ref(), body);
+
+    s.clean().await;
+}
+
+/// With the flag off the provider offers nothing, whatever else is configured.
+/// The routes turn that `None` into a 400 rather than a broken transfer.
+#[tokio::test]
+async fn direct_urls_are_withheld_when_the_flag_is_off() {
+    let s = scope_with_direct_transfer(false).await;
+    let filename = fname();
+    s.p().push_v(&filename, 1, 0, b"x").await.unwrap();
+
+    assert!(s
+        .p()
+        .direct_get_urls(&filename, 1, &[0])
+        .await
+        .unwrap()
+        .is_none());
+    assert!(s
+        .p()
+        .direct_put_urls(&filename, 1, &[(0, 1)])
+        .await
+        .unwrap()
+        .is_none());
 
     s.clean().await;
 }

@@ -132,14 +132,4 @@ impl Related<super::file_versions::Entity> for Entity {
     }
 }
 
-impl Related<super::tokens::Entity> for Entity {
-    fn to() -> RelationDef {
-        super::file_tokens::Relation::Tokens.def()
-    }
-
-    fn via() -> Option<RelationDef> {
-        Some(super::file_tokens::Relation::Files.def().rev())
-    }
-}
-
 impl ActiveModelBehavior for ActiveModel {}

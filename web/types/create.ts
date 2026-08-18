@@ -2,13 +2,17 @@ import type { AppFileUnencryptedPart } from './file'
 
 export interface Rename {
   name: string
-  search_tokens_hashed?: string[]
+  search_tokens_root?: string[]
+
+  search_tokens_file?: string[]
 }
 
 export interface EncryptedRename {
   encrypted_name: string
   name_hash: string
-  search_tokens_hashed?: string[]
+  search_tokens_root?: string[]
+
+  search_tokens_file?: string[]
 }
 
 export interface CreateFile extends AppFileUnencryptedPart {
@@ -52,7 +56,9 @@ export interface CreateFile extends AppFileUnencryptedPart {
    * Tokenize the unencrypted file name or any search data,
    * hash each token and load it in this array.
    */
-  search_tokens_hashed?: string[]
+  search_tokens_root?: string[]
+
+  search_tokens_file?: string[]
 
   /**
    * Unencrypted file MD5 hash
@@ -98,7 +104,9 @@ export interface EncryptedCreateFile {
    * Tokenize the unencrypted file name or any search data,
    * hash each token and load it in this array.
    */
-  search_tokens_hashed?: string[]
+  search_tokens_root?: string[]
+
+  search_tokens_file?: string[]
 
   /**
    * Unencrypted name hash

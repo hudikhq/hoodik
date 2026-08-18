@@ -891,6 +891,14 @@
     "zoomIn": "Agrandir l'image",
     "zoomOut": "Réduire l'image"
   },
+  "reindex": {
+    "background": "Continuer en arrière-plan",
+    "cancel": "Annuler",
+    "explanation": "Nous avons amélioré la protection de votre index de recherche : il ne peut plus être lu depuis la base de données. Vos fichiers doivent être réindexés sur cet appareil pour fonctionner avec. Les notes sont téléchargées et déchiffrées ici pour être réindexées, ce qui peut prendre un moment. Les fichiers pas encore traités n'apparaîtront pas dans la recherche.",
+    "failed": "{count} fichiers n'ont pas pu être réindexés et seront retentés la prochaine fois.",
+    "progress": "{done} sur {total} fichiers",
+    "title": "La recherche a été renforcée"
+  },
   "shares": {
     "add": {
       "accessHeading": "Accès",

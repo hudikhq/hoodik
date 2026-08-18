@@ -18,6 +18,7 @@ import SearchModal from '@/components/files/search/SearchModal.vue'
 import ResendActivationNotification from './components/ResendActivationNotification.vue'
 import MigrationNoticeModal from '@/components/modals/MigrationNoticeModal.vue'
 import ConnectAppModal from '@/components/modals/ConnectAppModal.vue'
+import ReindexModal from '@/components/modals/ReindexModal.vue'
 import { useAuthedShareBootstrap } from '@/composables/useAuthedShareBootstrap'
 
 const router = useRouter()
@@ -94,6 +95,7 @@ const menuClick = (event: Event, item: NavBarItem) => {
       <MigrationNoticeModal />
 
       <ConnectAppModal />
+      <ReindexModal />
 
       <slot :authenticated="login.authenticated" :keypair="crypto.keypair" />
 

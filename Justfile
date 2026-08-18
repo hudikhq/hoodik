@@ -232,6 +232,32 @@ e2e *args:
     export ENV_FILE="../.env.e2e"
     yarn workspace @hoodik/web test:e2e -- {{args}}
 
+# Run the browser suite against S3-backed storage with direct transfer on, so
+# the browser fetches chunks from the bucket instead of from the server.
+#
+# The default `e2e` recipe covers the relaying path; this covers the one that
+# bypasses it. Both matter: direct transfer is opt-in, and the relaying path
+# stays the fallback for every deployment that cannot use it.
+#
+# S3_DIRECT_ALLOW_INSECURE is required here and not a shortcut: the harness
+# serves the app over plain HTTP on localhost against a bucket on localhost,
+# which is exactly the shape the transport preconditions refuse by default.
+e2e-direct *args:
+    #!/usr/bin/env bash
+    set -eo pipefail
+    just minio-up
+    export STORAGE_PROVIDER=s3
+    export S3_BUCKET="${S3_BUCKET:-hoodik}"
+    export S3_REGION="${S3_REGION:-us-east-1}"
+    export S3_ENDPOINT="${S3_ENDPOINT:-http://127.0.0.1:9000}"
+    export S3_ACCESS_KEY="${S3_ACCESS_KEY:-minioadmin}"
+    export S3_SECRET_KEY="${S3_SECRET_KEY:-minioadmin}"
+    export S3_PATH_STYLE=true
+    export S3_PREFIX="e2e-direct/"
+    export S3_DIRECT_TRANSFER=true
+    export S3_DIRECT_ALLOW_INSECURE=true
+    just e2e {{args}}
+
 # Open Playwright test UI interactively (useful for debugging).
 # Pass any Playwright flags as extra args, e.g. just e2e-ui --headed
 e2e-ui *args:

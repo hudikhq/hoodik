@@ -13,6 +13,7 @@ pub mod error;
 pub mod identity;
 pub mod opaque;
 pub mod rsa;
+pub mod search;
 pub mod spki;
 pub mod transition;
 #[cfg(feature = "tokenizer")]

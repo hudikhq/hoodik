@@ -4,6 +4,7 @@ import * as storageMeta from '!/storage/meta'
 import Api from '!/api'
 import { CHUNK_SIZE_BYTES } from '!/constants'
 import { TransferDownloader } from 'transfer'
+import { linkChunkUrls } from '!/storage/download/direct'
 
 import type { AppLink, CreateLink, EncryptedAppLink, KeyPair, AppFile } from 'types'
 
@@ -37,7 +38,7 @@ export function linkChunks(link: AppLink): number {
  * fragment key and never leaves the browser — the server only ever streams
  * ciphertext. Callers must `free()` the downloader.
  */
-function linkDownloader(link: AppLink): TransferDownloader {
+async function linkDownloader(link: AppLink): Promise<TransferDownloader> {
   if (!link.key) {
     throw new Error('Cannot decrypt link content without the file key')
   }
@@ -51,6 +52,11 @@ function linkDownloader(link: AppLink): TransferDownloader {
   )
   downloader.set_cipher(link.file_cipher)
 
+  const direct = await linkChunkUrls(link.id)
+  if (direct) {
+    downloader.set_direct_urls(direct)
+  }
+
   return downloader
 }
 
@@ -63,7 +69,7 @@ export async function downloadAndDecrypt(
   link: AppLink,
   onBytes?: (bytes: number) => void
 ): Promise<Uint8Array> {
-  const downloader = linkDownloader(link)
+  const downloader = await linkDownloader(link)
 
   try {
     return await downloader.download((progressJson: string) => {
@@ -92,7 +98,7 @@ export async function downloadLinkChunk(
     throw new DOMException('Download aborted', 'AbortError')
   }
 
-  const downloader = linkDownloader(link)
+  const downloader = await linkDownloader(link)
 
   try {
     return await downloader.downloadChunk(chunk, undefined)

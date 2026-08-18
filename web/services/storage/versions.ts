@@ -25,7 +25,9 @@ export interface ForkRequest {
   cipher: string
   editable?: boolean
   file_id?: string
-  search_tokens_hashed?: string[]
+  search_tokens_root?: string[]
+
+  search_tokens_file?: string[]
 }
 
 /**

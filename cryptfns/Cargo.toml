@@ -42,6 +42,7 @@ ed25519-dalek = { version = "^2", features = ["rand_core", "pkcs8", "pem"] }
 x25519-dalek = { version = "^2", features = ["static_secrets"] }
 pkcs8 = { version = "^0.10", features = ["pem", "alloc"] }
 hkdf = "^0.12"
+hmac = "^0.12"
 sha2 = "^0.10"
 opaque-ke = { version = "^4", features = ["ristretto255", "argon2"] }
 argon2 = "^0.5"

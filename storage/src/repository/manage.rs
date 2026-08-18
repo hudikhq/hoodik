@@ -4,15 +4,16 @@ use std::{collections::HashMap, fmt::Display, str::FromStr};
 
 use chrono::Utc;
 use entity::{
-    file_versions, files, user_files, ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait,
-    EntityTrait, Order, QueryFilter, QueryOrder, Statement, Uuid, Value,
+    file_tokens::SearchTags, file_versions, files, user_files, ActiveModelTrait, ActiveValue,
+    ColumnTrait, ConnectionTrait, EntityTrait, Order, QueryFilter, QueryOrder, Statement, Uuid,
+    Value,
 };
 use error::{AppResult, Error};
 use validr::Validation;
 
 use super::Repository;
 use crate::data::{
-    app_file::AppFile, query::Query as RequestQuery, rename::Rename,
+    app_file::AppFile, query::Query as RequestQuery, reindex::Reindex, rename::Rename,
     replace_content::ValidatedReplaceContent, response::Response, set_editable::SetEditable,
     update_hashes::UpdateHashes,
 };
@@ -329,6 +330,36 @@ where
         Ok(results.rows_affected)
     }
 
+    /// Rewrite a file's search tags and `name_hash` without touching its
+    /// content or its name.
+    ///
+    /// Deliberately not routed through [`Self::rename`], which would run the
+    /// duplicate-name check against the very hash it is about to write and
+    /// reject the file for colliding with itself.
+    pub(crate) async fn reindex(&self, id: Uuid, data: Reindex) -> AppResult<AppFile> {
+        let (name_hash, search_tags) = data.into_parts()?;
+        let file = self.repository.by_id(id, self.owner_id).await?;
+
+        if !file.is_owner {
+            return Err(Error::Forbidden("cannot_reindex_not_owner".to_string()));
+        }
+
+        files::ActiveModel {
+            id: ActiveValue::Set(id),
+            name_hash: ActiveValue::Set(name_hash),
+            ..Default::default()
+        }
+        .update(self.repository.connection())
+        .await?;
+
+        self.repository
+            .tokens(self.owner_id)
+            .reindex(id, search_tags)
+            .await?;
+
+        self.repository.by_id(id, self.owner_id).await
+    }
+
     /// Rename a file or directory.
     ///
     /// The route layer gates this with `permission::require_write` plus
@@ -336,7 +367,7 @@ where
     /// caller is a non-owner. For owner callers there's no extra guard
     /// — owners can rename anything they own.
     pub(crate) async fn rename(&self, id: Uuid, data: Rename) -> AppResult<AppFile> {
-        let (active_model, hashed_tokens, name_hash) = data.into_active_model(id)?;
+        let (active_model, search_tags, name_hash) = data.into_active_model(id)?;
 
         let file = self.repository.by_id(id, self.owner_id).await?;
 
@@ -348,7 +379,7 @@ where
 
         self.repository
             .tokens(self.owner_id)
-            .rename(id, hashed_tokens)
+            .reindex(id, search_tags)
             .await?;
 
         self.repository.by_id(file.id, file.user_id).await
@@ -450,7 +481,7 @@ where
         &self,
         create_file: files::ActiveModel,
         encrypted_key: &str,
-        hashed_tokens: Vec<String>,
+        search_tags: SearchTags,
     ) -> AppResult<AppFile> {
         if let Some(file_id) = create_file.file_id.clone().into_value() {
             if file_id.to_string().as_str() != "NULL" {
@@ -471,7 +502,7 @@ where
 
         self.repository
             .tokens(self.owner_id)
-            .upsert(file_id, hashed_tokens)
+            .reindex(file_id, search_tags)
             .await?;
 
         let id = entity::Uuid::new_v4();
@@ -606,7 +637,7 @@ where
 
         self.repository
             .tokens(self.owner_id)
-            .rename(id, data.search_tokens_hashed)
+            .reindex(id, data.search_tags)
             .await?;
 
         let file = self.repository.by_id(id, self.owner_id).await?;

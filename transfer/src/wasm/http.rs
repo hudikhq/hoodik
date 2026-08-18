@@ -1,6 +1,6 @@
 use crate::error::{Error, HttpError, Result};
 use crate::platform::HttpClient;
-use crate::types::{Auth, ChunkResponse, DownloadSource, FileHashes};
+use crate::types::{Auth, ChunkResponse, ChunkTarget, FileHashes};
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -165,23 +165,44 @@ impl HttpClient for WasmHttpClient {
 
     fn download_chunk<'a>(
         &'a self,
-        auth: &Auth,
-        source: DownloadSource<'_>,
+        target: ChunkTarget<'_>,
         chunk_index: u64,
         on_bytes: Box<dyn Fn(u64) + 'a>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + 'a>> {
-        let auth = auth.clone();
-        let url = source.chunk_url(&auth.base_url, chunk_index);
-        let method = source.method();
+        let url = target.url(chunk_index);
+        let method = target.method();
+        // Cloned out of the target so the future owns it. The `Direct` arm has
+        // no auth to clone, which is the whole point of the split.
+        let auth = match target {
+            ChunkTarget::Api { auth, .. } => Some(auth.clone()),
+            ChunkTarget::Direct(_) => None,
+        };
 
         Box::pin(async move {
-            let headers = Self::build_headers(&auth)?;
-
             let opts = RequestInit::new();
             opts.set_method(method);
-            opts.set_headers(&headers);
             opts.set_mode(RequestMode::Cors);
-            opts.set_credentials(RequestCredentials::Include);
+
+            match auth {
+                Some(auth) => {
+                    let headers = Self::build_headers(&auth)?;
+                    opts.set_headers(&headers);
+                    opts.set_credentials(RequestCredentials::Include);
+                }
+                None => {
+                    // `Omit` is not only about withholding cookies. A
+                    // credentialed cross-origin fetch obliges the bucket to
+                    // answer with an exact-origin `Access-Control-Allow-Origin`
+                    // and `Allow-Credentials: true`; against the wildcard
+                    // policy buckets normally carry, the browser discards the
+                    // response and reports an opaque network failure.
+                    //
+                    // No headers either: any custom header makes the request
+                    // non-simple and buys a preflight round trip per chunk,
+                    // which is most of what going direct was meant to save.
+                    opts.set_credentials(RequestCredentials::Omit);
+                }
+            }
 
             let resp = Self::do_fetch(&opts, &url).await?;
             let status = resp.status();

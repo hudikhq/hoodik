@@ -7,7 +7,7 @@ use crate::checksum;
 use crate::config::{UploadHashOptions, CHUNK_SIZE_BYTES, MAX_UPLOAD_RETRIES};
 use crate::error::{Error, HttpError, Result};
 use crate::platform::{DataSource, HttpClient, ProgressReporter};
-use crate::types::{Auth, ChunkResponse, DownloadSource, FileHashes};
+use crate::types::{Auth, ChunkResponse, ChunkTarget, DownloadSource, FileHashes};
 use crate::upload::compute_chunk_count;
 
 fn test_auth() -> Auth {
@@ -63,6 +63,10 @@ struct MockHttpClient {
     scripted_upload_tar_responses: RefCell<std::collections::VecDeque<Result<ChunkResponse>>>,
     last_upload_tar_body: RefCell<Option<Vec<u8>>>,
     requested_urls: RefCell<Vec<String>>,
+    /// Whether each recorded request was one that *could* carry credentials,
+    /// in request order. A direct request that ever records `true` means the
+    /// type split leaked.
+    carried_credentials: RefCell<Vec<bool>>,
 }
 
 impl MockHttpClient {
@@ -75,6 +79,7 @@ impl MockHttpClient {
             received_hashes: RefCell::new(None),
             scripted_upload_tar_responses: RefCell::new(std::collections::VecDeque::new()),
             requested_urls: RefCell::new(Vec::new()),
+            carried_credentials: RefCell::new(Vec::new()),
             last_upload_tar_body: RefCell::new(None),
         }
     }
@@ -136,14 +141,19 @@ impl HttpClient for MockHttpClient {
 
     fn download_chunk<'a>(
         &'a self,
-        _auth: &Auth,
-        source: DownloadSource<'_>,
+        target: ChunkTarget<'_>,
         chunk_index: u64,
         on_bytes: Box<dyn Fn(u64) + 'a>,
     ) -> Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + 'a>> {
-        self.requested_urls
+        self.requested_urls.borrow_mut().push(match target {
+            // Recorded without the base URL so existing path assertions keep
+            // matching; direct URLs are recorded whole.
+            ChunkTarget::Api { source, .. } => source.chunk_url("", chunk_index),
+            ChunkTarget::Direct(url) => url.to_string(),
+        });
+        self.carried_credentials
             .borrow_mut()
-            .push(source.chunk_url("", chunk_index));
+            .push(matches!(target, ChunkTarget::Api { .. }));
         let scripted = self.scripted_download_responses.borrow_mut().pop_front();
 
         if let Some(result) = scripted {
@@ -955,6 +965,7 @@ async fn download_streaming_emits_ordered_chunks() {
         chunk_count,
         &test_key(),
         cryptfns::cipher::DEFAULT,
+        None,
         &mut |chunk| emitted.push(chunk),
     )
     .await
@@ -1264,4 +1275,121 @@ async fn public_link_download_hits_link_route_and_roundtrips() {
             "expected link route, got {url}"
         );
     }
+}
+
+/// Chunks covered by a manifest are fetched from the bucket, and every one of
+/// those requests is built from a target that has no credentials to give.
+///
+/// The assertion is about reachability, not etiquette: `ChunkTarget::Direct`
+/// carries a URL and nothing else, so a transport handling it has no session
+/// cookie, bearer token or refresh header in scope to attach. This test fails
+/// the moment someone reintroduces a variant that does.
+#[tokio::test]
+async fn direct_urls_are_fetched_without_credentials() {
+    let original = vec![7u8; CHUNK_SIZE_BYTES as usize * 3 + 11];
+    let http = MockHttpClient::new();
+    let source = MockDataSource::new(original.clone());
+    let up = MockProgressReporter::new();
+
+    crate::upload::upload_file(
+        &http,
+        &source,
+        &up,
+        &test_auth(),
+        "direct-file",
+        &test_key(),
+        &[],
+        UploadHashOptions::default(),
+        None,
+        cryptfns::cipher::DEFAULT,
+    )
+    .await
+    .unwrap();
+
+    let chunk_count = compute_chunk_count(original.len() as u64);
+    let manifest: Vec<String> = (0..chunk_count)
+        .map(|i| format!("https://bucket.example.com/obj/{i:06}.chunk?X-Amz-Signature=deadbeef"))
+        .collect();
+
+    http.requested_urls.borrow_mut().clear();
+    http.carried_credentials.borrow_mut().clear();
+
+    let dl = MockProgressReporter::new();
+    let downloaded = crate::download::Downloader::new(
+        test_auth(),
+        "direct-file",
+        original.len() as u64,
+        chunk_count,
+        test_key(),
+    )
+    .with_direct_urls(manifest.clone())
+    .run(&http, &dl)
+    .await
+    .unwrap();
+
+    assert_eq!(downloaded, original);
+
+    let urls = http.requested_urls.borrow();
+    assert_eq!(urls.len() as u64, chunk_count);
+    for url in urls.iter() {
+        assert!(
+            url.starts_with("https://bucket.example.com/"),
+            "expected the bucket, got {url}"
+        );
+    }
+
+    assert!(
+        http.carried_credentials.borrow().iter().all(|carried| !carried),
+        "a direct chunk request was built from a target holding credentials"
+    );
+}
+
+/// A manifest shorter than the file leaves the chunks it does not cover on the
+/// API path, so a partial answer still transfers the whole file.
+#[tokio::test]
+async fn a_short_manifest_falls_back_per_chunk() {
+    let original = vec![3u8; CHUNK_SIZE_BYTES as usize * 3 + 5];
+    let http = MockHttpClient::new();
+    let source = MockDataSource::new(original.clone());
+    let up = MockProgressReporter::new();
+
+    crate::upload::upload_file(
+        &http,
+        &source,
+        &up,
+        &test_auth(),
+        "partial-file",
+        &test_key(),
+        &[],
+        UploadHashOptions::default(),
+        None,
+        cryptfns::cipher::DEFAULT,
+    )
+    .await
+    .unwrap();
+
+    let chunk_count = compute_chunk_count(original.len() as u64);
+    assert!(chunk_count > 1, "test needs more than one chunk to be meaningful");
+
+    http.requested_urls.borrow_mut().clear();
+    http.carried_credentials.borrow_mut().clear();
+
+    let dl = MockProgressReporter::new();
+    let downloaded = crate::download::Downloader::new(
+        test_auth(),
+        "partial-file",
+        original.len() as u64,
+        chunk_count,
+        test_key(),
+    )
+    .with_direct_urls(vec!["https://bucket.example.com/obj/000000.chunk".to_string()])
+    .run(&http, &dl)
+    .await
+    .unwrap();
+
+    assert_eq!(downloaded, original);
+
+    let urls = http.requested_urls.borrow();
+    assert!(urls.iter().any(|u| u.starts_with("https://bucket.example.com/")));
+    assert!(urls.iter().any(|u| u.starts_with("/api/storage/partial-file")));
 }

@@ -39,7 +39,8 @@ async fn test_creating_file_and_uploading_chunks() {
         encrypted_key: Some("encrypted-gibberish".to_string()),
         encrypted_name: Some("name".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
         name_hash: Some(checksum.clone()),
         mime: Some("text/plain".to_string()),
         size: Some(size),
@@ -167,7 +168,8 @@ async fn test_transfer_token_upload_and_download() {
         encrypted_key: Some("encrypted-key".to_string()),
         encrypted_name: Some("transfer-test.enc".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
         name_hash: Some(checksum.clone()),
         mime: Some("application/octet-stream".to_string()),
         size: Some(size),
@@ -360,7 +362,8 @@ async fn test_download_tar_archive() {
         encrypted_key: Some("encrypted-key".to_string()),
         encrypted_name: Some("tar-test.enc".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
         name_hash: Some(checksum.clone()),
         mime: Some("application/octet-stream".to_string()),
         size: Some(size),
@@ -516,7 +519,8 @@ async fn test_replace_content_atomic_edit() {
         encrypted_key: Some("encrypted-key".to_string()),
         encrypted_name: Some("note.md".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
         name_hash: Some(v1_checksum.clone()),
         mime: Some("text/markdown".to_string()),
         size: Some(v1_size),
@@ -642,7 +646,8 @@ async fn test_replace_content_concurrent_returns_409() {
         encrypted_key: Some("encrypted-key".to_string()),
         encrypted_name: Some("note.md".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
         name_hash: Some(cryptfns::sha256::digest(data.as_slice())),
         mime: Some("text/markdown".to_string()),
         size: Some(data.len() as i64),
@@ -739,7 +744,8 @@ async fn test_versions_list_and_restore() {
         encrypted_key: Some("encrypted-key".to_string()),
         encrypted_name: Some("note.md".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
         name_hash: Some("name-hash".to_string()),
         mime: Some("text/markdown".to_string()),
         size: Some(3),
@@ -863,7 +869,8 @@ async fn test_fork_creates_independent_copy() {
         encrypted_key: Some("source-key".to_string()),
         encrypted_name: Some("source.md".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
         name_hash: Some("source-hash".to_string()),
         mime: Some("text/markdown".to_string()),
         size: Some(v1_bytes.len() as i64),
@@ -1138,7 +1145,8 @@ async fn test_versioned_download_missing_chunk_returns_404() {
         encrypted_key: Some("encrypted-key".to_string()),
         encrypted_name: Some("note.md".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
         name_hash: Some(cryptfns::sha256::digest(b"versioned-gap")),
         mime: Some("text/markdown".to_string()),
         size: Some(3),
@@ -1265,7 +1273,8 @@ async fn create_three_chunk_file(
         encrypted_key: Some("encrypted-key".to_string()),
         encrypted_name: Some(name.to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
         name_hash: Some(cryptfns::sha256::digest(name.as_bytes())),
         mime: Some("application/octet-stream".to_string()),
         size: Some(30),
@@ -1287,4 +1296,38 @@ async fn create_three_chunk_file(
         .to_request();
 
     serde_json::from_slice(&test::call_and_read_body(app, req).await).unwrap()
+}
+
+/// `GET /api/storage/reindex` must reach its own handler, not the catch-all
+/// `GET /api/storage/{file_id}` download route.
+///
+/// actix-web walks services in registration order, so the download route
+/// happily matches this path with `file_id = "reindex"` and dies on the UUID
+/// parse. That shipped once and silently disabled the whole re-index sweep:
+/// the client asks what is pending, gets an error object instead of a list,
+/// and concludes there is nothing to do.
+#[actix_web::test]
+async fn test_reindex_pending_route_is_not_swallowed_by_the_download_route() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let jwt = helpers::register_curve25519(&app, "reindex@test.com").await.jwt;
+
+    let req = test::TestRequest::get()
+        .uri("/api/storage/reindex")
+        .cookie(jwt)
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let body: serde_json::Value =
+        serde_json::from_slice(&test::read_body(resp).await).expect("reindex response is json");
+
+    assert!(
+        body.is_array(),
+        "expected a list of pending files, got {body}"
+    );
+
+    let _ = context;
 }

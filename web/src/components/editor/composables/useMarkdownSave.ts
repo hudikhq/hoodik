@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { saveFileContent, SaveConflictError } from '!/storage/save'
-import type { AppFile } from 'types'
+import type { AppFile, KeyPair } from 'types'
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'conflict'
 
@@ -25,7 +25,12 @@ export function useMarkdownSave() {
     return lastSavedContent
   }
 
-  async function save(file: AppFile | undefined, content: string, force = false) {
+  async function save(
+    file: AppFile | undefined,
+    content: string,
+    keypair: KeyPair,
+    force = false
+  ) {
     if (!isDirty.value && !force) return
     if (isSaving.value) return
     if (!file?.key) return
@@ -34,7 +39,7 @@ export function useMarkdownSave() {
     saveStatus.value = 'saving'
 
     try {
-      await saveFileContent(file, content, force)
+      await saveFileContent(file, content, keypair, force)
       lastSavedContent = content
       isDirty.value = false
       conflictedContent.value = null
@@ -66,10 +71,10 @@ export function useMarkdownSave() {
    * Re-issue the conflicted save with `force = true`. Called from the
    * conflict prompt when the user picks "discard remote and overwrite".
    */
-  async function resolveConflict(file: AppFile | undefined) {
+  async function resolveConflict(file: AppFile | undefined, keypair: KeyPair) {
     const content = conflictedContent.value
     if (content === null) return
-    await save(file, content, true)
+    await save(file, content, keypair, true)
   }
 
   /**

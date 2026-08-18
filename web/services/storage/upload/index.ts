@@ -359,7 +359,6 @@ export const store = defineStore('upload', () => {
       throw new Error('Cannot upload without an active keypair')
     }
     const modified = file.lastModified ? new Date(file.lastModified) : new Date()
-    const search_tokens_hashed = cryptfns.stringToHashedTokens(file.name.toLowerCase())
     const thumbnail = await createThumbnail(file)
     const isMarkdown =
       file.name.toLowerCase().endsWith('.md') ||
@@ -373,7 +372,7 @@ export const store = defineStore('upload', () => {
     const encryptedThumbnail = thumbnail
       ? await cryptfns.cipher.encryptString(cipher, thumbnail, fileKey)
       : undefined
-    const nameHash = cryptfns.sha256.digest(file.name)
+    const nameHash = cryptfns.searchTag(cryptfns.searchRootKey(keypair), file.name)
     const chunks = Math.ceil(file.size / CHUNK_SIZE_BYTES)
     const newFileId = uuidv4()
 
@@ -397,7 +396,14 @@ export const store = defineStore('upload', () => {
         cipher,
         editable: isMarkdown || undefined,
         fileModifiedAt: utcStringFromLocal(modified),
-        searchTokensHashed: search_tokens_hashed
+        searchTokensRoot: cryptfns.searchTags(
+          cryptfns.searchRootKey(keypair),
+          file.name.toLowerCase()
+        ),
+        searchTokensFile: cryptfns.searchTags(
+          cryptfns.searchFileKey(fileKey),
+          file.name.toLowerCase()
+        )
       },
       trustedFingerprints: trusted,
       onUnknownMember: options.onUnknownMember ?? (async () => true)
@@ -443,9 +449,6 @@ export const store = defineStore('upload', () => {
     const t0 = performance.now()
     const modified = file.lastModified ? new Date(file.lastModified) : new Date()
 
-    logger.debug(`[upload:create] "${file.name}" — generating search tokens`)
-    const search_tokens_hashed = cryptfns.stringToHashedTokens(file.name.toLowerCase())
-
     logger.debug(`[upload:create] "${file.name}" — generating thumbnail`)
     const thumbnail = await createThumbnail(file)
 
@@ -465,7 +468,6 @@ export const store = defineStore('upload', () => {
       chunks: Math.ceil(file.size / CHUNK_SIZE_BYTES),
       file_id: parent_id,
       file_modified_at: utcStringFromLocal(modified),
-      search_tokens_hashed,
       thumbnail,
       cipher: cryptfns.cipher.defaultCipher(),
       editable: isMarkdown || undefined

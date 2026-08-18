@@ -1,7 +1,7 @@
 use crate::error::{Error, HttpError, Result};
 use crate::platform::HttpClient;
 use futures::StreamExt;
-use crate::types::{Auth, ChunkResponse, DownloadSource, FileHashes};
+use crate::types::{Auth, ChunkResponse, ChunkTarget, FileHashes};
 use std::collections::HashMap;
 
 /// Native HTTP client backed by `reqwest`.
@@ -115,24 +115,29 @@ impl HttpClient for NativeHttpClient {
 
     fn download_chunk<'a>(
         &'a self,
-        auth: &Auth,
-        source: DownloadSource<'_>,
+        target: ChunkTarget<'_>,
         chunk_index: u64,
         on_bytes: Box<dyn Fn(u64) + 'a>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + 'a>> {
-        let auth = auth.clone();
-        let url = source.chunk_url(&auth.base_url, chunk_index);
-        let method = source.method();
+        let url = target.url(chunk_index);
+        let method = target.method();
+        // The `Direct` arm carries no auth to clone, so a request to the
+        // storage bucket has nothing to attach even by mistake.
+        let auth = match target {
+            ChunkTarget::Api { auth, .. } => Some(auth.clone()),
+            ChunkTarget::Direct(_) => None,
+        };
 
         Box::pin(async move {
-            let headers = Self::auth_headers(&auth);
-
             let request = match method {
                 "POST" => self.client.post(&url),
                 _ => self.client.get(&url),
             };
+            let request = match auth {
+                Some(auth) => request.headers(Self::auth_headers(&auth)),
+                None => request,
+            };
             let resp = request
-                .headers(headers)
                 .send()
                 .await
                 .map_err(|e| Error::Io(format!("Download request failed: {e}")))?;

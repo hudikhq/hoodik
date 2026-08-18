@@ -7,6 +7,7 @@
 use chrono::Utc;
 use cryptfns::asn1::{AuditEventActionEnum, AuditEventSigInputV1};
 use entity::{
+    file_tokens::SearchTags,
     files,
     permission::{permission, SharePermission},
     user_files, users, ActiveValue, EntityTrait, TransactionTrait, Uuid,
@@ -169,11 +170,15 @@ impl Repository<'_> {
             .exec_without_returning(&tx)
             .await?;
 
-        if let Some(token_hashes) = validated.search_tokens_hashed {
-            if !token_hashes.is_empty() {
-                super::multikey_upload::upsert_tokens(&tx, new_file_id, token_hashes).await?;
-            }
-        }
+        super::multikey_upload::upsert_tokens(
+            &tx,
+            new_file_id,
+            SearchTags::new(
+                validated.search_tokens_root,
+                validated.search_tokens_file,
+            ),
+        )
+        .await?;
 
         audit::append_event(
             &tx,

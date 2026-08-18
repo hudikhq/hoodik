@@ -1,18 +1,19 @@
 //! Search index access for shared content.
 //!
-//! `POST /api/storage/search` runs the same tokenized-hash query that
-//! has always backed the search box; the only sharing-era change is
-//! that the underlying join no longer filters `user_files.is_owner =
-//! true`. The tests below feed the create route a known set of hashed
-//! tokens, share the file across roles, and confirm:
+//! `POST /api/storage/search` matches keyed tags against the index, with the
+//! `user_files` join deciding what the caller may reach. Recipients search a
+//! shared file through the file scope, whose key rides along with the file key
+//! they already hold — so a grant writes no index rows at all. The tests below
+//! feed the create route both tag scopes, share the file across roles, and
+//! confirm:
 //!
 //! - the owner still finds their own file
 //! - every recipient (Reader / Editor / Co-owner) finds the shared file
 //! - an unrelated user does NOT find it, even with the same query
 //!
-//! Tokens go in through the real `POST /api/storage` route and come
-//! out through the real `POST /api/storage/search` route — no DB
-//! shortcuts, no mocking the search query.
+//! Tags go in through the real `POST /api/storage` route and come out
+//! through the real `POST /api/storage/search` route — no DB shortcuts, no
+//! mocking the search query.
 
 #[macro_use]
 #[path = "./shares_common.rs"]
@@ -33,24 +34,71 @@ use crate::shares_common::*;
 /// cleanly under bert-base-cased.
 const SEARCH_WORD: &str = "octopus";
 
-/// Build a `CreateFile` payload seeded with the hashed tokens of
-/// `SEARCH_WORD`. The repository accepts `["{sha256-hex}:{weight}",
-/// ...]` (parsed by `cryptfns::tokenizer::from_vec`), so we project
-/// the `Token` list through the same `"{token}:{weight}"` shape the
-/// browser sends.
-fn make_searchable_file(public_pem: &str, name_hash: &str) -> CreateFile {
-    let hashed = into_hashed_tokens(SEARCH_WORD).expect("tokenize search word");
+/// Stand-ins for the two keys a real client derives — one from its private
+/// key, one from the file's own key. Fixed here so the test can seed the index
+/// and then query it with matching tags.
+fn root_key() -> [u8; 32] {
+    [11u8; 32]
+}
+
+fn file_key() -> [u8; 32] {
+    cryptfns::search::file_key(b"shares-search-test-file").expect("derive file search key")
+}
+
+/// Tags in the `"{tag}:{weight}"` form the create route accepts.
+fn index_tags(key: &[u8]) -> Vec<String> {
+    let tagged = cryptfns::search::tag_tokens(key, SEARCH_WORD).expect("tag search word");
     assert!(
-        !hashed.is_empty(),
+        !tagged.is_empty(),
         "tokenizer returned no tokens for {SEARCH_WORD}; pick a different word"
     );
+
+    tagged
+        .into_iter()
+        .map(|t| format!("{}:{}", t.token, t.weight))
+        .collect()
+}
+
+/// Bare tags, as the search route receives them.
+fn query_tags(key: &[u8]) -> Vec<String> {
+    cryptfns::search::tag_tokens(key, SEARCH_WORD)
+        .expect("tag search word")
+        .into_iter()
+        .map(|t| t.token)
+        .collect()
+}
+
+/// Projected roster for a folder share: the owner (whose row ships with
+/// `share_role = "co-owner"`, which the server's canonicaliser reads back
+/// literally) plus the recipient at their granted role.
+fn owner_plus_recipient<'a>(
+    owner: &'a TestUser,
+    recipient: &'a TestUser,
+    recipient_role: ShareRoleEnum,
+) -> Vec<FolderListMemberSpec<'a>> {
+    vec![
+        FolderListMemberSpec {
+            user: owner,
+            share_role: ShareRoleEnum::CoOwner,
+            is_owner: true,
+            signed_by: owner,
+        },
+        FolderListMemberSpec {
+            user: recipient,
+            share_role: recipient_role,
+            is_owner: false,
+            signed_by: owner,
+        },
+    ]
+}
+
+/// Build a `CreateFile` payload carrying both tag scopes, the way a client
+/// does on upload. The file scope is what every share recipient searches
+/// through, and writing it here is why granting a share later costs nothing.
+fn make_searchable_file(public_pem: &str, name_hash: &str) -> CreateFile {
     let mut payload = make_create_file(public_pem, name_hash);
-    payload.search_tokens_hashed = Some(
-        hashed
-            .into_iter()
-            .map(|t| format!("{}:{}", t.token, t.weight))
-            .collect(),
-    );
+    payload.search_tokens_root = Some(index_tags(&root_key()));
+    payload.search_tokens_file = Some(index_tags(&file_key()));
     payload
 }
 
@@ -61,7 +109,7 @@ macro_rules! search_for_word {
         let req = actix_web::test::TestRequest::post()
             .uri("/api/storage/search")
             .cookie($caller.jwt.clone())
-            .set_json(serde_json::json!({ "search": SEARCH_WORD }))
+            .set_json(serde_json::json!({ "file_tags": query_tags(&file_key()) }))
             .to_request();
         let resp = actix_web::test::call_service(&$app, req).await;
         assert_eq!(
@@ -77,10 +125,9 @@ macro_rules! search_for_word {
     }};
 }
 
-/// Insert a file owned by `$user` and seeded with `SEARCH_WORD`
-/// tokens. Uses the same `POST /api/storage` path the browser hits;
-/// the route forwards `search_tokens_hashed` into the token index
-/// (see `storage::repository::manage::create`).
+/// Insert a file owned by `$user` and seeded with `SEARCH_WORD` tags. Uses the
+/// same `POST /api/storage` path the browser hits; the route forwards both tag
+/// scopes into the index (see `storage::repository::manage::create`).
 macro_rules! create_searchable_file {
     ($app:expr, $user:expr, $name_hash:expr) => {{
         let payload = make_searchable_file(&$user.public_pem, $name_hash);
@@ -172,16 +219,19 @@ async fn test_search_with_client_hashed_tokens_carries_no_plaintext() {
 
     let file = create_searchable_file!(app, alice, "octopus-note");
 
-    let hashed: Vec<String> = into_hashed_tokens(SEARCH_WORD)
-        .expect("tokenize search word")
-        .into_iter()
-        .map(|t| format!("{}:{}", t.token, t.weight))
-        .collect();
+    let body = serde_json::json!({ "root_tags": query_tags(&root_key()) });
+    let serialized = serde_json::to_string(&body).unwrap();
 
-    let body = serde_json::json!({ "search_tokens_hashed": hashed });
     assert!(
-        !serde_json::to_string(&body).unwrap().contains(SEARCH_WORD),
-        "hashed-search request body must not contain the plaintext term"
+        !serialized.contains(SEARCH_WORD),
+        "search request body must not contain the plaintext term"
+    );
+    // The old index stored exactly this, which is what made the whole table
+    // reversible with a table over the BERT vocabulary. It must not reappear
+    // on the wire either.
+    assert!(
+        !serialized.contains(&cryptfns::sha256::digest(SEARCH_WORD.as_bytes())),
+        "search request body must not contain the bare digest of the term"
     );
 
     let req = test::TestRequest::post()
@@ -200,20 +250,40 @@ async fn test_search_with_client_hashed_tokens_carries_no_plaintext() {
     );
 }
 
-/// A decoy plaintext term naming the real file must be ignored whenever
-/// hashed tokens are present — proof the server no longer tokenizes the
-/// `search` field for current clients.
+/// A client old enough to send a plaintext query gets 426, not an empty
+/// result set. Answering it with 200 and no hits would read as "your files are
+/// gone" to the person holding the phone.
 #[actix_web::test]
-async fn test_plaintext_search_field_is_ignored_when_hashed_tokens_present() {
+async fn test_legacy_plaintext_query_is_refused_with_upgrade_required() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
     register_user!(app, context, alice, "alice@example.com");
+    create_searchable_file!(app, alice, "octopus-note");
 
-    let file = create_searchable_file!(app, alice, "octopus-note");
+    let req = test::TestRequest::post()
+        .uri("/api/storage/search")
+        .cookie(alice.jwt.clone())
+        .set_json(serde_json::json!({ "search": SEARCH_WORD }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
 
-    let miss_tokens: Vec<String> = into_hashed_tokens("xylophone")
-        .expect("tokenize decoy word")
+    assert_eq!(resp.status(), StatusCode::UPGRADE_REQUIRED);
+}
+
+/// Same for a client that predates keyed tags and still sends bare digests.
+/// Serving those would mean matching, and therefore storing, reversible
+/// material again.
+#[actix_web::test]
+async fn test_legacy_digest_query_is_refused_with_upgrade_required() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+    create_searchable_file!(app, alice, "octopus-note");
+
+    let digests: Vec<String> = into_hashed_tokens(SEARCH_WORD)
+        .expect("tokenize search word")
         .into_iter()
         .map(|t| format!("{}:{}", t.token, t.weight))
         .collect();
@@ -221,19 +291,11 @@ async fn test_plaintext_search_field_is_ignored_when_hashed_tokens_present() {
     let req = test::TestRequest::post()
         .uri("/api/storage/search")
         .cookie(alice.jwt.clone())
-        .set_json(serde_json::json!({
-            "search": SEARCH_WORD,
-            "search_tokens_hashed": miss_tokens,
-        }))
+        .set_json(serde_json::json!({ "search_tokens_hashed": digests }))
         .to_request();
     let resp = test::call_service(&app, req).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    let hits: Vec<AppFile> =
-        serde_json::from_slice(&test::read_body(resp).await).expect("search response");
-    assert!(
-        hits.iter().all(|f| f.id != file.id),
-        "plaintext decoy must not resolve to a hit when hashed tokens are present"
-    );
+
+    assert_eq!(resp.status(), StatusCode::UPGRADE_REQUIRED);
 }
 
 /// Pasting a file's content digest finds it without any tokens. The
@@ -253,7 +315,7 @@ async fn test_search_by_content_hash_matches_hash_columns() {
         .uri("/api/storage/search")
         .cookie(alice.jwt.clone())
         .set_json(serde_json::json!({
-            "search_tokens_hashed": [],
+            "root_tags": [],
             "hash": "sha256",
         }))
         .to_request();
@@ -283,7 +345,7 @@ async fn test_search_without_tokens_or_hash_matches_nothing() {
     let req = test::TestRequest::post()
         .uri("/api/storage/search")
         .cookie(alice.jwt.clone())
-        .set_json(serde_json::json!({ "search_tokens_hashed": [] }))
+        .set_json(serde_json::json!({ "root_tags": [] }))
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::OK);
@@ -338,6 +400,100 @@ async fn test_search_stops_returning_shared_file_after_revoke() {
         alice_hits.iter().any(|f| f.id == file.id && f.is_owner),
         "owner alice should still find her file after revoke"
     );
+
+    let _ = context;
+}
+
+/// The endpoint that makes a shared folder's *contents* searchable.
+///
+/// `/api/shares/mine` reports roots — it trims any row whose parent is also
+/// shared — which is right for browsing and useless for search, because every
+/// file inside the folder is tagged under its own key. `/api/shares/keys`
+/// returns the untrimmed set so a recipient can build a query that reaches
+/// them.
+#[actix_web::test]
+async fn test_incoming_keys_include_files_inside_a_shared_folder() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+
+    let folder = create_folder!(app, alice, "reports");
+
+    let mut payload = make_searchable_file(&alice.public_pem, "octopus-note");
+    payload.file_id = Some(folder.id.to_string());
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(alice.jwt.clone())
+        .set_json(&payload)
+        .to_request();
+    let inner: AppFile =
+        serde_json::from_slice(&test::call_and_read_body(&app, req).await).expect("inner file");
+
+    // A folder grant has to carry one entry per file in the subtree, which is
+    // exactly why the inner file ends up with a `user_files` row of its own —
+    // and why its key is reachable at all.
+    let members = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Reader);
+    let envelope = build_folder_share_envelope_with_entries(
+        &alice,
+        &bob,
+        ShareRoleEnum::Reader,
+        folder.id,
+        alice.user_id,
+        vec![
+            (folder.id, b"wrap-folder".to_vec()),
+            (inner.id, b"wrap-inner".to_vec()),
+        ],
+        random_nonce(),
+        now_secs(),
+        &members,
+        &alice,
+    );
+    let resp = post_share!(app, alice, envelope);
+    assert!(resp.status().is_success(), "folder grant failed: {:?}", resp.status());
+
+    // Browsing view: the folder only.
+    let req = test::TestRequest::get()
+        .uri("/api/shares/mine")
+        .cookie(bob.jwt.clone())
+        .to_request();
+    let page: serde_json::Value =
+        serde_json::from_slice(&test::call_and_read_body(&app, req).await).expect("mine");
+    let roots: Vec<String> = page["items"]
+        .as_array()
+        .expect("items")
+        .iter()
+        .map(|i| i["file_id"].as_str().unwrap_or_default().to_string())
+        .collect();
+    assert!(
+        !roots.contains(&inner.id.to_string()),
+        "the inner file is trimmed from the roots list, which is why search needed its own route"
+    );
+
+    // Search view: every shared row, wrapped key included.
+    let req = test::TestRequest::get()
+        .uri("/api/shares/keys")
+        .cookie(bob.jwt.clone())
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let keys: Vec<serde_json::Value> =
+        serde_json::from_slice(&test::read_body(resp).await).expect("keys");
+    let ids: Vec<String> = keys
+        .iter()
+        .map(|k| k["file_id"].as_str().unwrap_or_default().to_string())
+        .collect();
+
+    assert!(ids.contains(&inner.id.to_string()), "file inside the folder must be reachable");
+    assert!(ids.contains(&folder.id.to_string()), "the folder itself too");
+    assert!(
+        keys.iter().all(|k| !k["encrypted_key"].as_str().unwrap_or_default().is_empty()),
+        "every row carries the key the recipient needs to derive its search key"
+    );
+    // Nothing beyond what a search needs.
+    assert!(keys.iter().all(|k| k.get("encrypted_name").is_none()));
 
     let _ = context;
 }

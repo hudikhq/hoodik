@@ -100,7 +100,8 @@ export async function uploadIntoSharedFolder(
       cipher: args.payload.cipher,
       editable: args.payload.editable,
       file_modified_at: args.payload.fileModifiedAt,
-      search_tokens_hashed: args.payload.searchTokensHashed,
+      search_tokens_root: args.payload.searchTokensRoot,
+      search_tokens_file: args.payload.searchTokensFile,
       member_keys: memberKeys,
       members_list_snapshot: {
         members_signed_at: snapshot.members_signed_at,
@@ -148,9 +149,12 @@ export async function buildSharedFolderPayloadFromFile(args: {
   newFileId: string
   parentFileId: string
   file: File
-  searchTokensHashed: string[]
+  searchTokensRoot?: string[]
+  searchTokensFile?: string[]
   cipher?: string
   fileKey?: Uint8Array
+  /** Caller's account-wide search key; `name_hash` is keyed on it. */
+  searchRootKey: string
   thumbnail?: string
   editable?: boolean
   chunkSizeBytes: number
@@ -161,7 +165,7 @@ export async function buildSharedFolderPayloadFromFile(args: {
   const encryptedThumbnail = args.thumbnail
     ? await cryptfns.cipher.encryptString(cipher, args.thumbnail, key)
     : undefined
-  const nameHash = cryptfns.sha256.digest(args.file.name)
+  const nameHash = cryptfns.searchTag(args.searchRootKey, args.file.name)
   const mime = args.file.type || 'application/octet-stream'
   const fileKeyHex = cryptfns.uint8.toHex(key)
   const chunks = Math.max(1, Math.ceil(args.file.size / args.chunkSizeBytes))
@@ -178,6 +182,7 @@ export async function buildSharedFolderPayloadFromFile(args: {
     chunks,
     cipher,
     editable: args.editable,
-    searchTokensHashed: args.searchTokensHashed
+    searchTokensRoot: args.searchTokensRoot,
+    searchTokensFile: args.searchTokensFile
   }
 }

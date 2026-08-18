@@ -769,6 +769,28 @@ impl FsProviderContract for FsProvider<'_> {
         // are still cleaned up on full deletion.
         self.purge(&filename).await
     }
+
+    /// Chunks on local disk are reachable only through this server, so there
+    /// is no URL to hand a client. Callers read the `None` and stream.
+    async fn direct_get_urls<T: IntoFilename>(
+        &self,
+        _filename: &T,
+        _version: i32,
+        _chunks: &[i64],
+    ) -> AppResult<Option<Vec<String>>> {
+        Ok(None)
+    }
+
+    /// See [`Self::direct_get_urls`] — local disk takes writes through this
+    /// server or not at all.
+    async fn direct_put_urls<T: IntoFilename>(
+        &self,
+        _filename: &T,
+        _version: i32,
+        _chunks: &[(i64, u64)],
+    ) -> AppResult<Option<Vec<String>>> {
+        Ok(None)
+    }
 }
 
 #[cfg(test)]

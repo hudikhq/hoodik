@@ -1417,6 +1417,7 @@ dependencies = [
  "getrandom 0.2.17",
  "hex",
  "hkdf",
+ "hmac",
  "libcrux-ml-kem",
  "num-traits",
  "opaque-ke",
@@ -2107,6 +2108,7 @@ dependencies = [
  "log",
  "md-5",
  "pin-project",
+ "reqwest",
  "rust-s3",
  "sha2",
  "tempfile",
@@ -2550,7 +2552,7 @@ dependencies = [
 
 [[package]]
 name = "hoodik"
-version = "2.4.1"
+version = "2.5.0"
 dependencies = [
  "actix-cors",
  "actix-http",
@@ -5262,6 +5264,7 @@ dependencies = [
  "auth",
  "cached",
  "chrono",
+ "config",
  "context",
  "cryptfns",
  "entity",

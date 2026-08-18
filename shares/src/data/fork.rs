@@ -22,7 +22,8 @@ pub struct ForkBody {
     pub blake2b: Option<String>,
     pub cipher: Option<String>,
     pub encrypted_key: Option<String>,
-    pub search_tokens_hashed: Option<Vec<String>>,
+    pub search_tokens_root: Option<Vec<String>>,
+    pub search_tokens_file: Option<Vec<String>>,
     pub event_signature: Option<String>,
     pub timestamp: Option<i64>,
 }
