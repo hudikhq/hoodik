@@ -254,6 +254,19 @@ pub async fn download_file_streaming(
     .await
 }
 
+/// Where chunk `chunk` should be fetched from, when the manifest covers it.
+///
+/// Callers index the manifest by chunk number, so a chunk it does not cover
+/// arrives as an empty slot rather than as a shorter array. Either way the
+/// answer is `None` and the caller keeps using the API: a partial manifest is
+/// still worth the chunks it does cover.
+fn direct_target<'a>(direct_urls: Option<&'a [String]>, chunk: u64) -> Option<ChunkTarget<'a>> {
+    direct_urls
+        .and_then(|urls| urls.get(chunk as usize))
+        .filter(|url| !url.is_empty())
+        .map(|url| ChunkTarget::Direct(url))
+}
+
 /// Sliding-window download pipeline.
 ///
 /// Maintains exactly [`DOWNLOAD_POOL_LIMIT`] concurrent downloads at all times.
@@ -289,13 +302,8 @@ async fn run_download_pipeline<'a>(
             let chunk = next_to_dispatch;
             next_to_dispatch += 1;
             let tally = &tally;
-            // A manifest short of the chunk count leaves the tail on the API
-            // path rather than failing: a partial answer is still worth the
-            // chunks it covers.
-            let target = match direct_urls.and_then(|urls| urls.get(chunk as usize)) {
-                Some(url) => ChunkTarget::Direct(url),
-                None => ChunkTarget::Api { auth, source },
-            };
+            let target =
+                direct_target(direct_urls, chunk).unwrap_or(ChunkTarget::Api { auth, source });
             in_flight.push(Box::pin(fetch_and_decrypt(
                 http,
                 target,
@@ -401,15 +409,10 @@ pub async fn download_chunks_to_dir(
                 continue;
             }
             let tally = &tally;
-            // Same rule as the whole-file pipeline: an index the manifest
-            // covers goes to the bucket, anything else keeps using the API.
-            let target = match direct_urls.and_then(|urls| urls.get(chunk as usize)) {
-                Some(url) => ChunkTarget::Direct(url),
-                None => ChunkTarget::Api {
-                    auth,
-                    source: DownloadSource::Storage(file_id),
-                },
-            };
+            let target = direct_target(direct_urls, chunk).unwrap_or(ChunkTarget::Api {
+                auth,
+                source: DownloadSource::Storage(file_id),
+            });
             in_flight.push(Box::pin(fetch_and_save(
                 http,
                 target,

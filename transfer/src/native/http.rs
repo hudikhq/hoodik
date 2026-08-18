@@ -244,6 +244,85 @@ impl HttpClient for NativeHttpClient {
         })
     }
 
+    fn put_chunk_direct(
+        &self,
+        url: &str,
+        data: &[u8],
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>> {
+        let url = url.to_string();
+        let data = data.to_vec();
+
+        Box::pin(async move {
+            // No `auth_headers` here, deliberately: the presigned URL is the
+            // whole credential, and several S3 implementations refuse a
+            // request that carries a signature and an `Authorization` header
+            // at once.
+            let resp = self
+                .client
+                .put(&url)
+                .header("Content-Type", "application/octet-stream")
+                .body(data)
+                .send()
+                .await
+                .map_err(|e| Error::Io(format!("Direct chunk upload failed: {e}")))?;
+
+            let status = resp.status().as_u16();
+
+            if status >= 400 {
+                let text = resp
+                    .text()
+                    .await
+                    .map_err(|e| Error::Io(format!("Failed to read error response: {e}")))?;
+                return Err(Error::Http(HttpError {
+                    status,
+                    message: text,
+                    validation: None,
+                }));
+            }
+
+            Ok(())
+        })
+    }
+
+    fn finalize_upload(
+        &self,
+        auth: &Auth,
+        file_id: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>> {
+        let auth = auth.clone();
+        let file_id = file_id.to_string();
+
+        Box::pin(async move {
+            let url = format!("{}/api/storage/{}/finalize", auth.base_url, file_id);
+            let headers = Self::auth_headers(&auth);
+
+            let resp = self
+                .client
+                .post(&url)
+                .headers(headers)
+                .send()
+                .await
+                .map_err(|e| Error::Io(format!("Finalize request failed: {e}")))?;
+
+            let status = resp.status().as_u16();
+            let text = resp
+                .text()
+                .await
+                .map_err(|e| Error::Io(format!("Failed to read response: {e}")))?;
+
+            if status >= 400 {
+                let validation = parse_validation(&text, status);
+                return Err(Error::Http(HttpError {
+                    status,
+                    message: text,
+                    validation,
+                }));
+            }
+
+            Ok(())
+        })
+    }
+
     fn update_hashes(
         &self,
         auth: &Auth,

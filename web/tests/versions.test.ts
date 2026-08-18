@@ -33,6 +33,8 @@ vi.mock('../services/api', () => {
 
 import { list, restore, fork, remove, purgeAll, downloadChunk } from '../services/storage/versions'
 import Api from '../services/api'
+import { capabilitiesStore } from '../services/shares/capabilities'
+import { clearChunkUrlCache } from '../services/storage/download/direct'
 import type { AppFile, FileVersion } from 'types'
 
 type Mocked<T> = T & { mock: { calls: unknown[][] } }
@@ -250,6 +252,48 @@ describe('downloadChunk', () => {
   it('UNIT: throws when the response has no body', async () => {
     ApiDownload.mockResolvedValueOnce({ body: null })
     await expect(downloadChunk('file-1', 2, 0)).rejects.toThrow('Failed to download chunk 0 of v2')
+  })
+
+  // A historical version is ciphertext like any other, and the same manifest
+  // module answers for it. Without this the version tail was the one read path
+  // still relaying every byte after the rest went direct.
+  it('UNIT: fetches from the bucket, uncredentialed, when a manifest covers the chunk', async () => {
+    clearChunkUrlCache()
+    capabilitiesStore().caps = {
+      sharing: { enabled: false, roles: [] },
+      editable_folders: false,
+      share_groups: false,
+      audit_log: false,
+      fork: false,
+      direct_transfer: true
+    }
+    ApiGet.mockResolvedValueOnce({
+      body: {
+        urls: [{ chunk: 0, url: 'https://bucket/v2/0' }],
+        expires_at: Math.floor(Date.now() / 1000) + 3600
+      }
+    })
+
+    const reader = {
+      read: vi
+        .fn()
+        .mockResolvedValueOnce({ value: new Uint8Array([9, 9]), done: false })
+        .mockResolvedValue({ value: undefined, done: true })
+    }
+    const fetchMock = vi.fn().mockResolvedValue({ body: { getReader: () => reader } })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await downloadChunk('file-1', 2, 0)
+
+    expect(result).toEqual(new Uint8Array([9, 9]))
+    expect(ApiDownload).not.toHaveBeenCalled()
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('https://bucket/v2/0')
+    expect(init.credentials).toBe('omit')
+
+    vi.unstubAllGlobals()
+    capabilitiesStore().caps = null
+    clearChunkUrlCache()
   })
 
   it('UNIT: forwards the AbortSignal to Api.download', async () => {

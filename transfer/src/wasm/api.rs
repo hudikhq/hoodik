@@ -36,6 +36,8 @@ pub struct TransferUploader {
     hash_mask: u32,
     /// Cipher identifier (e.g. `"ascon128a"`, `"chacha20poly1305"`).
     cipher: String,
+    /// Presigned bucket URLs indexed by chunk, when the deployment serves them.
+    direct_urls: Option<Vec<String>>,
 }
 
 #[wasm_bindgen]
@@ -67,6 +69,7 @@ impl TransferUploader {
             uploaded_chunks: Vec::new(),
             hash_mask: 0,
             cipher: cryptfns::cipher::DEFAULT.to_string(),
+            direct_urls: None,
         }
     }
 
@@ -76,6 +79,19 @@ impl TransferUploader {
     #[wasm_bindgen(js_name = "set_cipher")]
     pub fn set_cipher(&mut self, cipher: String) {
         self.cipher = cipher;
+    }
+
+    /// Presigned bucket URLs indexed by chunk, so those chunks are written
+    /// straight into storage instead of through this server.
+    ///
+    /// Obtain them from `POST /api/storage/{id}/upload-urls`, declaring the
+    /// sizes [`transferEncryptedChunkSizes`] returns — the server signs each
+    /// length into its URL and the bucket refuses a body of any other size.
+    /// An index left empty keeps using the relaying route. Call before
+    /// [`upload`].
+    #[wasm_bindgen(js_name = "set_direct_urls")]
+    pub fn set_direct_urls(&mut self, urls: Vec<String>) {
+        self.direct_urls = Some(urls);
     }
 
     /// Set the list of chunk indices already stored on the server.
@@ -126,6 +142,7 @@ impl TransferUploader {
         let file_id = self.file_id.clone();
         let encryption_key = self.encryption_key.clone();
         let cipher = self.cipher.clone();
+        let direct_urls = self.direct_urls.clone();
         let already: Vec<u64> = self.uploaded_chunks.iter().map(|&c| c as u64).collect();
 
         // When an external hash promise is supplied, skip all inline hashing — the caller
@@ -150,6 +167,7 @@ impl TransferUploader {
             hash_options,
             None,
             &cipher,
+            direct_urls.as_deref(),
         )
         .await
         .map_err(|e| JsValue::from_str(&format!("{e}")))?;
@@ -445,6 +463,20 @@ impl TransferDownloader {
 }
 
 /// Returns the bitmask value to OR into `set_hash_mask` to disable MD5 computation.
+/// The exact ciphertext length of every chunk of a `total_size`-byte file,
+/// indexed by chunk.
+///
+/// These are what `POST /api/storage/{id}/upload-urls` wants declared: the
+/// server signs each length into its URL, and the bucket refuses a body of any
+/// other size. Computed rather than guessed at the call site, so the sizes
+/// cannot drift from what the uploader goes on to produce.
+#[wasm_bindgen(js_name = "transferEncryptedChunkSizes")]
+pub fn transfer_encrypted_chunk_sizes(cipher: String, total_size: f64) -> Result<Vec<u32>, JsValue> {
+    crate::upload::encrypted_chunk_sizes(&cipher, total_size as u64)
+        .map(|sizes| sizes.into_iter().map(|size| size as u32).collect())
+        .map_err(|e| JsValue::from_str(&format!("{e}")))
+}
+
 #[wasm_bindgen(js_name = "transferHashDisableMd5")]
 pub fn transfer_hash_disable_md5() -> u32 {
     HASH_DISABLE_MD5

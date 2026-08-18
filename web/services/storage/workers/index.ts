@@ -1,6 +1,8 @@
 import Api from '../../api'
 import * as meta from '../meta'
 import * as logger from '!/logger'
+import { fileChunkUrls } from '../download/direct'
+import { forgetUpload, uploadChunkUrls } from '../upload/direct'
 
 import type { DownloadAppFile, DownloadFileMessage, UploadAppFile, UploadFileMessage } from 'types'
 
@@ -24,12 +26,18 @@ export async function pushUploadToWorker(file: UploadAppFile): Promise<void> {
   const apiTransfer = { ...new Api().toJson(), jwtToken: token, refreshToken: undefined }
   const transferableUploadedChunks = new Uint32Array(file.uploaded_chunks || [])
 
+  // The worker owns the manifest from here — it writes the chunks and commits
+  // the file itself — so nothing on this side should hold on to it.
+  const directUrls = await uploadChunkUrls(file, new Api(apiTransfer))
+  forgetUpload(file.id)
+
   window.UPLOAD.postMessage({
     type: 'upload-file',
     apiTransfer,
     message: {
       transferableUploadedChunks,
-      transferableFile
+      transferableFile,
+      directUrls
     } as UploadFileMessage
   })
 
@@ -66,7 +74,8 @@ export async function startFileDownload(file: DownloadAppFile): Promise<void> {
     type: 'download-file',
     apiTransfer,
     message: {
-      transferableFile
+      transferableFile,
+      directUrls: await fileChunkUrls(file.id)
     } as DownloadFileMessage
   })
 }

@@ -97,7 +97,7 @@ async function handleCrypto(
 
 async function handleUploadFile(
   apiTransfer: ApiTransfer,
-  { transferableUploadedChunks, transferableFile }: UploadFileMessage
+  { transferableUploadedChunks, transferableFile, directUrls }: UploadFileMessage
 ) {
   const file = transferableFile as UploadAppFile
   const t0 = performance.now()
@@ -169,6 +169,10 @@ async function handleUploadFile(
     uploader.set_hash_mask(hashDisableMask)
     uploader.set_cipher(cipher)
 
+    if (directUrls?.length) {
+      uploader.set_direct_urls(directUrls)
+    }
+
     await uploader.upload(
       file.file as File,
       undefined,
@@ -203,7 +207,7 @@ async function handleUploadFile(
 
 async function handleDownloadFile(
   apiTransfer: ApiTransfer,
-  { transferableFile }: DownloadFileMessage
+  { transferableFile, directUrls }: DownloadFileMessage
 ) {
   const t0 = performance.now()
   logger.info(
@@ -228,6 +232,10 @@ async function handleDownloadFile(
       transferableFile.key as Uint8Array
     )
     downloader.set_cipher(cipher)
+
+    if (directUrls?.length) {
+      downloader.set_direct_urls(directUrls)
+    }
 
     // Each chunk becomes its own small Blob the moment it arrives, moving
     // it into browser-managed blob storage (disk-backed for large files)

@@ -12,9 +12,26 @@ interface ChunkUrl {
   url: string
 }
 
-interface ChunkUrls {
+export interface ChunkUrls {
   urls: ChunkUrl[]
   expires_at: number
+}
+
+/**
+ * A manifest as the transfer crate wants it: indexed by chunk number rather
+ * than in whatever order the server listed them.
+ *
+ * A gap is filled with an empty string rather than left as a hole. The array
+ * crosses into wasm as a `Vec<String>`, where a hole is not a string, and the
+ * crate reads an empty entry as "this one goes through the server".
+ */
+export function orderByChunk(urls: ChunkUrl[]): string[] {
+  const highest = urls.reduce((max, { chunk }) => Math.max(max, chunk), 0)
+  const ordered: string[] = new Array(highest + 1).fill('')
+  for (const { chunk, url } of urls) {
+    ordered[chunk] = url
+  }
+  return ordered
 }
 
 interface CachedManifest {
@@ -92,12 +109,7 @@ async function chunkUrls(
     const body = response?.body
     if (!body?.urls?.length) return undefined
 
-    // Indexed by chunk number rather than trusting response order. A gap
-    // leaves that index undefined, and the crate sends those through the API.
-    const ordered: string[] = []
-    for (const { chunk, url } of body.urls) {
-      ordered[chunk] = url
-    }
+    const ordered = orderByChunk(body.urls)
 
     cache.set(key, { urls: ordered, expiresAt: body.expires_at })
 
@@ -119,4 +131,18 @@ export async function fileChunkUrls(fileId: string): Promise<string[] | undefine
  */
 export async function linkChunkUrls(linkId: string): Promise<string[] | undefined> {
   return chunkUrls(`link:${linkId}`, `/api/links/${linkId}/chunk-urls`, 'post')
+}
+
+/**
+ * Presigned URLs for a historical version of a file.
+ */
+export async function versionChunkUrls(
+  fileId: string,
+  version: number
+): Promise<string[] | undefined> {
+  return chunkUrls(
+    `version:${fileId}:${version}`,
+    `/api/storage/${fileId}/versions/${version}/chunk-urls`,
+    'get'
+  )
 }

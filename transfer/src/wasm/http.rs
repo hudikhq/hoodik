@@ -225,6 +225,91 @@ impl HttpClient for WasmHttpClient {
         })
     }
 
+    fn put_chunk_direct(
+        &self,
+        url: &str,
+        data: &[u8],
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>> {
+        let url = url.to_string();
+        let data = data.to_vec();
+
+        Box::pin(async move {
+            let body = js_sys::Uint8Array::from(data.as_slice());
+
+            let opts = RequestInit::new();
+            opts.set_method("PUT");
+            opts.set_body(&body);
+            opts.set_mode(RequestMode::Cors);
+            // Same rule as the read side: credentials would oblige the bucket
+            // to answer with an exact-origin CORS policy it does not carry,
+            // and several S3 implementations reject a request that arrives
+            // both presigned and authenticated. No headers either — the
+            // signature already covers the content length the browser sets,
+            // and a custom one would buy a preflight per chunk.
+            opts.set_credentials(RequestCredentials::Omit);
+
+            let resp = Self::do_fetch(&opts, &url).await?;
+            let status = resp.status();
+
+            if status >= 400 {
+                let text_promise = resp.text().map_err(|e| Error::Io(format!("{e:?}")))?;
+                let text = JsFuture::from(text_promise)
+                    .await
+                    .map_err(|e| Error::Io(format!("{e:?}")))?
+                    .as_string()
+                    .unwrap_or_default();
+                return Err(Error::Http(HttpError {
+                    status,
+                    message: text,
+                    validation: None,
+                }));
+            }
+
+            Ok(())
+        })
+    }
+
+    fn finalize_upload(
+        &self,
+        auth: &Auth,
+        file_id: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>> {
+        let auth = auth.clone();
+        let file_id = file_id.to_string();
+
+        Box::pin(async move {
+            let headers = Self::build_headers(&auth)?;
+            let url = format!("{}/api/storage/{}/finalize", auth.base_url, file_id);
+
+            let opts = RequestInit::new();
+            opts.set_method("POST");
+            opts.set_headers(&headers);
+            opts.set_mode(RequestMode::Cors);
+            opts.set_credentials(RequestCredentials::Include);
+
+            let resp = Self::do_fetch(&opts, &url).await?;
+            let status = resp.status();
+
+            let text_promise = resp.text().map_err(|e| Error::Io(format!("{e:?}")))?;
+            let text = JsFuture::from(text_promise)
+                .await
+                .map_err(|e| Error::Io(format!("{e:?}")))?
+                .as_string()
+                .unwrap_or_default();
+
+            if status >= 400 {
+                let validation = parse_validation(&text, status);
+                return Err(Error::Http(HttpError {
+                    status,
+                    message: text,
+                    validation,
+                }));
+            }
+
+            Ok(())
+        })
+    }
+
     fn download_all_chunks<'a>(
         &'a self,
         auth: &Auth,

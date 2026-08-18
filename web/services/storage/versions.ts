@@ -8,6 +8,7 @@
  */
 
 import Api from '../api'
+import { versionChunkUrls } from './download/direct'
 import type { AppFile, FileVersion } from 'types'
 
 /**
@@ -41,9 +42,13 @@ export async function list(fileId: string): Promise<FileVersion[]> {
 }
 
 /**
- * `GET /api/storage/{fileId}/versions/{version}?chunk=N` — fetch a
- * single encrypted chunk of a historical version. The caller decrypts
+ * Fetch a single encrypted chunk of a historical version. The caller decrypts
  * with the file's key.
+ *
+ * Goes straight to the storage bucket when the deployment serves presigned
+ * URLs, and through `GET /api/storage/{fileId}/versions/{version}?chunk=N`
+ * otherwise. Same manifest module every other read path uses, so a deployment
+ * that transfers directly does so here too.
  */
 export async function downloadChunk(
   fileId: string,
@@ -51,12 +56,18 @@ export async function downloadChunk(
   chunk: number,
   signal?: AbortSignal
 ): Promise<Uint8Array> {
-  const response = await new Api().download(
-    `/api/storage/${fileId}/versions/${version}?chunk=${chunk}`,
-    undefined,
-    undefined,
-    signal
-  )
+  const direct = (await versionChunkUrls(fileId, version))?.[chunk]
+
+  // Credentials would oblige the bucket to answer with an exact-origin CORS
+  // policy it does not carry, and are meaningless against a presigned URL.
+  const response = direct
+    ? await fetch(direct, { credentials: 'omit', signal })
+    : await new Api().download(
+        `/api/storage/${fileId}/versions/${version}?chunk=${chunk}`,
+        undefined,
+        undefined,
+        signal
+      )
 
   if (!response.body) {
     throw new Error(`Failed to download chunk ${chunk} of v${version}`)

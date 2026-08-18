@@ -2,16 +2,23 @@ import Api, { ErrorResponse } from '../../api'
 import * as cryptfns from '../../cryptfns'
 import { utcStringFromLocal } from '../..'
 import { MAX_UPLOAD_RETRIES } from '../../constants'
+import { forgetUpload, putChunk, uploadChunkUrls } from './direct'
 import * as logger from '!/logger'
 
 import type { Query } from '../../api'
 import type { AppFile, UploadAppFile } from '../../../types'
 
 /**
- * Upload a single file chunk (sync fallback)
+ * Upload a single encrypted chunk of a file.
  *
- * This is a fallback for when the WASM upload worker is unavailable.
- * Encryption is performed client-side before sending the chunk to the server.
+ * Every upload the page performs itself goes through here — note saves, forks,
+ * and the fallback for when the WASM upload worker is unavailable — so this is
+ * where direct-versus-relayed is decided for all of them. The manifest is
+ * fetched once for the file and held until it commits, so asking per chunk
+ * costs one request, not one per chunk.
+ *
+ * Encryption happens before either branch. What differs is only where the
+ * ciphertext is sent.
  *
  * @param api  Optional Api instance with a transfer token. If omitted, falls back to session auth.
  */
@@ -27,6 +34,29 @@ export async function uploadChunk(
   }
 
   const encrypted = await cryptfns.cipher.encrypt(file.cipher, data, file.key, chunk)
+
+  const client = api || new Api().withRefresh()
+  const directUrl = (await uploadChunkUrls(file, client))?.[chunk]
+  if (directUrl) {
+    logger.debug(
+      'Direct',
+      `Writing chunk ${chunk} / ${file.chunks} of ${file.name} (${encrypted.length} B) into the bucket`
+    )
+
+    const committed = await putChunk(file, chunk, encrypted, directUrl, client)
+
+    return {
+      ...file,
+      ...(committed || {}),
+      key: file.key,
+      name: file.name,
+      thumbnail: file.thumbnail,
+      temporaryId: file.temporaryId,
+      file: file.file,
+      started_upload_at: file.started_upload_at || utcStringFromLocal()
+    }
+  }
+
   const checksum = await cryptfns.wasm.crc16_digest(encrypted)
 
   const query: Query = {
@@ -45,7 +75,7 @@ export async function uploadChunk(
       `Uploading chunk (${encrypted.length} B) ${chunk} / ${file.chunks} of ${file.file.name} - upload attempt ${attempt} (checksum: ${checksum})`
     )
 
-    const response = await (api || new Api().withRefresh()).make<Uint8Array, AppFile>(
+    const response = await client.make<Uint8Array, AppFile>(
       'post',
       `/api/storage/${file.id}`,
       query,
@@ -94,6 +124,8 @@ export async function uploadChunk(
       `Failed uploading chunk ${chunk} / ${file.chunks} of ${file.name}, either some unexpected error, or too many failed checksum tries, aborting...`,
       err
     )
+
+    forgetUpload(file.id)
 
     throw err
   }

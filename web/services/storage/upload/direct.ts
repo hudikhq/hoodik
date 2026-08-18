@@ -1,0 +1,153 @@
+import Api from '../../api'
+import { transferEncryptedChunkSizes } from 'transfer'
+import { orderByChunk, type ChunkUrls } from '../download/direct'
+// Straight from the module that defines it, for the same reason the read side
+// does: the `!/shares` barrel imports the storage store, and importing it from
+// here would close a storage → shares → storage cycle.
+import { capabilitiesStore } from '!/shares/capabilities'
+
+import type { AppFile, UploadAppFile } from '../../../types'
+
+/**
+ * A file's in-progress direct upload: the URLs it was given, and which of its
+ * chunks have landed.
+ *
+ * Unlike a read manifest this one must not outlive the upload it belongs to.
+ * The URLs are signed for the version being written, so a note saved twice
+ * gets two manifests pointing at two different versions — reusing the first
+ * would write the second save's bytes into the first save's slot.
+ */
+interface PendingUpload {
+  urls: string[]
+  written: Set<number>
+}
+
+const pending = new Map<string, PendingUpload>()
+
+/**
+ * Abandon a file's manifest so the next chunk asks for a fresh one. Called on
+ * failure, and after the upload is committed.
+ */
+export function forgetUpload(fileId: string): void {
+  pending.delete(fileId)
+}
+
+/**
+ * The shape of the content this upload is writing.
+ *
+ * A file's `size` and `chunks` describe its *active* version. While an edit is
+ * in flight they are the previous content's numbers — `replace_content` parks
+ * the new ones in `pending_size` and `pending_chunks` and leaves the active
+ * version untouched so readers keep seeing it. Declaring `size` mid-edit signs
+ * every URL for the wrong content length, and the bucket rejects the body.
+ *
+ * Same rule the server's own `target_version` follows.
+ */
+function target(file: UploadAppFile): { size: number; chunks: number } {
+  return {
+    size: file.pending_size ?? file.size ?? file.file?.size ?? 0,
+    chunks: file.pending_chunks ?? file.chunks ?? 0
+  }
+}
+
+/**
+ * Presigned URLs for writing this file's chunks straight into the storage
+ * bucket, or `undefined` when this deployment cannot serve them.
+ *
+ * Fetched once per upload and held until it commits, so the per-chunk callers
+ * cost one request for the file rather than one per chunk.
+ *
+ * Sizes are declared up front because the server signs each one into its URL
+ * and the bucket refuses a body of any other length. They come from the crate
+ * that does the encrypting rather than from arithmetic here, so the two cannot
+ * disagree about the AEAD overhead.
+ *
+ * `undefined` is a normal answer, not an error: local-filesystem servers have
+ * no URLs to give, an S3 server whose bucket failed its startup checks
+ * withholds them, and a failure is treated the same way. Every caller uploads
+ * through the server instead, which is the path that has always worked.
+ *
+ * @param api  An `Api` carrying the file's upload transfer token.
+ */
+export async function uploadChunkUrls(
+  file: UploadAppFile,
+  api: Api
+): Promise<string[] | undefined> {
+  if (!capabilitiesStore().directTransfer) {
+    return undefined
+  }
+
+  const held = pending.get(file.id)
+  if (held) return held.urls
+
+  try {
+    const sizes = transferEncryptedChunkSizes(file.cipher, target(file).size)
+
+    const response = await api.make<{ chunks: { chunk: number; size: number }[] }, ChunkUrls>(
+      'post',
+      `/api/storage/${file.id}/upload-urls`,
+      undefined,
+      { chunks: Array.from(sizes, (size, chunk) => ({ chunk, size })) }
+    )
+
+    const body = response?.body
+    if (!body?.urls?.length) return undefined
+
+    const urls = orderByChunk(body.urls)
+    pending.set(file.id, { urls, written: new Set() })
+
+    return urls
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Write one already-encrypted chunk into the bucket, and commit the file once
+ * this was the last one outstanding.
+ *
+ * Returns the committed file, or `undefined` while chunks remain. Nothing
+ * tells the server that a bucket write landed, so the client says so — and the
+ * server lists the bucket to confirm it before the version pointer moves.
+ */
+export async function putChunk(
+  file: UploadAppFile,
+  chunk: number,
+  encrypted: Uint8Array,
+  url: string,
+  api: Api
+): Promise<AppFile | undefined> {
+  try {
+    // No credentials and no custom headers: the presigned URL is signed over
+    // the method, the key and the exact content length, so anything else is at
+    // best ignored, and at worst turns a simple request into a preflight or an
+    // outright rejection.
+    const response = await fetch(url, {
+      method: 'PUT',
+      body: encrypted as BufferSource,
+      credentials: 'omit'
+    })
+
+    if (!response.ok) {
+      throw new Error(`Bucket refused chunk ${chunk} of ${file.id}: ${response.status}`)
+    }
+  } catch (err) {
+    forgetUpload(file.id)
+    throw err
+  }
+
+  const held = pending.get(file.id)
+  if (!held) return undefined
+
+  held.written.add(chunk)
+  if (held.written.size < target(file).chunks) return undefined
+
+  forgetUpload(file.id)
+
+  const committed = await api.make<undefined, AppFile>(
+    'post',
+    `/api/storage/${file.id}/finalize`
+  )
+
+  return committed?.body
+}

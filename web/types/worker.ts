@@ -16,6 +16,14 @@ export type WorkerErrorType =
 export type UploadFileMessage = {
   transferableUploadedChunks: Uint32Array
   transferableFile: UploadAppFile
+
+  /**
+   * Presigned bucket URLs indexed by chunk, when the deployment serves them.
+   *
+   * Resolved on the main thread, where the session and the capability both
+   * live. An index this does not cover is uploaded through the server.
+   */
+  directUrls?: string[]
 }
 
 /**
@@ -23,6 +31,16 @@ export type UploadFileMessage = {
  */
 export type DownloadFileMessage = {
   transferableFile: AppFile
+
+  /**
+   * Presigned bucket URLs indexed by chunk, when the deployment serves them.
+   *
+   * Resolved on the main thread rather than here: the manifest is the one
+   * place direct-versus-relayed is decided, and it is shared with every other
+   * consumer of the same file. An index this does not cover is fetched
+   * through the server.
+   */
+  directUrls?: string[]
 }
 
 /**

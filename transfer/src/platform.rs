@@ -57,6 +57,31 @@ pub trait HttpClient {
         tar_body: Vec<u8>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ChunkResponse>> + '_>>;
 
+    /// Write one encrypted chunk straight into the storage bucket.
+    ///
+    /// The presigned URL is the whole credential: it is signed over the
+    /// method, the object key and the exact content length, so nothing about
+    /// the session may be attached. Implementations must send no
+    /// `Authorization` header and no cookies, for the reasons spelled out on
+    /// [`crate::types::ChunkTarget::Direct`].
+    fn put_chunk_direct(
+        &self,
+        url: &str,
+        data: &[u8],
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>>;
+
+    /// Commit a file whose chunks were written directly.
+    ///
+    /// The relaying routes finalize themselves once their own writes complete
+    /// the count. Nothing tells the server that a bucket write landed, so the
+    /// client says so — and the server lists the bucket to confirm it before
+    /// the version pointer moves.
+    fn finalize_upload(
+        &self,
+        auth: &Auth,
+        file_id: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>>;
+
     /// Send computed file hashes to the server after upload completes.
     fn update_hashes(
         &self,
