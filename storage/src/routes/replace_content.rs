@@ -15,7 +15,7 @@
 use actix_web::{route, web, HttpRequest, HttpResponse};
 use auth::data::claims::Claims;
 use context::Context;
-use entity::Uuid;
+use entity::{TransactionTrait, Uuid};
 use error::AppResult;
 use fs::prelude::*;
 
@@ -41,10 +41,20 @@ pub(crate) async fn replace_content(
 
     let fs = Fs::new(&context.config);
 
-    let (file, abandoned_pending) = Repository::new(&context.db)
+    // Allocating the pending version and rewriting the search index are one
+    // state change: a failure between them leaves the file pointing at a
+    // version whose index describes the previous content. The transaction
+    // went out incidentally when the force-recovery purge was added — the
+    // comment below still assumes it, since the purge is only safe once the
+    // DB has actually committed.
+    let connection = context.db.begin().await?;
+
+    let (file, abandoned_pending) = Repository::new(&connection)
         .manage(claims.sub)
         .replace_content(file_id, validated)
         .await?;
+
+    connection.commit().await?;
 
     // Force-recovery side effect — drop the orphaned pending dir from
     // disk now that the DB has committed the new pending version. Best
