@@ -282,6 +282,12 @@
 .milkdown-wrapper .milkdown .ProseMirror li[data-item-type="task"] > .task-checkbox {
   appearance: none;
   -webkit-appearance: none;
+  /* Every length below is in `em`, and an input carries the UA's own font
+     rather than the document's — 13.333px against the text's 16px in WebKit.
+     Without this the box renders a sixth too small and sits 2.3px above the
+     text it belongs to, but only in the standalone build: the web app's form
+     reset already inherits the font, which is why this looked fine there. */
+  font: inherit;
   width: 1em;
   height: 1em;
   /* Centers the 1em box against the first 1.75-line-height text line. */
