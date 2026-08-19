@@ -33,6 +33,15 @@ export function forgetUpload(fileId: string): void {
 }
 
 /**
+ * Abandon every manifest. Call on logout: the URLs outlive the session that
+ * obtained them, and an upload interrupted by a sign-out has no business
+ * resuming into the next account's session.
+ */
+export function forgetAllUploads(): void {
+  pending.clear()
+}
+
+/**
  * The shape of the content this upload is writing.
  *
  * A file's `size` and `chunks` describe its *active* version. While an edit is

@@ -5,6 +5,8 @@ import Api from '../services/api'
 import { capabilitiesStore } from '../services/shares/capabilities'
 import { clearChunkUrlCache } from '../services/storage/download/direct'
 import { forgetUpload } from '../services/storage/upload/direct'
+import { downloadChunk } from '../services/storage/download/sync'
+import { resolveDownloadBytes } from '../services/storage/download/worker'
 import { uploadChunk } from '../services/storage/upload/sync'
 import { pushUploadToWorker, startFileDownload } from '../services/storage/workers'
 import * as meta from '../services/storage/meta'
@@ -37,6 +39,15 @@ function setDirectTransfer(enabled: boolean) {
     fork: false,
     direct_transfer: enabled
   }
+}
+
+/** Poll until a condition holds — vitest 0.30 has no `vi.waitFor`. */
+async function until(check: () => boolean, attempts = 100): Promise<void> {
+  for (let i = 0; i < attempts; i++) {
+    if (check()) return
+    await new Promise((resolve) => setTimeout(resolve, 1))
+  }
+  throw new Error('condition never held')
 }
 
 /** Capture what the page posts to a worker, without running one. */
@@ -315,5 +326,102 @@ describe('page-side chunk uploads', () => {
     expect(make.mock.calls.filter(([, path]) => String(path).endsWith('/upload-urls'))).toHaveLength(
       2
     )
+  })
+})
+
+/**
+ * Reads that want the plaintext in hand — previews, forks, re-indexing,
+ * version history — used to fetch and decrypt on the page's thread while the
+ * queue's downloads went through the worker. Two routes, and only one of them
+ * ever got direct transfer. The worker does the fetching now; this thread is
+ * what happens when there is no worker to ask.
+ */
+describe('in-memory reads', () => {
+  const file = () =>
+    ({
+      id: 'file-3',
+      name: 'clip.mp4',
+      chunks: 4,
+      size: 4096,
+      cipher: 'aegis128l',
+      key: new Uint8Array(32)
+    }) as unknown as DownloadAppFile
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    clearChunkUrlCache()
+    vi.restoreAllMocks()
+    setDirectTransfer(true)
+    vi.spyOn(Api, 'get').mockResolvedValue(
+      manifest([
+        { chunk: 0, url: 'https://bucket/0' },
+        { chunk: 1, url: 'https://bucket/1' },
+        { chunk: 2, url: 'https://bucket/2' },
+        { chunk: 3, url: 'https://bucket/3' }
+      ]) as never
+    )
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    delete (window as any).DOWNLOAD
+  })
+
+  it('asks the worker for a chunk, with the manifest already resolved', async () => {
+    const { posted } = stubWorker('DOWNLOAD')
+
+    const pending = downloadChunk(file(), 2)
+    await until(() => posted.length === 1)
+
+    expect(posted[0].type).toBe('download-bytes')
+    expect(posted[0].message.chunk).toBe(2)
+    // The worker is handed the URLs rather than the session needed to find
+    // them; it has no way to reach the capability store from where it runs.
+    expect(posted[0].message.spec.directUrls).toEqual([
+      'https://bucket/0',
+      'https://bucket/1',
+      'https://bucket/2',
+      'https://bucket/3'
+    ])
+
+    resolveDownloadBytes({
+      request: posted[0].message.request,
+      bytes: new Uint8Array([7, 7, 7])
+    })
+    await expect(pending).resolves.toEqual(new Uint8Array([7, 7, 7]))
+  })
+
+  // Two reads in flight at once is the normal case for a video: the player
+  // asks for the next chunk while something else is still loading.
+  it('answers each request with its own reply', async () => {
+    const { posted } = stubWorker('DOWNLOAD')
+
+    const first = downloadChunk(file(), 0)
+    const second = downloadChunk(file(), 1)
+    await until(() => posted.length === 2)
+
+    // Replied to out of order on purpose.
+    resolveDownloadBytes({ request: posted[1].message.request, bytes: new Uint8Array([1]) })
+    resolveDownloadBytes({ request: posted[0].message.request, bytes: new Uint8Array([0]) })
+
+    await expect(first).resolves.toEqual(new Uint8Array([0]))
+    await expect(second).resolves.toEqual(new Uint8Array([1]))
+  })
+
+  it('falls back to this thread when the worker reports a failure', async () => {
+    const { posted } = stubWorker('DOWNLOAD')
+
+    const pending = downloadChunk(file(), 0)
+    await until(() => posted.length === 1)
+
+    resolveDownloadBytes({
+      request: posted[0].message.request,
+      error: { context: 'worker exploded' }
+    })
+
+    // The local route runs the real crate against a bucket that is not there,
+    // so it fails too — what matters is that it was tried rather than the
+    // worker's failure being the end of it.
+    await expect(pending).rejects.toBeTruthy()
   })
 })

@@ -11,6 +11,7 @@ import type {
 import { ref } from 'vue'
 import * as logger from '!/logger'
 import * as meta from './storage/meta'
+import { failPendingDownloads, resolveDownloadBytes } from './storage/download/worker'
 
 export const store = defineStore('queue', () => {
   const uploading = ref<IntervalType>()
@@ -73,11 +74,21 @@ export const store = defineStore('queue', () => {
           if (event.data.type === 'download-completed') {
             await handleDownloadCompletedMessage(download, event.data.response)
           }
+
+          // Replies to the calls previews, forks and re-indexing make. Not
+          // routed through the download store: these are reads with a return
+          // value, not queued transfers.
+          if (event.data.type === 'download-bytes') {
+            resolveDownloadBytes(event.data.response)
+          }
         }
 
         window.DOWNLOAD.onerror = (event) => {
           logger.error('[queue] DOWNLOAD worker error:', event)
           downloadWorkerListenerActive.value = false
+          // A promise waiting on a dead worker never settles otherwise, and
+          // the caller falls back to this thread on the next attempt.
+          failPendingDownloads('The download worker stopped')
         }
 
         setTimeout(() => {

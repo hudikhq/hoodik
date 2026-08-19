@@ -1,4 +1,5 @@
 import type { InnerValidationErrors } from '!/api'
+import type { DownloadSpec } from '!/storage/download/downloader'
 import type { AppFile, UploadAppFile } from './file'
 
 /**
@@ -41,6 +42,33 @@ export type DownloadFileMessage = {
    * through the server.
    */
   directUrls?: string[]
+}
+
+/**
+ * Ask the worker for decrypted bytes and get them back — the whole file, or a
+ * single chunk of it.
+ *
+ * Separate from [[DownloadFileMessage]] because that one is fire-and-forget
+ * and hands the browser a Blob at the end. These are ordinary calls with a
+ * return value: previews, forks, re-indexing and version history all want the
+ * plaintext in hand. `request` correlates the reply, so a video asking for its
+ * next chunk cannot be answered with a fork's.
+ */
+export type DownloadBytesMessage = {
+  request: string
+  spec: DownloadSpec
+
+  /** Set to fetch one chunk rather than the whole file. */
+  chunk?: number
+}
+
+/**
+ * Reply to a [[DownloadBytesMessage]]. Exactly one of `bytes` or `error`.
+ */
+export type DownloadBytesResponseMessage = {
+  request: string
+  bytes?: Uint8Array
+  error?: WorkerErrorType
 }
 
 /**

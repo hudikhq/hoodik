@@ -4,12 +4,15 @@ import {
   aes_encrypt,
   aes_decrypt
 } from './node_modules/transfer/transfer.js'
+import { buildDownloader } from '!/storage/download/downloader'
 // @ts-ignore — resolved by the wasm plugin; carries the module's linear memory.
 import { memory as wasmMemory } from './node_modules/transfer/transfer_bg.wasm'
 import * as logger from '!/logger'
 
 import type { ApiTransfer, ErrorResponse } from './services/api'
 import type {
+  DownloadBytesMessage,
+  DownloadBytesResponseMessage,
   DownloadCompletedResponseMessage,
   DownloadFileMessage,
   DownloadProgressResponseMessage,
@@ -74,6 +77,53 @@ onmessage = async (message: MessageEvent<any>) => {
 
   if (message.data?.type === 'download-file') {
     handleDownloadFile(message.data.apiTransfer, message.data.message)
+  }
+
+  if (message.data?.type === 'download-bytes') {
+    handleDownloadBytes(message.data.apiTransfer, message.data.message)
+  }
+}
+
+/**
+ * Answer a request for decrypted bytes — the whole file, or one chunk.
+ *
+ * The transfer never touches the page's thread, which is the point: a preview
+ * decrypting 200 MB used to do it between animation frames. Errors come back
+ * as a reply rather than an exception, because the caller is a promise on the
+ * other side of a message port.
+ */
+async function handleDownloadBytes(
+  apiTransfer: ApiTransfer,
+  { request, spec, chunk }: DownloadBytesMessage
+) {
+  let downloader: TransferDownloader | undefined
+  try {
+    downloader = buildDownloader(spec, apiTransfer)
+
+    const bytes =
+      chunk === undefined
+        ? await downloader.download(
+            () => {},
+            (fileId: string) => self.canceled?.download?.includes(fileId) ?? false
+          )
+        : await downloader.downloadChunk(chunk, undefined)
+
+    postMessage({
+      type: 'download-bytes',
+      response: { request, bytes } as DownloadBytesResponseMessage
+    })
+  } catch (err) {
+    logger.error(`[sw:bytes] "${spec.id}" failed:`, err)
+    postMessage({
+      type: 'download-bytes',
+      response: { request, error: handleError(err as Error) } as DownloadBytesResponseMessage
+    })
+  } finally {
+    try {
+      downloader?.free()
+    } catch {
+      /* ignore errors during cleanup */
+    }
   }
 }
 
@@ -222,20 +272,17 @@ async function handleDownloadFile(
 
     const cipher = transferableFile.cipher
 
-    downloader = new TransferDownloader(
-      transferableFile.id,
-      transferableFile.size || 0,
-      transferableFile.chunks || 0,
-      baseUrl,
-      jwtToken,
-      refreshToken,
-      transferableFile.key as Uint8Array
+    downloader = buildDownloader(
+      {
+        id: transferableFile.id,
+        size: transferableFile.size || 0,
+        chunks: transferableFile.chunks || 0,
+        cipher,
+        key: transferableFile.key as Uint8Array,
+        directUrls
+      },
+      { apiUrl: baseUrl, jwtToken, refreshToken }
     )
-    downloader.set_cipher(cipher)
-
-    if (directUrls?.length) {
-      downloader.set_direct_urls(directUrls)
-    }
 
     // Each chunk becomes its own small Blob the moment it arrives, moving
     // it into browser-managed blob storage (disk-backed for large files)
