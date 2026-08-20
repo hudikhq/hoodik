@@ -167,6 +167,19 @@ impl S3Provider {
         }
     }
 
+    /// Whether a URL handed to a client would actually work.
+    ///
+    /// The flag says the operator asked for direct transfer; the startup probe
+    /// says whether the bucket can serve it — reachable over a transport a
+    /// client accepts, with a CORS policy that lets the page read the answer.
+    /// Signing on the flag alone minted URLs for a bucket no client could use,
+    /// which the app then failed every chunk against with nothing to fall back
+    /// to. Both have to agree, and the routes 400 when they do not, exactly as
+    /// their documentation promises.
+    fn direct_enabled(&self) -> bool {
+        self.direct_transfer && config::direct::verdict().enabled
+    }
+
     pub fn bucket(&self) -> &s3::Bucket {
         &self.bucket
     }
@@ -703,7 +716,7 @@ impl FsProviderContract for S3Provider {
         version: i32,
         chunks: &[i64],
     ) -> AppResult<Option<Vec<String>>> {
-        if !self.direct_transfer {
+        if !self.direct_enabled() {
             return Ok(None);
         }
 
@@ -731,7 +744,7 @@ impl FsProviderContract for S3Provider {
         version: i32,
         chunks: &[(i64, u64)],
     ) -> AppResult<Option<Vec<String>>> {
-        if !self.direct_transfer {
+        if !self.direct_enabled() {
             return Ok(None);
         }
 
