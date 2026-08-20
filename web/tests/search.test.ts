@@ -112,6 +112,33 @@ describe('Search privacy', () => {
     }
   })
 
+  it('UNIT: search: a capitalized word is findable by a lowercase query', async () => {
+    // Every query is lowercased, and the tokenizer is cased, so tagging folds
+    // case — otherwise a note body saved as written never matches.
+    const rootKey = cryptfns.searchRootKey(keypair)
+
+    expect(cryptfns.searchTags(rootKey, 'Berlin Meetup')).toEqual(
+      cryptfns.searchTags(rootKey, 'berlin meetup')
+    )
+  })
+
+  it('UNIT: search: matches the pinned cross-client tag vector', () => {
+    // The same key and input pinned in the server's cryptfns suite and in the
+    // app's. Web tags through WASM and the app through FFI, both over the same
+    // crate — a drift in tokenization, case folding or the tag scheme splits
+    // an account's index between its clients. This fails first instead.
+    // Regenerate all three together on a deliberate change.
+    const keyHex = Array.from({ length: 32 }, (_, i) => i.toString(16).padStart(2, '0')).join('')
+
+    expect(cryptfns.searchTags(keyHex, 'Invoice Q1')).toEqual([
+      'ade2702652df2b527ea85d06ea18cc2a:1',
+      '81a20aa0d8d8b149b992f4d641fffcad:1',
+      'e9e098de1b057acdc1f7eafdd37a96a5:1',
+      'e48f3669b623c473d2ae2e75739fd62f:1',
+      '6520fd80f2b3010402038bcc9af77100:1'
+    ])
+  })
+
   it('UNIT: search: options are forwarded alongside the hashed tokens', async () => {
     await meta.search('budget', keypair, [], { dir_id: 'dir-1', editable: true, limit: 50 })
 

@@ -132,8 +132,13 @@ mod tokens {
 
     /// Tokenize `input` and tag every distinct token under `key`, preserving
     /// the per-token weight the ranking depends on.
+    ///
+    /// Case is folded here, in the one place both indexing and querying pass
+    /// through, so the two can never disagree. The tokenizer is cased, so
+    /// without this a note body indexed as written would never match a query
+    /// the search box had lowercased — capitalized words silently unfindable.
     pub fn tag_tokens(key: &[u8], input: &str) -> CryptoResult<Vec<Token>> {
-        let mut tokens = crate::tokenizer::into_tokens(input)?;
+        let mut tokens = crate::tokenizer::into_tokens(&input.to_lowercase())?;
 
         for token in tokens.iter_mut() {
             token.token = tag(key, &token.token)?;
@@ -230,6 +235,46 @@ mod test {
         // Right length, not hex.
         assert!(!is_legacy_name_hash(&"g".repeat(64)));
         assert!(!is_legacy_name_hash(""));
+    }
+
+    /// A query the search box lowercased has to match an index built from the
+    /// note as written. The fold lives in `tag_tokens`, so both sides agree.
+    #[cfg(feature = "tokenizer")]
+    #[test]
+    fn tag_tokens_folds_case() {
+        let key = root_key(&private_key()).unwrap();
+
+        let cased = crate::tokenizer::into_string(tag_tokens(&key, "Berlin Meetup").unwrap());
+        let lower = crate::tokenizer::into_string(tag_tokens(&key, "berlin meetup").unwrap());
+
+        assert_eq!(cased, lower);
+    }
+
+    /// A pinned vector: this exact key and input must produce this exact tag
+    /// string in every client. The app's and web's suites assert the same
+    /// value, so a divergence in tokenization, case-folding or the HMAC — a
+    /// WASM/FFI/server skew — fails a test rather than silently splitting an
+    /// account's index in two. If the tokenizer or tag scheme is ever changed
+    /// on purpose, regenerate this in all three suites together.
+    #[cfg(feature = "tokenizer")]
+    #[test]
+    fn golden_cross_client_tag_vector() {
+        let key: Vec<u8> = (0u8..32).collect();
+        let encoded = crate::tokenizer::into_string(tag_tokens(&key, "Invoice Q1").unwrap());
+
+        assert_eq!(
+            encoded,
+            "ade2702652df2b527ea85d06ea18cc2a:1;\
+             81a20aa0d8d8b149b992f4d641fffcad:1;\
+             e9e098de1b057acdc1f7eafdd37a96a5:1;\
+             e48f3669b623c473d2ae2e75739fd62f:1;\
+             6520fd80f2b3010402038bcc9af77100:1"
+        );
+    }
+
+    #[test]
+    fn malformed_pem_is_rejected() {
+        assert!(root_key("-----BEGIN NOTHING-----\n-----END NOTHING-----").is_err());
     }
 
     /// Every token the tokenizer produces must come back tagged, carrying the
