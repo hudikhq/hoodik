@@ -100,7 +100,7 @@ test.describe('Search re-index', () => {
 
     // The modal explains itself rather than leaving the user to wonder why
     // search went empty.
-    const modal = page.getByText(/Search has been hardened/i)
+    const modal = page.getByText(/Search index upgrade/i)
     await expect(modal).toBeVisible({ timeout: 20_000 })
     await expect(page.getByRole('progressbar')).toBeVisible()
 
@@ -148,7 +148,7 @@ test.describe('Search re-index', () => {
     await page.reload()
     await loginAsPersistedUser(page, user.email, user.password)
 
-    const modal = page.getByText(/Search has been hardened/i)
+    const modal = page.getByText(/Search index upgrade/i)
     await expect(modal).toBeVisible({ timeout: 20_000 })
 
     await page.getByRole('button', { name: /Cancel/i }).click()
