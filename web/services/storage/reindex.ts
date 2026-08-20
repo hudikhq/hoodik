@@ -119,9 +119,16 @@ export const store = defineStore('reindex', () => {
     done.value = 0
     failed.value = 0
 
+    // By id rather than by count: a file that fails comes back on the next
+    // page, and counting attempts would report two failures for one file
+    // failing twice — and, below, would not tell a fresh page from a stuck one.
+    const failedIds = new Set<string>()
+    const seenIds = new Set<string>()
+
     try {
       let pending = await fetchPending()
-      total.value = pending.length
+      pending.forEach((f) => seenIds.add(f.id))
+      total.value = seenIds.size
 
       while (pending.length > 0) {
         for (let i = 0; i < pending.length; i += BATCH_SIZE) {
@@ -133,10 +140,12 @@ export const store = defineStore('reindex', () => {
             batch.map(async (encrypted) => {
               try {
                 await reindexOne(keypair, encrypted)
+                failedIds.delete(encrypted.id)
               } catch {
-                failed.value += 1
+                failedIds.add(encrypted.id)
               } finally {
                 done.value += 1
+                failed.value = failedIds.size
               }
             })
           )
@@ -144,13 +153,17 @@ export const store = defineStore('reindex', () => {
 
         if (cancelled.value) return
 
-        // The server hands back at most one page at a time, so keep asking
-        // until it reports nothing left. Files that failed come back around;
-        // if only failures remain, stop rather than spin on them.
+        // The server pages at 500, so keep asking until nothing fresh comes
+        // back. Stopping when the next page is no smaller than this one broke
+        // after a single page on any account past that limit: page two is also
+        // full, so it read as "no progress" and the sweep quit with most of the
+        // account still unindexed. Stop instead only when every id left is one
+        // this run already tried and failed.
         const next = await fetchPending()
-        if (next.length >= pending.length) break
+        if (next.every((f) => failedIds.has(f.id))) break
 
-        total.value += next.length
+        next.forEach((f) => seenIds.add(f.id))
+        total.value = seenIds.size
         pending = next
       }
     } finally {
