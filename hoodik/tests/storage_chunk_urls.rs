@@ -30,7 +30,7 @@ async fn uploaded_file(
         encrypted_thumbnail: None,
         search_tokens_root: None,
         search_tokens_file: None,
-        name_hash: Some(checksum.clone()),
+        name_hash: Some(helpers::name_tag(&checksum)),
         mime: Some("text/plain".to_string()),
         size: Some(size),
         chunks: Some(data.len() as i64),
@@ -104,6 +104,41 @@ async fn download_urls_hides_another_users_file() {
         .jwt;
 
     let file = uploaded_file(&app, &owner).await;
+
+    let req = test::TestRequest::get()
+        .uri(&format!("/api/storage/{}/chunk-urls", file.id))
+        .cookie(stranger)
+        .to_request();
+    let response = test::call_service(&app, req).await;
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+/// Same answer when the owner has just been served: the metadata cache is
+/// keyed by caller, so one user's lookup must never satisfy another's. This
+/// is the sequence that used to hand a second user the owner's row —
+/// existence, size, content hashes and working URLs included.
+#[actix_web::test]
+async fn download_urls_hide_a_file_the_owner_just_fetched() {
+    let context = context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let owner = helpers::register_curve25519(&app, "cu-warm-owner@doe.com")
+        .await
+        .jwt;
+    let stranger = helpers::register_curve25519(&app, "cu-warm-stranger@doe.com")
+        .await
+        .jwt;
+
+    let file = uploaded_file(&app, &owner).await;
+
+    // Warm the cache as the owner. Local storage then refuses for lack of
+    // URLs, which is fine — the lookup has already run and been memoized.
+    let req = test::TestRequest::get()
+        .uri(&format!("/api/storage/{}/chunk-urls", file.id))
+        .cookie(owner)
+        .to_request();
+    test::call_service(&app, req).await;
 
     let req = test::TestRequest::get()
         .uri(&format!("/api/storage/{}/chunk-urls", file.id))

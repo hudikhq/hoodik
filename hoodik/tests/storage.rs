@@ -41,7 +41,7 @@ async fn test_creating_file_and_uploading_chunks() {
         encrypted_thumbnail: None,
         search_tokens_root: None,
         search_tokens_file: None,
-        name_hash: Some(checksum.clone()),
+        name_hash: Some(helpers::name_tag(&checksum)),
         mime: Some("text/plain".to_string()),
         size: Some(size),
         chunks: Some(data.len() as i64),
@@ -170,7 +170,7 @@ async fn test_transfer_token_upload_and_download() {
         encrypted_thumbnail: None,
         search_tokens_root: None,
         search_tokens_file: None,
-        name_hash: Some(checksum.clone()),
+        name_hash: Some(helpers::name_tag(&checksum)),
         mime: Some("application/octet-stream".to_string()),
         size: Some(size),
         chunks: Some(data.len() as i64),
@@ -364,7 +364,7 @@ async fn test_download_tar_archive() {
         encrypted_thumbnail: None,
         search_tokens_root: None,
         search_tokens_file: None,
-        name_hash: Some(checksum.clone()),
+        name_hash: Some(helpers::name_tag(&checksum)),
         mime: Some("application/octet-stream".to_string()),
         size: Some(size),
         chunks: Some(chunk_count as i64),
@@ -521,7 +521,7 @@ async fn test_replace_content_atomic_edit() {
         encrypted_thumbnail: None,
         search_tokens_root: None,
         search_tokens_file: None,
-        name_hash: Some(v1_checksum.clone()),
+        name_hash: Some(helpers::name_tag(&v1_checksum)),
         mime: Some("text/markdown".to_string()),
         size: Some(v1_size),
         chunks: Some(1),
@@ -648,7 +648,7 @@ async fn test_replace_content_concurrent_returns_409() {
         encrypted_thumbnail: None,
         search_tokens_root: None,
         search_tokens_file: None,
-        name_hash: Some(cryptfns::sha256::digest(data.as_slice())),
+        name_hash: Some(helpers::name_tag(&cryptfns::sha256::digest(data.as_slice()))),
         mime: Some("text/markdown".to_string()),
         size: Some(data.len() as i64),
         chunks: Some(1),
@@ -1147,7 +1147,7 @@ async fn test_versioned_download_missing_chunk_returns_404() {
         encrypted_thumbnail: None,
         search_tokens_root: None,
         search_tokens_file: None,
-        name_hash: Some(cryptfns::sha256::digest(b"versioned-gap")),
+        name_hash: Some(helpers::name_tag("versioned-gap")),
         mime: Some("text/markdown".to_string()),
         size: Some(3),
         chunks: Some(1),
@@ -1275,7 +1275,7 @@ async fn create_three_chunk_file(
         encrypted_thumbnail: None,
         search_tokens_root: None,
         search_tokens_file: None,
-        name_hash: Some(cryptfns::sha256::digest(name.as_bytes())),
+        name_hash: Some(helpers::name_tag(name)),
         mime: Some("application/octet-stream".to_string()),
         size: Some(30),
         chunks: Some(3),
@@ -1361,4 +1361,97 @@ async fn test_by_hash_route_reaches_its_own_handler() {
     assert!(body.is_array(), "expected a list of files, got {body}");
 
     let _ = context;
+}
+
+/// The download route's file lookup is memoized. The cache entry the owner
+/// warms must never be served to anyone else — this exact sequence used to
+/// stream the owner's ciphertext to a second logged-in user.
+#[actix_web::test]
+async fn test_download_refuses_a_stranger_after_the_owner_warmed_the_cache() {
+    // Its own data directory: this test cleans up after itself, and the
+    // suite's tests run concurrently, so sharing one would delete another
+    // test's chunks out from under it mid-upload.
+    let context =
+        context::Context::mock_with_data_dir(Some("../data-test-cache-idor".to_string())).await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let owner = helpers::register_curve25519(&app, "cache-owner@doe.com")
+        .await
+        .jwt;
+    let stranger = helpers::register_curve25519(&app, "cache-stranger@doe.com")
+        .await
+        .jwt;
+
+    let (data, size, _) = create_byte_chunks();
+    let checksum = calculate_checksum(data.clone());
+
+    let create = storage::data::create_file::CreateFile {
+        encrypted_key: Some("encrypted-gibberish".to_string()),
+        encrypted_name: Some("name".to_string()),
+        encrypted_thumbnail: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
+        name_hash: Some(helpers::name_tag(&checksum)),
+        mime: Some("text/plain".to_string()),
+        size: Some(size),
+        chunks: Some(data.len() as i64),
+        file_id: None,
+        file_modified_at: None,
+        md5: Some("asd".to_string()),
+        sha1: Some("asd".to_string()),
+        sha256: Some("asd".to_string()),
+        blake2b: Some("asd".to_string()),
+        cipher: None,
+        editable: None,
+    };
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(owner.clone())
+        .set_json(&create)
+        .to_request();
+    let body = test::call_and_read_body(&app, req).await;
+    let mut file: AppFile = serde_json::from_slice(&body).unwrap();
+
+    for (i, chunk) in data.into_iter().enumerate() {
+        let checksum = cryptfns::sha256::digest(chunk.as_slice());
+        let req = test::TestRequest::post()
+            .uri(&format!(
+                "/api/storage/{}?checksum={}&chunk={}",
+                &file.id, checksum, i
+            ))
+            .cookie(owner.clone())
+            .append_header(("Content-Type", "application/octet-stream"))
+            .set_payload(chunk)
+            .to_request();
+        let body = test::call_and_read_body(&app, req).await;
+        file = serde_json::from_slice(&body).unwrap();
+    }
+
+    // The owner's own download works and warms the lookup cache.
+    let req = test::TestRequest::get()
+        .uri(&format!("/api/storage/{}", &file.id))
+        .cookie(owner.clone())
+        .to_request();
+    let response = test::call_service(&app, req).await;
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // A user with no grant on the file gets the same 404 they would have
+    // gotten with a cold cache, from both the GET and its HEAD twin.
+    let req = test::TestRequest::get()
+        .uri(&format!("/api/storage/{}", &file.id))
+        .cookie(stranger.clone())
+        .to_request();
+    let response = test::call_service(&app, req).await;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+    let req = test::TestRequest::default()
+        .method(actix_web::http::Method::HEAD)
+        .uri(&format!("/api/storage/{}", &file.id))
+        .cookie(stranger)
+        .to_request();
+    let response = test::call_service(&app, req).await;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+    context.config.app.cleanup();
 }

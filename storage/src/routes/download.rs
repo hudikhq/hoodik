@@ -8,7 +8,7 @@ use entity::Uuid;
 use error::{AppResult, Error};
 use fs::prelude::*;
 
-use crate::repository::cached::get_file;
+use crate::{permission::require_read, repository::cached::get_file};
 
 /// Get file content by its id
 ///
@@ -29,6 +29,11 @@ pub(crate) async fn download(
     claims.validate_transfer_path(file_id, "download")?;
     let chunk = util::actix::query_var::<i64>(&req, "chunk").ok();
     let format = util::actix::query_var::<String>(&req, "format").ok();
+
+    // Authorize against the database, not the metadata cache. The cache is
+    // keyed per caller so it already refuses another user's file, but an
+    // explicit read gate keeps authorization from ever riding on that keying.
+    require_read(&context.db, file_id, claims.sub()).await?;
 
     let file = get_file(&context, claims.sub(), file_id)
         .await
@@ -103,6 +108,8 @@ pub(crate) async fn head(
     claims.validate_transfer_path(file_id, "download")?;
     let chunk = util::actix::query_var::<i64>(&req, "chunk").ok();
     let format = util::actix::query_var::<String>(&req, "format").ok();
+
+    require_read(&context.db, file_id, claims.sub()).await?;
 
     let file = get_file(&context, claims.sub(), file_id)
         .await

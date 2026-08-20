@@ -3,6 +3,7 @@
 sqlite.db
 /data/*
 /data-test/*
+/data-test-*/
 /data-e2e/*
 /data-minio/
 /data-visual*/

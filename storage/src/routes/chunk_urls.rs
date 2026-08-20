@@ -22,7 +22,7 @@ use fs::prelude::*;
 
 use crate::{
     data::chunk_urls::{ChunkUrls, UploadUrlsRequest},
-    permission::require_write,
+    permission::{require_read, require_write},
     repository::{cached::get_file, Repository},
 };
 
@@ -56,6 +56,11 @@ pub(crate) async fn download_urls(
     let file_id: String = util::actix::path_var(&req, "file_id")?;
     let file_id = Uuid::from_str(&file_id)?;
     claims.validate_transfer_path(file_id, "download")?;
+
+    // Authorize against the database rather than leaning on the cache: this
+    // route hands out working presigned URLs, so its read gate has to be as
+    // explicit as the one on `version_urls`.
+    require_read(&context.db, file_id, claims.sub()).await?;
 
     let file = get_file(&context, claims.sub(), file_id)
         .await
