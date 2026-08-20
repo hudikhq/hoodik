@@ -367,12 +367,22 @@ where
     /// caller is a non-owner. For owner callers there's no extra guard
     /// — owners can rename anything they own.
     pub(crate) async fn rename(&self, id: Uuid, data: Rename) -> AppResult<AppFile> {
-        let (active_model, search_tags, name_hash) = data.into_active_model(id)?;
-
         let file = self.repository.by_id(id, self.owner_id).await?;
+        let (mut active_model, mut search_tags, name_hash) = data.into_active_model(id)?;
 
-        if self.by_name(&name_hash, file.file_id).await.is_ok() {
-            return Err(Error::BadRequest("file_already_exists".to_string()));
+        if file.is_owner {
+            if self.by_name(&name_hash, file.file_id).await.is_ok() {
+                return Err(Error::BadRequest("file_already_exists".to_string()));
+            }
+        } else {
+            // An editor holds the file key but not the owner's root key. The
+            // name_hash and root-scope tags are keyed under that root key, so a
+            // value produced here would be one the owner can never match —
+            // leaving the owner's index looking corrupt. Keep both as the owner
+            // last wrote them; only the file-scope tags, keyed under the file
+            // key the editor does hold, refresh.
+            active_model.name_hash = ActiveValue::NotSet;
+            search_tags.root = None;
         }
 
         active_model.update(self.repository.connection()).await?;
@@ -575,7 +585,7 @@ where
     pub(crate) async fn replace_content(
         &self,
         id: Uuid,
-        data: ValidatedReplaceContent,
+        mut data: ValidatedReplaceContent,
     ) -> AppResult<(AppFile, Option<i32>)> {
         // Caller may be the file's owner or an Editor / Co-owner on a
         // share — the route layer gates with `permission::require_write`
@@ -584,6 +594,13 @@ where
         // the saver-attribution machinery in `finish` writes the
         // caller's id into `file_versions.user_id`.
         let file = self.repository.by_id(id, self.owner_id).await?;
+
+        if !file.is_owner {
+            // Root-scope tags are keyed under the owner's key, which an editor
+            // does not hold; theirs would overwrite the owner's index with
+            // unmatchable tags. Drop them and keep only the file-scope tags.
+            data.search_tags.root = None;
+        }
 
         if file.is_dir() {
             return Err(Error::BadRequest("cannot_replace_directory".to_string()));

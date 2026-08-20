@@ -497,3 +497,126 @@ async fn test_incoming_keys_include_files_inside_a_shared_folder() {
 
     let _ = context;
 }
+
+/// An editor holds the file key, not the owner's root key, so anything they
+/// tag under a root scope is unmatchable by the owner. The server ignores the
+/// root scope and `name_hash` on a non-owner write rather than trusting the
+/// client to leave them out — otherwise one rename from a shared device makes
+/// the owner's own file unfindable, permanently and silently.
+#[actix_web::test]
+async fn test_editor_rename_leaves_the_owners_index_alone() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+
+    let file = create_searchable_file!(app, alice, "octopus-note");
+
+    // A non-owner may only rename an editable file, so the note has to be one
+    // for the rename to reach the code under test at all.
+    let req = test::TestRequest::put()
+        .uri(&format!("/api/storage/{}/editable", file.id))
+        .cookie(alice.jwt.clone())
+        .set_json(&serde_json::json!({ "editable": true }))
+        .to_request();
+    assert!(test::call_service(&app, req).await.status().is_success());
+
+    grant!(app, alice, bob, ShareRoleEnum::Editor, file.id);
+
+    // Bob renames, sending both scopes tagged under his own keys — what an
+    // un-guarded client does.
+    let bob_root = [77u8; 32];
+    let req = test::TestRequest::put()
+        .uri(&format!("/api/storage/{}", file.id))
+        .cookie(bob.jwt.clone())
+        .set_json(serde_json::json!({
+            "name_hash": cryptfns::search::tag(&bob_root, "renamed-by-bob").unwrap(),
+            "encrypted_name": "renamed-ciphertext",
+            "search_tokens_root": index_tags(&bob_root),
+            "search_tokens_file": index_tags(&file_key()),
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK, "an editor may rename a shared file");
+
+    // Alice's root-scope index is untouched: she still finds her file by the
+    // word it was indexed under, through her own key.
+    let req = test::TestRequest::post()
+        .uri("/api/storage/search")
+        .cookie(alice.jwt.clone())
+        .set_json(serde_json::json!({ "root_tags": query_tags(&root_key()) }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let hits: Vec<AppFile> =
+        serde_json::from_slice(&test::read_body(resp).await).expect("search json");
+    assert!(
+        hits.iter().any(|f| f.id == file.id),
+        "the owner must still find her own file after an editor renamed it"
+    );
+
+    // And her name_hash is still the one she wrote, not Bob's.
+    let req = test::TestRequest::get()
+        .uri(&format!("/api/storage/{}/metadata", file.id))
+        .cookie(alice.jwt.clone())
+        .to_request();
+    let after: AppFile =
+        serde_json::from_slice(&test::call_and_read_body(&app, req).await).expect("metadata json");
+    assert_eq!(
+        after.name_hash, "octopus-note",
+        "name_hash is keyed under the owner's key; an editor must not rewrite it"
+    );
+
+    let _ = context;
+}
+
+/// A client from before keyed search sends `sha256(name)` as `name_hash`. That
+/// is the reversible digest the re-key migration purged, so a write carrying
+/// one is refused rather than stored — otherwise old clients quietly put the
+/// leak back, one file at a time.
+#[actix_web::test]
+async fn test_legacy_name_hash_is_refused_on_create_and_rename() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+
+    let legacy = cryptfns::sha256::digest("Passwords.md".as_bytes());
+    assert_eq!(legacy.len(), 64, "the shape being refused is a 64-hex digest");
+
+    let mut payload = make_create_file(&alice.public_pem, "placeholder");
+    payload.name_hash = Some(legacy.clone());
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(alice.jwt.clone())
+        .set_json(&payload)
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::UPGRADE_REQUIRED,
+        "create must refuse a bare sha256 name_hash"
+    );
+
+    // A keyed tag through the same route is accepted, so the refusal is about
+    // the digest and not about the route.
+    let file = create_searchable_file!(app, alice, "octopus-note");
+
+    let req = test::TestRequest::put()
+        .uri(&format!("/api/storage/{}", file.id))
+        .cookie(alice.jwt.clone())
+        .set_json(serde_json::json!({
+            "name_hash": legacy,
+            "encrypted_name": "ciphertext",
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::UPGRADE_REQUIRED,
+        "rename must refuse it too, or the leak comes back through a rename"
+    );
+
+    let _ = context;
+}
