@@ -1227,3 +1227,77 @@ async fn test_retry_after_failure_between_staging_and_complete() {
         .unwrap();
     assert_ne!(file_row.encrypted_key, "old-rsa-wrapped-key", "key re-wrapped on retry");
 }
+
+/// The account-wide search key is derived from the private key, so a migration
+/// replaces it — and every root-scope tag written under the old one becomes
+/// unmatchable. Left in the table those tags would also keep the account off
+/// the re-index sweep, which lists a file as pending exactly while it has none:
+/// search would return nothing, for ever, with nothing offering to fix it.
+#[actix_web::test]
+async fn test_migration_clears_the_root_search_index_it_invalidates() {
+    use entity::file_tokens;
+
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let user = register_legacy(&app, &context.db).await;
+    let file_id = create_file(&app, &user.jwt).await;
+
+    // Tags in both scopes, the way an upload writes them.
+    for (scope, tag) in [
+        (file_tokens::Scope::Root, "a3f1"),
+        (file_tokens::Scope::File, "9c22"),
+    ] {
+        file_tokens::Entity::insert(file_tokens::ActiveModel {
+            id: entity::ActiveValue::Set(entity::Uuid::new_v4()),
+            file_id: entity::ActiveValue::Set(file_id),
+            scope: entity::ActiveValue::Set(i32::from(scope)),
+            tag: entity::ActiveValue::Set(tag.to_string()),
+            weight: entity::ActiveValue::Set(1),
+        })
+        .exec_without_returning(&context.db)
+        .await
+        .expect("seed a search tag");
+    }
+
+    let (resp, _x_private, _file_key, _links) = migrate(&app, &user).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let remaining: Vec<file_tokens::Model> = file_tokens::Entity::find()
+        .filter(file_tokens::Column::FileId.eq(file_id))
+        .all(&context.db)
+        .await
+        .unwrap();
+
+    assert!(
+        remaining
+            .iter()
+            .all(|row| row.scope != i32::from(file_tokens::Scope::Root)),
+        "root-scope tags are keyed on the replaced key and must not survive"
+    );
+
+    // The file scope is keyed on the file's own key, which the re-wrap carried
+    // across, so those tags are still good and a recipient's search still works.
+    assert!(
+        remaining
+            .iter()
+            .any(|row| row.scope == i32::from(file_tokens::Scope::File)),
+        "file-scope tags survive the migration"
+    );
+
+    // And with no root tags the file is pending again, so the sweep offers to
+    // rebuild it rather than the account silently losing its search.
+    let req = test::TestRequest::get()
+        .uri("/api/storage/reindex")
+        .cookie(user.jwt.clone())
+        .to_request();
+    let pending: Value = test::read_body_json(test::call_service(&app, req).await).await;
+    assert!(
+        pending
+            .as_array()
+            .expect("pending list")
+            .iter()
+            .any(|f| f["id"].as_str() == Some(&file_id.to_string())),
+        "the migrated account's files come back as pending re-index"
+    );
+}
