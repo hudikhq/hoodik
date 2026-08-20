@@ -186,6 +186,32 @@ pub(crate) async fn finalize(
         return Err(Error::as_validation("chunks", "chunks_missing"));
     }
 
+    // Quota was charged against the size the client declared at create or
+    // replace time, and on the direct path nothing of ours sits in front of the
+    // bucket write — so without this a client declares a kilobyte, writes
+    // gigabytes, and is billed for the kilobyte. Ask the store what actually
+    // landed and refuse to commit a version that overruns what was charged.
+    //
+    // The tolerance is the same one the relaying route allows a chunk: the
+    // declared size counts plaintext, while what lands is ciphertext inside a
+    // tar frame, and neither overhead is knowable here. So this bounds the
+    // overrun at that per-chunk allowance rather than reconciling to the byte —
+    // an honest upload is never rejected, and a dishonest one can no longer
+    // exceed its own declared chunk count times a single chunk's slack.
+    let declared = file.target_size().unwrap_or(0).max(0) as u64;
+    let measured = if versioned {
+        storage
+            .tar_content_length_v(&file, file.target_version())
+            .await?
+    } else {
+        storage.tar_content_length(&file).await?
+    };
+    let slack = (fs::MAX_CHUNK_PAYLOAD_BYTES - fs::MAX_CHUNK_SIZE_BYTES)
+        .saturating_mul(target_chunks.max(0) as u64);
+    if measured > declared.saturating_add(slack) {
+        return Err(Error::as_validation("size", "stored_bytes_exceed_declared"));
+    }
+
     file.chunks_stored = Some(stored.len() as i64);
     file.uploaded_chunks = Some(stored);
 

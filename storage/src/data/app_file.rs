@@ -131,6 +131,14 @@ impl AppFile {
         self.pending_chunks.or(self.chunks)
     }
 
+    /// The declared byte size the upload in flight is charged against: the
+    /// pending edit's during a `replaceContent`, otherwise the file's own from
+    /// its initial create. The finalize byte-reconcile checks the stored
+    /// footprint against this.
+    pub fn target_size(&self) -> Option<i64> {
+        self.pending_size.or(self.size)
+    }
+
     /// Whether this file goes through the versioned-chunks layout
     /// (`{uuid}/v{N}/…`) or the legacy flat layout (`{timestamp}-{uuid}.part.N`).
     ///
