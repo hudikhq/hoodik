@@ -77,6 +77,24 @@ export function clearChunkUrlCache(): void {
 }
 
 /**
+ * Forget one file's manifest, across its active version and every historical
+ * one.
+ *
+ * A manifest describes the chunks of the version that was active when it was
+ * signed, and the entries live for as long as the URLs do — days. So after the
+ * content is replaced or a version is restored, a cached manifest points at the
+ * previous version's chunks: the download either returns the old bytes or, if
+ * the pointer moved mid-fetch, a mix of two versions that fails to decrypt.
+ */
+export function evictChunkUrls(fileId: string): void {
+  for (const key of [...cache.keys()]) {
+    if (key === `file:${fileId}` || key.startsWith(`version:${fileId}:`)) {
+      cache.delete(key)
+    }
+  }
+}
+
+/**
  * Presigned URLs for every chunk, ordered by chunk index, or `undefined` when
  * this deployment cannot serve them.
  *

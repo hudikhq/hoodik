@@ -3,7 +3,12 @@ import { setActivePinia, createPinia } from 'pinia'
 
 import Api from '../services/api'
 import { capabilitiesStore } from '../services/shares/capabilities'
-import { fileChunkUrls, clearChunkUrlCache } from '../services/storage/download/direct'
+import {
+  fileChunkUrls,
+  versionChunkUrls,
+  clearChunkUrlCache,
+  evictChunkUrls
+} from '../services/storage/download/direct'
 
 function manifest(urls: { chunk: number; url: string }[], expiresInSeconds = 3600) {
   return {
@@ -106,5 +111,49 @@ describe('direct chunk-url manifests', () => {
     vi.spyOn(Api, 'get').mockResolvedValue(manifest([]) as never)
 
     expect(await fileChunkUrls('file-empty')).toBeUndefined()
+  })
+
+  // A manifest describes the version that was active when it was signed, and
+  // the URLs stay valid for days. Held across a content replace, the next
+  // download serves the old version's chunks — or a mix of two, which fails to
+  // decrypt rather than merely being stale.
+  it('forgets a file manifest when its content changes', async () => {
+    setDirectTransfer(true)
+    const get = vi
+      .spyOn(Api, 'get')
+      .mockResolvedValue(manifest([{ chunk: 0, url: 'https://bucket/v1-0' }]) as never)
+
+    expect(await fileChunkUrls('file-9')).toEqual(['https://bucket/v1-0'])
+    expect(get).toHaveBeenCalledTimes(1)
+
+    // Cached: no second request.
+    await fileChunkUrls('file-9')
+    expect(get).toHaveBeenCalledTimes(1)
+
+    evictChunkUrls('file-9')
+
+    get.mockResolvedValue(manifest([{ chunk: 0, url: 'https://bucket/v2-0' }]) as never)
+    expect(await fileChunkUrls('file-9')).toEqual(['https://bucket/v2-0'])
+    expect(get).toHaveBeenCalledTimes(2)
+  })
+
+  it('forgets that file\'s historical versions too, and nothing else', async () => {
+    setDirectTransfer(true)
+    const get = vi
+      .spyOn(Api, 'get')
+      .mockResolvedValue(manifest([{ chunk: 0, url: 'https://bucket/a' }]) as never)
+
+    await versionChunkUrls('file-9', 3)
+    await fileChunkUrls('other-file')
+    expect(get).toHaveBeenCalledTimes(2)
+
+    evictChunkUrls('file-9')
+
+    // The other file keeps its manifest; only file-9's went.
+    await fileChunkUrls('other-file')
+    expect(get).toHaveBeenCalledTimes(2)
+
+    await versionChunkUrls('file-9', 3)
+    expect(get).toHaveBeenCalledTimes(3)
   })
 })

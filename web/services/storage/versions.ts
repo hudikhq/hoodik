@@ -8,6 +8,7 @@
  */
 
 import Api from '../api'
+import { evictChunkUrls } from './download/direct'
 import { versionChunkUrls } from './download/direct'
 import type { AppFile, FileVersion } from 'types'
 
@@ -104,6 +105,10 @@ export async function restore(fileId: string, version: number): Promise<AppFile>
   if (!response?.body?.id) {
     throw new Error(`Failed to restore v${version}`)
   }
+
+  // The active version just moved, so any manifest held for this file points
+  // at the version it moved away from.
+  evictChunkUrls(fileId)
 
   return response.body
 }

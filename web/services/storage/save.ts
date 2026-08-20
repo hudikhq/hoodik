@@ -2,6 +2,7 @@ import Api, { ErrorResponse } from '../api'
 import * as cryptfns from '../cryptfns'
 import { CHUNK_SIZE_BYTES } from '../constants'
 import { uploadChunk } from './upload/sync'
+import { evictChunkUrls } from './download/direct'
 import * as meta from './meta'
 import {
   uploadIntoSharedFolder,
@@ -58,6 +59,12 @@ export async function replaceContent(
   if (!response?.body?.id) {
     throw new Error('Failed to replace file content')
   }
+
+  // A cached manifest describes the version that was active when it was
+  // signed, and those URLs stay valid for days. Left in place, the next
+  // download of this file serves the previous version's chunks — or a mix of
+  // two versions, which fails to decrypt rather than merely being stale.
+  evictChunkUrls(fileId)
 
   return response.body
 }
