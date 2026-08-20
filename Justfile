@@ -91,6 +91,11 @@ test-rust-integration:
     cargo test --test storage_legacy_routing -- --nocapture
     cargo test --test storage_tar_upload -- --nocapture
     cargo test --test storage_instance_quota -- --nocapture
+    cargo test --test storage_chunk_urls -- --nocapture
+    cargo test --test auth_signature_replay -- --nocapture
+    cargo test --test admin_test_email_disable -- --nocapture
+    cargo test --test cors -- --nocapture
+    cargo test --test user_locale -- --nocapture
     cargo test --test thumbnails -- --nocapture
     cargo test --test compression -- --nocapture
     cargo test --test links -- --nocapture
