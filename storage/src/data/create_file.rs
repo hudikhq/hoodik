@@ -6,7 +6,7 @@
 //! the resume will have to continue with the returned key in that case.
 //!
 //! If not, the file will be corrupted and we have no way of knowing if that is the case.
-use ::error::AppResult;
+use ::error::{AppResult, Error};
 use chrono::Utc;
 use entity::{
     file_tokens::SearchTags, files::ActiveModel as ActiveModelFile, option_string_to_uuid,
@@ -145,6 +145,19 @@ pub type CreateFileData = (ActiveModelFile, String, SearchTags, i64, Option<Uuid
 impl CreateFile {
     pub fn into_active_model(self) -> AppResult<CreateFileData> {
         let data = self.validate()?;
+
+        // A client from before keyed search sends `sha256(name)` here. Storing
+        // it would re-introduce the exact reversible digest the keyed scheme
+        // removed, so refuse the write and tell the client to update rather
+        // than let the leak back in one file at a time.
+        if let Some(hash) = data.name_hash.as_deref() {
+            if cryptfns::search::is_legacy_name_hash(hash) {
+                return Err(Error::UpgradeRequired(
+                    "client_too_old_for_search".to_string(),
+                ));
+            }
+        }
+
         let now = Utc::now().naive_utc();
 
         let chunks_stored = if data.mime != Some("dir".to_string()) {

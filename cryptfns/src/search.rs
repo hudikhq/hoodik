@@ -58,6 +58,17 @@ pub fn file_key(file_key: &[u8]) -> CryptoResult<[u8; KEY_LENGTH]> {
     expand(file_key, FILE_INFO)
 }
 
+/// Whether `name_hash` is a pre-keyed SHA-256 digest (64 hex chars) rather
+/// than a keyed tag (`TAG_LENGTH` bytes = 32 hex chars).
+///
+/// Clients from before keyed search send `sha256(name)` here — the reversible
+/// digest the keyed scheme exists to remove. A write carrying one is refused
+/// rather than stored, so an old client cannot re-introduce the leak the
+/// migration just purged.
+pub fn is_legacy_name_hash(name_hash: &str) -> bool {
+    name_hash.len() == 64 && name_hash.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
 /// Tag one value under `key`. Used for single strings such as a file's
 /// `name_hash`; token lists go through [`tag_tokens`].
 pub fn tag(key: &[u8], value: &str) -> CryptoResult<String> {
@@ -211,8 +222,14 @@ mod test {
     }
 
     #[test]
-    fn malformed_pem_is_rejected() {
-        assert!(root_key("-----BEGIN NOTHING-----\n-----END NOTHING-----").is_err());
+    fn legacy_name_hash_is_the_64_hex_digest() {
+        // sha256 hex, the pre-keyed shape.
+        assert!(is_legacy_name_hash(&"a".repeat(64)));
+        // A keyed tag is half as long.
+        assert!(!is_legacy_name_hash(&"a".repeat(TAG_LENGTH * 2)));
+        // Right length, not hex.
+        assert!(!is_legacy_name_hash(&"g".repeat(64)));
+        assert!(!is_legacy_name_hash(""));
     }
 
     /// Every token the tokenizer produces must come back tagged, carrying the

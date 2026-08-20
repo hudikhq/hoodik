@@ -75,6 +75,19 @@ impl Repository<'_> {
         body: UploadMultikeyBody,
     ) -> AppResult<MultikeyUploadOutput> {
         let body = body.validate()?;
+
+        // Same refusal create and rename make: a client from before keyed
+        // search sends `sha256(name)` here, and storing it would put the
+        // reversible digest back. Reject rather than let it land in a shared
+        // folder.
+        if let Some(hash) = body.name_hash.as_deref() {
+            if cryptfns::search::is_legacy_name_hash(hash) {
+                return Err(Error::UpgradeRequired(
+                    "client_too_old_for_search".to_string(),
+                ));
+            }
+        }
+
         let new_file_id = Uuid::parse_str(&body.new_file_id.clone().unwrap())
             .map_err(|_| Error::BadRequest("new_file_id_invalid".to_string()))?;
         let parent_id = Uuid::parse_str(&body.parent_file_id.clone().unwrap())

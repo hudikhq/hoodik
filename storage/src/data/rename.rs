@@ -1,7 +1,7 @@
 //! Take the data to rename a file or a folder,
 //! the data needs to be encrypted with the file key before
 //! it is sent. And a new name_hash needs to be generated.
-use ::error::AppResult;
+use ::error::{AppResult, Error};
 use chrono::Utc;
 use entity::{
     file_tokens::SearchTags, files::ActiveModel as ActiveModelFile, ActiveValue, Uuid,
@@ -34,6 +34,17 @@ impl Validation for Rename {
 impl Rename {
     pub fn into_active_model(self, id: Uuid) -> AppResult<(ActiveModelFile, SearchTags, String)> {
         let data = self.validate()?;
+
+        // Refuse a pre-keyed `sha256(name)` the same way create does, so an old
+        // client can't put the reversible digest back through a rename.
+        if let Some(hash) = data.name_hash.as_deref() {
+            if cryptfns::search::is_legacy_name_hash(hash) {
+                return Err(Error::UpgradeRequired(
+                    "client_too_old_for_search".to_string(),
+                ));
+            }
+        }
+
         let now = Utc::now().naive_utc();
         let name_hash = data.name_hash.unwrap();
 

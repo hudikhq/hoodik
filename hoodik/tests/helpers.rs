@@ -318,7 +318,18 @@ pub(crate) fn create_byte_chunks() -> (Vec<Vec<u8>>, i64, String) {
     (byte_chunks, total_len, checksum)
 }
 
+/// A `name_hash` the shape a current client produces: a keyed tag, 32 hex
+/// characters wide.
+///
+/// The suites used to pass a file's own content digest here, which is a 64-hex
+/// SHA-256 — the pre-keyed shape the create and rename routes now refuse,
+/// because an old client sending one is the name leak coming back. Seeding
+/// from the same value keeps each fixture's hash as distinct as it was.
 #[allow(dead_code)]
+pub(crate) fn name_tag(seed: &str) -> String {
+    cryptfns::search::tag(&[7u8; 32], seed).expect("tag a fixture name")
+}
+
 pub(crate) fn calculate_checksum(data: Vec<Vec<u8>>) -> String {
     let mut body = vec![];
 
