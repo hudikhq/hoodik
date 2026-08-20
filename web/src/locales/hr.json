@@ -894,10 +894,10 @@
   "reindex": {
     "background": "Nastavi u pozadini",
     "cancel": "Odustani",
-    "explanation": "Poboljšali smo zaštitu tvog search indeksa pa se više ne može pročitati iz baze. Zato tvoje datoteke treba ponovno indeksirati na ovom uređaju. Bilješke se ovdje preuzimaju i dekriptiraju da bi se ponovno indeksirale, pa to može potrajati. Datoteke koje još nisu obrađene neće se pojaviti u pretrazi.",
+    "explanation": "Pojačali smo hashiranje naziva datoteka i bilješki za pretragu pa ih je puno teže probiti. Datoteke treba ponovno indeksirati na ovom uređaju da koriste novi format. Bilješke se pritom preuzimaju i dekriptiraju, pa to može potrajati. Datoteke koje još nisu obrađene neće se pojaviti u pretrazi.",
     "failed": "{count} datoteka nije uspjelo ponovno indeksirati, pokušat ćemo ponovno sljedeći put.",
     "progress": "{done} od {total} datoteka",
-    "title": "Pretraga je dodatno osigurana"
+    "title": "Nadogradnja search indeksa"
   },
   "shares": {
     "add": {

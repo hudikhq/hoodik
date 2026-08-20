@@ -894,10 +894,10 @@
   "reindex": {
     "background": "Continue in background",
     "cancel": "Cancel",
-    "explanation": "We improved how your search index is protected, so it can no longer be read from the database. Your files need to be re-indexed on this device to work with it. Notes are downloaded and decrypted here to be re-indexed, which is why this can take a moment. Files that haven't been processed yet won't turn up in search.",
+    "explanation": "We've strengthened how your file names and notes are hashed for search, making them far harder to crack. Your files need re-indexing on this device to use the new format. Notes are downloaded and decrypted here, which is why this can take a moment. Files that haven't been processed yet won't turn up in search.",
     "failed": "{count} files couldn't be re-indexed and will be retried next time.",
     "progress": "{done} of {total} files",
-    "title": "Search has been hardened"
+    "title": "Search index upgrade"
   },
   "shares": {
     "add": {

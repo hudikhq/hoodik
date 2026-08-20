@@ -894,10 +894,10 @@
   "reindex": {
     "background": "Im Hintergrund fortsetzen",
     "cancel": "Abbrechen",
-    "explanation": "Wir haben den Schutz deines Suchindex verbessert, sodass er nicht mehr aus der Datenbank gelesen werden kann. Deine Dateien müssen dafür auf diesem Gerät neu indexiert werden. Notizen werden hier heruntergeladen und entschlüsselt, um neu indexiert zu werden, deshalb kann das einen Moment dauern. Noch nicht verarbeitete Dateien erscheinen nicht in der Suche.",
+    "explanation": "Wir haben das Hashing deiner Dateinamen und Notizen für die Suche verstärkt, sodass es deutlich schwerer zu knacken ist. Deine Dateien müssen auf diesem Gerät neu indexiert werden, um das neue Format zu nutzen. Notizen werden dabei heruntergeladen und entschlüsselt, deshalb kann das einen Moment dauern. Noch nicht verarbeitete Dateien erscheinen nicht in der Suche.",
     "failed": "{count} Dateien konnten nicht neu indexiert werden und werden beim nächsten Mal erneut versucht.",
     "progress": "{done} von {total} Dateien",
-    "title": "Die Suche wurde abgesichert"
+    "title": "Verbesserung des Suchindex"
   },
   "shares": {
     "add": {
