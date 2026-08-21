@@ -11,7 +11,7 @@ use storage::data::app_file::AppFile;
 #[actix_web::test]
 async fn test_replace_content_rejects_non_editable_file() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-replace-noeditable".to_string()))
+        context::Context::mock_with_data_dir(Some("../data/test-replace-noeditable".to_string()))
             .await;
 
     let app = test::init_service(server::app(context.clone())).await;
@@ -64,7 +64,7 @@ async fn test_replace_content_rejects_non_editable_file() {
 #[actix_web::test]
 async fn test_replace_content_rejects_directory() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-replace-dir".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-replace-dir".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
 
@@ -117,7 +117,7 @@ async fn test_replace_content_rejects_directory() {
 #[actix_web::test]
 async fn test_replace_content_validates_size_and_chunks() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-replace-validate".to_string()))
+        context::Context::mock_with_data_dir(Some("../data/test-replace-validate".to_string()))
             .await;
 
     let app = test::init_service(server::app(context.clone())).await;

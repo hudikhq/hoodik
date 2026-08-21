@@ -13,7 +13,7 @@ use crate::helpers::{calculate_checksum, create_byte_chunks, CHUNK_SIZE_BYTES};
 
 #[actix_web::test]
 async fn test_creating_file_and_uploading_chunks() {
-    let context = context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
+    let context = context::Context::mock_with_data_dir(Some("../data/test".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
 
@@ -154,7 +154,7 @@ async fn test_creating_file_and_uploading_chunks() {
 #[actix_web::test]
 async fn test_transfer_token_upload_and_download() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-transfer".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-transfer".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
 
@@ -339,7 +339,7 @@ async fn test_transfer_token_upload_and_download() {
 #[actix_web::test]
 async fn test_download_tar_archive() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-tar".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-tar".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
 
@@ -504,7 +504,7 @@ async fn test_replace_content_atomic_edit() {
     use entity::{ColumnTrait, EntityTrait, QueryFilter};
 
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-versioning".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-versioning".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
 
@@ -635,7 +635,7 @@ async fn test_replace_content_atomic_edit() {
 #[actix_web::test]
 async fn test_replace_content_concurrent_returns_409() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-409".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-409".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
 
@@ -734,7 +734,7 @@ async fn test_versions_list_and_restore() {
     use entity::{ColumnTrait, EntityTrait, QueryFilter};
 
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-versions-restore".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-versions-restore".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
 
@@ -855,7 +855,7 @@ async fn test_versions_list_and_restore() {
 #[actix_web::test]
 async fn test_fork_creates_independent_copy() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-fork".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-fork".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
 
@@ -975,7 +975,7 @@ async fn test_fork_creates_independent_copy() {
 #[actix_web::test]
 async fn test_upload_rejects_out_of_range_chunk_index() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-chunk-range".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-chunk-range".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
     let jwt = helpers::register_curve25519(&app, "range@test.com").await.jwt;
@@ -1015,7 +1015,7 @@ async fn test_upload_rejects_out_of_range_chunk_index() {
 #[actix_web::test]
 async fn test_upload_one_based_indices_do_not_finish_file() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-chunk-hole".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-chunk-hole".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
     let jwt = helpers::register_curve25519(&app, "hole@test.com").await.jwt;
@@ -1065,7 +1065,7 @@ async fn test_upload_one_based_indices_do_not_finish_file() {
 #[actix_web::test]
 async fn test_download_missing_chunk_returns_404() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-missing-chunk".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-missing-chunk".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
     let jwt = helpers::register_curve25519(&app, "missing@test.com").await.jwt;
@@ -1132,7 +1132,7 @@ async fn test_download_missing_chunk_returns_404() {
 #[actix_web::test]
 async fn test_versioned_download_missing_chunk_returns_404() {
     let context = context::Context::mock_with_data_dir(Some(
-        "../data-test-missing-chunk-versioned".to_string(),
+        "../data/test-missing-chunk-versioned".to_string(),
     ))
     .await;
 
@@ -1372,7 +1372,7 @@ async fn test_download_refuses_a_stranger_after_the_owner_warmed_the_cache() {
     // suite's tests run concurrently, so sharing one would delete another
     // test's chunks out from under it mid-upload.
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-cache-idor".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-cache-idor".to_string())).await;
     let app = test::init_service(server::app(context.clone())).await;
 
     let owner = helpers::register_curve25519(&app, "cache-owner@doe.com")

@@ -15,7 +15,7 @@ use crate::helpers::{calculate_checksum, create_byte_chunks, CHUNK_SIZE_BYTES};
 #[actix_web::test]
 async fn test_json_compresses_and_ciphertext_stays_identity() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-compression".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-compression".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
 

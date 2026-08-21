@@ -1,12 +1,7 @@
 /target
 .env
 sqlite.db
-/data/*
-/data-test/*
-/data-test-*/
-/data-e2e/*
-/data-minio/
-/data-visual*/
+/data/
 node_modules
 .DS_Store
 .turbo
@@ -24,4 +19,3 @@ web/test-results/
 # nix build output symlinks
 result
 result-*
-/data-r2test/

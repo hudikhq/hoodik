@@ -170,7 +170,7 @@ async fn instance_quota_shapes_admin_available_space() {
 #[actix_web::test]
 async fn instance_quota_rejects_tar_pre_read() {
     let mut context = context::Context::mock_with_data_dir(Some(
-        "../data-test-instq-preread".to_string(),
+        "../data/test-instq-preread".to_string(),
     ))
     .await;
     context.config.app.storage_instance_quota_bytes = Some(2048);
@@ -207,7 +207,7 @@ async fn instance_quota_rejects_tar_pre_read() {
 #[actix_web::test]
 async fn instance_quota_rejects_tar_mid_stream() {
     let mut context = context::Context::mock_with_data_dir(Some(
-        "../data-test-instq-midstream".to_string(),
+        "../data/test-instq-midstream".to_string(),
     ))
     .await;
     context.config.app.storage_instance_quota_bytes = Some(3000);

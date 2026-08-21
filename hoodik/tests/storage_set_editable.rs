@@ -11,7 +11,7 @@ use crate::helpers::create_byte_chunks;
 #[actix_web::test]
 async fn test_set_editable_converts_file_to_note() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-set-editable-1".to_string()))
+        context::Context::mock_with_data_dir(Some("../data/test-set-editable-1".to_string()))
             .await;
 
     let app = test::init_service(server::app(context.clone())).await;
@@ -82,7 +82,7 @@ async fn test_set_editable_converts_file_to_note() {
 #[actix_web::test]
 async fn test_set_editable_can_revert_note_to_regular_file() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-set-editable-2".to_string()))
+        context::Context::mock_with_data_dir(Some("../data/test-set-editable-2".to_string()))
             .await;
 
     let app = test::init_service(server::app(context.clone())).await;
@@ -142,7 +142,7 @@ async fn test_set_editable_can_revert_note_to_regular_file() {
 #[actix_web::test]
 async fn test_set_editable_rejects_directory() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-set-editable-3".to_string()))
+        context::Context::mock_with_data_dir(Some("../data/test-set-editable-3".to_string()))
             .await;
 
     let app = test::init_service(server::app(context.clone())).await;
@@ -197,7 +197,7 @@ async fn test_set_editable_rejects_directory() {
 #[actix_web::test]
 async fn test_set_editable_requires_editable_field() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-set-editable-4".to_string()))
+        context::Context::mock_with_data_dir(Some("../data/test-set-editable-4".to_string()))
             .await;
 
     let app = test::init_service(server::app(context.clone())).await;

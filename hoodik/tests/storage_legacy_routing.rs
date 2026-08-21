@@ -43,7 +43,7 @@ fn has_versioned_chunks(data_dir: &str, file: &AppFile, version: i32) -> bool {
 #[actix_web::test]
 async fn test_non_editable_file_uses_legacy_layout_on_disk() {
     let context = context::Context::mock_with_data_dir(Some(
-        "../data-test-legacy-routing-noneditable".to_string(),
+        "../data/test-legacy-routing-noneditable".to_string(),
     ))
     .await;
     let app = test::init_service(server::app(context.clone())).await;
@@ -128,7 +128,7 @@ async fn test_non_editable_file_uses_legacy_layout_on_disk() {
 #[actix_web::test]
 async fn test_editable_note_uses_versioned_layout() {
     let context = context::Context::mock_with_data_dir(Some(
-        "../data-test-legacy-routing-editable".to_string(),
+        "../data/test-legacy-routing-editable".to_string(),
     ))
     .await;
     let app = test::init_service(server::app(context.clone())).await;
@@ -212,7 +212,7 @@ async fn test_editable_note_uses_versioned_layout() {
 #[actix_web::test]
 async fn test_set_editable_true_preserves_legacy_then_first_edit_snapshots_as_v1() {
     let context = context::Context::mock_with_data_dir(Some(
-        "../data-test-legacy-routing-flipthen-edit".to_string(),
+        "../data/test-legacy-routing-flipthen-edit".to_string(),
     ))
     .await;
     let app = test::init_service(server::app(context.clone())).await;
@@ -358,7 +358,7 @@ async fn test_set_editable_true_preserves_legacy_then_first_edit_snapshots_as_v1
 #[actix_web::test]
 async fn test_set_editable_false_rejects_with_history() {
     let context = context::Context::mock_with_data_dir(Some(
-        "../data-test-legacy-routing-reject-history".to_string(),
+        "../data/test-legacy-routing-reject-history".to_string(),
     ))
     .await;
     let app = test::init_service(server::app(context.clone())).await;
@@ -473,7 +473,7 @@ async fn test_set_editable_false_rejects_with_history() {
 #[actix_web::test]
 async fn test_set_editable_during_pending_edit_is_409() {
     let context = context::Context::mock_with_data_dir(Some(
-        "../data-test-legacy-routing-pending-409".to_string(),
+        "../data/test-legacy-routing-pending-409".to_string(),
     ))
     .await;
     let app = test::init_service(server::app(context.clone())).await;

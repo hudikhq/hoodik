@@ -75,7 +75,7 @@ async fn uploaded_file(
 /// stands in for.
 #[actix_web::test]
 async fn download_urls_rejects_an_anonymous_caller() {
-    let context = context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
+    let context = context::Context::mock_with_data_dir(Some("../data/test".to_string())).await;
     let app = test::init_service(server::app(context.clone())).await;
 
     let jwt = helpers::register_curve25519(&app, "cu-anon@doe.com").await.jwt;
@@ -93,7 +93,7 @@ async fn download_urls_rejects_an_anonymous_caller() {
 /// gives — a manifest must not become a way to probe for file ids.
 #[actix_web::test]
 async fn download_urls_hides_another_users_file() {
-    let context = context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
+    let context = context::Context::mock_with_data_dir(Some("../data/test".to_string())).await;
     let app = test::init_service(server::app(context.clone())).await;
 
     let owner = helpers::register_curve25519(&app, "cu-owner@doe.com")
@@ -120,7 +120,7 @@ async fn download_urls_hides_another_users_file() {
 /// existence, size, content hashes and working URLs included.
 #[actix_web::test]
 async fn download_urls_hide_a_file_the_owner_just_fetched() {
-    let context = context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
+    let context = context::Context::mock_with_data_dir(Some("../data/test".to_string())).await;
     let app = test::init_service(server::app(context.clone())).await;
 
     let owner = helpers::register_curve25519(&app, "cu-warm-owner@doe.com")
@@ -153,7 +153,7 @@ async fn download_urls_hide_a_file_the_owner_just_fetched() {
 /// returning an empty manifest that a client would read as "no chunks".
 #[actix_web::test]
 async fn download_urls_refuses_when_the_provider_has_no_urls() {
-    let context = context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
+    let context = context::Context::mock_with_data_dir(Some("../data/test".to_string())).await;
     let app = test::init_service(server::app(context.clone())).await;
 
     let jwt = helpers::register_curve25519(&app, "cu-local@doe.com").await.jwt;
@@ -178,7 +178,7 @@ async fn download_urls_refuses_when_the_provider_has_no_urls() {
 /// write permission check rather than instead of it.
 #[actix_web::test]
 async fn upload_urls_refuses_when_the_provider_has_no_urls() {
-    let context = context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
+    let context = context::Context::mock_with_data_dir(Some("../data/test".to_string())).await;
     let app = test::init_service(server::app(context.clone())).await;
 
     let jwt = helpers::register_curve25519(&app, "cu-up@doe.com").await.jwt;
@@ -199,7 +199,7 @@ async fn upload_urls_refuses_when_the_provider_has_no_urls() {
 /// to a key the file does not own.
 #[actix_web::test]
 async fn upload_urls_rejects_an_out_of_range_chunk() {
-    let context = context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
+    let context = context::Context::mock_with_data_dir(Some("../data/test".to_string())).await;
     let app = test::init_service(server::app(context.clone())).await;
 
     let jwt = helpers::register_curve25519(&app, "cu-range@doe.com").await.jwt;
@@ -222,7 +222,7 @@ async fn upload_urls_rejects_an_out_of_range_chunk() {
 /// URL is signed nothing of ours sits in front of the write.
 #[actix_web::test]
 async fn upload_urls_rejects_an_oversized_chunk() {
-    let context = context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
+    let context = context::Context::mock_with_data_dir(Some("../data/test".to_string())).await;
     let app = test::init_service(server::app(context.clone())).await;
 
     let jwt = helpers::register_curve25519(&app, "cu-big@doe.com").await.jwt;
@@ -244,7 +244,7 @@ async fn upload_urls_rejects_an_oversized_chunk() {
 /// hand out two writes to one key.
 #[actix_web::test]
 async fn upload_urls_rejects_a_duplicate_chunk_index() {
-    let context = context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
+    let context = context::Context::mock_with_data_dir(Some("../data/test".to_string())).await;
     let app = test::init_service(server::app(context.clone())).await;
 
     let jwt = helpers::register_curve25519(&app, "cu-dup@doe.com").await.jwt;
@@ -267,7 +267,7 @@ async fn upload_urls_rejects_a_duplicate_chunk_index() {
 /// must not have its version pointer moved.
 #[actix_web::test]
 async fn finalize_refuses_a_file_with_chunks_missing() {
-    let context = context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
+    let context = context::Context::mock_with_data_dir(Some("../data/test".to_string())).await;
     let app = test::init_service(server::app(context.clone())).await;
 
     let jwt = helpers::register_curve25519(&app, "cu-fin@doe.com").await.jwt;
@@ -314,7 +314,7 @@ async fn finalize_refuses_a_file_with_chunks_missing() {
 /// keeps every client on the relaying path.
 #[actix_web::test]
 async fn capabilities_report_direct_transfer_off_on_local_storage() {
-    let context = context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
+    let context = context::Context::mock_with_data_dir(Some("../data/test".to_string())).await;
     let app = test::init_service(server::app(context.clone())).await;
 
     let req = test::TestRequest::get().uri("/api/capabilities").to_request();

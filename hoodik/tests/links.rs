@@ -11,7 +11,7 @@ use crate::helpers::{create_byte_chunks, CHUNK_SIZE_BYTES};
 
 #[actix_web::test]
 async fn test_creating_and_downloading_link() {
-    let context = context::Context::mock_with_data_dir(Some("../data-test-links".to_string())).await;
+    let context = context::Context::mock_with_data_dir(Some("../data/test-links".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
 
@@ -170,7 +170,7 @@ async fn test_creating_and_downloading_link() {
 #[actix_web::test]
 async fn test_link_download_decrypts_aegis256_file() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-links-256".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-links-256".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
 
@@ -334,7 +334,7 @@ async fn test_link_download_decrypts_aegis256_file() {
 #[actix_web::test]
 async fn test_link_download_missing_chunk_returns_404() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-links-missing".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-links-missing".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
 

@@ -41,7 +41,7 @@ fn create_file_with_thumbnail(name_hash: &str) -> storage::data::create_file::Cr
 #[actix_web::test]
 async fn test_storage_compact_listing_and_thumbnail_route() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-thumbnails".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-thumbnails".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
 
@@ -157,7 +157,7 @@ async fn test_storage_compact_listing_and_thumbnail_route() {
 #[actix_web::test]
 async fn test_links_compact_listing_and_metadata_blob() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-thumbnails-links".to_string()))
+        context::Context::mock_with_data_dir(Some("../data/test-thumbnails-links".to_string()))
             .await;
 
     let app = test::init_service(server::app(context.clone())).await;
@@ -252,7 +252,7 @@ async fn test_links_compact_listing_and_metadata_blob() {
 #[actix_web::test]
 async fn test_search_compact_withholds_thumbnail_blob() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-thumbnails-search".to_string()))
+        context::Context::mock_with_data_dir(Some("../data/test-thumbnails-search".to_string()))
             .await;
 
     let app = test::init_service(server::app(context.clone())).await;

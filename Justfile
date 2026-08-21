@@ -197,7 +197,7 @@ e2e *args:
     #!/usr/bin/env bash
     set -eo pipefail
 
-    export DATA_DIR=$PWD/data-e2e
+    export DATA_DIR=$PWD/data/e2e
     export ENV_FILE=".env.e2e"
 
     # Force plain HTTP for the e2e server regardless of what .env.e2e says,
@@ -222,7 +222,7 @@ e2e *args:
     RUST_LOG=error $PWD/target/release/hoodik &
     SERVER_PID=$!
 
-    cleanup() { kill -9 $SERVER_PID 2>/dev/null; rm -rf $PWD/data-e2e; }
+    cleanup() { kill -9 $SERVER_PID 2>/dev/null; rm -rf $PWD/data/e2e; }
     trap cleanup EXIT
 
     node_modules/.bin/wait-on -t 600000 http://127.0.0.1:5443/api/liveness

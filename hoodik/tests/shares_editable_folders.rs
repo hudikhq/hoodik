@@ -204,7 +204,7 @@ async fn test_multikey_upload_then_chunk_upload_finalizes() {
     // this the UI shows "forever uploading" even though the bytes are
     // on disk.
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test".to_string())).await;
     let app = test::init_service(server::app(context.clone())).await;
 
     register_user!(app, context, alice, "alice@example.com");

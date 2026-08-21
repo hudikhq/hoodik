@@ -12,7 +12,7 @@ use serde_json::Value;
 #[actix_web::test]
 async fn readiness_ok_when_db_and_storage_up() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-readiness-ok".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-readiness-ok".to_string())).await;
     let app = test::init_service(server::app(context.clone())).await;
 
     let req = test::TestRequest::get().uri("/api/readiness").to_request();
@@ -26,7 +26,7 @@ async fn readiness_ok_when_db_and_storage_up() {
 
 #[actix_web::test]
 async fn readiness_503_when_storage_unreachable() {
-    let scratch = "../data-test-readiness-bad";
+    let scratch = "../data/test-readiness-bad";
     let mut context = context::Context::mock_with_data_dir(Some(scratch.to_string())).await;
     // Point storage at a path that does not exist so the storage probe fails
     // while the database stays reachable.
