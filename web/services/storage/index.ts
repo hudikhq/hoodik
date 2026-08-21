@@ -925,19 +925,26 @@ export const store = defineStore('files', () => {
  * `/api/shares/mine` reports roots only, which would leave everything inside a
  * shared folder unsearchable.
  *
- * Cached because it costs one asymmetric unwrap per shared file and the set
- * only changes when a share is granted or revoked. `clearIncomingSearchKeys`
- * drops it on logout, so the keys never outlive the session that unlocked
- * them.
+ * Cached because it costs one asymmetric unwrap per shared file, but only for
+ * a few minutes: the set changes when a share is granted or revoked, and the
+ * grant that matters most is someone else's — which this client only learns
+ * about by asking again. A short expiry makes a freshly shared file
+ * searchable within minutes instead of after the next login.
+ * `clearIncomingSearchKeys` drops the cache on logout, so the keys never
+ * outlive the session that unlocked them.
  */
-let incomingKeyCache: Uint8Array[] | null = null
+let incomingKeyCache: { keys: Uint8Array[]; fetchedAt: number } | null = null
+
+const INCOMING_KEYS_TTL_MS = 5 * 60 * 1000
 
 export function clearIncomingSearchKeys() {
   incomingKeyCache = null
 }
 
 async function incomingSearchKeys(kp: KeyPair): Promise<Uint8Array[]> {
-  if (incomingKeyCache) return incomingKeyCache
+  if (incomingKeyCache && Date.now() - incomingKeyCache.fetchedAt < INCOMING_KEYS_TTL_MS) {
+    return incomingKeyCache.keys
+  }
 
   const privateKey = kp.wrappingPrivate || kp.input
   if (!privateKey) return []
@@ -958,9 +965,12 @@ async function incomingSearchKeys(kp: KeyPair): Promise<Uint8Array[]> {
       })
     )
 
-    incomingKeyCache = keys.filter((key): key is Uint8Array => !!key)
+    incomingKeyCache = {
+      keys: keys.filter((key): key is Uint8Array => !!key),
+      fetchedAt: Date.now()
+    }
 
-    return incomingKeyCache
+    return incomingKeyCache.keys
   } catch {
     // Search over owned files is the common case and must not fail because
     // the shares list is unavailable.

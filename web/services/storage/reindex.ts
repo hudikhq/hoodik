@@ -29,9 +29,10 @@ export interface ReindexRequest {
  * each client walks its own files once.
  *
  * Progress needs no bookkeeping of its own: the server reports a file as
- * pending exactly while it has no root-scope tags, so writing them is what
- * marks it done. Closing the tab, cancelling, or losing the connection all
- * resume from the same place, which is simply "whatever is still pending".
+ * pending exactly while its `name_hash` is the blank the migration left, so
+ * the keyed hash every re-index writes is what marks it done. Closing the
+ * tab, cancelling, or losing the connection all resume from the same place,
+ * which is simply "whatever is still pending".
  */
 export const store = defineStore('reindex', () => {
   const total = ref(0)
@@ -119,10 +120,14 @@ export const store = defineStore('reindex', () => {
     done.value = 0
     failed.value = 0
 
-    // By id rather than by count: a file that fails comes back on the next
-    // page, and counting attempts would report two failures for one file
-    // failing twice — and, below, would not tell a fresh page from a stuck one.
+    // By id rather than by count, and at most one attempt per file per run.
+    // The server's answer to an attempt is authoritative either way: success
+    // takes the file off the pending list, and a failure leaves it there for
+    // the next run. Re-attempting inside this run would change nothing the
+    // second time — and if a server ever kept reporting a successfully
+    // re-indexed file as pending, retrying it would spin this loop forever.
     const failedIds = new Set<string>()
+    const attemptedIds = new Set<string>()
     const seenIds = new Set<string>()
 
     try {
@@ -140,10 +145,10 @@ export const store = defineStore('reindex', () => {
             batch.map(async (encrypted) => {
               try {
                 await reindexOne(keypair, encrypted)
-                failedIds.delete(encrypted.id)
               } catch {
                 failedIds.add(encrypted.id)
               } finally {
+                attemptedIds.add(encrypted.id)
                 done.value += 1
                 failed.value = failedIds.size
               }
@@ -156,11 +161,11 @@ export const store = defineStore('reindex', () => {
         // The server pages at 500, so keep asking until nothing fresh comes
         // back. Stopping when the next page is no smaller than this one broke
         // after a single page on any account past that limit: page two is also
-        // full, so it read as "no progress" and the sweep quit with most of the
-        // account still unindexed. Stop instead only when every id left is one
-        // this run already tried and failed.
-        const next = await fetchPending()
-        if (next.every((f) => failedIds.has(f.id))) break
+        // full, so it read as "no progress" and the sweep quit with most of
+        // the account still unindexed. Only what this run has not touched
+        // counts as fresh.
+        const next = (await fetchPending()).filter((f) => !attemptedIds.has(f.id))
+        if (!next.length) break
 
         next.forEach((f) => seenIds.add(f.id))
         total.value = seenIds.size
