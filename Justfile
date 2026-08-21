@@ -234,6 +234,12 @@ e2e *args:
     # name here must match the constants in web/e2e/migration.spec.ts.
     $PWD/target/release/seed_legacy "$DATA_DIR/sqlite.db" "legacy-migrate@e2e.test" "legacy-password-1234" "$PWD/web/e2e/fixtures/test-image.png"
 
+    # Two more for reindex.spec.ts, one per test: pending re-index state can
+    # only come from the migrations (the write routes refuse everything that
+    # would recreate it), so each test brings its own pre-migration account.
+    $PWD/target/release/seed_legacy "$DATA_DIR/sqlite.db" "legacy-reindex-a@e2e.test" "legacy-password-1234" "$PWD/web/e2e/fixtures/test-image.png"
+    $PWD/target/release/seed_legacy "$DATA_DIR/sqlite.db" "legacy-reindex-b@e2e.test" "legacy-password-1234" "$PWD/web/e2e/fixtures/test-image.png"
+
     export ENV_FILE="../.env.e2e"
     yarn workspace @hoodik/web test:e2e -- {{args}}
 
@@ -380,8 +386,10 @@ setup:
 
 # ── CI Helpers ────────────────────────────────────────────────────────────────
 
-# Full CI test pipeline (used by GitHub Actions)
-ci-test: clippy test-rust-unit test-rust-integration wasm test-web build-web e2e
+# Full CI test pipeline (used by GitHub Actions). `e2e-direct` needs Docker
+# for MinIO — without it the direct-transfer suite has no bucket to talk to
+# and every one of its specs self-skips, which is the same as not running it.
+ci-test: clippy test-rust-unit test-rust-integration wasm test-web build-web e2e e2e-direct
 
 # CI pipeline against Postgres instead of SQLite (clippy + unit + integration-pg).
 # Skips the WASM/web/e2e stack — those don't care which RDBMS the server uses.

@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 
-import { createPersistedUser, loginAsPersistedUser, createNoteFromBrowser } from './helpers/notes'
+import { loginAsUser } from './helpers/auth'
 import { closeOpenModal } from './helpers/shares'
 
 /**
@@ -12,12 +12,18 @@ import { closeOpenModal } from './helpers/shares'
  * not turn up in search at all, which is why this is a modal with an
  * explanation rather than silent background work.
  *
- * The old index is simulated by deleting the caller's tags through the same
- * route the app uses, so the sweep sees exactly what it would after a real
- * migration.
+ * Pending state cannot be manufactured over the API any more — the write
+ * routes refuse both the blank marker and the legacy digest, by design — so
+ * each test logs into its own pre-migration account seeded by `seed_legacy`
+ * (see the `e2e` recipe in the Justfile). The crypto migration that runs on
+ * first login is what blanks the account's name hashes, exactly the state a
+ * real upgrading user is in when this modal greets them.
  */
 
-async function openSearchModal(page: Parameters<typeof createNoteFromBrowser>[0]): Promise<void> {
+const PASSWORD = 'legacy-password-1234'
+const FILE_NAME = 'legacy-photo.png'
+
+async function openSearchModal(page: Page): Promise<void> {
   await closeOpenModal(page)
   await closeOpenModal(page)
   await page.getByRole('button', { name: /Search/ }).first().click()
@@ -27,7 +33,7 @@ async function openSearchModal(page: Parameters<typeof createNoteFromBrowser>[0]
 }
 
 /** How many files the server still reports as needing a re-index. */
-async function pendingCount(page: Parameters<typeof createNoteFromBrowser>[0]): Promise<number> {
+async function pendingCount(page: Page): Promise<number> {
   return page.evaluate(async () => {
     const res = await fetch('/api/storage/reindex', { credentials: 'include' })
     return ((await res.json()) as unknown[]).length
@@ -35,60 +41,37 @@ async function pendingCount(page: Parameters<typeof createNoteFromBrowser>[0]): 
 }
 
 /**
- * Strip the caller's search tags, standing in for what the migration does.
- * Writes a `name_hash` that cannot match anything, so the row is left exactly
- * as a migrated one: present, readable, and unsearchable.
+ * First login of a seeded legacy account: the crypto-migration ceremony runs,
+ * raises the one-time recovery-key notice, and leaves the account's files
+ * waiting for the re-index sweep. Re-index writes are blocked while it runs so
+ * the sweep cannot quietly finish before the test is ready to observe it.
  */
-async function clearIndex(
-  page: Parameters<typeof createNoteFromBrowser>[0]
-): Promise<{ listStatus: number; found: number; statuses: number[] }> {
-  return page.evaluate(async () => {
-    const list = await fetch('/api/storage', { credentials: 'include' })
-    const body = (await list.json()) as { children?: { id: string }[] }
-    const children = body.children ?? []
-    const statuses: number[] = []
-
-    for (const file of children) {
-      const res = await fetch(`/api/storage/${file.id}/reindex`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name_hash: `stale-${file.id}`,
-          search_tokens_root: [],
-          search_tokens_file: []
-        })
-      })
-      statuses.push(res.status)
+async function migrateLegacyAccount(page: Page, email: string): Promise<void> {
+  await page.route('**/api/storage/*/reindex', async (route) => {
+    try {
+      await route.fulfill({ status: 500, body: '{}' })
+    } catch {
+      // A reload can tear the request down first; the write never lands
+      // either way, which is the point.
     }
-
-    return { listStatus: list.status, found: children.length, statuses }
   })
+
+  await loginAsUser(page, email, PASSWORD)
+  await expect(page).not.toHaveURL(/\/auth\/login/)
+  await page.getByRole('button', { name: 'Got it' }).click()
+
+  expect(await pendingCount(page)).toBeGreaterThan(0)
 }
 
 test.describe('Search re-index', () => {
   test('rebuilds the index after a migration and restores search', async ({ page }) => {
-    const user = await createPersistedUser(page)
+    const email = 'legacy-reindex-a@e2e.test'
+    await migrateLegacyAccount(page, email)
 
-    const noteName = 'kangaroo-notes.md'
-    await createNoteFromBrowser(page, noteName)
-
-    await page.locator('aside').locator(':text-is("Files")').first().click()
-    await page.waitForURL(/^[^#]*\/$/, { timeout: 15_000 })
-    await expect(page.getByTestId(`file-row-${noteName}`)).toBeVisible({ timeout: 15_000 })
-
-    // Wipe the index the way the migration does.
-    const cleared = await clearIndex(page)
-    expect(cleared, `clearIndex: ${JSON.stringify(cleared)}`).toMatchObject({ listStatus: 200 })
-    expect(cleared.found, `listing returned no files: ${JSON.stringify(cleared)}`).toBeGreaterThan(0)
-    expect(cleared.statuses.every((s) => s === 200), `reindex PUTs: ${JSON.stringify(cleared)}`).toBe(
-      true
-    )
-    expect(await pendingCount(page)).toBeGreaterThan(0)
-
-    // With a single note the sweep finishes in milliseconds and the modal
-    // correctly closes itself, leaving nothing to click. Hold each write open
-    // long enough to exercise the controls the user actually gets.
+    // Let the writes through, but hold each one open: with a single file the
+    // sweep finishes in milliseconds and the modal correctly closes itself,
+    // leaving nothing to click.
+    await page.unroute('**/api/storage/*/reindex')
     await page.route('**/api/storage/*/reindex', async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 4000))
       await route.continue()
@@ -96,7 +79,7 @@ test.describe('Search re-index', () => {
 
     // A fresh session is what triggers the sweep.
     await page.reload()
-    await loginAsPersistedUser(page, user.email, user.password)
+    await loginAsUser(page, email, PASSWORD)
 
     // The modal explains itself rather than leaving the user to wonder why
     // search went empty.
@@ -112,29 +95,23 @@ test.describe('Search re-index', () => {
       .poll(async () => pendingCount(page), { timeout: 60_000, intervals: [1000] })
       .toBe(0)
 
-    // The point of all of it: the note is findable again.
+    // The point of all of it: the file is findable again.
     await openSearchModal(page)
-    await page.locator('input[placeholder="Search files..."]').fill('kangaroo')
+    await page.locator('input[placeholder="Search files..."]').fill('legacy')
 
-    const hit = page.locator('a[href*="/notes/"]').first()
-    await expect(hit).toBeVisible({ timeout: 15_000 })
-    await expect(hit).toContainText(noteName)
+    await expect(page.getByText(FILE_NAME).first()).toBeVisible({ timeout: 15_000 })
   })
 
   test('cancelling leaves the work for next time instead of losing it', async ({ page }) => {
-    const user = await createPersistedUser(page)
-
-    await createNoteFromBrowser(page, 'wombat-notes.md')
-    await page.locator('aside').locator(':text-is("Files")').first().click()
-    await page.waitForURL(/^[^#]*\/$/, { timeout: 15_000 })
-
-    const cleared = await clearIndex(page)
+    const email = 'legacy-reindex-b@e2e.test'
+    await migrateLegacyAccount(page, email)
     const before = await pendingCount(page)
-    expect(before, `clearIndex: ${JSON.stringify(cleared)}`).toBeGreaterThan(0)
+    expect(before).toBeGreaterThan(0)
 
-    // Held open and then failed, so the file stays pending: cancelling has to
-    // leave real work behind for the next session, not merely close a modal
-    // that had already finished.
+    // Writes keep failing after a hold, so the file stays pending: cancelling
+    // has to leave real work behind for the next session, not merely close a
+    // modal that had already finished.
+    await page.unroute('**/api/storage/*/reindex')
     await page.route('**/api/storage/*/reindex', async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 3000))
       try {
@@ -146,7 +123,7 @@ test.describe('Search re-index', () => {
     })
 
     await page.reload()
-    await loginAsPersistedUser(page, user.email, user.password)
+    await loginAsUser(page, email, PASSWORD)
 
     const modal = page.getByText(/Search index upgrade/i)
     await expect(modal).toBeVisible({ timeout: 20_000 })
@@ -155,9 +132,9 @@ test.describe('Search re-index', () => {
     await expect(modal).toBeHidden({ timeout: 10_000 })
 
     // The property that matters: cancelling is a postponement, not a refusal.
-    // The file is still unindexed, so the next session picks it up — pending is
-    // derived from the absence of tags rather than tracked anywhere, which is
-    // what makes an interrupted sweep resumable at all.
+    // The file is still unindexed, so the next session picks it up — pending
+    // is derived from the blank name hash rather than tracked anywhere, which
+    // is what makes an interrupted sweep resumable at all.
     //
     // Asserting the count rather than waiting for the modal to reappear keeps
     // this off the modal's timing: with one file the next sweep finishes in

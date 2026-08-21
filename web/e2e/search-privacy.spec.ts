@@ -70,8 +70,9 @@ test.describe('Search privacy', () => {
     for (const raw of searchBodies) {
       expect(raw.toLowerCase()).not.toContain('zanzibar')
 
-      // The old digest of the term must not appear either. An index keyed on
-      // those is exactly what this change removed.
+      // The unsalted digest of the term must not appear either: an index of
+      // bare `sha256(token)` rows is rainbow-table reversible, which is why
+      // tags are keyed.
       expect(raw.toLowerCase()).not.toContain(await sha256Hex('zanzibar'))
 
       const body = JSON.parse(raw)

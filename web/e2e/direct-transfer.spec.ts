@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test'
 import { randomEmail, randomPassword, createUser } from './helpers/auth'
+import {
+  createNoteFromBrowser,
+  openRawMarkdown,
+  typeRawMarkdown,
+  saveViaButton,
+  openHistory,
+  previewVersion
+} from './helpers/notes'
 import path from 'path'
 
 const imageFixture = path.join(__dirname, 'fixtures', 'test-image.png')
@@ -157,5 +165,103 @@ test.describe('Direct transfer', () => {
     // The whole point of the ChunkTarget split, asserted against the wire
     // rather than against the type that is supposed to guarantee it.
     expect(leaked, 'a request to the bucket carried session credentials').toEqual([])
+  })
+
+  test('a finished file cannot be signed for overwriting', async ({ page }) => {
+    const email = randomEmail()
+    const password = randomPassword()
+    await createUser(page, email, password)
+
+    const uploadUrlRequests: string[] = []
+    page.on('request', (request) => {
+      if (request.url().includes('/upload-urls')) uploadUrlRequests.push(request.url())
+    })
+
+    await page.setInputFiles('[name="upload-file-input"]', imageFixture)
+    await page.getByTestId('upload-active').waitFor({ state: 'hidden', timeout: 60_000 })
+    await expect(page.getByTestId('file-row-test-image.png')).toBeVisible()
+
+    const manifestUrl = uploadUrlRequests[0]
+    expect(manifestUrl, 'the upload should have asked for upload URLs').toBeTruthy()
+
+    // Chunks are write-once: with every chunk stored and no edit in flight,
+    // the server must refuse to sign a PUT at the live ciphertext — S3
+    // overwrites unconditionally, so a signed URL here IS the overwrite.
+    const again = await page.request.post(new URL(manifestUrl).pathname, {
+      data: { chunks: [{ chunk: 0, size: 1024 }] }
+    })
+    expect(again.status()).toBe(422)
+    expect(await again.text()).toContain('chunk_already_exists')
+  })
+
+  test('a public link serves its bytes from the bucket', async ({ page, browser }) => {
+    const email = randomEmail()
+    const password = randomPassword()
+    await createUser(page, email, password)
+
+    await page.setInputFiles('[name="upload-file-input"]', imageFixture)
+    await page.getByTestId('upload-active').waitFor({ state: 'hidden', timeout: 60_000 })
+    await expect(page.getByTestId('file-row-test-image.png')).toBeVisible()
+
+    await page.getByTestId('file-row-test-image.png').locator('[name="actions-dropdown"]').click()
+    await page.locator('[name="sharing"]').first().click()
+    await page.getByTestId('sharing-modal-tab-link').click()
+    await page.getByTestId('sharing-link-create').click()
+    const linkUrl = await page.locator('input[name="link"]').inputValue()
+    expect(linkUrl).toBeTruthy()
+
+    const anonContext = await browser.newContext()
+    const anonPage = await anonContext.newPage()
+
+    const requested: string[] = []
+    anonPage.on('request', (request) => requested.push(request.url()))
+
+    await anonPage.goto(linkUrl)
+    await expect(anonPage.locator('img[name="original"]')).toBeVisible({ timeout: 60_000 })
+
+    expect(
+      requested.filter((url) => url.includes('/chunk-urls')).length,
+      'the link page should have asked for a manifest'
+    ).toBeGreaterThan(0)
+    expect(
+      requested.filter((url) => url.includes(':9000/')).length,
+      'link chunks should have been fetched from the bucket'
+    ).toBeGreaterThan(0)
+
+    const relayed = requested.filter((url) => /\/api\/links\/[0-9a-f-]{36}\?.*chunk=/.test(url))
+    expect(relayed, 'no link chunk should have been relayed through the server').toEqual([])
+
+    await anonContext.close()
+  })
+
+  test('previewing a historical version fetches its chunks from the bucket', async ({ page }) => {
+    const email = randomEmail()
+    const password = randomPassword()
+    await createUser(page, email, password)
+
+    await createNoteFromBrowser(page, 'direct-versions.md')
+    await openRawMarkdown(page)
+    await typeRawMarkdown(page, 'A\n')
+    await saveViaButton(page)
+    await typeRawMarkdown(page, 'B\n')
+    await saveViaButton(page)
+
+    const requested: string[] = []
+    page.on('request', (request) => requested.push(request.url()))
+
+    await openHistory(page)
+    await previewVersion(page, 2)
+
+    expect(
+      requested.filter((url) => /\/versions\/\d+\/chunk-urls/.test(url)).length,
+      'the preview should have asked for a version manifest'
+    ).toBeGreaterThan(0)
+    expect(
+      requested.filter((url) => url.includes(':9000/')).length,
+      'version chunks should have been fetched from the bucket'
+    ).toBeGreaterThan(0)
+
+    const relayed = requested.filter((url) => /\/versions\/\d+\?.*chunk=/.test(url))
+    expect(relayed, 'no version chunk should have been relayed through the server').toEqual([])
   })
 })
