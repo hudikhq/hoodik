@@ -479,6 +479,42 @@ async fn upload_resume_skips_existing() {
     assert!(!http.stored_chunks.borrow().contains_key(&2));
 }
 
+/// A resume that finds every chunk already stored uploads nothing — and that
+/// run is exactly the one that exists to deliver the finalize its predecessor
+/// crashed before sending. Gating finalize on "some new chunk went direct"
+/// left such files uncommitted forever: all their bytes in the bucket, the
+/// version pointer never moving, and every retry repeating the same no-op.
+#[tokio::test(flavor = "current_thread")]
+async fn upload_resume_with_nothing_left_still_finalizes() {
+    let size = CHUNK_SIZE_BYTES as usize * 2;
+    let data: Vec<u8> = (0..size).map(|i| (i % 256) as u8).collect();
+    let source = MockDataSource::new(data);
+    let http = MockHttpClient::new();
+    let progress = MockProgressReporter::new();
+
+    crate::upload::upload_file(
+        &http,
+        &source,
+        &progress,
+        &test_auth(),
+        "f3-done",
+        &test_key(),
+        &[0, 1],
+        UploadHashOptions::default(),
+        None,
+        cryptfns::cipher::DEFAULT,
+        Some(&["https://bucket/0".into(), "https://bucket/1".into()]),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(http.upload_count(), 0, "everything was already stored");
+    assert!(
+        http.finalized.get(),
+        "the resume's whole point is delivering the missing finalize"
+    );
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn upload_checksum_retry_succeeds() {
     let data = vec![7u8; 256];
@@ -1553,8 +1589,12 @@ async fn a_short_upload_manifest_relays_the_rest() {
     assert!(http.finalized.get());
 }
 
-/// A manifest of nothing but empty entries is the same as no manifest: every
-/// chunk relays, and nothing is finalized because nothing was written direct.
+/// A manifest of nothing but empty entries relays every chunk — but it is
+/// still a direct manifest, so the client says finalize anyway. A resume whose
+/// missing chunks all relay leaves the server's stored count incomplete (the
+/// chunks a previous run wrote direct were never counted), so nobody else can
+/// commit the file; the server treats a redundant finalize as a no-op, which
+/// makes saying it unconditionally the safe side of this.
 #[tokio::test(flavor = "current_thread")]
 async fn an_empty_upload_manifest_entry_relays() {
     let original = vec![1u8; 512];
@@ -1586,8 +1626,8 @@ async fn an_empty_upload_manifest_entry_relays() {
         "an empty manifest entry should not have produced a bucket request"
     );
     assert!(
-        !http.finalized.get(),
-        "nothing went direct, so there was nothing for the client to commit"
+        http.finalized.get(),
+        "a direct manifest was in play, so the client owes the finalize"
     );
 }
 

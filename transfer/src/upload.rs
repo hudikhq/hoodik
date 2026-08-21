@@ -267,12 +267,15 @@ pub async fn upload_file(
     .await?;
 
     // A chunk written straight into the bucket tells this server nothing, so
-    // the version is still uncommitted at this point. Only the direct path
-    // needs saying: the relaying route finalizes itself as its own last write
-    // completes the count.
-    if (0..total_chunks)
-        .any(|chunk| !already_uploaded_set.contains(&chunk) && direct_url(direct_urls, chunk).is_some())
-    {
+    // the version is still uncommitted at this point. Whenever a direct
+    // manifest is in play the client is the only party that can say "done" —
+    // including a resume that found every chunk already stored and uploaded
+    // nothing at all, which is exactly the run that exists to deliver the
+    // finalize its predecessor never got to. The server treats a repeated
+    // finalize as a no-op, so saying it once too often costs nothing, while
+    // the old any-new-direct-chunk condition left fully-stored files
+    // uncommitted forever.
+    if direct_urls.is_some() {
         http.finalize_upload(auth, file_id).await?;
     }
 
@@ -625,14 +628,46 @@ async fn upload_encrypted(
     let t0 = upload_trace::now_ms();
 
     if let Some(url) = direct_url {
-        http.put_chunk_direct(url, &encrypted).await?;
-        upload_trace::log(&format!(
-            "[transfer:upload] chunk {} direct ok total {:.1}ms",
-            chunk,
-            upload_trace::now_ms() - t0
-        ));
-        progress.on_chunk_uploaded(file_id, chunk, total_chunks, false);
-        return Ok(chunk);
+        match http.put_chunk_direct(url, &encrypted).await {
+            Ok(()) => {
+                upload_trace::log(&format!(
+                    "[transfer:upload] chunk {} direct ok total {:.1}ms",
+                    chunk,
+                    upload_trace::now_ms() - t0
+                ));
+                progress.on_chunk_uploaded(file_id, chunk, total_chunks, false);
+                return Ok(chunk);
+            }
+            // Buckets shed load with transient 5xx answers that every S3 SDK
+            // retries, so one of those must not sink a multi-gigabyte upload
+            // on its last chunk. Retry the same URL a bounded number of
+            // times, then let the chunk fall through to the relaying route:
+            // a direct-path failure degrades to a slower upload, not a dead
+            // one.
+            Err(_) if attempt < MAX_UPLOAD_RETRIES => {
+                return Box::pin(upload_encrypted(
+                    http,
+                    auth,
+                    file_id,
+                    chunk,
+                    total_chunks,
+                    crc,
+                    encrypted,
+                    progress,
+                    attempt + 1,
+                    Some(url),
+                ))
+                .await;
+            }
+            Err(e) => {
+                upload_trace::log(&format!(
+                    "[transfer:upload] chunk {} direct failed after {} attempts, relaying: {}",
+                    chunk,
+                    attempt + 1,
+                    e
+                ));
+            }
+        }
     }
 
     let t_http = upload_trace::now_ms();

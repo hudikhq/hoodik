@@ -431,11 +431,15 @@ impl TransferDownloader {
 
         // Progressive consumers land here one chunk at a time, so an index the
         // manifest covers goes to the bucket and anything else keeps using the
-        // API — same rule the whole-file pipeline follows.
+        // API — same rule the whole-file pipeline follows, including the one
+        // about gaps: manifests are index-aligned, so a chunk the server
+        // declined to sign arrives as an empty entry that means "through the
+        // API", not as a URL to fetch.
         let target = match self
             .direct_urls
             .as_ref()
             .and_then(|urls| urls.get(chunk_index as usize))
+            .filter(|url| !url.is_empty())
         {
             Some(url) => ChunkTarget::Direct(url),
             None => ChunkTarget::Api {
