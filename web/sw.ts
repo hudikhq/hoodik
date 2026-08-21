@@ -84,6 +84,13 @@ onmessage = async (message: MessageEvent<any>) => {
   }
 }
 
+// The wasm import wraps this whole module in an async initializer, so the
+// worker exists — and accepts messages — for as long as the crypto module
+// takes to compile before the handler above is attached. Anything delivered
+// in that window is dropped. The spawner holds messages back until this
+// announcement instead (see worker-gate.ts).
+postMessage({ type: 'ready' })
+
 /**
  * Answer a request for decrypted bytes — the whole file, or one chunk.
  *
