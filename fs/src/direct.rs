@@ -83,8 +83,17 @@ async fn evaluate(config: &Config) -> DirectVerdict {
         // The preflight doubles as the certificate check: this client trusts
         // the public roots only, so an endpoint whose certificate is signed by
         // an internal CA fails here exactly as it would in a browser, even
-        // though the server's own S3 calls accept it.
-        blockers.extend(cors_blockers(&probe_url, config.get_app_url().as_str()).await);
+        // though the server's own S3 calls accept it. The insecure flag
+        // waives exactly that part — the CORS questions still have to be
+        // answered correctly.
+        blockers.extend(
+            cors_blockers(
+                &probe_url,
+                config.get_app_url().as_str(),
+                s3.direct_allow_insecure,
+            )
+            .await,
+        );
 
         DirectVerdict {
             enabled: blockers.is_empty(),
@@ -144,13 +153,23 @@ fn is_unreachable_from_clients(host: &str) -> bool {
 /// Ask the bucket the same question a browser asks before it will let a page
 /// read a cross-origin response, once per method the feature needs.
 #[cfg(feature = "s3")]
-async fn cors_blockers(url: &url::Url, origin: &str) -> Vec<String> {
+async fn cors_blockers(url: &url::Url, origin: &str, allow_insecure: bool) -> Vec<String> {
     // `use_rustls_tls` is what makes this a browser stand-in rather than
     // another server-side call: it pins the backend to rustls, whose root
     // store here is the public webpki set. reqwest's default native-tls
     // backend would read the host's trust store and happily accept the
     // internal CA that no client of ours has.
-    let client = match reqwest::Client::builder().use_rustls_tls().build() {
+    let mut builder = reqwest::Client::builder().use_rustls_tls();
+
+    // S3_DIRECT_ALLOW_INSECURE exists for the home-lab bucket whose
+    // certificate only the operator's own devices trust. The certificate
+    // check lives inside this preflight, so honouring the flag means
+    // accepting whatever certificate the endpoint presents here.
+    if allow_insecure {
+        builder = builder.danger_accept_invalid_certs(true);
+    }
+
+    let client = match builder.build() {
         Ok(client) => client,
         Err(e) => return vec![format!("could not build an HTTP client to check CORS ({e})")],
     };
