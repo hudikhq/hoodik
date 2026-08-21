@@ -116,7 +116,12 @@ pub async fn create_file<T: super::ConnectionTrait>(
         id: ActiveValue::Set(id),
         mime: ActiveValue::Set(mime.to_string()),
         file_id: ActiveValue::Set(file_id),
-        name_hash: ActiveValue::Set(cryptfns::sha256::digest(name.as_bytes())),
+        // A keyed tag, the shape real clients write. A bare `sha256(name)`
+        // here would be the legacy digest every write path now refuses — and
+        // would count the mock file as waiting for the re-index sweep.
+        name_hash: ActiveValue::Set(
+            cryptfns::search::tag(&[7u8; 32], name).expect("tag a mock file name"),
+        ),
         encrypted_name: ActiveValue::Set(name.to_string()),
         encrypted_thumbnail: ActiveValue::NotSet,
         size: ActiveValue::Set(size),

@@ -30,9 +30,20 @@ impl Validation for Reindex {
 impl Reindex {
     pub fn into_parts(self) -> AppResult<(String, SearchTags)> {
         let data = self.validate()?;
+        let name_hash = data.name_hash.unwrap();
+
+        // This route exists to replace the reversible digest, so of all
+        // places it must not accept one back. Same refusal as create and
+        // rename: a keyed hash is half the length, so the shapes never
+        // collide.
+        if cryptfns::search::is_legacy_name_hash(&name_hash) {
+            return Err(::error::Error::UpgradeRequired(
+                "client_too_old_for_search".to_string(),
+            ));
+        }
 
         Ok((
-            data.name_hash.unwrap(),
+            name_hash,
             SearchTags::new(data.search_tokens_root, data.search_tokens_file),
         ))
     }
@@ -45,6 +56,21 @@ mod test {
     #[test]
     fn name_hash_is_required() {
         assert!(Reindex::default().into_parts().is_err());
+    }
+
+    #[test]
+    fn a_legacy_digest_is_refused() {
+        let result = Reindex {
+            name_hash: Some(cryptfns::sha256::digest("secret name".as_bytes())),
+            search_tokens_root: None,
+            search_tokens_file: None,
+        }
+        .into_parts();
+
+        assert!(
+            matches!(result, Err(::error::Error::UpgradeRequired(_))),
+            "the route built to replace the reversible digest accepted one back"
+        );
     }
 
     #[test]

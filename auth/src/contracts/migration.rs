@@ -3,7 +3,7 @@ use cryptfns::asn1::{audit_event_chain_hash, AuditEventRowV1};
 use cryptfns::identity::KeyType;
 use cryptfns::transition::{verify_key_rotation_audit, Certificate, Signatures};
 use entity::{
-    file_tokens, key_transitions, links, migration_rewrap_staging, opaque_ksf, share_events,
+    file_tokens, files, key_transitions, links, migration_rewrap_staging, opaque_ksf, share_events,
     user_files, users,
     ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, Expr, OnConflict, Order, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, TransactionTrait, Uuid,
@@ -444,11 +444,11 @@ where
         // this migration just replaced. Every root-scope tag the account holds
         // was written under the old one and can never be matched again, so
         // leaving them in place would mean search returning nothing with
-        // nothing to explain why — and no re-index offered, since a file counts
-        // as pending exactly while it has no root tags. Dropping them is what
-        // puts the account back on the sweep, which rebuilds the index (and
-        // each file's name_hash) under the new key. File-scope tags are keyed
-        // on the file key, which the rewrap above carried across untouched.
+        // nothing to explain why. Dropping them clears the dead index, and
+        // blanking each file's `name_hash` — the marker the re-key migration
+        // introduced — is what puts the account back on the sweep, which
+        // rebuilds both under the new key. File-scope tags are keyed on the
+        // file key, which the rewrap above carried across untouched.
         let owned: Vec<Uuid> = user_files::Entity::find()
             .filter(user_files::Column::UserId.eq(user.id))
             .filter(user_files::Column::IsOwner.eq(true))
@@ -460,8 +460,14 @@ where
 
         if !owned.is_empty() {
             file_tokens::Entity::delete_many()
-                .filter(file_tokens::Column::FileId.is_in(owned))
+                .filter(file_tokens::Column::FileId.is_in(owned.clone()))
                 .filter(file_tokens::Column::Scope.eq(i32::from(file_tokens::Scope::Root)))
+                .exec(&tx)
+                .await?;
+
+            files::Entity::update_many()
+                .col_expr(files::Column::NameHash, Expr::value(""))
+                .filter(files::Column::Id.is_in(owned))
                 .exec(&tx)
                 .await?;
         }

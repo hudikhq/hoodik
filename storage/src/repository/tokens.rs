@@ -9,7 +9,7 @@
 use entity::{
     file_tokens::{self, Scope, SearchTags},
     files, links, user_files, ActiveValue, ColumnTrait, Condition, ConnectionTrait, EntityTrait,
-    Query, QueryFilter, QueryOrder, QuerySelect, Uuid,
+    Expr, Func, QueryFilter, QueryOrder, QuerySelect, Uuid,
 };
 use error::AppResult;
 
@@ -93,23 +93,29 @@ where
         Ok(written)
     }
 
-    /// Files the caller owns that carry no root-scope tags.
+    /// Files the caller owns whose `name_hash` is not a keyed tag yet: blank
+    /// where the re-key migration purged the old digest, or still the legacy
+    /// 64-hex shape on a row that slipped past it.
     ///
-    /// After the re-key migration that is every file they have, and the set
-    /// shrinks as the client works through it — writing the tags is itself the
-    /// record of having done so, so a client that closes mid-sweep resumes
-    /// where it left off without any progress bookkeeping to keep in sync.
+    /// After the migration that is every file they have, and the set shrinks
+    /// as the client works through it — the keyed `name_hash` every re-index
+    /// writes is itself the record of having done so, so a client that closes
+    /// mid-sweep resumes where it left off without any progress bookkeeping
+    /// to keep in sync. The record deliberately isn't "has root tags": a
+    /// name the tokenizer reduces to nothing produces zero tags on a
+    /// perfectly successful re-index, and a file like that must leave this
+    /// set rather than come back on every fetch forever.
     pub(crate) async fn pending_reindex(&self, limit: u64) -> AppResult<Vec<AppFile>> {
         let results = self
             .repository
             .compact_selector(self.user_id, true)
             .filter(
-                files::Column::Id.not_in_subquery(
-                    Query::select()
-                        .column(file_tokens::Column::FileId)
-                        .from(file_tokens::Entity)
-                        .and_where(file_tokens::Column::Scope.eq(i32::from(Scope::Root)))
-                        .to_owned(),
+                Condition::any().add(files::Column::NameHash.eq("")).add(
+                    Expr::expr(Func::char_length(Expr::col((
+                        files::Entity,
+                        files::Column::NameHash,
+                    ))))
+                    .eq(64),
                 ),
             )
             .limit(limit)

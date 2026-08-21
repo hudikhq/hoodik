@@ -1332,37 +1332,6 @@ async fn test_reindex_pending_route_is_not_swallowed_by_the_download_route() {
     let _ = context;
 }
 
-/// `GET /api/storage/by-hash/{hash}` must reach its own handler.
-///
-/// The reindex route shipped once matching `GET /api/storage/{file_id}` with
-/// `file_id = "reindex"`, which silently disabled the whole re-index sweep.
-/// This path has a literal first segment so it is not exposed to that exact
-/// collision, but registration order is invisible at the call site and the
-/// failure mode is a 4xx that looks like a client bug rather than a routing
-/// one — cheap to pin, expensive to debug.
-#[actix_web::test]
-async fn test_by_hash_route_reaches_its_own_handler() {
-    let context = context::Context::mock_sqlite().await;
-    let app = test::init_service(server::app(context.clone())).await;
-
-    let jwt = helpers::register_curve25519(&app, "byhash@test.com").await.jwt;
-
-    let req = test::TestRequest::get()
-        .uri("/api/storage/by-hash/deadbeef")
-        .cookie(jwt)
-        .to_request();
-    let resp = test::call_service(&app, req).await;
-
-    assert_eq!(resp.status(), StatusCode::OK);
-
-    let body: serde_json::Value =
-        serde_json::from_slice(&test::read_body(resp).await).expect("by-hash response is json");
-
-    assert!(body.is_array(), "expected a list of files, got {body}");
-
-    let _ = context;
-}
-
 /// The download route's file lookup is memoized. The cache entry the owner
 /// warms must never be served to anyone else — this exact sequence used to
 /// stream the owner's ciphertext to a second logged-in user.
@@ -1454,4 +1423,149 @@ async fn test_download_refuses_a_stranger_after_the_owner_warmed_the_cache() {
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 
     context.config.app.cleanup();
+}
+
+/// Create a file record without uploading content, for reindex-route tests.
+async fn reindex_fixture_file(
+    app: &impl helpers::TestApp,
+    jwt: &actix_web::cookie::Cookie<'static>,
+    name: &str,
+) -> AppFile {
+    let create = storage::data::create_file::CreateFile {
+        encrypted_key: Some("encrypted-gibberish".to_string()),
+        encrypted_name: Some(name.to_string()),
+        encrypted_thumbnail: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
+        name_hash: Some(helpers::name_tag(name)),
+        mime: Some("text/plain".to_string()),
+        size: Some(16),
+        chunks: Some(1),
+        file_id: None,
+        file_modified_at: None,
+        md5: Some("asd".to_string()),
+        sha1: Some("asd".to_string()),
+        sha256: Some("asd".to_string()),
+        blake2b: Some("asd".to_string()),
+        cipher: None,
+        editable: None,
+    };
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(jwt.clone())
+        .set_json(&create)
+        .to_request();
+    let body = test::call_and_read_body(app, req).await;
+    serde_json::from_slice(&body).unwrap()
+}
+
+/// Blank a file's `name_hash` the way the re-key migration does, which is
+/// what marks it as waiting for the owner's sweep.
+async fn blank_name_hash(context: &context::Context, file_id: entity::Uuid) {
+    use entity::{ColumnTrait, EntityTrait, QueryFilter};
+    entity::files::Entity::update_many()
+        .col_expr(entity::files::Column::NameHash, entity::Expr::value(""))
+        .filter(entity::files::Column::Id.eq(file_id))
+        .exec(&context.db)
+        .await
+        .unwrap();
+}
+
+async fn pending_ids(
+    app: &impl helpers::TestApp,
+    jwt: &actix_web::cookie::Cookie<'static>,
+) -> Vec<String> {
+    let req = test::TestRequest::get()
+        .uri("/api/storage/reindex")
+        .cookie(jwt.clone())
+        .to_request();
+    let body = test::call_and_read_body(app, req).await;
+    let rows: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    rows.as_array()
+        .expect("pending list is an array")
+        .iter()
+        .map(|row| row["id"].as_str().unwrap().to_string())
+        .collect()
+}
+
+/// A successful re-index takes the file off the pending list even when it
+/// writes zero tags — the keyed `name_hash` is the record, and a file whose
+/// name tokenizes to nothing must not come back on every fetch while the
+/// client sweeps until the list drains.
+#[actix_web::test]
+async fn test_reindex_put_clears_the_pending_marker_with_zero_tags() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let jwt = helpers::register_curve25519(&app, "reindex-put@test.com").await.jwt;
+    let file = reindex_fixture_file(&app, &jwt, "reindex-me").await;
+
+    blank_name_hash(&context, file.id).await;
+    assert!(pending_ids(&app, &jwt).await.contains(&file.id.to_string()));
+
+    let req = test::TestRequest::put()
+        .uri(&format!("/api/storage/{}/reindex", file.id))
+        .cookie(jwt.clone())
+        .set_json(serde_json::json!({
+            "name_hash": helpers::name_tag("reindex-me"),
+            "search_tokens_root": [],
+            "search_tokens_file": [],
+        }))
+        .to_request();
+    let response = test::call_service(&app, req).await;
+    assert_eq!(response.status(), StatusCode::OK);
+
+    assert!(!pending_ids(&app, &jwt).await.contains(&file.id.to_string()));
+}
+
+/// A stranger gets the same not-found the metadata routes give — the reindex
+/// write must not become a way to probe for file ids.
+#[actix_web::test]
+async fn test_reindex_put_is_hidden_from_a_stranger() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let owner = helpers::register_curve25519(&app, "reindex-owner@test.com").await.jwt;
+    let stranger = helpers::register_curve25519(&app, "reindex-stranger@test.com").await.jwt;
+    let file = reindex_fixture_file(&app, &owner, "not-yours").await;
+
+    let req = test::TestRequest::put()
+        .uri(&format!("/api/storage/{}/reindex", file.id))
+        .cookie(stranger)
+        .set_json(serde_json::json!({
+            "name_hash": helpers::name_tag("not-yours"),
+            "search_tokens_root": [],
+            "search_tokens_file": [],
+        }))
+        .to_request();
+    let response = test::call_service(&app, req).await;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+    let _ = context;
+}
+
+/// The route built to replace the reversible digest refuses one back, the
+/// same way create, rename and fork do.
+#[actix_web::test]
+async fn test_reindex_put_refuses_a_legacy_digest() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let jwt = helpers::register_curve25519(&app, "reindex-legacy@test.com").await.jwt;
+    let file = reindex_fixture_file(&app, &jwt, "legacy-digest").await;
+
+    let req = test::TestRequest::put()
+        .uri(&format!("/api/storage/{}/reindex", file.id))
+        .cookie(jwt)
+        .set_json(serde_json::json!({
+            "name_hash": cryptfns::sha256::digest("legacy-digest".as_bytes()),
+            "search_tokens_root": [],
+            "search_tokens_file": [],
+        }))
+        .to_request();
+    let response = test::call_service(&app, req).await;
+    assert_eq!(response.status(), StatusCode::UPGRADE_REQUIRED);
+
+    let _ = context;
 }

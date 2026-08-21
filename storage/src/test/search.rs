@@ -1,14 +1,33 @@
 use context::Context;
 use entity::{
     file_tokens::{self, Scope},
-    user_files, ActiveValue, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, Uuid,
+    files, user_files, ActiveValue, ColumnTrait, EntityTrait, Expr, PaginatorTrait, QueryFilter,
+    Uuid,
 };
 
 use crate::{
-    data::search::Search,
+    data::{reindex::Reindex, search::Search},
     mock::{create_file, file_search_key, index_tags, query_tags, search_key},
     repository::Repository,
 };
+
+/// Put a file into the state the re-key migration leaves behind: root tags
+/// gone and `name_hash` blanked, which is what marks it as waiting for the
+/// owner's sweep.
+async fn blank_name_hash(context: &Context, file_id: Uuid) {
+    file_tokens::Entity::delete_many()
+        .filter(file_tokens::Column::FileId.eq(file_id))
+        .filter(file_tokens::Column::Scope.eq(i32::from(Scope::Root)))
+        .exec(&context.db)
+        .await
+        .unwrap();
+    files::Entity::update_many()
+        .col_expr(files::Column::NameHash, Expr::value(""))
+        .filter(files::Column::Id.eq(file_id))
+        .exec(&context.db)
+        .await
+        .unwrap();
+}
 
 /// Give `user_id` non-owner access to `file_id`, the way a share grant does.
 /// Deliberately touches nothing but `user_files`: the point of the scheme is
@@ -193,8 +212,8 @@ async fn scopes_do_not_cross_match() {
 }
 
 /// The re-index sweep is resumable because "pending" is derived from the
-/// absence of root tags rather than tracked separately: writing a file's tags
-/// is what takes it off the list.
+/// blank `name_hash` the migration left rather than tracked separately:
+/// writing the keyed hash is what takes a file off the list.
 #[actix_web::test]
 async fn pending_reindex_shrinks_as_files_are_indexed() {
     let context = Context::mock_sqlite().await;
@@ -208,7 +227,7 @@ async fn pending_reindex_shrinks_as_files_are_indexed() {
         .await
         .unwrap();
 
-    // Freshly created files are already indexed, so nothing is pending.
+    // Freshly created files carry a keyed hash, so nothing is pending.
     assert!(repository
         .tokens(user.id)
         .pending_reindex(100)
@@ -216,13 +235,7 @@ async fn pending_reindex_shrinks_as_files_are_indexed() {
         .unwrap()
         .is_empty());
 
-    // Clear one file's root scope, standing in for what the migration did.
-    file_tokens::Entity::delete_many()
-        .filter(file_tokens::Column::FileId.eq(a.id))
-        .filter(file_tokens::Column::Scope.eq(i32::from(Scope::Root)))
-        .exec(&context.db)
-        .await
-        .unwrap();
+    blank_name_hash(&context, a.id).await;
 
     let pending = repository.tokens(user.id).pending_reindex(100).await.unwrap();
     assert_eq!(pending.len(), 1);
@@ -230,10 +243,14 @@ async fn pending_reindex_shrinks_as_files_are_indexed() {
 
     // Re-indexing it takes it off the list, with no progress state anywhere.
     repository
-        .tokens(user.id)
+        .manage(user.id)
         .reindex(
             a.id,
-            entity::file_tokens::SearchTags::new(Some(index_tags(&search_key(), "alpha")), None),
+            Reindex {
+                name_hash: Some(cryptfns::search::tag(&search_key(), "alpha").unwrap()),
+                search_tokens_root: Some(index_tags(&search_key(), "alpha")),
+                search_tokens_file: None,
+            },
         )
         .await
         .unwrap();
@@ -244,6 +261,86 @@ async fn pending_reindex_shrinks_as_files_are_indexed() {
         .await
         .unwrap()
         .is_empty());
+}
+
+/// The record of "done" is deliberately the keyed `name_hash`, not "has root
+/// tags": a name the tokenizer reduces to nothing re-indexes successfully
+/// with zero tags, and it must leave the pending list rather than come back
+/// on every fetch forever — the sweep in every client loops until this list
+/// drains.
+#[actix_web::test]
+async fn pending_reindex_lets_go_of_a_file_that_indexed_to_zero_tags() {
+    let context = Context::mock_sqlite().await;
+    let repository = Repository::new(&context.db);
+    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
+
+    let file = create_file(&context, &user, ";", None, Some("dir"))
+        .await
+        .unwrap();
+    blank_name_hash(&context, file.id).await;
+
+    assert_eq!(
+        repository
+            .tokens(user.id)
+            .pending_reindex(100)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+
+    repository
+        .manage(user.id)
+        .reindex(
+            file.id,
+            Reindex {
+                name_hash: Some(cryptfns::search::tag(&search_key(), ";").unwrap()),
+                search_tokens_root: Some(vec![]),
+                search_tokens_file: Some(vec![]),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert!(repository
+        .tokens(user.id)
+        .pending_reindex(100)
+        .await
+        .unwrap()
+        .is_empty());
+}
+
+/// A row still carrying the legacy 64-hex digest counts as pending too:
+/// nothing writes that shape any more, but a row that slipped past the
+/// migration must be offered to the sweep rather than hidden from it.
+#[actix_web::test]
+async fn pending_reindex_includes_a_row_with_a_legacy_digest() {
+    let context = Context::mock_sqlite().await;
+    let repository = Repository::new(&context.db);
+    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
+
+    let file = create_file(&context, &user, "alpha", None, Some("dir"))
+        .await
+        .unwrap();
+    files::Entity::update_many()
+        .col_expr(
+            files::Column::NameHash,
+            Expr::value(cryptfns::sha256::digest("alpha".as_bytes())),
+        )
+        .filter(files::Column::Id.eq(file.id))
+        .exec(&context.db)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        repository
+            .tokens(user.id)
+            .pending_reindex(100)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
 }
 
 /// Another user's unindexed files must never appear in this user's sweep.
@@ -257,11 +354,7 @@ async fn pending_reindex_is_scoped_to_the_caller() {
     let file = create_file(&context, &owner, "alpha", None, Some("dir"))
         .await
         .unwrap();
-    file_tokens::Entity::delete_many()
-        .filter(file_tokens::Column::FileId.eq(file.id))
-        .exec(&context.db)
-        .await
-        .unwrap();
+    blank_name_hash(&context, file.id).await;
 
     // Even shared, it is not the recipient's to re-index — they cannot
     // produce the owner's root tags.

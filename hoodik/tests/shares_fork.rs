@@ -236,3 +236,33 @@ async fn test_fork_persists_after_source_revoke() {
     assert!(bob_on_fork.is_owner);
 }
 
+
+/// The fork writes a caller-supplied `name_hash` into the caller's own drive,
+/// which makes it a write path like create, rename and multikey upload — and
+/// it refuses the legacy `sha256(name)` shape the same way they do. Without
+/// this, one save-to-my-drive from a pre-keyed client re-stores the exact
+/// reversible digest the re-key migration purged.
+#[actix_web::test]
+async fn test_fork_refuses_a_legacy_name_hash() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice-legacy@example.com");
+    register_user!(app, context, bob, "bob-legacy@example.com");
+    let source = create_file!(app, alice, "source-of-legacy-fork");
+    grant!(app, alice, bob, ShareRoleEnum::CoOwner, source.id);
+
+    let new_file_id = Uuid::new_v4();
+    let mut body = fork_body(&bob, source.id, new_file_id, 1024, now_secs());
+    body["name_hash"] = json!(cryptfns::sha256::digest("secret plaintext name".as_bytes()));
+
+    let resp = post_fork!(app, bob, source.id, body);
+    assert_eq!(resp.status(), StatusCode::UPGRADE_REQUIRED);
+
+    let orphan = user_files::Entity::find()
+        .filter(user_files::Column::FileId.eq(new_file_id))
+        .one(&context.db)
+        .await
+        .unwrap();
+    assert!(orphan.is_none(), "a refused fork must write nothing");
+}

@@ -47,6 +47,14 @@ impl Repository<'_> {
         let encrypted_metadata = validated.encrypted_metadata.unwrap();
         let name_hash = validated.name_hash.unwrap();
         let mime = validated.mime.unwrap();
+
+        // Refuse a pre-keyed `sha256(name)` the same way create does, so an
+        // old client can't put the reversible digest back by saving a copy.
+        if cryptfns::search::is_legacy_name_hash(&name_hash) {
+            return Err(Error::UpgradeRequired(
+                "client_too_old_for_search".to_string(),
+            ));
+        }
         if mime == "dir" {
             return Err(Error::BadRequest("cannot_fork_directory".to_string()));
         }

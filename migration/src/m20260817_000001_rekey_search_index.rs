@@ -32,6 +32,21 @@ impl MigrationTrait for Migration {
             .drop_table(Table::drop().table(Tokens::Table).if_exists().to_owned())
             .await?;
 
+        // `files.name_hash` holds the same reversible digest in a second
+        // place — an unsalted SHA-256 of each plaintext name — and the same
+        // no-comfortable-transition reasoning applies: an account that never
+        // logs in again would otherwise keep its name digests readable
+        // forever. Blank it now; the write paths refuse the legacy shape, so
+        // nothing can put it back, and an empty hash is what marks a file as
+        // waiting for its owner's re-index sweep. Until that sweep reaches a
+        // file, duplicate-name detection and resume-by-name skip it, which
+        // the transition tolerates anyway: stored legacy hashes could never
+        // match an incoming keyed one.
+        manager
+            .get_connection()
+            .execute_unprepared("UPDATE files SET name_hash = '' WHERE LENGTH(name_hash) = 64")
+            .await?;
+
         manager
             .create_table(
                 Table::create()
