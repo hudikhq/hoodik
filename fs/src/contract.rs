@@ -176,8 +176,10 @@ pub trait FsProviderContract {
     /// than by us. It replaces the per-chunk size cap the relaying upload
     /// route applies, which nothing else on this path would enforce.
     ///
-    /// Always addresses the versioned layout: writes have never gone
-    /// anywhere else.
+    /// Addresses whichever layout the file already lives in, the same probe
+    /// the read side runs: a non-editable file keeps its legacy flat keys, and
+    /// signing versioned ones instead would put the upload somewhere
+    /// `get_uploaded_chunks` never looks.
     async fn direct_put_urls<T: IntoFilename>(
         &self,
         filename: &T,

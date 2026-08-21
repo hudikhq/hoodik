@@ -127,11 +127,6 @@ pub(crate) async fn upload_urls(
         requested.push((pending.chunk, pending.size));
     }
 
-    // The client writes straight into the bucket after this, so nothing later
-    // in the upload can refuse it for being over quota. Charge the declared
-    // total now; `finalize` re-checks against what actually landed.
-    super::upload_tar::enforce_quota_pre_read(&context, &claims, declared_total).await?;
-
     let storage = Fs::new(&context.config);
     let version = file.target_version();
 
@@ -139,6 +134,30 @@ pub(crate) async fn upload_urls(
         .direct_put_urls(&file, version, &requested)
         .await?
         .ok_or_else(unavailable)?;
+
+    // The relaying route refuses to overwrite a chunk that is already in the
+    // store, and that refusal is what makes chunks write-once. A signed PUT
+    // for a stored chunk would hand the invariant away: S3 overwrites
+    // unconditionally, so the URL itself is the overwrite. A finished file is
+    // fully stored, which means this also refuses to sign anything for a file
+    // with no upload in flight. Checked after the provider answered so a
+    // local-filesystem deployment still gets the plain "unavailable".
+    let stored: std::collections::HashSet<i64> = if file.use_versioned_layout() {
+        storage.get_uploaded_chunks_v(&file, version).await?
+    } else {
+        storage.get_uploaded_chunks(&file).await?
+    }
+    .into_iter()
+    .collect();
+
+    if requested.iter().any(|(chunk, _)| stored.contains(chunk)) {
+        return Err(Error::as_validation("chunk", "chunk_already_exists"));
+    }
+
+    // The client writes straight into the bucket after this, so nothing later
+    // in the upload can refuse it for being over quota. Charge the declared
+    // total now; `finalize` re-checks against what actually landed.
+    super::upload_tar::enforce_quota_pre_read(&context, &claims, declared_total).await?;
 
     let indices: Vec<i64> = requested.iter().map(|(chunk, _)| *chunk).collect();
     Ok(HttpResponse::Ok().json(ChunkUrls::new(&indices, urls, expires_at(&context))))
@@ -166,6 +185,14 @@ pub(crate) async fn finalize(
     let mut file = get_file(&context, claims.sub(), file_id)
         .await
         .ok_or_else(|| Error::NotFound("file_not_found".to_string()))?;
+
+    // A resumed upload cannot know whether its predecessor's finalize landed,
+    // so clients say it again freely. A file with nothing pending is already
+    // the state finalize produces; running `finish` on it would snapshot and
+    // swap a second time.
+    if file.finished_upload_at.is_some() && file.pending_version.is_none() {
+        return Ok(HttpResponse::Ok().json(file));
+    }
 
     let target_chunks = file
         .target_chunks()

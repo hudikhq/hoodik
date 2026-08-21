@@ -323,3 +323,29 @@ async fn capabilities_report_direct_transfer_off_on_local_storage() {
 
     assert_eq!(caps["direct_transfer"], serde_json::Value::Bool(false));
 }
+
+/// A resumed direct upload cannot know whether its predecessor's finalize
+/// landed, so clients say it again freely. The second finalize must answer
+/// with the finished file rather than snapshotting and swapping a second
+/// time — or worse, refusing and wedging the client's retry loop.
+#[actix_web::test]
+async fn finalize_is_a_no_op_on_a_finished_file() {
+    let context = context::Context::mock_with_data_dir(Some("../data/test".to_string())).await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let jwt = helpers::register_curve25519(&app, "cu-refin@doe.com").await.jwt;
+    let file = uploaded_file(&app, &jwt).await;
+    assert!(file.finished_upload_at.is_some(), "fixture should be finished");
+
+    let req = test::TestRequest::post()
+        .uri(&format!("/api/storage/{}/finalize", file.id))
+        .cookie(jwt)
+        .to_request();
+    let response = test::call_service(&app, req).await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = test::read_body(response).await;
+    let refinalized: AppFile = serde_json::from_slice(&body).unwrap();
+    assert_eq!(refinalized.id, file.id);
+    assert_eq!(refinalized.active_version, file.active_version);
+}
