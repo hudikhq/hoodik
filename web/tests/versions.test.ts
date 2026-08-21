@@ -280,7 +280,9 @@ describe('downloadChunk', () => {
         .mockResolvedValueOnce({ value: new Uint8Array([9, 9]), done: false })
         .mockResolvedValue({ value: undefined, done: true })
     }
-    const fetchMock = vi.fn().mockResolvedValue({ body: { getReader: () => reader } })
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, body: { getReader: () => reader } })
     vi.stubGlobal('fetch', fetchMock)
 
     const result = await downloadChunk('file-1', 2, 0)
@@ -290,6 +292,51 @@ describe('downloadChunk', () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe('https://bucket/v2/0')
     expect(init.credentials).toBe('omit')
+
+    vi.unstubAllGlobals()
+    capabilitiesStore().caps = null
+    clearChunkUrlCache()
+  })
+
+  it('UNIT: a bucket refusal falls back to the relay instead of reading error XML as ciphertext', async () => {
+    clearChunkUrlCache()
+    capabilitiesStore().caps = {
+      sharing: { enabled: false, roles: [] },
+      editable_folders: false,
+      share_groups: false,
+      audit_log: false,
+      fork: false,
+      direct_transfer: true
+    }
+    ApiGet.mockResolvedValueOnce({
+      body: {
+        urls: [{ chunk: 0, url: 'https://bucket/v2/0' }],
+        expires_at: Math.floor(Date.now() / 1000) + 3600
+      }
+    })
+
+    // An expired presigned URL answers 403 with an XML error document — a
+    // body, but not the chunk. Reading it as ciphertext used to surface much
+    // later as a baffling decrypt failure.
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      body: { getReader: () => ({ read: vi.fn() }) }
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const reader = {
+      read: vi
+        .fn()
+        .mockResolvedValueOnce({ value: new Uint8Array([7, 7]), done: false })
+        .mockResolvedValue({ value: undefined, done: true })
+    }
+    ApiDownload.mockResolvedValueOnce({ body: { getReader: () => reader } })
+
+    const result = await downloadChunk('file-1', 2, 0)
+
+    expect(result).toEqual(new Uint8Array([7, 7]))
+    expect(ApiDownload).toHaveBeenCalled()
 
     vi.unstubAllGlobals()
     capabilitiesStore().caps = null

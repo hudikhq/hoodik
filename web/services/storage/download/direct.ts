@@ -95,6 +95,16 @@ export function evictChunkUrls(fileId: string): void {
 }
 
 /**
+ * Forget one link's manifest. Link manifests are keyed by link id — the page
+ * that holds them never learns which file sits behind the link — so an edit
+ * to the shared content reaches them only through failure: a fetch or decrypt
+ * that fails evicts here and the read retries through the server.
+ */
+export function evictLinkChunkUrls(linkId: string): void {
+  cache.delete(`link:${linkId}`)
+}
+
+/**
  * Presigned URLs for every chunk, ordered by chunk index, or `undefined` when
  * this deployment cannot serve them.
  *

@@ -126,6 +126,11 @@ async function handleDownloadBytes(
       response: { request, error: handleError(err as Error) } as DownloadBytesResponseMessage
     })
   } finally {
+    // Consume the cancel the same way `handleDownloadFile` does. A cancel
+    // that raced completion would otherwise sit in the list forever and
+    // silently abort every later byte-read of the same file.
+    const idx = self.canceled?.download?.indexOf(spec.id) ?? -1
+    if (idx !== -1) self.canceled.download.splice(idx, 1)
     try {
       downloader?.free()
     } catch {

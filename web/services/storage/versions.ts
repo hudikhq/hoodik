@@ -61,14 +61,25 @@ export async function downloadChunk(
 
   // Credentials would oblige the bucket to answer with an exact-origin CORS
   // policy it does not carry, and are meaningless against a presigned URL.
-  const response = direct
-    ? await fetch(direct, { credentials: 'omit', signal })
-    : await new Api().download(
-        `/api/storage/${fileId}/versions/${version}?chunk=${chunk}`,
-        undefined,
-        undefined,
-        signal
-      )
+  let response = direct ? await fetch(direct, { credentials: 'omit', signal }) : undefined
+
+  if (response && !response.ok) {
+    // An expired URL or a pruned object answers with an XML error document —
+    // a body, but not the chunk. Read as ciphertext it would fail much later
+    // as a baffling decrypt error, so drop the manifest and take the
+    // relaying route for this read instead.
+    evictChunkUrls(fileId)
+    response = undefined
+  }
+
+  if (!response) {
+    response = await new Api().download(
+      `/api/storage/${fileId}/versions/${version}?chunk=${chunk}`,
+      undefined,
+      undefined,
+      signal
+    )
+  }
 
   if (!response.body) {
     throw new Error(`Failed to download chunk ${chunk} of v${version}`)

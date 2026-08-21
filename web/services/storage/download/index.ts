@@ -1,6 +1,7 @@
 import * as sync from './sync'
 import { defineStore } from 'pinia'
 import * as logger from '!/logger'
+import { evictChunkUrls } from './direct'
 
 import type {
   DownloadAppFile,
@@ -93,6 +94,10 @@ export const store = defineStore('download', () => {
     if (error) {
       file.error = error
       logger.error(`File "${file.name}" download failed:`, error)
+      // The failure may be a stale manifest — URLs signed for a version that
+      // another session has since replaced. Dropping it costs one refetch on
+      // the next attempt; keeping it pins every retry to the same failure.
+      evictChunkUrls(file.id)
       setFailed(file)
       return
     }

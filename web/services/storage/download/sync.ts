@@ -1,7 +1,6 @@
 import Api from '../../api'
 import * as logger from '!/logger'
-import { TransferDownloader } from 'transfer'
-import { fileChunkUrls } from './direct'
+import { evictChunkUrls, fileChunkUrls } from './direct'
 import { buildDownloader, type DownloadSpec } from './downloader'
 import { downloadBytesInWorker, downloadWorkerReady } from './worker'
 
@@ -30,19 +29,6 @@ async function specFor(file: AppFile): Promise<DownloadSpec> {
 }
 
 /**
- * Build a wasm downloader on this thread. The crate owns the whole transfer —
- * HTTP, retries, ordering, decryption — so nothing derived from the plaintext
- * ever exists outside it until the result is handed back. Callers must
- * `free()` it (or go through the helpers below).
- *
- * The fallback for when there is no worker to do it instead: decrypting a
- * large file here stalls rendering for as long as it takes.
- */
-async function fileDownloader(file: AppFile): Promise<TransferDownloader> {
-  return buildDownloader(await specFor(file), new Api().toJson())
-}
-
-/**
  * Fetch through the download worker when there is one, and on this thread
  * when there is not.
  *
@@ -62,11 +48,33 @@ async function fetchBytes(file: AppFile, chunk?: number): Promise<Uint8Array> {
     }
   }
 
+  try {
+    return await runDownloader(spec, chunk)
+  } catch (err) {
+    // A manifest can outlive the content it described: another session — or a
+    // share editor — replaces the file, and the cached URLs keep pointing at
+    // the old version's chunks until they expire days later. Every read would
+    // fail the same way for the rest of the session, so drop the manifest and
+    // serve this read through the server instead.
+    if (!spec.directUrls) throw err
+
+    logger.warn('[download] direct manifest failed, evicting it and relaying:', err)
+    evictChunkUrls(file.id)
+
+    return runDownloader({ ...spec, directUrls: undefined }, chunk)
+  }
+}
+
+async function runDownloader(
+  spec: DownloadSpec,
+  chunk?: number,
+  onBytes?: (bytes: number) => void
+): Promise<Uint8Array> {
   const downloader = buildDownloader(spec, new Api().toJson())
 
   try {
     return chunk === undefined
-      ? await downloader.download(() => {}, () => false)
+      ? await downloader.download(bytesFromProgress(onBytes), () => false)
       : await downloader.downloadChunk(chunk, undefined)
   } finally {
     downloader.free()
@@ -103,12 +111,19 @@ export async function downloadAndDecrypt(
     return bytes
   }
 
-  const downloader = await fileDownloader(file)
+  const spec = await specFor(file)
 
   try {
-    return await downloader.download(bytesFromProgress(onBytes), () => false)
-  } finally {
-    downloader.free()
+    return await runDownloader(spec, undefined, onBytes)
+  } catch (err) {
+    // Same healing as `fetchBytes`: a stale manifest must not pin every read
+    // of this file to the same failure until its URLs expire.
+    if (!spec.directUrls) throw err
+
+    logger.warn('[download] direct manifest failed, evicting it and relaying:', err)
+    evictChunkUrls(file.id)
+
+    return runDownloader({ ...spec, directUrls: undefined }, undefined, onBytes)
   }
 }
 
