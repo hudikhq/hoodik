@@ -428,15 +428,10 @@ impl FsProviderContract for S3Provider {
     }
 
     async fn tar_content_length<T: IntoFilename>(&self, filename: &T) -> AppResult<u64> {
-        let filename = filename.filename()?;
-        let chunks = self.get_uploaded_chunks(&filename).await?;
+        let prefix = self.chunk_prefix(&filename.filename()?);
+        let objects = self.list_objects(&prefix).await?;
 
-        let keys: Vec<String> = chunks
-            .iter()
-            .map(|idx| self.object_key(&filename.clone().with_chunk(*idx)))
-            .collect();
-
-        tar_total_length(&self.bucket, keys).await
+        Ok(tar_length_of_sizes(objects.iter().map(|o| o.size)))
     }
 
     // ── Versioned chunk operations ──────────────────────────────────────
@@ -572,13 +567,15 @@ impl FsProviderContract for S3Provider {
             return self.tar_content_length(&filename).await;
         }
 
-        let chunks = self.get_uploaded_chunks_v(&filename, version).await?;
-        let keys: Vec<String> = chunks
-            .iter()
-            .map(|idx| self.versioned_chunk_key(&filename, version, *idx))
-            .collect();
+        let prefix = self.version_prefix(&filename, version);
+        let objects = self.list_objects(&prefix).await?;
 
-        tar_total_length(&self.bucket, keys).await
+        Ok(tar_length_of_sizes(
+            objects
+                .iter()
+                .filter(|o| o.key.ends_with(".chunk"))
+                .map(|o| o.size),
+        ))
     }
 
     async fn purge_version<T: IntoFilename>(
@@ -867,16 +864,17 @@ fn tar_entry_stream(
     })
 }
 
-/// Accumulate tar total size across a list of S3 keys by `HEAD`-ing each one
-/// and summing header + payload + padding, plus the two-block trailer.
-async fn tar_total_length(bucket: &s3::Bucket, keys: Vec<String>) -> AppResult<u64> {
+/// Tar total for a set of chunk object sizes: header + payload + padding per
+/// entry, plus the two-block trailer. Sizes come from the listing the caller
+/// already holds — S3 listings carry them, so measuring a stored file costs
+/// one LIST instead of one HEAD round-trip per chunk, which for a large file
+/// is the difference between milliseconds and blowing a proxy timeout.
+fn tar_length_of_sizes(sizes: impl Iterator<Item = u64>) -> u64 {
     let mut total: u64 = 0;
-    for key in &keys {
-        let size = required_chunk_size(bucket, key).await?;
+    for size in sizes {
         total += 512 + size + tar::tar_padding_len(size) as u64;
     }
-    total += tar::TAR_END_OF_ARCHIVE_LEN as u64;
-    Ok(total)
+    total + tar::TAR_END_OF_ARCHIVE_LEN as u64
 }
 
 /// `GET` an object and translate rust-s3's "return the status code inside
