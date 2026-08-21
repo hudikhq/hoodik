@@ -9,20 +9,32 @@ import { capabilitiesStore } from '!/shares/capabilities'
 import type { AppFile, UploadAppFile } from '../../../types'
 
 /**
- * A file's in-progress direct upload: the URLs it was given, and which of its
- * chunks have landed.
+ * A file's in-progress direct upload: the URLs it was given, which of its
+ * chunks are in the bucket, and how long the URLs stay valid.
  *
  * Unlike a read manifest this one must not outlive the upload it belongs to.
  * The URLs are signed for the version being written, so a note saved twice
  * gets two manifests pointing at two different versions — reusing the first
  * would write the second save's bytes into the first save's slot.
+ *
+ * `written` starts from the chunks the server already lists as stored, not
+ * from empty: a resumed upload writes only the missing ones, and the commit
+ * below fires when the bucket holds everything, however many sessions that
+ * took.
  */
 interface PendingUpload {
   urls: string[]
   written: Set<number>
+  expiresAt: number
 }
 
 const pending = new Map<string, PendingUpload>()
+
+/**
+ * Dropped a minute early so a chunk never PUTs against URLs that expire while
+ * it uploads. Same margin the read-side cache keeps.
+ */
+const EXPIRY_MARGIN_SECONDS = 60
 
 /**
  * Abandon a file's manifest so the next chunk asks for a fresh one. Called on
@@ -63,13 +75,16 @@ function target(file: UploadAppFile): { size: number; chunks: number } {
  * Presigned URLs for writing this file's chunks straight into the storage
  * bucket, or `undefined` when this deployment cannot serve them.
  *
- * Fetched once per upload and held until it commits, so the per-chunk callers
- * cost one request for the file rather than one per chunk.
+ * Fetched once per upload and held until it commits or expires, so the
+ * per-chunk callers cost one request for the file rather than one per chunk.
  *
- * Sizes are declared up front because the server signs each one into its URL
- * and the bucket refuses a body of any other length. They come from the crate
- * that does the encrypting rather than from arithmetic here, so the two cannot
- * disagree about the AEAD overhead.
+ * Only the chunks the server does not already hold are requested: chunks are
+ * write-once, and the server refuses to sign a URL for a stored one — the
+ * refusal that keeps a finished file's ciphertext from being overwritten in
+ * place. Sizes are declared up front because the server signs each one into
+ * its URL and the bucket refuses a body of any other length. They come from
+ * the crate that does the encrypting rather than from arithmetic here, so the
+ * two cannot disagree about the AEAD overhead.
  *
  * `undefined` is a normal answer, not an error: local-filesystem servers have
  * no URLs to give, an S3 server whose bucket failed its startup checks
@@ -87,23 +102,34 @@ export async function uploadChunkUrls(
   }
 
   const held = pending.get(file.id)
-  if (held) return held.urls
+  if (held) {
+    if (held.expiresAt - EXPIRY_MARGIN_SECONDS > Math.floor(Date.now() / 1000)) {
+      return held.urls
+    }
+    pending.delete(file.id)
+  }
 
   try {
+    const stored = new Set(file.uploaded_chunks ?? [])
     const sizes = transferEncryptedChunkSizes(file.cipher, target(file).size)
+
+    const chunks = Array.from(sizes, (size, chunk) => ({ chunk, size })).filter(
+      ({ chunk }) => !stored.has(chunk)
+    )
+    if (!chunks.length) return undefined
 
     const response = await api.make<{ chunks: { chunk: number; size: number }[] }, ChunkUrls>(
       'post',
       `/api/storage/${file.id}/upload-urls`,
       undefined,
-      { chunks: Array.from(sizes, (size, chunk) => ({ chunk, size })) }
+      { chunks }
     )
 
     const body = response?.body
     if (!body?.urls?.length) return undefined
 
     const urls = orderByChunk(body.urls)
-    pending.set(file.id, { urls, written: new Set() })
+    pending.set(file.id, { urls, written: new Set(stored), expiresAt: body.expires_at })
 
     return urls
   } catch {
@@ -153,6 +179,23 @@ export async function putChunk(
 
   forgetUpload(file.id)
 
+  return finalizeUpload(file, api)
+}
+
+/**
+ * `POST /finalize` — ask the server to list the bucket and commit the target
+ * version.
+ *
+ * Also the answer for an upload with nothing left to PUT: a resume that finds
+ * every chunk already stored still has to deliver the finalize its
+ * predecessor never got to, or the bytes sit in the bucket forever with the
+ * version pointer never moving. The server treats a repeated finalize as a
+ * no-op, so callers say it whenever the direct path may have been involved.
+ */
+export async function finalizeUpload(
+  file: UploadAppFile,
+  api: Api
+): Promise<AppFile | undefined> {
   const committed = await api.make<undefined, AppFile>(
     'post',
     `/api/storage/${file.id}/finalize`

@@ -43,17 +43,39 @@ export async function uploadChunk(
       `Writing chunk ${chunk} / ${file.chunks} of ${file.name} (${encrypted.length} B) into the bucket`
     )
 
-    const committed = await putChunk(file, chunk, encrypted, directUrl, client)
+    try {
+      const committed = await putChunk(file, chunk, encrypted, directUrl, client)
 
-    return {
-      ...file,
-      ...(committed || {}),
-      key: file.key,
-      name: file.name,
-      thumbnail: file.thumbnail,
-      temporaryId: file.temporaryId,
-      file: file.file,
-      started_upload_at: file.started_upload_at || utcStringFromLocal()
+      return {
+        ...file,
+        ...(committed || {}),
+        key: file.key,
+        name: file.name,
+        thumbnail: file.thumbnail,
+        temporaryId: file.temporaryId,
+        file: file.file,
+        started_upload_at: file.started_upload_at || utcStringFromLocal()
+      }
+    } catch (err) {
+      // Buckets shed load with transient errors that every S3 SDK retries,
+      // and a URL can expire under a long-stalled queue. `putChunk` already
+      // dropped the manifest, so a retry signs fresh URLs; a chunk that
+      // keeps failing falls through to the relaying route below rather than
+      // sinking the save.
+      if (attempt < MAX_UPLOAD_RETRIES) {
+        logger.warn(
+          'Direct',
+          `Failed writing chunk ${chunk} / ${file.chunks} of ${file.name} into the bucket, retrying...`,
+          err
+        )
+        return uploadChunk(file, data, chunk, attempt + 1, api)
+      }
+
+      logger.warn(
+        'Direct',
+        `Chunk ${chunk} / ${file.chunks} of ${file.name} keeps failing directly, relaying instead...`,
+        err
+      )
     }
   }
 

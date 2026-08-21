@@ -4,6 +4,10 @@ import { errorIntoWorkerError, localDateFromUtcString, utcStringFromLocal, uuidv
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as sync from './sync'
+import { finalizeUpload } from './direct'
+// Straight from the module that defines it, for the same reason `./direct`
+// does: the `!/shares` barrel imports this store back.
+import { capabilitiesStore } from '!/shares/capabilities'
 import { pushUploadToWorker } from '../workers'
 import * as cryptfns from '../../cryptfns'
 import { emitFileTreeChange } from '../events'
@@ -511,38 +515,52 @@ export async function upload(file: UploadAppFile, progress?: UploadProgressFunct
   const { token } = await meta.requestTransferToken(file.id, 'upload')
   const api = new Api({ ...new Api().toJson(), jwtToken: token, refreshToken: undefined })
 
-  const workers = [...new Array(file.chunks)]
-    .filter((_, c) => {
-      return !file.uploaded_chunks?.includes(c)
-    })
-    .map((_, chunk) => {
-      return async () => {
-        // Skip already uploaded chunks
-        if (file.uploaded_chunks?.includes(chunk)) {
-          if (progress) {
-            const storedChunks = file.uploaded_chunks?.length || 0
-            await progress(file, storedChunks === file.chunks)
-          }
+  // The chunk indexes still missing, kept as real indexes: filtering the
+  // array and letting `map` hand out positions again would renumber chunk 3
+  // of a resume as chunk 0 and write the wrong slice into the wrong slot.
+  const missing = [...new Array(file.chunks).keys()].filter(
+    (chunk) => !file.uploaded_chunks?.includes(chunk)
+  )
 
-          return file
-        }
+  const workers = missing.map((chunk) => {
+    return async () => {
+      const data = await sliceChunk(file.file as File, chunk)
 
-        const data = await sliceChunk(file.file as File, chunk)
+      file = await sync.uploadChunk(file, data, chunk, 0, api)
 
-        file = await sync.uploadChunk(file, data, chunk, 0, api)
-
-        if (progress) {
-          const storedChunks = file.uploaded_chunks?.length || 0
-          await progress(file, storedChunks === file.chunks)
-        }
-
-        return file
+      if (progress) {
+        const storedChunks = file.uploaded_chunks?.length || 0
+        await progress(file, storedChunks === file.chunks)
       }
-    })
+
+      return file
+    }
+  })
 
   while (workers.length) {
     const batch = workers.splice(0, 1)
     file = await Promise.race(batch.map((worker) => worker()))
+  }
+
+  // Chunks that went straight into the bucket never told the server they
+  // landed, so a resume with nothing left to PUT — or an upload that finished
+  // through the relay after starting directly — still owes the commit. The
+  // server treats a repeated finalize as a no-op, so on a deployment without
+  // direct transfer this is skipped and everywhere else it is safe to say
+  // once too often.
+  if (capabilitiesStore().directTransfer) {
+    const committed = await finalizeUpload(file, api)
+    if (committed) {
+      file = {
+        ...file,
+        ...committed,
+        key: file.key,
+        name: file.name,
+        thumbnail: file.thumbnail,
+        temporaryId: file.temporaryId,
+        file: file.file
+      }
+    }
   }
 
   return file
