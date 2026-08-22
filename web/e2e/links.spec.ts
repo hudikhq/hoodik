@@ -81,10 +81,15 @@ test.describe('Public link download is zero-knowledge', () => {
       const anonContext = await browser.newContext()
       const anonPage = await anonContext.newPage()
 
+      // The invariant is transport-independent — whoever serves the bytes
+      // serves ciphertext and never sees the link key — so capture both
+      // shapes: relayed chunks (`/api/links/{id}?chunk=`) and direct bucket
+      // reads. Which one carries the download depends on the deployment
+      // under test.
       const chunks: { url: string; postData: string | null; body: Promise<Buffer> }[] = []
       anonPage.on('response', (resp) => {
         const url = resp.url()
-        if (/\/api\/links\/[0-9a-f-]+\?chunk=/i.test(url)) {
+        if (/\/api\/links\/[0-9a-f-]+\?chunk=/i.test(url) || url.includes(':9000/')) {
           chunks.push({ url, postData: resp.request().postData(), body: resp.body() })
         }
       })
@@ -97,14 +102,16 @@ test.describe('Public link download is zero-knowledge', () => {
       ])
       await Promise.all(chunks.map((c) => c.body))
 
-      // More than one chunk was fetched, each request carried nothing but the
-      // chunk index, and no request leaked the link key.
+      // More than one chunk was fetched, no request leaked the link key, and
+      // a relayed request carried nothing but the chunk index.
       expect(chunks.length).toBeGreaterThan(1)
       for (const chunk of chunks) {
-        expect([...new URL(chunk.url).searchParams.keys()]).toEqual(['chunk'])
+        if (!chunk.url.includes(':9000/')) {
+          expect([...new URL(chunk.url).searchParams.keys()]).toEqual(['chunk'])
+        }
         expect(chunk.url).not.toContain(linkKeyHex)
         expect(chunk.postData ?? '').not.toContain(linkKeyHex)
-        // The server streams stored ciphertext; the plaintext marker must be absent.
+        // Stored ciphertext either way; the plaintext marker must be absent.
         expect((await chunk.body).includes(marker)).toBe(false)
       }
 
