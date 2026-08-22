@@ -21,6 +21,8 @@ function manifest(urls: { chunk: number; url: string }[], expiresInSeconds = 360
 
 /**
  * Put the capability store into a known state without touching the network.
+ * `lastFetchedAt` marks it as fetched so `ensureFetched` in the gate does not
+ * issue a real request that fails in jsdom and stomps the fixture.
  */
 function setDirectTransfer(enabled: boolean) {
   const caps = capabilitiesStore()
@@ -32,6 +34,7 @@ function setDirectTransfer(enabled: boolean) {
     fork: false,
     direct_transfer: enabled
   }
+  caps.lastFetchedAt = Math.floor(Date.now() / 1000)
 }
 
 describe('direct chunk-url manifests', () => {

@@ -267,6 +267,9 @@ describe('downloadChunk', () => {
       fork: false,
       direct_transfer: true
     }
+    // Marked as fetched so `ensureFetched` in the gate does not issue a real
+    // request that fails in jsdom and stomps the fixture.
+    capabilitiesStore().lastFetchedAt = Math.floor(Date.now() / 1000)
     ApiGet.mockResolvedValueOnce({
       body: {
         urls: [{ chunk: 0, url: 'https://bucket/v2/0' }],
@@ -308,6 +311,9 @@ describe('downloadChunk', () => {
       fork: false,
       direct_transfer: true
     }
+    // Marked as fetched so `ensureFetched` in the gate does not issue a real
+    // request that fails in jsdom and stomps the fixture.
+    capabilitiesStore().lastFetchedAt = Math.floor(Date.now() / 1000)
     ApiGet.mockResolvedValueOnce({
       body: {
         urls: [{ chunk: 0, url: 'https://bucket/v2/0' }],

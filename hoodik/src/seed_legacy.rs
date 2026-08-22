@@ -15,10 +15,10 @@
 //! if either side drifts, the browser can no longer open the seeded blobs and
 //! the spec fails rather than passing on a migration that never happened.
 
-use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use entity::{files, links, user_files, users, ActiveValue, EntityTrait, PaginatorTrait, Uuid};
+use fs::prelude::{Filename, Fs, FsProviderContract};
 use sea_orm::Database;
 
 /// Name the seeded file and its public link carry once decrypted. The spec
@@ -159,11 +159,21 @@ async fn main() {
     .await
     .unwrap();
 
-    // One non-versioned chunk on disk, next to the DB, in the flat layout the
-    // link download resolves: `{data_dir}/{created_at}-{file_id}.part.0`.
-    let data_dir = Path::new(db_path).parent().unwrap();
+    // One non-versioned chunk in the flat layout the link download resolves
+    // (`{created_at}-{file_id}.part.0`), written through the same storage
+    // abstraction the server reads through. The environment decides where
+    // that is — writing a local file unconditionally left every S3-backed
+    // run serving a file whose bytes were never in the bucket.
     let chunk = cryptfns::aes::encrypt(file_key.clone(), image).unwrap();
-    std::fs::write(data_dir.join(format!("{now}-{file_id}.part.0")), chunk).unwrap();
+    let config = config::Config::env_only(
+        "seed_legacy",
+        env!("CARGO_PKG_VERSION"),
+        "Seed a legacy account for the e2e suite",
+    );
+    Fs::new(&config)
+        .push(&Filename::new(file_id).with_timestamp(now), 0, &chunk)
+        .await
+        .unwrap();
 
     // Public link. The link key wraps the name and the file key (both Ascon-128a
     // under the raw link key); the link key itself is RSA-wrapped under the

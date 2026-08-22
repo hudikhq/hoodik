@@ -97,7 +97,11 @@ export async function uploadChunkUrls(
   file: UploadAppFile,
   api: Api
 ): Promise<string[] | undefined> {
-  if (!capabilitiesStore().directTransfer) {
+  // Awaited for the same reason the read side awaits: a gate that reads an
+  // unfetched store fails closed and quietly relays.
+  const capabilities = capabilitiesStore()
+  await capabilities.ensureFetched()
+  if (!capabilities.directTransfer) {
     return undefined
   }
 

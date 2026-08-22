@@ -121,7 +121,13 @@ async function chunkUrls(
   path: string,
   method: 'get' | 'post'
 ): Promise<string[] | undefined> {
-  if (!capabilitiesStore().directTransfer) {
+  // Awaited rather than read: the public link page never logs in, so nothing
+  // has fetched the advertisement there — a bare read sees the fail-closed
+  // null and silently relays every link download on a deployment that serves
+  // URLs perfectly well.
+  const capabilities = capabilitiesStore()
+  await capabilities.ensureFetched()
+  if (!capabilities.directTransfer) {
     return undefined
   }
 

@@ -31,7 +31,8 @@ function manifest(urls: { chunk: number; url: string }[]) {
 }
 
 function setDirectTransfer(enabled: boolean) {
-  capabilitiesStore().caps = {
+  const caps = capabilitiesStore()
+  caps.caps = {
     sharing: { enabled: false, roles: [] },
     editable_folders: false,
     share_groups: false,
@@ -39,6 +40,9 @@ function setDirectTransfer(enabled: boolean) {
     fork: false,
     direct_transfer: enabled
   }
+  // Marked as fetched so `ensureFetched` in the gate does not issue a real
+  // request that fails in jsdom and stomps the fixture.
+  caps.lastFetchedAt = Math.floor(Date.now() / 1000)
 }
 
 /** Poll until a condition holds — vitest 0.30 has no `vi.waitFor`. */

@@ -78,6 +78,24 @@ export const capabilitiesStore = defineStore('capabilities', () => {
     }
   }
 
+  let inflight: Promise<void> | null = null
+
+  /**
+   * Resolve once the advertisement has been fetched at least once, fetching
+   * it now if nobody has. The authenticated app fetches at login, but the
+   * public link page has no login — and a gate that reads the store without
+   * this sees the fail-closed null and quietly disables a capability the
+   * server advertises. Concurrent callers share one request; `fetch` installs
+   * fail-closed defaults on error, so this always resolves.
+   */
+  async function ensureFetched(): Promise<void> {
+    if (lastFetchedAt.value !== null) return
+    inflight ??= fetch().finally(() => {
+      inflight = null
+    })
+    return inflight
+  }
+
   function reset(): void {
     caps.value = null
     lastFetchedAt.value = null
@@ -97,6 +115,7 @@ export const capabilitiesStore = defineStore('capabilities', () => {
     forkEnabled,
     directTransfer,
     fetch,
+    ensureFetched,
     reset
   }
 })
