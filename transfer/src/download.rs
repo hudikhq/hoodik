@@ -3,10 +3,10 @@ use crate::error::{Error, Result};
 use crate::platform::{HttpClient, ProgressReporter};
 use crate::types::{Auth, ChunkTarget, DownloadSource};
 use futures::future::LocalBoxFuture;
-use std::cell::RefCell;
-use std::str::FromStr;
 use futures::stream::{FuturesUnordered, StreamExt};
+use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
+use std::str::FromStr;
 
 /// Minimum growth in received bytes between two progress emissions.
 ///
@@ -332,7 +332,38 @@ async fn run_download_pipeline<'a>(
 
         // Wait for whichever download finishes first.
         let (chunk_idx, chunk_result) = in_flight.next().await.expect("non-empty");
-        pending.insert(chunk_idx, chunk_result?);
+        let data = match chunk_result {
+            Ok(data) => data,
+            // A chunk that failed against the bucket is fetched again through
+            // the server — the same degrade-don't-die rule the upload side
+            // applies to a failed PUT. Without it the first dropped chunk
+            // ends the whole transfer, and a file is many independent
+            // requests to a third-party host: at a quarter of a percent lost
+            // per chunk, a gigabyte fails more often than it succeeds. One
+            // that was already relaying has nowhere left to go.
+            Err(e) => {
+                if direct_target(direct_urls, chunk_idx).is_none() {
+                    return Err(e);
+                }
+
+                let (_, retried) = fetch_and_decrypt(
+                    http,
+                    ChunkTarget::Api { auth, source },
+                    chunk_idx,
+                    decryption_key,
+                    cipher,
+                    // The failed attempt already reported whatever it read,
+                    // and the exact total is restated once the last chunk is
+                    // emitted, so this one stays quiet rather than counting
+                    // the same bytes twice.
+                    Box::new(|_| {}),
+                )
+                .await;
+
+                retried?
+            }
+        };
+        pending.insert(chunk_idx, data);
 
         // Drain all consecutively-ready chunks in order.
         while let Some(data) = pending.remove(&next_to_emit) {
@@ -437,8 +468,31 @@ pub async fn download_chunks_to_dir(
             return Err(Error::Cancelled);
         }
 
-        let (_chunk_idx, chunk_result) = in_flight.next().await.expect("non-empty");
-        let chunk_len = chunk_result?;
+        let (chunk_idx, chunk_result) = in_flight.next().await.expect("non-empty");
+        let chunk_len = match chunk_result {
+            Ok(len) => len,
+            // Same fallback the streaming pipeline takes: a bucket that drops
+            // one chunk costs this transfer its speed, not its life.
+            Err(e) => {
+                if direct_target(direct_urls, chunk_idx).is_none() {
+                    return Err(e);
+                }
+
+                let (_, retried) = fetch_and_save(
+                    http,
+                    ChunkTarget::Api {
+                        auth,
+                        source: DownloadSource::Storage(file_id),
+                    },
+                    chunk_idx,
+                    output_dir,
+                    Box::new(|_| {}),
+                )
+                .await;
+
+                retried?
+            }
+        };
         bytes_downloaded += chunk_len as u64;
     }
 

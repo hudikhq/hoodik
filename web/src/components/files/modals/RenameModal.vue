@@ -43,9 +43,9 @@ const init = () => {
       try {
         if (!file.value) throw new Error('File not found')
 
-        await props.Storage.rename(props.Crypto.keypair, file.value, values.name)
+        const renamed = await props.Storage.rename(props.Crypto.keypair, file.value, values.name)
         ctx.resetForm()
-        emit('confirm')
+        emit('confirm', renamed)
         emit('update:modelValue', undefined)
       } catch (err) {
         const error = err as ErrorResponse<unknown>

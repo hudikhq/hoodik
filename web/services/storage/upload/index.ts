@@ -544,9 +544,11 @@ export async function upload(file: UploadAppFile, progress?: UploadProgressFunct
 
       file = await sync.uploadChunk(file, data, chunk, 0, api)
 
+      // Never done from here, however many chunks have landed: on the direct
+      // path the commit is still to come, and the commit is what can fail.
+      // The one `progress(file, true)` this path makes is below, after it.
       if (progress) {
-        const storedChunks = file.uploaded_chunks?.length || 0
-        await progress(file, storedChunks === file.chunks)
+        await progress(file, false)
       }
 
       return file
@@ -580,6 +582,13 @@ export async function upload(file: UploadAppFile, progress?: UploadProgressFunct
         file: file.file
       }
     }
+  }
+
+  // Done only here — past the commit, or past the point where there was none
+  // to make. A throw above never reaches this, and the caller's catch is what
+  // marks the file failed.
+  if (progress) {
+    await progress(file, true)
   }
 
   return file

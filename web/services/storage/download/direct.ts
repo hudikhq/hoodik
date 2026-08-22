@@ -37,6 +37,7 @@ export function orderByChunk(urls: ChunkUrl[]): string[] {
 interface CachedManifest {
   urls: string[]
   expiresAt: number
+  fetchedAt: number
 }
 
 /**
@@ -56,11 +57,23 @@ const cache = new Map<string, CachedManifest>()
  */
 const EXPIRY_MARGIN_SECONDS = 60
 
+/**
+ * How long a manifest may be reused before the server is asked again.
+ *
+ * Far shorter than the URLs stay valid, and deliberately so: fetching a
+ * manifest is what runs the read gate, and a share revoked elsewhere reaches
+ * this client no other way. Signed for days, a manifest would otherwise let a
+ * recipient keep reading a file they had lost access to for as long as the
+ * tab stayed open. Long enough that a playback session still costs one fetch.
+ */
+const REUSE_SECONDS = 300
+
 function cached(key: string): string[] | undefined {
   const hit = cache.get(key)
   if (!hit) return undefined
 
-  if (hit.expiresAt - EXPIRY_MARGIN_SECONDS <= Math.floor(Date.now() / 1000)) {
+  const now = Math.floor(Date.now() / 1000)
+  if (hit.expiresAt - EXPIRY_MARGIN_SECONDS <= now || now - hit.fetchedAt >= REUSE_SECONDS) {
     cache.delete(key)
     return undefined
   }
@@ -120,7 +133,7 @@ export function clearChunkUrlCache(): void {
  */
 export function evictChunkUrls(fileId: string): void {
   for (const key of [...cache.keys()]) {
-    if (key === `file:${fileId}` || key.startsWith(`version:${fileId}:`)) {
+    if (key.startsWith(`file:${fileId}`) || key.startsWith(`version:${fileId}:`)) {
       cache.delete(key)
     }
   }
@@ -181,7 +194,11 @@ async function chunkUrls(
 
     const ordered = orderByChunk(body.urls)
 
-    cache.set(key, { urls: ordered, expiresAt: body.expires_at })
+    cache.set(key, {
+      urls: ordered,
+      expiresAt: body.expires_at,
+      fetchedAt: Math.floor(Date.now() / 1000)
+    })
 
     return ordered
   } catch {
@@ -191,9 +208,20 @@ async function chunkUrls(
 
 /**
  * Presigned URLs for an authenticated file's active version.
+ *
+ * Keyed by that version, not by the file: the URLs address the chunks of the
+ * version they were signed for, and they outlive it by days. Cached under the
+ * file id alone, a tab that had read a note once kept serving the content it
+ * read first — every later edit, from this device or another, invisible to it
+ * until the entry expired. The caller reads the version off a row it has just
+ * fetched, so a client that learns about an edit misses the stale entry on its
+ * own.
  */
-export async function fileChunkUrls(fileId: string): Promise<string[] | undefined> {
-  return chunkUrls(`file:${fileId}`, `/api/storage/${fileId}/chunk-urls`, 'get')
+export async function fileChunkUrls(
+  fileId: string,
+  activeVersion: number
+): Promise<string[] | undefined> {
+  return chunkUrls(`file:${fileId}:${activeVersion}`, `/api/storage/${fileId}/chunk-urls`, 'get')
 }
 
 /**

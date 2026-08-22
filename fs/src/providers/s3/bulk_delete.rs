@@ -34,10 +34,7 @@ const BATCH_LIMIT: usize = 1000;
 
 /// Delete every key in `keys` from `bucket`, batched up to `BATCH_LIMIT`
 /// per request. No-op on an empty list.
-pub(super) async fn delete_keys(
-    bucket: &s3::Bucket,
-    keys: Vec<String>,
-) -> AppResult<()> {
+pub(super) async fn delete_keys(bucket: &s3::Bucket, keys: Vec<String>) -> AppResult<()> {
     if keys.is_empty() {
         return Ok(());
     }
@@ -77,10 +74,7 @@ async fn delete_individually(bucket: &s3::Bucket, keys: &[String]) -> AppResult<
             let bucket = bucket.clone();
             async move {
                 let response = bucket.delete_object(&key).await.map_err(|e| {
-                    Error::StorageError(format!(
-                        "S3 delete_object failed for '{}': {}",
-                        key, e
-                    ))
+                    Error::StorageError(format!("S3 delete_object failed for '{}': {}", key, e))
                 })?;
                 // A 404 means the key is already gone, which is the outcome
                 // the caller asked for; anything else non-2xx leaves an orphan.
@@ -165,9 +159,8 @@ async fn delete_one_batch(bucket: &s3::Bucket, keys: &[String]) -> AppResult<()>
     let signing_key = signing::signing_key(&datetime, &secret_key, &bucket.region(), "s3")
         .map_err(|e| Error::InternalError(format!("signing_key: {}", e)))?;
 
-    let mut mac = <Hmac<Sha256>>::new_from_slice(&signing_key).map_err(|e| {
-        Error::InternalError(format!("HMAC-SHA256 init failed: {}", e))
-    })?;
+    let mut mac = <Hmac<Sha256>>::new_from_slice(&signing_key)
+        .map_err(|e| Error::InternalError(format!("HMAC-SHA256 init failed: {}", e)))?;
     mac.update(string_to_sign.as_bytes());
     let signature = hex::encode(mac.finalize().into_bytes());
 
@@ -267,9 +260,8 @@ fn build_delete_url(bucket: &s3::Bucket) -> AppResult<Url> {
 fn long_datetime(datetime: &OffsetDateTime) -> AppResult<String> {
     use time::format_description::FormatItem;
     use time::macros::format_description;
-    const FMT: &[FormatItem<'static>] = format_description!(
-        "[year][month][day]T[hour][minute][second]Z"
-    );
+    const FMT: &[FormatItem<'static>] =
+        format_description!("[year][month][day]T[hour][minute][second]Z");
     datetime
         .format(FMT)
         .map_err(|e| Error::InternalError(format!("datetime format: {}", e)))
@@ -308,7 +300,10 @@ mod tests {
 
     #[test]
     fn xml_escape_escapes_reserved() {
-        assert_eq!(xml_escape("a<b>c&d\"e'f"), "a&lt;b&gt;c&amp;d&quot;e&apos;f");
+        assert_eq!(
+            xml_escape("a<b>c&d\"e'f"),
+            "a&lt;b&gt;c&amp;d&quot;e&apos;f"
+        );
     }
 
     #[test]
@@ -323,7 +318,8 @@ mod tests {
 
     #[test]
     fn extract_per_key_error_finds_block() {
-        let body = "<DeleteResult><Error><Key>x</Key><Message>oops</Message></Error></DeleteResult>";
+        let body =
+            "<DeleteResult><Error><Key>x</Key><Message>oops</Message></Error></DeleteResult>";
         assert!(extract_per_key_error(body).unwrap().contains("oops"));
     }
 

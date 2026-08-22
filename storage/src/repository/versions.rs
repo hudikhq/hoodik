@@ -14,6 +14,7 @@
 
 use chrono::Utc;
 use entity::{
+    file_tokens::{DigestTags, SearchTags},
     file_versions, files, ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait,
     Order, QueryFilter, QueryOrder, Uuid,
 };
@@ -72,11 +73,7 @@ where
 
     /// Look up a specific version's metadata. Used by the download route
     /// for `GET /versions/{version}?format=tar`.
-    pub(crate) async fn get(
-        &self,
-        file_id: Uuid,
-        version: i32,
-    ) -> AppResult<file_versions::Model> {
+    pub(crate) async fn get(&self, file_id: Uuid, version: i32) -> AppResult<file_versions::Model> {
         let _ = self.repository.by_id(file_id, self.owner_id).await?;
 
         file_versions::Entity::find()
@@ -111,16 +108,12 @@ where
         // existing 409-with-force flow on the in-flight edit if they
         // really mean to abandon it.
         if file.has_pending_upload() {
-            return Err(Error::Conflict(
-                "another_edit_is_in_progress".to_string(),
-            ));
+            return Err(Error::Conflict("another_edit_is_in_progress".to_string()));
         }
 
         // Self-restore is a no-op — bail before allocating a slot.
         if file.active_version == target_version {
-            return Err(Error::BadRequest(
-                "version_already_active".to_string(),
-            ));
+            return Err(Error::BadRequest("version_already_active".to_string()));
         }
 
         let target = self.get(file_id, target_version).await?;
@@ -190,6 +183,8 @@ where
         source_version: i32,
         new_file_active_model: files::ActiveModel,
         encrypted_key: String,
+        search_tags: SearchTags,
+        digest_tags: DigestTags,
     ) -> AppResult<ForkOutcome> {
         // Caller's permission was already gated at the route. The
         // `by_id(source_file_id, caller_id)` call confirms the caller
@@ -208,10 +203,12 @@ where
             self.get(source_file_id, source_version).await?;
         }
 
-        // Insert the new file row + ownership record. Mirrors the
-        // create-file flow but skips the search-token plumbing — fork is
-        // primarily a recovery feature, the user can rename or re-tokenize
-        // the new note later.
+        // Insert the new file row + ownership record, indexed the way the
+        // create flow indexes one. The client sends the tags for the copy and
+        // this is the only moment they can be written: nothing else revisits
+        // a forked note, and its name_hash is keyed, so it never appears on
+        // the re-index sweep either. Dropped here, the copy would be
+        // unfindable for as long as it existed.
         let new_file_id = entity::active_value_to_uuid(new_file_active_model.id.clone())
             .ok_or(Error::as_wrong_id("file"))?;
 
@@ -236,6 +233,10 @@ where
         entity::user_files::Entity::insert(user_file)
             .exec_without_returning(self.repository.connection())
             .await?;
+
+        let tokens = self.repository.tokens(self.owner_id);
+        tokens.reindex(new_file_id, search_tags).await?;
+        tokens.replace_digests(new_file_id, digest_tags).await?;
 
         Ok(ForkOutcome {
             new_file_id,
@@ -302,11 +303,7 @@ where
     /// Best-effort by design: we prune AFTER a successful finalize, and a
     /// failure here doesn't roll back the commit. The next successful
     /// commit will catch up.
-    pub(crate) async fn prune_over_cap(
-        &self,
-        file_id: Uuid,
-        cap: usize,
-    ) -> AppResult<Vec<i32>> {
+    pub(crate) async fn prune_over_cap(&self, file_id: Uuid, cap: usize) -> AppResult<Vec<i32>> {
         let mut rows = file_versions::Entity::find()
             .filter(file_versions::Column::FileId.eq(file_id))
             .order_by(file_versions::Column::Version, Order::Asc)

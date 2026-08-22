@@ -1383,7 +1383,7 @@ async fn test_rekey_migration_transforms_a_pre_migration_database() {
              chunks_stored, file_modified_at, created_at, finished_upload_at, sha256, \
              cipher, editable, active_version) \
              VALUES ('{file_id}', '{legacy_name_hash}', 'enc-name', 'application/pdf', 4, 1, \
-             1, 0, 0, 0, '{sha256}', 'aegis128l', 0, 1)"
+             1, 0, 0, 0, '{sha256}', 'aegis128l', false, 1)"
         ))
         .await
         .expect("seed a pre-migration file row");
@@ -1394,7 +1394,7 @@ async fn test_rekey_migration_transforms_a_pre_migration_database() {
         .execute_unprepared(&format!(
             "INSERT INTO file_versions (id, file_id, version, is_anonymous, size, chunks, \
              sha256, created_at) \
-             VALUES ('{}', '{file_id}', 1, 0, 4, 1, '{sha256}', 0)",
+             VALUES ('{}', '{file_id}', 1, false, 4, 1, '{sha256}', 0)",
             entity::Uuid::new_v4()
         ))
         .await
@@ -1421,43 +1421,40 @@ async fn test_rekey_migration_transforms_a_pre_migration_database() {
         .await
         .expect("the remaining migrations apply over seeded legacy rows");
 
+    // Every query below runs on whichever database the suite was pointed at:
+    // this test is about a schema change, and the two dialects are where a
+    // schema change goes wrong. Catalog tables differ between them, so the
+    // shape assertions are made by querying the tables themselves — which is
+    // also what the server does.
+    let backend = context.db.get_database_backend();
+
     // The reversible token index is gone in both shapes: the cross-account
     // dedup table dropped, the per-file table rebuilt keyed and empty.
-    let row = context
+    let dropped = context
         .db
         .query_one(entity::Statement::from_string(
-            entity::DbBackend::Sqlite,
-            "SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'tokens'",
+            backend,
+            "SELECT count(*) AS n FROM tokens",
         ))
-        .await
-        .unwrap()
-        .unwrap();
-    let n: i32 = row.try_get("", "n").unwrap();
-    assert_eq!(n, 0, "the tokens table must be dropped");
+        .await;
+    assert!(
+        dropped.is_err(),
+        "the tokens table must be dropped, not merely emptied"
+    );
 
+    // Selecting the keyed columns proves both that they exist and that the
+    // old rows did not survive into them.
     let row = context
         .db
         .query_one(entity::Statement::from_string(
-            entity::DbBackend::Sqlite,
-            "SELECT count(*) AS n FROM file_tokens",
+            backend,
+            "SELECT count(*) AS n FROM file_tokens WHERE scope >= 0 AND tag IS NOT NULL",
         ))
         .await
         .unwrap()
         .unwrap();
-    let n: i32 = row.try_get("", "n").unwrap();
+    let n: i64 = row.try_get("", "n").unwrap();
     assert_eq!(n, 0, "old index rows must not survive into the keyed table");
-
-    let row = context
-        .db
-        .query_one(entity::Statement::from_string(
-            entity::DbBackend::Sqlite,
-            "SELECT count(*) AS n FROM pragma_table_info('file_tokens') WHERE name IN ('scope', 'tag')",
-        ))
-        .await
-        .unwrap()
-        .unwrap();
-    let n: i32 = row.try_get("", "n").unwrap();
-    assert_eq!(n, 2, "file_tokens must be rebuilt in the keyed shape");
 
     // The reversible name digest is blanked — which is also what marks the
     // file as waiting for its owner's re-index sweep — while the content
@@ -1466,7 +1463,7 @@ async fn test_rekey_migration_transforms_a_pre_migration_database() {
     let row = context
         .db
         .query_one(entity::Statement::from_string(
-            entity::DbBackend::Sqlite,
+            backend,
             format!("SELECT name_hash, sha256 FROM files WHERE id = '{file_id}'"),
         ))
         .await
@@ -1482,12 +1479,12 @@ async fn test_rekey_migration_transforms_a_pre_migration_database() {
     let row = context
         .db
         .query_one(entity::Statement::from_string(
-            entity::DbBackend::Sqlite,
+            backend,
             format!("SELECT count(*) AS n FROM file_versions WHERE file_id = '{file_id}' AND sha256 IS NOT NULL"),
         ))
         .await
         .unwrap()
         .unwrap();
-    let n: i32 = row.try_get("", "n").unwrap();
+    let n: i64 = row.try_get("", "n").unwrap();
     assert_eq!(n, 0, "version rows must not keep the bare content digest");
 }

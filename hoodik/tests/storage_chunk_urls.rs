@@ -353,3 +353,72 @@ async fn finalize_is_a_no_op_on_a_finished_file() {
     assert_eq!(refinalized.id, file.id);
     assert_eq!(refinalized.active_version, file.active_version);
 }
+
+/// The version manifest reaches historical ciphertext, so it runs the same
+/// read gate the version download runs. An anonymous caller gets nothing.
+#[actix_web::test]
+async fn version_urls_reject_an_anonymous_caller() {
+    let context = context::Context::mock_with_data_dir(Some("../data/test".to_string())).await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let jwt = helpers::register_curve25519(&app, "cu-ver-anon@doe.com")
+        .await
+        .jwt;
+    let file = uploaded_file(&app, &jwt).await;
+
+    let req = test::TestRequest::get()
+        .uri(&format!("/api/storage/{}/versions/1/chunk-urls", file.id))
+        .to_request();
+    let response = test::call_service(&app, req).await;
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+/// And a signed-in stranger gets nothing either: holding an account is not
+/// holding a share, and the manifest is the whole gate on this path.
+#[actix_web::test]
+async fn version_urls_hide_another_users_file() {
+    let context = context::Context::mock_with_data_dir(Some("../data/test".to_string())).await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let owner = helpers::register_curve25519(&app, "cu-ver-owner@doe.com")
+        .await
+        .jwt;
+    let file = uploaded_file(&app, &owner).await;
+    let stranger = helpers::register_curve25519(&app, "cu-ver-stranger@doe.com")
+        .await
+        .jwt;
+
+    let req = test::TestRequest::get()
+        .uri(&format!("/api/storage/{}/versions/1/chunk-urls", file.id))
+        .cookie(stranger)
+        .to_request();
+    let response = test::call_service(&app, req).await;
+
+    assert_ne!(
+        response.status(),
+        StatusCode::OK,
+        "a stranger was handed a manifest for someone else's version"
+    );
+}
+
+/// A version the file never had is refused before any URL work — the row has
+/// to exist, not merely the file.
+#[actix_web::test]
+async fn version_urls_refuse_a_version_that_does_not_exist() {
+    let context = context::Context::mock_with_data_dir(Some("../data/test".to_string())).await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let jwt = helpers::register_curve25519(&app, "cu-ver-missing@doe.com")
+        .await
+        .jwt;
+    let file = uploaded_file(&app, &jwt).await;
+
+    let req = test::TestRequest::get()
+        .uri(&format!("/api/storage/{}/versions/99/chunk-urls", file.id))
+        .cookie(jwt)
+        .to_request();
+    let response = test::call_service(&app, req).await;
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}

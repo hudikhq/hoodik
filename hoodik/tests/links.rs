@@ -452,3 +452,226 @@ async fn test_link_download_missing_chunk_returns_404() {
     Fs::new(&context.config).purge_all(&file).await.unwrap();
     context.config.app.cleanup();
 }
+
+/// The link manifest hands out URLs straight to the bucket, so it is the only
+/// gate on that path — and it is deliberately unauthenticated, because the
+/// link *is* the credential. What it must still refuse: a link whose time is
+/// up, and a link that does not exist. Both are checked before any URL work,
+/// and neither may move the download counter.
+#[actix_web::test]
+async fn test_link_chunk_urls_refuse_an_expired_or_unknown_link() {
+    use entity::EntityTrait;
+
+    let context =
+        context::Context::mock_with_data_dir(Some("../data/test-links-manifest".to_string())).await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let owner = helpers::seed_legacy_user(&context.db, "manifest@doe.com").await;
+    let req = test::TestRequest::post()
+        .uri("/api/auth/login")
+        .set_json(json!({ "email": "manifest@doe.com", "password": helpers::LEGACY_PASSWORD }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    let (jwt, _) = helpers::extract_cookies(resp.headers());
+    let jwt = jwt.unwrap();
+
+    let create_file = storage::data::create_file::CreateFile {
+        encrypted_key: Some("encrypted-gibberish".to_string()),
+        encrypted_name: Some("name".to_string()),
+        encrypted_thumbnail: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
+        name_hash: Some(helpers::name_tag("manifest")),
+        mime: Some("text/plain".to_string()),
+        size: Some(8),
+        chunks: Some(1),
+        file_id: None,
+        file_modified_at: None,
+        md5: None,
+        sha1: None,
+        sha256: None,
+        blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
+        cipher: None,
+        editable: None,
+    };
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(jwt.clone())
+        .set_json(&create_file)
+        .to_request();
+    let file: AppFile =
+        serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
+
+    let payload = b"ciphertxt".to_vec();
+    let req = test::TestRequest::post()
+        .uri(&format!(
+            "/api/storage/{}?checksum={}&chunk=0",
+            file.id,
+            cryptfns::sha256::digest(payload.as_slice())
+        ))
+        .cookie(jwt.clone())
+        .append_header(("Content-Type", "application/octet-stream"))
+        .set_payload(payload)
+        .to_request();
+    test::call_service(&app, req).await;
+
+    let link_key = cryptfns::aes::generate_key().unwrap();
+    let link_key_hex = cryptfns::hex::encode(link_key.clone());
+    let create_link = links::data::create_link::CreateLink {
+        file_id: Some(file.id.to_string()),
+        signature: Some(
+            cryptfns::rsa::private::sign(file.id.to_string().as_str(), &owner.rsa_private).unwrap(),
+        ),
+        encrypted_name: Some(cryptfns::hex::encode(
+            cryptfns::aes::encrypt(link_key.clone(), b"manifest.txt".to_vec()).unwrap(),
+        )),
+        encrypted_link_key: Some(
+            cryptfns::rsa::public::encrypt(&link_key_hex, &owner.rsa_public).unwrap(),
+        ),
+        encrypted_thumbnail: None,
+        encrypted_file_key: Some(cryptfns::hex::encode(
+            cryptfns::aes::encrypt(link_key, b"file-key".to_vec()).unwrap(),
+        )),
+        // Already past — the route has to read the row before it decides.
+        expires_at: Some(chrono::Utc::now().timestamp() - 60),
+    };
+    let req = test::TestRequest::post()
+        .uri("/api/links")
+        .cookie(jwt.clone())
+        .set_json(create_link)
+        .to_request();
+    let link: AppLink =
+        serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
+
+    let req = test::TestRequest::post()
+        .uri(&format!("/api/links/{}/chunk-urls", link.id))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        actix_web::http::StatusCode::UNAUTHORIZED,
+        "an expired link must not be handed URLs that outlive it by days"
+    );
+
+    let downloads = entity::links::Entity::find_by_id(link.id)
+        .one(&context.db)
+        .await
+        .unwrap()
+        .unwrap()
+        .downloads;
+    assert_eq!(
+        downloads, 0,
+        "a refused manifest must not count as a download"
+    );
+
+    let req = test::TestRequest::post()
+        .uri(&format!("/api/links/{}/chunk-urls", entity::Uuid::new_v4()))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), actix_web::http::StatusCode::NOT_FOUND);
+
+    use fs::prelude::{Fs, FsProviderContract};
+    Fs::new(&context.config).purge_all(&file).await.unwrap();
+    context.config.app.cleanup();
+}
+
+/// A live link on a deployment with nothing to hand out is told so plainly.
+/// The client then reads through the relaying route, which is what every
+/// local-filesystem deployment has always done.
+#[actix_web::test]
+async fn test_link_chunk_urls_refuse_when_the_provider_has_no_urls() {
+    let context =
+        context::Context::mock_with_data_dir(Some("../data/test-links-manifest-off".to_string()))
+            .await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let owner = helpers::seed_legacy_user(&context.db, "manifest-off@doe.com").await;
+    let req = test::TestRequest::post()
+        .uri("/api/auth/login")
+        .set_json(json!({ "email": "manifest-off@doe.com", "password": helpers::LEGACY_PASSWORD }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    let (jwt, _) = helpers::extract_cookies(resp.headers());
+    let jwt = jwt.unwrap();
+
+    let create_file = storage::data::create_file::CreateFile {
+        encrypted_key: Some("encrypted-gibberish".to_string()),
+        encrypted_name: Some("name".to_string()),
+        encrypted_thumbnail: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
+        name_hash: Some(helpers::name_tag("manifest-off")),
+        mime: Some("text/plain".to_string()),
+        size: Some(8),
+        chunks: Some(1),
+        file_id: None,
+        file_modified_at: None,
+        md5: None,
+        sha1: None,
+        sha256: None,
+        blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
+        cipher: None,
+        editable: None,
+    };
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(jwt.clone())
+        .set_json(&create_file)
+        .to_request();
+    let file: AppFile =
+        serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
+
+    let payload = b"ciphertxt".to_vec();
+    let req = test::TestRequest::post()
+        .uri(&format!(
+            "/api/storage/{}?checksum={}&chunk=0",
+            file.id,
+            cryptfns::sha256::digest(payload.as_slice())
+        ))
+        .cookie(jwt.clone())
+        .append_header(("Content-Type", "application/octet-stream"))
+        .set_payload(payload)
+        .to_request();
+    test::call_service(&app, req).await;
+
+    let link_key = cryptfns::aes::generate_key().unwrap();
+    let link_key_hex = cryptfns::hex::encode(link_key.clone());
+    let create_link = links::data::create_link::CreateLink {
+        file_id: Some(file.id.to_string()),
+        signature: Some(
+            cryptfns::rsa::private::sign(file.id.to_string().as_str(), &owner.rsa_private).unwrap(),
+        ),
+        encrypted_name: Some(cryptfns::hex::encode(
+            cryptfns::aes::encrypt(link_key.clone(), b"live.txt".to_vec()).unwrap(),
+        )),
+        encrypted_link_key: Some(
+            cryptfns::rsa::public::encrypt(&link_key_hex, &owner.rsa_public).unwrap(),
+        ),
+        encrypted_thumbnail: None,
+        encrypted_file_key: Some(cryptfns::hex::encode(
+            cryptfns::aes::encrypt(link_key, b"file-key".to_vec()).unwrap(),
+        )),
+        expires_at: None,
+    };
+    let req = test::TestRequest::post()
+        .uri("/api/links")
+        .cookie(jwt.clone())
+        .set_json(create_link)
+        .to_request();
+    let link: AppLink =
+        serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
+
+    let req = test::TestRequest::post()
+        .uri(&format!("/api/links/{}/chunk-urls", link.id))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), actix_web::http::StatusCode::BAD_REQUEST);
+
+    use fs::prelude::{Fs, FsProviderContract};
+    Fs::new(&context.config).purge_all(&file).await.unwrap();
+    context.config.app.cleanup();
+}

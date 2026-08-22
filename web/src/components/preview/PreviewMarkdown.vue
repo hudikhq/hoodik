@@ -112,6 +112,18 @@ function onDiscardConflict() {
   discardConflict()
 }
 
+/**
+ * A note renamed from inside the editor: the open preview still holds the row
+ * as it was, and every save indexes the note under the name it is holding. Left
+ * unhanded, the next save would put the note back under its old title and leave
+ * the new one unsearchable until something else re-indexed it.
+ */
+function onRenamed(renamed: AppFile) {
+  if (preview.value instanceof FilePreview) {
+    ;(preview.value as FilePreview).updateFile(renamed)
+  }
+}
+
 async function onVersionRestored(updated: AppFile) {
   // Restore flipped active_version server-side — hand the new metadata
   // to the preview so the cached content doesn't shadow it, then reload.
@@ -402,7 +414,13 @@ defineExpose({ exportPdf: handleExportPdf })
     </div>
 
     <!-- Modals -->
-    <RenameModal v-if="renameFile" v-model="renameFile" :Storage="Storage" :Crypto="Crypto" />
+    <RenameModal
+      v-if="renameFile"
+      v-model="renameFile"
+      :Storage="Storage"
+      :Crypto="Crypto"
+      @confirm="onRenamed"
+    />
     <DetailsModal v-model="detailsFile" />
     <SharingModal
       v-if="sharingFile && login.authenticated"

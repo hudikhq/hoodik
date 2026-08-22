@@ -75,7 +75,7 @@ export async function startFileDownload(file: DownloadAppFile): Promise<void> {
     apiTransfer,
     message: {
       transferableFile,
-      directUrls: await fileChunkUrls(file.id)
+      directUrls: await fileChunkUrls(file.id, file.active_version)
     } as DownloadFileMessage
   })
 }

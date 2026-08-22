@@ -207,7 +207,11 @@ impl S3Provider {
     /// Full key of one versioned chunk:
     /// `{prefix}{inner_name}/v{N}/{chunk:06}.chunk`.
     fn versioned_chunk_key(&self, filename: &Filename, version: i32, chunk: i64) -> String {
-        format!("{}{:06}.chunk", self.version_prefix(filename, version), chunk)
+        format!(
+            "{}{:06}.chunk",
+            self.version_prefix(filename, version),
+            chunk
+        )
     }
 
     /// Prefix covering every version and legacy-versioned key for a file:
@@ -226,10 +230,7 @@ impl S3Provider {
             .next()
             .and_then(|s| s.parse::<i64>().ok())
             .ok_or_else(|| {
-                Error::InternalError(format!(
-                    "Failed to parse chunk number from S3 key: {}",
-                    key
-                ))
+                Error::InternalError(format!("Failed to parse chunk number from S3 key: {}", key))
             })
     }
 
@@ -278,9 +279,7 @@ impl S3Provider {
         self.bucket
             .presign_get(key, self.direct_expiry_secs, None)
             .await
-            .map_err(|e| {
-                Error::StorageError(format!("S3 presign_get failed for '{}': {}", key, e))
-            })
+            .map_err(|e| Error::StorageError(format!("S3 presign_get failed for '{}': {}", key, e)))
     }
 
     /// Sign a URL that writes one object of exactly `len` bytes.
@@ -301,9 +300,7 @@ impl S3Provider {
         self.bucket
             .presign_put(key, self.direct_expiry_secs, Some(headers), None)
             .await
-            .map_err(|e| {
-                Error::StorageError(format!("S3 presign_put failed for '{}': {}", key, e))
-            })
+            .map_err(|e| Error::StorageError(format!("S3 presign_put failed for '{}': {}", key, e)))
     }
 
     /// True when `version == 1` and the versioned directory is empty. Used
@@ -424,7 +421,10 @@ impl FsProviderContract for S3Provider {
             })
             .collect();
 
-        Ok(Streamer::new(tar_entry_stream(self.bucket.clone(), entries)))
+        Ok(Streamer::new(tar_entry_stream(
+            self.bucket.clone(),
+            entries,
+        )))
     }
 
     async fn tar_content_length<T: IntoFilename>(&self, filename: &T) -> AppResult<u64> {
@@ -443,7 +443,19 @@ impl FsProviderContract for S3Provider {
         chunk: i64,
         data: &[u8],
     ) -> AppResult<()> {
-        let key = self.versioned_chunk_key(&filename.filename()?, version, chunk);
+        let filename = filename.filename()?;
+
+        // The same probe every sibling `_v` method runs, read side and write
+        // side alike. Without it this was the one writer that chose a layout
+        // on its own: a chunk falling back from a presigned PUT to the
+        // relaying route landed in the versioned layout while the chunks
+        // beside it sat in the legacy one — and the read side, which does ask
+        // the probe, then saw only half the file.
+        if self.should_use_legacy(&filename, version).await? {
+            return self.push(&filename, chunk, data).await;
+        }
+
+        let key = self.versioned_chunk_key(&filename, version, chunk);
         put_object_checked(&self.bucket, &key, data).await
     }
 
@@ -554,7 +566,10 @@ impl FsProviderContract for S3Provider {
             })
             .collect();
 
-        Ok(Streamer::new(tar_entry_stream(self.bucket.clone(), entries)))
+        Ok(Streamer::new(tar_entry_stream(
+            self.bucket.clone(),
+            entries,
+        )))
     }
 
     async fn tar_content_length_v<T: IntoFilename>(
@@ -578,11 +593,7 @@ impl FsProviderContract for S3Provider {
         ))
     }
 
-    async fn purge_version<T: IntoFilename>(
-        &self,
-        filename: &T,
-        version: i32,
-    ) -> AppResult<()> {
+    async fn purge_version<T: IntoFilename>(&self, filename: &T, version: i32) -> AppResult<()> {
         let prefix = self.version_prefix(&filename.filename()?, version);
         let objects = self.list_objects(&prefix).await?;
 
@@ -774,19 +785,16 @@ fn chunk_key_stream(
     bucket: s3::Bucket,
     keys: Vec<String>,
 ) -> impl futures_util::Stream<Item = AppResult<Bytes>> {
-    futures_util::stream::unfold(
-        (bucket, keys),
-        |(bucket, mut keys)| async move {
-            let key = keys.pop()?;
-            match get_object_bytes(&bucket, &key).await {
-                Ok(data) => Some((Ok(Bytes::from(data)), (bucket, keys))),
-                Err(e) => {
-                    log::error!("S3 stream read failed for '{}': {}", key, e);
-                    Some((Err(e), (bucket, keys)))
-                }
+    futures_util::stream::unfold((bucket, keys), |(bucket, mut keys)| async move {
+        let key = keys.pop()?;
+        match get_object_bytes(&bucket, &key).await {
+            Ok(data) => Some((Ok(Bytes::from(data)), (bucket, keys))),
+            Err(e) => {
+                log::error!("S3 stream read failed for '{}': {}", key, e);
+                Some((Err(e), (bucket, keys)))
             }
-        },
-    )
+        }
+    })
 }
 
 /// Build a lazy tar stream over a list of (entry_name, s3_key) pairs. Each
@@ -957,10 +965,8 @@ mod tests {
     #[test]
     fn parse_legacy_chunk_index() {
         assert_eq!(
-            S3Provider::parse_chunk_index(
-                "1712345600-550e8400-e29b-41d4-a716-446655440000.part.0"
-            )
-            .unwrap(),
+            S3Provider::parse_chunk_index("1712345600-550e8400-e29b-41d4-a716-446655440000.part.0")
+                .unwrap(),
             0
         );
         assert_eq!(

@@ -704,24 +704,20 @@ macro_rules! upload_token {
     }};
 }
 
-/// Count the index rows one file holds in one scope, straight off the table.
-/// Ids are stored as 16-byte blobs, hence the `hex()` comparison.
-async fn scope_rows(context: &context::Context, file_id: entity::Uuid, scope: i32) -> i64 {
-    use entity::ConnectionTrait;
+/// Count the index rows one file holds in one scope.
+///
+/// Through the entity API rather than raw SQL: an id is a blob on SQLite and a
+/// uuid on PostgreSQL, and every way of writing that comparison by hand works
+/// on one and not the other.
+async fn scope_rows(context: &context::Context, file_id: entity::Uuid, scope: i32) -> u64 {
+    use entity::{file_tokens, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter};
 
-    let row = context
-        .db
-        .query_one(entity::Statement::from_string(
-            entity::DbBackend::Sqlite,
-            format!(
-                "SELECT count(*) AS n FROM file_tokens WHERE hex(file_id) = '{}' AND scope = {scope}",
-                file_id.simple().to_string().to_uppercase()
-            ),
-        ))
+    file_tokens::Entity::find()
+        .filter(file_tokens::Column::FileId.eq(file_id))
+        .filter(file_tokens::Column::Scope.eq(scope))
+        .count(&context.db)
         .await
         .unwrap()
-        .unwrap();
-    row.try_get::<i64>("", "n").unwrap()
 }
 
 /// A rename replaces every word token, and must not take the digest with it:

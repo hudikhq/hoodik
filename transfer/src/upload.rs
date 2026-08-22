@@ -528,6 +528,16 @@ async fn run_upload_pipeline<'a>(
     // Drain: wait for all in-flight uploads and dispatch any still-waiting chunks.
     let t_drain = upload_trace::now_ms();
     while !encrypted_waiting.is_empty() || !in_flight.is_empty() {
+        // The producer loop above polls for cancellation too, but it only
+        // runs while the encrypted buffer is full — which for anything under
+        // that buffer's worth never happens. A small file is read, hashed and
+        // encrypted faster than a hand can reach the cancel button, and every
+        // one of its uploads then happens here. Without this the file lands
+        // and commits after the user cancelled it.
+        if progress.is_cancelled(file_id) {
+            return Err(Error::Cancelled);
+        }
+
         pump_uploads(
             &mut in_flight,
             &mut encrypted_waiting,

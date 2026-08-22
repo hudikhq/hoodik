@@ -96,6 +96,50 @@ jobs:
           echo "Running:$args"
           cargo test $args -- --nocapture
 
+  # SQLite and PostgreSQL are not interchangeable — different types, different
+  # transaction semantics, and a GROUP BY that PG rejects and SQLite waves
+  # through. Every other suite here runs on SQLite, so without this the
+  # PostgreSQL half of the supported matrix ships on the strength of a local
+  # `just ci-test-pg` someone remembered to run.
+  rust-integration-pg:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hoodik_test
+          POSTGRES_PASSWORD: hoodik_test
+          POSTGRES_DB: hoodik_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U hoodik_test"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      TEST_DATABASE_URL: postgres://hoodik_test:hoodik_test@localhost:5433/hoodik_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-integration-pg
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev
+          version: 1.0
+      - uses: extractions/setup-just@v2
+      # The service container above is what `just test-pg-up` starts locally,
+      # so the recipe's own docker step is skipped and the suites run against
+      # it directly.
+      - name: Integration tests against PostgreSQL
+        run: just test-rust-integration
+
   web:
     runs-on: ubuntu-latest
     steps:
@@ -217,17 +261,18 @@ jobs:
   # misconfigured trigger merge untested code.
   test:
     runs-on: ubuntu-latest
-    needs: [lint, rust-unit, rust-integration, web, e2e, e2e-direct, s3-aws-integration]
+    needs: [lint, rust-unit, rust-integration, rust-integration-pg, web, e2e, e2e-direct, s3-aws-integration]
     if: always()
     steps:
       - name: Verify all jobs passed
         run: |
           fail() { echo "$1 finished as '$2'"; exit 1; }
-          for job in lint rust-unit rust-integration web e2e e2e-direct; do
+          for job in lint rust-unit rust-integration rust-integration-pg web e2e e2e-direct; do
             case "$job" in
               lint) result="${{ needs.lint.result }}";;
               rust-unit) result="${{ needs.rust-unit.result }}";;
               rust-integration) result="${{ needs.rust-integration.result }}";;
+              rust-integration-pg) result="${{ needs.rust-integration-pg.result }}";;
               web) result="${{ needs.web.result }}";;
               e2e) result="${{ needs.e2e.result }}";;
               e2e-direct) result="${{ needs.e2e-direct.result }}";;

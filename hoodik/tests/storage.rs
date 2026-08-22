@@ -993,6 +993,11 @@ async fn test_fork_creates_independent_copy() {
         "size": 999,
         "chunks": 999,
         "editable": true,
+        // The copy's index, which only the client can compute. This is the
+        // one moment it can be written: nothing revisits a forked note, and
+        // its keyed name_hash keeps it off the re-index sweep.
+        "search_tokens_root": ["a1b2c3d4e5f60718293a4b5c6d7e8f90:1"],
+        "search_tokens_file": ["0f1e2d3c4b5a69788796a5b4c3d2e1f0:1"],
     });
     let req = test::TestRequest::post()
         .uri(format!("/api/storage/{}/versions/1/fork", source.id).as_str())
@@ -1009,6 +1014,22 @@ async fn test_fork_creates_independent_copy() {
     );
     assert_eq!(forked.active_version, 1);
     assert!(forked.finished_upload_at.is_some());
+
+    // A copy nothing can find is a copy the user has lost. The tags the
+    // client sent are written with the row, the way create writes them.
+    let req = test::TestRequest::post()
+        .uri("/api/storage/search")
+        .cookie(jwt.clone())
+        .set_json(serde_json::json!({
+            "root_tags": ["a1b2c3d4e5f60718293a4b5c6d7e8f90"]
+        }))
+        .to_request();
+    let hits: Vec<AppFile> =
+        serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
+    assert!(
+        hits.iter().any(|f| f.id == forked.id),
+        "the forked note must be findable by the tags it was created with"
+    );
 
     // Forked file's content matches v1, source still serves v2.
     let req = test::TestRequest::get()

@@ -24,7 +24,7 @@ async function specFor(file: AppFile): Promise<DownloadSpec> {
     chunks: file.chunks,
     cipher: file.cipher,
     key: file.key as Uint8Array,
-    directUrls: await fileChunkUrls(file.id)
+    directUrls: await fileChunkUrls(file.id, file.active_version)
   }
 }
 

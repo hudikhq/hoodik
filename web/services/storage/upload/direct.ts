@@ -1,4 +1,4 @@
-import Api from '../../api'
+import Api, { ErrorResponse } from '../../api'
 import { transferEncryptedChunkSizes } from 'transfer'
 import { orderByChunk, type ChunkUrls } from '../download/direct'
 // Straight from the module that defines it, for the same reason the read side
@@ -145,7 +145,16 @@ export async function uploadChunkUrls(
     pending.set(file.id, { urls, written: new Set(stored), expiresAt: body.expires_at })
 
     return urls
-  } catch {
+  } catch (err) {
+    // A chunk the server already holds is not "this deployment relays" — it
+    // is this client's view of the bucket being behind, which a cancel that
+    // left PUTs in flight produces routinely. Answering `undefined` would
+    // take the relaying path, and the relaying path never finalizes: the
+    // stored chunks would sit there while the queue reported the file done.
+    // The empty manifest keeps it on the direct path, which owes exactly
+    // that commit.
+    if (err instanceof ErrorResponse && err.status === 422) return []
+
     return undefined
   }
 }
