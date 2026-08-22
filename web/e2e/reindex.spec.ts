@@ -112,20 +112,19 @@ test.describe('Search re-index', () => {
       .update(fs.readFileSync(path.join(__dirname, 'fixtures', 'test-image.png')))
       .digest('hex')
 
-    const searchBodies: string[] = []
-    page.on('request', (request) => {
-      if (request.url().includes('/api/storage/search')) {
-        searchBodies.push(request.postData() ?? '')
-      }
-    })
-
-    await page.locator('input[placeholder="Search files..."]').fill(digest)
+    // Waited for explicitly: the file name is already on screen from the
+    // word search above, so asserting visibility alone would pass on stale
+    // results without the digest query ever firing.
+    const [digestRequest] = await Promise.all([
+      page.waitForRequest(
+        (request) => request.url().includes('/api/storage/search'),
+        { timeout: 15_000 }
+      ),
+      page.locator('input[placeholder="Search files..."]').fill(digest)
+    ])
     await expect(page.getByText(FILE_NAME).first()).toBeVisible({ timeout: 15_000 })
 
-    expect(searchBodies.length).toBeGreaterThan(0)
-    for (const body of searchBodies) {
-      expect(body.toLowerCase()).not.toContain(digest)
-    }
+    expect((digestRequest.postData() ?? '').toLowerCase()).not.toContain(digest)
   })
 
   test('cancelling leaves the work for next time instead of losing it', async ({ page }) => {

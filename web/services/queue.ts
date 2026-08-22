@@ -169,25 +169,33 @@ async function handleHashDoneMessage(files: FilesStore, id: string, sha256: stri
     return
   }
 
-  const cryptfns = await import('./cryptfns')
-  const fileSearchKey = cryptfns.searchFileKey(current.key as Uint8Array)
-  const keyed = cryptfns.searchTag(fileSearchKey, sha256)
+  // Keying failure degrades to "hashes not persisted", never to an error
+  // that escapes this fire-and-forget handler into the page.
+  let update: meta.KeyedHashesUpdate
+  try {
+    const cryptfns = await import('./cryptfns')
+    const fileSearchKey = cryptfns.searchFileKey(current.key as Uint8Array)
+    const keyed = cryptfns.searchTag(fileSearchKey, sha256)
 
-  const update: meta.KeyedHashesUpdate = {
-    sha256: keyed,
-    search_tokens_file: [`${keyed}:1`]
-  }
-
-  // Only the owner can produce root-scope tags; an editor uploading into a
-  // shared folder indexes the digest under the file scope alone.
-  if (current.is_owner !== false) {
-    const { store: cryptoStore } = await import('./crypto')
-    const keypair = cryptoStore().keypair
-    if (keypair?.input) {
-      update.search_tokens_root = [
-        `${cryptfns.searchTag(cryptfns.searchRootKey(keypair), sha256)}:1`
-      ]
+    update = {
+      sha256: keyed,
+      search_tokens_file: [`${keyed}:1`]
     }
+
+    // Only the owner can produce root-scope tags; an editor uploading into a
+    // shared folder indexes the digest under the file scope alone.
+    if (current.is_owner !== false) {
+      const { store: cryptoStore } = await import('./crypto')
+      const keypair = cryptoStore().keypair
+      if (keypair?.input) {
+        update.search_tokens_root = [
+          `${cryptfns.searchTag(cryptfns.searchRootKey(keypair), sha256)}:1`
+        ]
+      }
+    }
+  } catch (err) {
+    logger.error('[queue] could not key the digest for', id, ':', err)
+    return
   }
 
   try {
@@ -199,7 +207,7 @@ async function handleHashDoneMessage(files: FilesStore, id: string, sha256: stri
   }
 
   logger.debug(`[queue] updating store item ${id} with keyed sha256`)
-  files.updateItem({ ...current, sha256: keyed })
+  files.updateItem({ ...current, sha256: update.sha256 })
 }
 
 /**
