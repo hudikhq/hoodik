@@ -260,7 +260,10 @@ pub async fn download_file_streaming(
 /// arrives as an empty slot rather than as a shorter array. Either way the
 /// answer is `None` and the caller keeps using the API: a partial manifest is
 /// still worth the chunks it does cover.
-fn direct_target<'a>(direct_urls: Option<&'a [String]>, chunk: u64) -> Option<ChunkTarget<'a>> {
+pub(crate) fn direct_target<'a>(
+    direct_urls: Option<&'a [String]>,
+    chunk: u64,
+) -> Option<ChunkTarget<'a>> {
     direct_urls
         .and_then(|urls| urls.get(chunk as usize))
         .filter(|url| !url.is_empty())

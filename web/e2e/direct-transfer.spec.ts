@@ -25,6 +25,16 @@ test.describe('Direct transfer', () => {
   test.beforeEach(async ({ page }) => {
     const capabilities = await page.request.get('/api/capabilities')
     const body = await capabilities.json()
+
+    // Under `just e2e-direct` a missing advertisement is a failure, never a
+    // skip: a suite whose every spec skips leaves a required CI job green
+    // while proving nothing, which is exactly how an env-plumbing regression
+    // would ship.
+    if (process.env.E2E_REQUIRE_DIRECT === 'true') {
+      expect(body.direct_transfer, 'E2E_REQUIRE_DIRECT is set but the server does not advertise direct transfer').toBe(true)
+      return
+    }
+
     test.skip(
       body.direct_transfer !== true,
       'server does not advertise direct transfer — run under `just e2e-direct`'

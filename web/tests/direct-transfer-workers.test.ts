@@ -158,6 +158,24 @@ describe('worker transfers', () => {
     expect(posted[0].message.directUrls).toBeUndefined()
   })
 
+  it('keeps a fully-stored resume on the direct path so its finalize is still delivered', async () => {
+    setDirectTransfer(true)
+    const make = vi.spyOn(Api.prototype, 'make')
+
+    const { posted } = stubWorker('UPLOAD')
+    stubWorker('HASH')
+    const file = { ...uploadFile(), uploaded_chunks: [0, 1] } as UploadAppFile
+    await pushUploadToWorker(file)
+
+    // Nothing to sign — and the server would refuse to sign stored chunks
+    // anyway — but the empty manifest is what tells the crate this is the
+    // direct path, whose resume still owes the commit its predecessor died
+    // before sending. `undefined` here would relay, and the relay never
+    // finalizes: the file would sit fully stored and uncommitted forever.
+    expect(make).not.toHaveBeenCalled()
+    expect(posted[0].message.directUrls).toEqual([])
+  })
+
   it('asks for no upload manifest when the server does not advertise direct transfer', async () => {
     setDirectTransfer(false)
     const make = vi.spyOn(Api.prototype, 'make')

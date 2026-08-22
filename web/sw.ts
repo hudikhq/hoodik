@@ -231,7 +231,10 @@ async function handleUploadFile(
     uploader.set_hash_mask(hashDisableMask)
     uploader.set_cipher(cipher)
 
-    if (directUrls?.length) {
+    // An empty manifest is meaningful: it is a resume with nothing left to
+    // PUT, kept on the direct path so the crate still delivers the finalize
+    // its predecessor never got to. Only `undefined` means "relay".
+    if (directUrls) {
       uploader.set_direct_urls(directUrls)
     }
 

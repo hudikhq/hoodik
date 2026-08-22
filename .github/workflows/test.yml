@@ -4,6 +4,11 @@ on:
   pull_request:
     branches:
       - master
+  # Weekly run on master so the AWS presign tier keeps being exercised:
+  # pull-request runs cover it only from same-repo branches, and nothing
+  # else would ever run it after a merge.
+  schedule:
+    - cron: "0 5 * * 1"
 
 # A superseded run has no audience — kill it the moment a newer push
 # arrives instead of letting two full pipelines queue behind each other.
@@ -205,9 +210,11 @@ jobs:
   # Branch protection requires a single check named "test". This gate is
   # that name: it succeeds only when every job above did, so the required
   # check stays stable no matter how the jobs behind it are re-arranged.
-  # "skipped" passes the gate because s3-aws-integration skips itself on
-  # forked PRs, where the AWS secrets are unavailable — an outside
-  # contributor must not be blocked by a job they cannot run.
+  # Only s3-aws-integration may be skipped — it skips itself on forked PRs,
+  # where the AWS secrets are unavailable, and an outside contributor must
+  # not be blocked by a job they cannot run. Every other job skipping is a
+  # pipeline bug, and a gate that waved skips through would let a
+  # misconfigured trigger merge untested code.
   test:
     runs-on: ubuntu-latest
     needs: [lint, rust-unit, rust-integration, web, e2e, e2e-direct, s3-aws-integration]
@@ -215,19 +222,31 @@ jobs:
     steps:
       - name: Verify all jobs passed
         run: |
-          results="${{ join(needs.*.result, ' ') }}"
-          echo "Job results: $results"
-          for result in $results; do
-            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
-              exit 1
-            fi
+          fail() { echo "$1 finished as '$2'"; exit 1; }
+          for job in lint rust-unit rust-integration web e2e e2e-direct; do
+            case "$job" in
+              lint) result="${{ needs.lint.result }}";;
+              rust-unit) result="${{ needs.rust-unit.result }}";;
+              rust-integration) result="${{ needs.rust-integration.result }}";;
+              web) result="${{ needs.web.result }}";;
+              e2e) result="${{ needs.e2e.result }}";;
+              e2e-direct) result="${{ needs.e2e-direct.result }}";;
+            esac
+            [ "$result" = "success" ] || fail "$job" "$result"
           done
+          aws="${{ needs.s3-aws-integration.result }}"
+          case "$aws" in
+            success|skipped) ;;
+            *) fail s3-aws-integration "$aws";;
+          esac
 
   s3-aws-integration:
     runs-on: ubuntu-latest
     # GitHub secrets aren't available to forked-PR workflows — skip cleanly
-    # instead of failing so external contributors' PRs aren't blocked.
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # instead of failing so external contributors' PRs aren't blocked. The
+    # weekly schedule always runs it; that is the run that keeps the AWS
+    # tier honest between same-repo PRs.
+    if: github.event_name == 'schedule' || github.event.pull_request.head.repo.full_name == github.repository
     env:
       S3_ENDPOINT: ${{ secrets.AWS_S3_TEST_ENDPOINT }}
       S3_REGION: ${{ secrets.AWS_S3_TEST_REGION }}

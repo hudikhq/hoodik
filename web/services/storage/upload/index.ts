@@ -547,8 +547,11 @@ export async function upload(file: UploadAppFile, progress?: UploadProgressFunct
   // through the relay after starting directly — still owes the commit. The
   // server treats a repeated finalize as a no-op, so on a deployment without
   // direct transfer this is skipped and everywhere else it is safe to say
-  // once too often.
-  if (capabilitiesStore().directTransfer) {
+  // once too often. Awaited like every other gate read: an unfetched store
+  // fails closed and would silently skip the commit.
+  const capabilities = capabilitiesStore()
+  await capabilities.ensureFetched()
+  if (capabilities.directTransfer) {
     const committed = await finalizeUpload(file, api)
     if (committed) {
       file = {

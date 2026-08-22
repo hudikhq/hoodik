@@ -136,12 +136,19 @@ pub(crate) async fn upload_urls(
         .ok_or_else(unavailable)?;
 
     // The relaying route refuses to overwrite a chunk that is already in the
-    // store, and that refusal is what makes chunks write-once. A signed PUT
-    // for a stored chunk would hand the invariant away: S3 overwrites
-    // unconditionally, so the URL itself is the overwrite. A finished file is
-    // fully stored, which means this also refuses to sign anything for a file
-    // with no upload in flight. Checked after the provider answered so a
-    // local-filesystem deployment still gets the plain "unavailable".
+    // store, and this refusal mirrors it at signing time: S3 overwrites
+    // unconditionally, so a signed PUT for a stored chunk would be the
+    // overwrite. A finished file is fully stored, which means this also
+    // refuses to sign anything for a file with no upload in flight. Checked
+    // after the provider answered so a local-filesystem deployment still gets
+    // the plain "unavailable".
+    //
+    // The guarantee is scoped to fresh requests. A URL signed while a chunk
+    // was legitimately pending stays valid for `S3_DIRECT_EXPIRY_SECS` (long
+    // by design — the set rides the OS background queue), so the client that
+    // uploaded a file can re-PUT a chunk of it within that window. AEAD keeps
+    // that at self-inflicted corruption the download check catches, never
+    // disclosure.
     let stored: std::collections::HashSet<i64> = if file.use_versioned_layout() {
         storage.get_uploaded_chunks_v(&file, version).await?
     } else {
@@ -253,10 +260,7 @@ pub(crate) async fn finalize(
 ///
 /// Authorization mirrors [`super::versions::download`], including the
 /// existence check on the version row.
-#[route(
-    "/api/storage/{file_id}/versions/{version}/chunk-urls",
-    method = "GET"
-)]
+#[route("/api/storage/{file_id}/versions/{version}/chunk-urls", method = "GET")]
 pub(crate) async fn version_urls(
     req: HttpRequest,
     claims: auth::data::claims::Claims,

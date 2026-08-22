@@ -431,17 +431,15 @@ impl TransferDownloader {
 
         // Progressive consumers land here one chunk at a time, so an index the
         // manifest covers goes to the bucket and anything else keeps using the
-        // API — same rule the whole-file pipeline follows, including the one
-        // about gaps: manifests are index-aligned, so a chunk the server
+        // API — the same helper the whole-file pipeline resolves targets with,
+        // gaps included: manifests are index-aligned, so a chunk the server
         // declined to sign arrives as an empty entry that means "through the
         // API", not as a URL to fetch.
-        let target = match self
-            .direct_urls
-            .as_ref()
-            .and_then(|urls| urls.get(chunk_index as usize))
-            .filter(|url| !url.is_empty())
-        {
-            Some(url) => ChunkTarget::Direct(url),
+        let target = match crate::download::direct_target(
+            self.direct_urls.as_deref(),
+            chunk_index as u64,
+        ) {
+            Some(target) => target,
             None => ChunkTarget::Api {
                 auth: &auth,
                 source: source_of(&file_id, public_link),

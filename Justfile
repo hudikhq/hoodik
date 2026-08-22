@@ -197,6 +197,14 @@ e2e *args:
     #!/usr/bin/env bash
     set -eo pipefail
 
+    # A dev server already on these ports would either collide with the
+    # release binary below or, worse, serve the suite stale code. Refuse
+    # loudly instead of hanging on the port for ten minutes.
+    if lsof -ti tcp:5443 -i tcp:5173 >/dev/null 2>&1; then
+        echo "ports 5443/5173 are in use — stop 'just dev' (or the stray server) first" >&2
+        exit 1
+    fi
+
     export DATA_DIR=$PWD/data/e2e
     export ENV_FILE=".env.e2e"
 
@@ -267,6 +275,11 @@ e2e-direct *args:
     export S3_PREFIX="e2e-direct/"
     export S3_DIRECT_TRANSFER=true
     export S3_DIRECT_ALLOW_INSECURE=true
+    # Turns "server does not advertise direct transfer" from a skip into a
+    # failure: this recipe exists to prove the direct path, and a run where
+    # every direct spec quietly skipped would prove nothing while staying
+    # green.
+    export E2E_REQUIRE_DIRECT=true
     just e2e {{args}}
 
 # Open Playwright test UI interactively (useful for debugging).

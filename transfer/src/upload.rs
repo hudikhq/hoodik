@@ -1,7 +1,7 @@
 use crate::checksum;
 use crate::config::{
-    CHUNK_SIZE_BYTES, CONCURRENT_UPLOADS_IN_FLIGHT, ENCRYPTED_CHUNKS_BUFFER_LIMIT,
-    MAX_UPLOAD_RETRIES, UploadHashOptions,
+    UploadHashOptions, CHUNK_SIZE_BYTES, CONCURRENT_UPLOADS_IN_FLIGHT,
+    ENCRYPTED_CHUNKS_BUFFER_LIMIT, MAX_UPLOAD_RETRIES,
 };
 use crate::error::{Error, HttpError, Result};
 use crate::platform::{DataSource, HttpClient, ProgressReporter};
@@ -9,9 +9,9 @@ use crate::types::{Auth, FileHashes};
 use crate::upload_trace;
 use digest::Digest;
 use futures::future::LocalBoxFuture;
-use std::str::FromStr;
 use futures::stream::{FuturesUnordered, StreamExt};
 use std::collections::{HashSet, VecDeque};
+use std::str::FromStr;
 
 /// Called for every plaintext chunk in order when SHA-256 (and optional other hashes) are
 /// offloaded to a separate execution context (e.g. a dedicated Web Worker).
@@ -276,7 +276,18 @@ pub async fn upload_file(
     // the old any-new-direct-chunk condition left fully-stored files
     // uncommitted forever.
     if direct_urls.is_some() {
-        http.finalize_upload(auth, file_id).await?;
+        // Same bounded retry the chunks get. This is the one request that
+        // commits a fully-stored upload, so a single transient failure must
+        // not mark gigabytes of landed ciphertext as failed — and finalize is
+        // idempotent, so a retry after an ambiguous outcome is safe.
+        let mut attempt = 0;
+        loop {
+            match http.finalize_upload(auth, file_id).await {
+                Ok(()) => break,
+                Err(_) if attempt < MAX_UPLOAD_RETRIES => attempt += 1,
+                Err(e) => return Err(e),
+            }
+        }
     }
 
     let hashes = hash_state.finalize();

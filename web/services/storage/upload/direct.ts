@@ -79,9 +79,9 @@ function target(file: UploadAppFile): { size: number; chunks: number } {
  * per-chunk callers cost one request for the file rather than one per chunk.
  *
  * Only the chunks the server does not already hold are requested: chunks are
- * write-once, and the server refuses to sign a URL for a stored one — the
- * refusal that keeps a finished file's ciphertext from being overwritten in
- * place. Sizes are declared up front because the server signs each one into
+ * write-once, and the server refuses to sign a URL for a stored one, so a
+ * fresh request can never target committed ciphertext. Sizes are declared up
+ * front because the server signs each one into
  * its URL and the bucket refuses a body of any other length. They come from
  * the crate that does the encrypting rather than from arithmetic here, so the
  * two cannot disagree about the AEAD overhead.
@@ -89,7 +89,9 @@ function target(file: UploadAppFile): { size: number; chunks: number } {
  * `undefined` is a normal answer, not an error: local-filesystem servers have
  * no URLs to give, an S3 server whose bucket failed its startup checks
  * withholds them, and a failure is treated the same way. Every caller uploads
- * through the server instead, which is the path that has always worked.
+ * through the server instead, which is the path that has always worked. An
+ * empty array is different — direct transfer is on and nothing is missing —
+ * and keeps the caller on the direct path for the finalize it may still owe.
  *
  * @param api  An `Api` carrying the file's upload transfer token.
  */
@@ -120,7 +122,14 @@ export async function uploadChunkUrls(
     const chunks = Array.from(sizes, (size, chunk) => ({ chunk, size })).filter(
       ({ chunk }) => !stored.has(chunk)
     )
-    if (!chunks.length) return undefined
+
+    // Every chunk already stored is not the relay's case — it is a resume
+    // whose predecessor died between its last PUT and finalize. An empty
+    // manifest keeps the crate on the direct path, where it uploads nothing
+    // and delivers the finalize still owed; `undefined` would send it down
+    // the relay arm, which never finalizes, and the file would sit fully
+    // stored but uncommitted forever.
+    if (!chunks.length) return []
 
     const response = await api.make<{ chunks: { chunk: number; size: number }[] }, ChunkUrls>(
       'post',
@@ -200,10 +209,23 @@ export async function finalizeUpload(
   file: UploadAppFile,
   api: Api
 ): Promise<AppFile | undefined> {
-  const committed = await api.make<undefined, AppFile>(
-    'post',
-    `/api/storage/${file.id}/finalize`
-  )
+  // The one request that commits a fully-stored upload: a transient failure
+  // here must not mark gigabytes of landed ciphertext as failed. Finalize is
+  // idempotent, so retrying an ambiguous outcome is safe.
+  let lastError: unknown
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const committed = await api.make<undefined, AppFile>(
+        'post',
+        `/api/storage/${file.id}/finalize`
+      )
 
-  return committed?.body
+      return committed?.body
+    } catch (err) {
+      lastError = err
+      await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)))
+    }
+  }
+
+  throw lastError
 }

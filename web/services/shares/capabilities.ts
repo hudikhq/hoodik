@@ -70,15 +70,26 @@ export const capabilitiesStore = defineStore('capabilities', () => {
       caps.value = await api.getCapabilities()
       setDefaultCipher(caps.value.default_cipher ?? 'aegis128l')
       lastFetchedAt.value = Math.floor(Date.now() / 1000)
+      failedAt = null
     } catch (e) {
       caps.value = FAIL_CLOSED_CAPABILITIES
       fetchError.value = 'errors.capabilitiesUnavailable'
+      failedAt = Math.floor(Date.now() / 1000)
     } finally {
       loading.value = false
     }
   }
 
   let inflight: Promise<void> | null = null
+
+  /**
+   * How long a failed fetch stands as the answer. The gates sit in the
+   * transfer hot path — one per chunk — and a server that fails slowly would
+   * otherwise add its whole timeout to every one of them.
+   */
+  const NEGATIVE_TTL_SECONDS = 30
+
+  let failedAt: number | null = null
 
   /**
    * Resolve once the advertisement has been fetched at least once, fetching
@@ -90,6 +101,9 @@ export const capabilitiesStore = defineStore('capabilities', () => {
    */
   async function ensureFetched(): Promise<void> {
     if (lastFetchedAt.value !== null) return
+    if (failedAt !== null && Math.floor(Date.now() / 1000) - failedAt < NEGATIVE_TTL_SECONDS) {
+      return
+    }
     inflight ??= fetch().finally(() => {
       inflight = null
     })
@@ -100,6 +114,7 @@ export const capabilitiesStore = defineStore('capabilities', () => {
     caps.value = null
     lastFetchedAt.value = null
     fetchError.value = null
+    failedAt = null
   }
 
   return {

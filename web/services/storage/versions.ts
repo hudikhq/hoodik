@@ -61,9 +61,17 @@ export async function downloadChunk(
 
   // Credentials would oblige the bucket to answer with an exact-origin CORS
   // policy it does not carry, and are meaningless against a presigned URL.
-  let response = direct ? await fetch(direct, { credentials: 'omit', signal }) : undefined
+  let response: Response | undefined
+  try {
+    response = direct ? await fetch(direct, { credentials: 'omit', signal }) : undefined
+  } catch {
+    // A broken CORS policy or an unreachable bucket throws instead of
+    // answering; heal it the same way an error answer heals below. Aborts
+    // rethrow from the relaying read, which shares the signal.
+    response = undefined
+  }
 
-  if (response && !response.ok) {
+  if (direct && (!response || !response.ok)) {
     // An expired URL or a pruned object answers with an XML error document —
     // a body, but not the chunk. Read as ciphertext it would fail much later
     // as a baffling decrypt error, so drop the manifest and take the
