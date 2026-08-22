@@ -1,4 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
+import { createHash } from 'crypto'
+import fs from 'fs'
+import path from 'path'
 
 import { loginAsUser } from './helpers/auth'
 import { closeOpenModal } from './helpers/shares'
@@ -100,6 +103,29 @@ test.describe('Search re-index', () => {
     await page.locator('input[placeholder="Search files..."]').fill('legacy')
 
     await expect(page.getByText(FILE_NAME).first()).toBeVisible({ timeout: 15_000 })
+
+    // And findable by its content digest. The seeder stored the bare sha256
+    // the old world wrote; the sweep re-keyed it and indexed it, so pasting
+    // the digest matches through the ordinary tag path — while the digest
+    // itself must never appear in the search request.
+    const digest = createHash('sha256')
+      .update(fs.readFileSync(path.join(__dirname, 'fixtures', 'test-image.png')))
+      .digest('hex')
+
+    const searchBodies: string[] = []
+    page.on('request', (request) => {
+      if (request.url().includes('/api/storage/search')) {
+        searchBodies.push(request.postData() ?? '')
+      }
+    })
+
+    await page.locator('input[placeholder="Search files..."]').fill(digest)
+    await expect(page.getByText(FILE_NAME).first()).toBeVisible({ timeout: 15_000 })
+
+    expect(searchBodies.length).toBeGreaterThan(0)
+    for (const body of searchBodies) {
+      expect(body.toLowerCase()).not.toContain(digest)
+    }
   })
 
   test('cancelling leaves the work for next time instead of losing it', async ({ page }) => {

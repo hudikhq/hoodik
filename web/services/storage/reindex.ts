@@ -19,6 +19,12 @@ export interface ReindexRequest {
   name_hash: string
   search_tokens_root: string[]
   search_tokens_file: string[]
+  /** Content digests re-keyed under the file's search key, replacing the
+   *  bare digests migrated rows still carry. */
+  md5?: string
+  sha1?: string
+  sha256?: string
+  blake2b?: string
 }
 
 /**
@@ -97,11 +103,25 @@ export const store = defineStore('reindex', () => {
     const fileKey = cryptfns.searchFileKey(file.key)
     const indexed = await textFor(file)
 
-    await Api.put<ReindexRequest, AppFile>(`/api/storage/${file.id}/reindex`, undefined, {
+    const body: ReindexRequest = {
       name_hash: cryptfns.searchTag(rootKey, file.name),
       search_tokens_root: cryptfns.searchTags(rootKey, indexed),
       search_tokens_file: cryptfns.searchTags(fileKey, indexed)
-    })
+    }
+
+    // Migrated rows still carry bare content digests — the third copy of the
+    // same leak. Re-key each from the stored value (no re-download needed)
+    // and index it in both scopes, which is what makes pasting a digest into
+    // search find the file.
+    for (const name of ['md5', 'sha1', 'sha256', 'blake2b'] as const) {
+      const digest = file[name]
+      if (!digest) continue
+      body[name] = cryptfns.searchTag(fileKey, digest)
+      body.search_tokens_root.push(`${cryptfns.searchTag(rootKey, digest)}:1`)
+      body.search_tokens_file.push(`${cryptfns.searchTag(fileKey, digest)}:1`)
+    }
+
+    await Api.put<ReindexRequest, AppFile>(`/api/storage/${file.id}/reindex`, undefined, body)
   }
 
   /**

@@ -58,8 +58,6 @@ export interface SearchQuery {
   root_tags?: string[]
   /** The same words tagged per file shared *with* the caller, under each file's own key. */
   file_tags?: string[]
-  /** A content digest matched verbatim against the stored hash columns. */
-  hash?: string
   dir_id?: string
   limit?: number
   skip?: number

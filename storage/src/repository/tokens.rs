@@ -127,9 +127,15 @@ where
     }
 
     /// Search files by tag, ranked by the summed weight of the tags that hit.
+    ///
+    /// Content-digest lookup is not a separate arm any more: clients index
+    /// each file's digests as keyed tags alongside the name and body tokens,
+    /// and tag the raw query the same way, so an exact digest match rides the
+    /// ordinary tag equality below — always on, and never a plaintext digest
+    /// on the wire.
     pub(crate) async fn search(&self, search: Search) -> AppResult<Vec<AppFile>> {
         let compact = search.compact.unwrap_or(false);
-        let (file_id, hash, root_tags, file_tags, limit, skip, editable) = search.into_tuple();
+        let (file_id, root_tags, file_tags, limit, skip, editable) = search.into_tuple();
 
         let user_id = self.user_id;
         let selector = match compact {
@@ -185,38 +191,16 @@ where
             query = query.offset(skip);
         }
 
-        let mut results = if root_tags_empty && file_tags_empty {
+        if root_tags_empty && file_tags_empty {
             // No tags to match. Skipping the query matters: an unfiltered one
             // would join every indexed row the caller can see and return the
             // whole drive.
-            vec![]
-        } else {
-            query
-                .into_model::<AppFile>()
-                .all(self.repository.connection())
-                .await?
-        };
-
-        // A query that is itself a content digest also matches the file whose
-        // bytes hash to it. Run as its own lookup rather than another branch
-        // of the tag filter: the tag query inner-joins the index, so a file
-        // with no tags could never come back from it — and whether a file is
-        // indexed has nothing to do with whether its bytes match.
-        if let Some(hash) = hash {
-            let seen: Vec<Uuid> = results.iter().map(|f| f.id).collect();
-
-            for file in self
-                .repository
-                .query(self.user_id)
-                .by_hash(&hash, compact)
-                .await?
-            {
-                if !seen.contains(&file.id) {
-                    results.push(file);
-                }
-            }
+            return Ok(vec![]);
         }
 
-        Ok(results)
+        Ok(query
+            .into_model::<AppFile>()
+            .all(self.repository.connection())
+            .await?)
     }
 }

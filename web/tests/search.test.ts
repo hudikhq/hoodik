@@ -56,14 +56,17 @@ describe('Search privacy', () => {
     expect(path).toBe('/api/storage/search')
     expect(params).toBeUndefined()
     expect(body).not.toHaveProperty('search')
-    // An ordinary query is not a digest, so nothing goes over verbatim.
+    // The retired verbatim hash field must never come back.
     expect(body.hash).toBeUndefined()
 
-    // Tagging matches the upload path, which indexes the lowercased name.
+    // Tagging matches the upload path, which indexes the lowercased name —
+    // plus one exact-match tag of the whole query, which is what answers a
+    // pasted content digest without any of it crossing in plaintext.
     const rootKey = cryptfns.searchRootKey(keypair)
-    expect(body.root_tags).toEqual(
-      cryptfns.searchTags(rootKey, 'annual report').map((t: string) => t.split(':')[0])
-    )
+    expect(body.root_tags).toEqual([
+      ...cryptfns.searchTags(rootKey, 'annual report').map((t: string) => t.split(':')[0]),
+      cryptfns.searchTag(rootKey, 'annual report')
+    ])
     expect(body.root_tags.length).toBeGreaterThan(0)
     for (const tag of body.root_tags) {
       expect(tag).toMatch(/^[0-9a-f]{32}$/)
@@ -85,8 +88,11 @@ describe('Search privacy', () => {
     }
   })
 
-  it('UNIT: search: a content digest goes over verbatim as a hash lookup', async () => {
-    // Every digest length the file rows carry: MD5, SHA1, SHA256, BLAKE2b.
+  it('UNIT: search: a pasted digest goes over as a keyed exact-match tag, never verbatim', async () => {
+    // Every digest length the file rows carry: MD5, SHA1, SHA256, BLAKE2b —
+    // and there is nothing special about them any more: any query gets one
+    // exact-match tag, and a digest is findable because indexing tagged it
+    // the same way when the hashes landed.
     for (const length of [32, 40, 64, 128]) {
       ApiPostMock.mockClear()
       const digest = 'f'.repeat(length)
@@ -94,21 +100,12 @@ describe('Search privacy', () => {
       await meta.search(digest, keypair)
 
       const [, , body] = ApiPostMock.mock.calls[0]
-      expect(body.hash).toBe(digest)
-      expect(body).not.toHaveProperty('search')
-    }
-  })
-
-  it('UNIT: search: near-digest strings are not treated as hash lookups', async () => {
-    // One character short of SHA256, and a same-length string with a
-    // non-hex character in it.
-    for (const candidate of ['f'.repeat(63), `g${'f'.repeat(63)}`]) {
-      ApiPostMock.mockClear()
-
-      await meta.search(candidate, keypair)
-
-      const [, , body] = ApiPostMock.mock.calls[0]
       expect(body.hash).toBeUndefined()
+      expect(body).not.toHaveProperty('search')
+
+      const rootKey = cryptfns.searchRootKey(keypair)
+      expect(body.root_tags).toContain(cryptfns.searchTag(rootKey, digest))
+      expect(JSON.stringify(body)).not.toContain(digest)
     }
   })
 

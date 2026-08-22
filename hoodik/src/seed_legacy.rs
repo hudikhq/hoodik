@@ -119,7 +119,10 @@ async fn main() {
         file_id: ActiveValue::Set(None),
         md5: ActiveValue::NotSet,
         sha1: ActiveValue::NotSet,
-        sha256: ActiveValue::NotSet,
+        // A bare content digest, the way the old world stored it. The
+        // re-index sweep re-keys it, and the browser suite then proves the
+        // file is findable by pasting this digest into search.
+        sha256: ActiveValue::Set(Some(cryptfns::sha256::digest(image.as_slice()))),
         blake2b: ActiveValue::NotSet,
         cipher: ActiveValue::Set(CIPHER.to_string()),
         editable: ActiveValue::Set(false),

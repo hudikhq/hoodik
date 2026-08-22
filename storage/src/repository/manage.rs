@@ -4,9 +4,9 @@ use std::{collections::HashMap, fmt::Display, str::FromStr};
 
 use chrono::Utc;
 use entity::{
-    file_tokens::SearchTags, file_versions, files, user_files, ActiveModelTrait, ActiveValue,
-    ColumnTrait, ConnectionTrait, EntityTrait, Order, QueryFilter, QueryOrder, Statement, Uuid,
-    Value,
+    file_tokens::{Scope, SearchTags},
+    file_versions, files, user_files, ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait,
+    EntityTrait, Order, QueryFilter, QueryOrder, Statement, Uuid, Value,
 };
 use error::{AppResult, Error};
 use validr::Validation;
@@ -337,16 +337,28 @@ where
     /// duplicate-name check against the very hash it is about to write and
     /// reject the file for colliding with itself.
     pub(crate) async fn reindex(&self, id: Uuid, data: Reindex) -> AppResult<AppFile> {
-        let (name_hash, search_tags) = data.into_parts()?;
+        let (name_hash, search_tags, hashes) = data.into_parts()?;
         let file = self.repository.by_id(id, self.owner_id).await?;
 
         if !file.is_owner {
             return Err(Error::Forbidden("cannot_reindex_not_owner".to_string()));
         }
 
+        // Absent digests stay untouched rather than being blanked: a sweep
+        // re-keys the values the row already carries, and a file whose row
+        // never had a digest has nothing to re-key.
+        let keyed = |value: Option<String>| match value {
+            Some(v) => ActiveValue::Set(Some(v)),
+            None => ActiveValue::NotSet,
+        };
+
         files::ActiveModel {
             id: ActiveValue::Set(id),
             name_hash: ActiveValue::Set(name_hash),
+            md5: keyed(hashes.md5),
+            sha1: keyed(hashes.sha1),
+            sha256: keyed(hashes.sha256),
+            blake2b: keyed(hashes.blake2b),
             ..Default::default()
         }
         .update(self.repository.connection())
@@ -557,8 +569,21 @@ where
             return Err(Error::NotFound("file_not_found".to_string()));
         }
 
-        let active_model = data.into_active_model(id)?;
+        let (active_model, tags) = data.into_active_model(id)?;
         active_model.update(self.repository.connection()).await?;
+
+        // Digest tags append to what create wrote: digests only exist once
+        // the bytes have been read in full, so this is the first moment they
+        // can join the index.
+        let tokens = self.repository.tokens(self.owner_id);
+        for (scope, tagged) in [
+            (Scope::Root, tags.root),
+            (Scope::File, tags.file),
+        ] {
+            if let Some(tagged) = tagged {
+                tokens.upsert(id, scope, tagged).await?;
+            }
+        }
 
         self.repository.by_id(file.id, file.user_id).await
     }

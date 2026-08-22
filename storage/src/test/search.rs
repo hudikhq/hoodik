@@ -249,7 +249,7 @@ async fn pending_reindex_shrinks_as_files_are_indexed() {
             Reindex {
                 name_hash: Some(cryptfns::search::tag(&search_key(), "alpha").unwrap()),
                 search_tokens_root: Some(index_tags(&search_key(), "alpha")),
-                search_tokens_file: None,
+                ..Default::default()
             },
         )
         .await
@@ -297,6 +297,7 @@ async fn pending_reindex_lets_go_of_a_file_that_indexed_to_zero_tags() {
                 name_hash: Some(cryptfns::search::tag(&search_key(), ";").unwrap()),
                 search_tokens_root: Some(vec![]),
                 search_tokens_file: Some(vec![]),
+                ..Default::default()
             },
         )
         .await
@@ -377,8 +378,11 @@ async fn pending_reindex_is_scoped_to_the_caller() {
         .is_empty());
 }
 
+/// A content digest is findable through the ordinary index: the digest is
+/// tagged like any other token at upload, the query tags the raw string the
+/// user typed, and equality does the rest. No digest ever crosses the wire.
 #[actix_web::test]
-async fn search_by_content_hash_finds_file_without_any_tags() {
+async fn a_digest_tag_finds_the_file_it_was_indexed_for() {
     let context = Context::mock_sqlite().await;
     let repository = Repository::new(&context.db);
     let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
@@ -387,11 +391,18 @@ async fn search_by_content_hash_finds_file_without_any_tags() {
         .await
         .unwrap();
 
+    let digest = cryptfns::sha256::digest("file bytes".as_bytes());
+    let tag = cryptfns::search::tag(&search_key(), &digest).unwrap();
+    repository
+        .tokens(user.id)
+        .upsert(file.id, Scope::Root, vec![format!("{tag}:1")])
+        .await
+        .unwrap();
+
     let search = Search {
-        hash: Some("asd".to_string()), // mock files carry "asd" in every hash column
+        root_tags: Some(vec![tag]),
         ..Default::default()
     };
-
     let results = repository.tokens(user.id).search(search).await.unwrap();
 
     assert_eq!(results.len(), 1);
@@ -408,8 +419,8 @@ async fn search_with_no_tags_matches_nothing() {
         .await
         .unwrap();
 
-    // No tags and no hash — the absent hash must not degrade into an
-    // empty-string comparison that matches rows.
+    // No tags at all must match nothing rather than degrade into an
+    // unfiltered join that returns the whole drive.
     let search = Search {
         root_tags: Some(vec![]),
         ..Default::default()
@@ -447,78 +458,49 @@ async fn create_files_and_try_getting_total_used_space() {
     assert_eq!(total, used_space)
 }
 
-/// A file with no index rows is still findable by its content digest.
-///
-/// This is the case the old shape got wrong: the hash lived as a branch of the
-/// tag filter, and the tag query inner-joins the index, so a file that was
-/// never indexed could not come back from a lookup that has nothing to do with
-/// indexing. Anything that syncs or backs up asks exactly this question about
-/// files it may have just uploaded.
+/// The same digest indexed by two accounts under their own keys stays two
+/// unrelated tags: keying, not the ACL, is what makes a digest lifted from
+/// elsewhere useless for probing another account.
 #[actix_web::test]
-async fn content_hash_finds_a_file_with_no_index_rows() {
-    let context = Context::mock_sqlite().await;
-    let repository = Repository::new(&context.db);
-    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
-
-    let file = create_file(&context, &user, "hello", None, Some("image/png"))
-        .await
-        .unwrap();
-
-    file_tokens::Entity::delete_many()
-        .filter(file_tokens::Column::FileId.eq(file.id))
-        .exec(&context.db)
-        .await
-        .unwrap();
-
-    let found = repository
-        .query(user.id)
-        .by_hash("asd", false)
-        .await
-        .unwrap();
-
-    assert_eq!(found.len(), 1);
-    assert_eq!(found[0].id, file.id);
-
-    // And through search, which is the path a user typing a digest takes.
-    let search = Search {
-        hash: Some("asd".to_string()),
-        ..Default::default()
-    };
-    let hits = repository.tokens(user.id).search(search).await.unwrap();
-
-    assert_eq!(hits.len(), 1);
-    assert_eq!(hits[0].id, file.id);
-}
-
-/// The lookup is access-controlled like everything else: a digest lifted from
-/// somewhere else is not a way to reach another account's files.
-#[actix_web::test]
-async fn content_hash_does_not_cross_accounts() {
+async fn the_same_digest_tags_differently_per_account() {
     let context = Context::mock_sqlite().await;
     let repository = Repository::new(&context.db);
     let owner = entity::mock::create_user(&context.db, "owner@test.com", None).await;
     let stranger = entity::mock::create_user(&context.db, "stranger@test.com", None).await;
 
-    create_file(&context, &owner, "hello", None, Some("image/png"))
+    let file = create_file(&context, &owner, "hello", None, Some("image/png"))
         .await
         .unwrap();
 
-    assert_eq!(
-        repository.query(owner.id).by_hash("asd", false).await.unwrap().len(),
-        1
-    );
+    let digest = cryptfns::sha256::digest("shared bytes".as_bytes());
+    let owner_tag = cryptfns::search::tag(&search_key(), &digest).unwrap();
+    repository
+        .tokens(owner.id)
+        .upsert(file.id, Scope::Root, vec![format!("{owner_tag}:1")])
+        .await
+        .unwrap();
+
+    let stranger_key: [u8; 32] = [9u8; 32];
+    let stranger_tag = cryptfns::search::tag(&stranger_key, &digest).unwrap();
+    assert_ne!(owner_tag, stranger_tag);
+
+    let search = Search {
+        root_tags: Some(vec![stranger_tag]),
+        ..Default::default()
+    };
     assert!(repository
-        .query(stranger.id)
-        .by_hash("asd", false)
+        .tokens(stranger.id)
+        .search(search)
         .await
         .unwrap()
         .is_empty());
 }
 
-/// A shared file answers the lookup for its recipient — the backup case for an
-/// account that holds incoming shares.
+/// A digest tagged under the file scope answers a recipient's query — the
+/// backup case for an account holding incoming shares, through the same
+/// file-key expansion every other shared-file query uses.
 #[actix_web::test]
-async fn content_hash_reaches_shared_files() {
+async fn a_file_scope_digest_tag_reaches_the_share_recipient() {
     let context = Context::mock_sqlite().await;
     let repository = Repository::new(&context.db);
     let owner = entity::mock::create_user(&context.db, "owner@test.com", None).await;
@@ -529,34 +511,21 @@ async fn content_hash_reaches_shared_files() {
         .unwrap();
     share_with(&context, file.id, recipient.id).await;
 
-    let found = repository
-        .query(recipient.id)
-        .by_hash("asd", false)
+    let digest = cryptfns::sha256::digest("shared bytes".as_bytes());
+    let tag = cryptfns::search::tag(&file_search_key("digest-test"), &digest).unwrap();
+    repository
+        .tokens(owner.id)
+        .upsert(file.id, Scope::File, vec![format!("{tag}:1")])
         .await
         .unwrap();
+
+    let search = Search {
+        file_tags: Some(vec![tag]),
+        ..Default::default()
+    };
+    let found = repository.tokens(recipient.id).search(search).await.unwrap();
 
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].id, file.id);
 }
 
-/// Tag hits and a digest hit in one query come back once each, not twice.
-#[actix_web::test]
-async fn search_merges_tag_and_hash_hits_without_duplicates() {
-    let context = Context::mock_sqlite().await;
-    let repository = Repository::new(&context.db);
-    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
-
-    let file = create_file(&context, &user, "hello", None, Some("image/png"))
-        .await
-        .unwrap();
-
-    let search = Search {
-        root_tags: Some(query_tags(&search_key(), "hello")),
-        hash: Some("asd".to_string()),
-        ..Default::default()
-    };
-    let hits = repository.tokens(user.id).search(search).await.unwrap();
-
-    assert_eq!(hits.len(), 1, "the same file matched both ways");
-    assert_eq!(hits[0].id, file.id);
-}

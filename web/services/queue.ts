@@ -153,26 +153,53 @@ export const store = defineStore('queue', () => {
 
 /**
  * Called when the HASH worker finishes computing SHA-256 for an uploaded file.
- * Persists the hash to the server and updates the local storage entry so the
- * details modal reflects it without a page reload.
+ *
+ * The digest is keyed before anything touches the wire: the column stores it
+ * under the file's search key — so any holder of the file key can still run
+ * the resume equality check — and the same moment appends the digest tags
+ * that make the file findable by pasting its digest into search. The bare
+ * digest never leaves this function.
  */
 async function handleHashDoneMessage(files: FilesStore, id: string, sha256: string) {
   logger.info(`[queue] hash-done for ${id}: sha256=${sha256.slice(0, 8)}...`)
+
+  const current = files.getItem(id)
+  if (!current?.key) {
+    logger.warn(`[queue] file ${id} has no key in the store — hashes not persisted`)
+    return
+  }
+
+  const cryptfns = await import('./cryptfns')
+  const fileSearchKey = cryptfns.searchFileKey(current.key as Uint8Array)
+  const keyed = cryptfns.searchTag(fileSearchKey, sha256)
+
+  const update: meta.KeyedHashesUpdate = {
+    sha256: keyed,
+    search_tokens_file: [`${keyed}:1`]
+  }
+
+  // Only the owner can produce root-scope tags; an editor uploading into a
+  // shared folder indexes the digest under the file scope alone.
+  if (current.is_owner !== false) {
+    const { store: cryptoStore } = await import('./crypto')
+    const keypair = cryptoStore().keypair
+    if (keypair?.input) {
+      update.search_tokens_root = [
+        `${cryptfns.searchTag(cryptfns.searchRootKey(keypair), sha256)}:1`
+      ]
+    }
+  }
+
   try {
-    await meta.updateHashes(id, sha256)
+    await meta.updateHashes(id, update)
     logger.info(`[queue] updateHashes succeeded for ${id}`)
   } catch (err) {
     logger.error('[queue] Failed to persist hashes for', id, ':', err)
     return
   }
 
-  const current = files.getItem(id)
-  if (current) {
-    logger.debug(`[queue] updating store item ${id} with sha256`)
-    files.updateItem({ ...current, sha256 })
-  } else {
-    logger.warn(`[queue] file ${id} not found in store — store not updated (server was updated)`)
-  }
+  logger.debug(`[queue] updating store item ${id} with keyed sha256`)
+  files.updateItem({ ...current, sha256: keyed })
 }
 
 /**

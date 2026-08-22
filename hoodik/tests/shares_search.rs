@@ -298,11 +298,57 @@ async fn test_legacy_digest_query_is_refused_with_upgrade_required() {
     assert_eq!(resp.status(), StatusCode::UPGRADE_REQUIRED);
 }
 
+/// Pasting a file's content digest finds it: the digest is indexed as one
+/// more keyed tag at upload, the client tags the raw query the same way, and
+/// the ordinary tag equality does the rest — no digest ever crosses the wire.
+#[actix_web::test]
+async fn test_search_by_content_digest_matches_via_keyed_tags() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+
+    let digest = cryptfns::sha256::digest("the file bytes".as_bytes());
+    let digest_tag = cryptfns::search::tag(&root_key(), &digest).unwrap();
+
+    let mut payload = make_searchable_file(&alice.public_pem, "octopus-note");
+    payload
+        .search_tokens_root
+        .as_mut()
+        .unwrap()
+        .push(format!("{digest_tag}:1"));
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(alice.jwt.clone())
+        .set_json(&payload)
+        .to_request();
+    let body = test::call_and_read_body(&app, req).await;
+    let file: AppFile = serde_json::from_slice(&body).expect("create json");
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage/search")
+        .cookie(alice.jwt.clone())
+        .set_json(serde_json::json!({ "root_tags": [digest_tag] }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let hits: Vec<AppFile> =
+        serde_json::from_slice(&test::read_body(resp).await).expect("search response");
+    assert!(
+        hits.iter().any(|f| f.id == file.id),
+        "digest-tag lookup should find the file; got {:?}",
+        hits.iter().map(|f| f.id).collect::<Vec<_>>()
+    );
+}
+
 /// Pasting a file's content digest finds it without any tokens. The
 /// four hash columns are populated at upload and surfaced with copy
 /// buttons in the file details panel, so this is a reachable flow.
+/// A transitional client still sending the retired `hash` field gets it
+/// ignored, not an error: its tag search keeps working, and the digest match
+/// it wanted now needs the digest tagged like everything else.
 #[actix_web::test]
-async fn test_search_by_content_hash_matches_hash_columns() {
+async fn test_search_ignores_the_retired_hash_field() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
@@ -310,12 +356,11 @@ async fn test_search_by_content_hash_matches_hash_columns() {
 
     let file = create_searchable_file!(app, alice, "octopus-note");
 
-    // `make_create_file` stores "sha256" in the sha256 column.
     let req = test::TestRequest::post()
         .uri("/api/storage/search")
         .cookie(alice.jwt.clone())
         .set_json(serde_json::json!({
-            "root_tags": [],
+            "root_tags": query_tags(&root_key()),
             "hash": "sha256",
         }))
         .to_request();
@@ -325,16 +370,16 @@ async fn test_search_by_content_hash_matches_hash_columns() {
         serde_json::from_slice(&test::read_body(resp).await).expect("search response");
     assert!(
         hits.iter().any(|f| f.id == file.id),
-        "content-hash lookup should find the file; got {:?}",
+        "tag search should still work with the retired field present; got {:?}",
         hits.iter().map(|f| f.id).collect::<Vec<_>>()
     );
 }
 
-/// A search that carries neither tokens nor a hash must not match rows.
-/// Guards the absent-hash path against degrading into an empty-string
-/// comparison, which would match any row with an empty hash column.
+/// A search that carries no tokens must not match rows — an unfiltered
+/// query would join every indexed row the caller can see and return the
+/// whole drive.
 #[actix_web::test]
-async fn test_search_without_tokens_or_hash_matches_nothing() {
+async fn test_search_without_tokens_matches_nothing() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 

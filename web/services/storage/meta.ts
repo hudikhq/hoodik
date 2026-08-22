@@ -318,31 +318,13 @@ export async function stats(): Promise<StorageStatsResponse> {
   return response.body || { stats: [], used_space: 0, quota: undefined }
 }
 
-/** Digest lengths in hex characters: MD5, SHA1, SHA256, BLAKE2b. */
-const HEX_HASH_LENGTHS = [32, 40, 64, 128]
-
 /**
- * A query that is itself a content digest is sent verbatim so the server can
- * match it against the stored hash columns — the lookup behind the copy
- * buttons in the file details panel, and the way to check whether a local
- * file is already here. The digest is computed from the file's own bytes on
- * the client and the server already stores all four, so it carries nothing
- * the server does not have. Anything else stays on the client.
- */
 /**
  * Indexing sends `"{tag}:{weight}"`; the search route wants bare tags, since
  * the weight that ranks a hit is the stored one, not the query's.
  */
 function stripWeight(entry: string): string {
   return entry.split(':')[0]
-}
-
-function hashLookup(input: string): string | undefined {
-  const candidate = input.trim()
-
-  return HEX_HASH_LENGTHS.includes(candidate.length) && /^[0-9a-f]+$/i.test(candidate)
-    ? candidate
-    : undefined
 }
 
 /**
@@ -365,12 +347,25 @@ export async function search(
   const term = input.toLowerCase()
   const rootKey = cryptfns.searchRootKey(keypair)
 
+  // The whole trimmed query, tagged as one value alongside its tokens. This
+  // is what makes pasting a file's content digest find the file: digests are
+  // indexed as keyed tags when hashes land, so an exact match needs no
+  // special casing, no shape heuristic, and never a plaintext digest on the
+  // wire. Costs one extra tag per scope on every query.
+  const exact = input.trim().toLowerCase()
+
   const body: SearchQuery = {
-    root_tags: cryptfns.searchTags(rootKey, term).map(stripWeight),
-    file_tags: sharedKeys.flatMap((key) =>
-      cryptfns.searchTags(cryptfns.searchFileKey(key), term).map(stripWeight)
-    ),
-    hash: hashLookup(input),
+    root_tags: [
+      ...cryptfns.searchTags(rootKey, term).map(stripWeight),
+      cryptfns.searchTag(rootKey, exact)
+    ],
+    file_tags: sharedKeys.flatMap((key) => {
+      const fileKey = cryptfns.searchFileKey(key)
+      return [
+        ...cryptfns.searchTags(fileKey, term).map(stripWeight),
+        cryptfns.searchTag(fileKey, exact)
+      ]
+    }),
     dir_id: options?.dir_id,
     editable: options?.editable,
     limit: options?.limit ?? 10,
@@ -387,20 +382,29 @@ export async function search(
   return response.body || []
 }
 
+export interface KeyedHashesUpdate {
+  /** The digest keyed under the file's search key — never the bare digest. */
+  sha256: string
+  /** Digest tags to append to the index, in `"{tag}:{weight}"` form. */
+  search_tokens_root?: string[]
+  search_tokens_file?: string[]
+}
+
 /**
- * Persist file content hashes (sha256) to the server.
+ * Persist a file's keyed content hash to the server, along with the digest
+ * tags that make it findable by pasting the digest into search.
  * Uses an upload transfer token so the request succeeds even after the session expires.
  * Returns the updated AppFile record.
  */
-export async function updateHashes(fileId: string, sha256: string): Promise<AppFile> {
+export async function updateHashes(fileId: string, update: KeyedHashesUpdate): Promise<AppFile> {
   const { token } = await requestTransferToken(fileId, 'upload')
   const api = new Api({ ...new Api().toJson(), jwtToken: token, refreshToken: undefined })
 
-  const response = await api.make<{ sha256: string }, AppFile>(
+  const response = await api.make<KeyedHashesUpdate, AppFile>(
     'put',
     `/api/storage/${fileId}/hashes`,
     undefined,
-    { sha256 }
+    update
   )
 
   if (!response?.body?.id) {

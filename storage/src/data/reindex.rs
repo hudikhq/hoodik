@@ -19,6 +19,23 @@ pub struct Reindex {
     pub name_hash: Option<String>,
     pub search_tokens_root: Option<Vec<String>>,
     pub search_tokens_file: Option<Vec<String>>,
+    /// Content digests re-keyed under the file's search key, replacing the
+    /// bare digests migrated rows still carry — the third copy of the same
+    /// leak. The sweep computes them from the stored values, so nothing has
+    /// to be re-downloaded, and a client that can hold the file key can
+    /// still run its resume equality check against the keyed form.
+    pub md5: Option<String>,
+    pub sha1: Option<String>,
+    pub sha256: Option<String>,
+    pub blake2b: Option<String>,
+}
+
+/// The keyed digest columns a re-index rewrites, `None` meaning "leave it".
+pub struct KeyedHashes {
+    pub md5: Option<String>,
+    pub sha1: Option<String>,
+    pub sha256: Option<String>,
+    pub blake2b: Option<String>,
 }
 
 impl Validation for Reindex {
@@ -28,7 +45,7 @@ impl Validation for Reindex {
 }
 
 impl Reindex {
-    pub fn into_parts(self) -> AppResult<(String, SearchTags)> {
+    pub fn into_parts(self) -> AppResult<(String, SearchTags, KeyedHashes)> {
         let data = self.validate()?;
         let name_hash = data.name_hash.unwrap();
 
@@ -45,6 +62,12 @@ impl Reindex {
         Ok((
             name_hash,
             SearchTags::new(data.search_tokens_root, data.search_tokens_file),
+            KeyedHashes {
+                md5: data.md5,
+                sha1: data.sha1,
+                sha256: data.sha256,
+                blake2b: data.blake2b,
+            },
         ))
     }
 }
@@ -62,8 +85,7 @@ mod test {
     fn a_legacy_digest_is_refused() {
         let result = Reindex {
             name_hash: Some(cryptfns::sha256::digest("secret name".as_bytes())),
-            search_tokens_root: None,
-            search_tokens_file: None,
+            ..Default::default()
         }
         .into_parts();
 
@@ -74,11 +96,13 @@ mod test {
     }
 
     #[test]
-    fn tags_ride_along_with_the_name_hash() {
-        let (name_hash, tags) = Reindex {
+    fn tags_and_keyed_hashes_ride_along_with_the_name_hash() {
+        let (name_hash, tags, hashes) = Reindex {
             name_hash: Some("abc".to_string()),
             search_tokens_root: Some(vec!["a3f1:2".to_string()]),
             search_tokens_file: Some(vec!["9c22:1".to_string()]),
+            sha256: Some("b".repeat(32)),
+            ..Default::default()
         }
         .into_parts()
         .unwrap();
@@ -86,5 +110,7 @@ mod test {
         assert_eq!(name_hash, "abc");
         assert_eq!(tags.root.unwrap().len(), 1);
         assert_eq!(tags.file.unwrap().len(), 1);
+        assert_eq!(hashes.sha256.unwrap(), "b".repeat(32));
+        assert!(hashes.md5.is_none());
     }
 }

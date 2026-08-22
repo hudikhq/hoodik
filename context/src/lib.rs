@@ -122,6 +122,37 @@ impl Context {
         context
     }
 
+    /// A context whose database stopped after the first `steps` migrations,
+    /// for tests that need to seed rows against an old schema and then watch
+    /// the remaining migrations transform them — the one thing a fully
+    /// migrated mock can never exercise.
+    #[cfg(feature = "mock")]
+    pub async fn mock_sqlite_migrated_to(steps: u32) -> Context {
+        use migration::MigratorTrait;
+
+        let config = Config::mock_with_env();
+
+        if env_logger::try_init().is_ok() {
+            log::debug!("Log has been initialized");
+        }
+
+        let db = Self::mock_db_connection(None).await;
+        let settings = Settings::mock();
+
+        let context = Context {
+            config,
+            db,
+            sender: None,
+            settings,
+        };
+
+        migration::Migrator::up(&context.db, Some(steps))
+            .await
+            .unwrap();
+
+        context
+    }
+
     #[cfg(feature = "mock")]
     pub async fn mock_sqlite() -> Context {
         use migration::MigratorTrait;

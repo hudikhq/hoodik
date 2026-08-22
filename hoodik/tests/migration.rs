@@ -1301,3 +1301,116 @@ async fn test_migration_clears_the_root_search_index_it_invalidates() {
         "the migrated account's files come back as pending re-index"
     );
 }
+
+/// The re-key schema migration, run against a database that genuinely
+/// predates it: rows seeded on the old schema, then the migration applied,
+/// then the transforms asserted. The fully-migrated mocks every other test
+/// uses can never exercise this — they are born on the new schema.
+#[actix_web::test]
+async fn test_rekey_migration_transforms_a_pre_migration_database() {
+    use entity::ConnectionTrait;
+    use migration::MigratorTrait;
+
+    // Stop right before the re-key migration, wherever it sits in the list.
+    let position = migration::Migrator::migrations()
+        .iter()
+        .position(|m| m.name() == "m20260817_000001_rekey_search_index")
+        .expect("the re-key migration is registered") as u32;
+    let context = context::Context::mock_sqlite_migrated_to(position).await;
+
+    let file_id = entity::Uuid::new_v4();
+    let token_id = entity::Uuid::new_v4();
+    let legacy_name_hash = cryptfns::sha256::digest("secret-name.pdf".as_bytes());
+    let sha256 = cryptfns::sha256::digest("the file bytes".as_bytes());
+
+    // A file the old world wrote: unsalted name digest, plaintext content
+    // digest, and one indexed token via the tokens/file_tokens pair.
+    context
+        .db
+        .execute_unprepared(&format!(
+            "INSERT INTO files (id, name_hash, encrypted_name, mime, size, chunks, \
+             chunks_stored, file_modified_at, created_at, finished_upload_at, sha256, \
+             cipher, editable, active_version) \
+             VALUES ('{file_id}', '{legacy_name_hash}', 'enc-name', 'application/pdf', 4, 1, \
+             1, 0, 0, 0, '{sha256}', 'aegis128l', 0, 1)"
+        ))
+        .await
+        .expect("seed a pre-migration file row");
+    context
+        .db
+        .execute_unprepared(&format!(
+            "INSERT INTO tokens (id, hash) VALUES ('{token_id}', '{}')",
+            cryptfns::sha256::digest("secret".as_bytes())
+        ))
+        .await
+        .expect("seed a pre-migration token row");
+    context
+        .db
+        .execute_unprepared(&format!(
+            "INSERT INTO file_tokens (id, file_id, token_id, weight) \
+             VALUES ('{}', '{file_id}', '{token_id}', 1)",
+            entity::Uuid::new_v4()
+        ))
+        .await
+        .expect("seed a pre-migration file_tokens row");
+
+    migration::Migrator::up(&context.db, None)
+        .await
+        .expect("the remaining migrations apply over seeded legacy rows");
+
+    // The reversible token index is gone in both shapes: the cross-account
+    // dedup table dropped, the per-file table rebuilt keyed and empty.
+    let row = context
+        .db
+        .query_one(entity::Statement::from_string(
+            entity::DbBackend::Sqlite,
+            "SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'tokens'",
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    let n: i32 = row.try_get("", "n").unwrap();
+    assert_eq!(n, 0, "the tokens table must be dropped");
+
+    let row = context
+        .db
+        .query_one(entity::Statement::from_string(
+            entity::DbBackend::Sqlite,
+            "SELECT count(*) AS n FROM file_tokens",
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    let n: i32 = row.try_get("", "n").unwrap();
+    assert_eq!(n, 0, "old index rows must not survive into the keyed table");
+
+    let row = context
+        .db
+        .query_one(entity::Statement::from_string(
+            entity::DbBackend::Sqlite,
+            "SELECT count(*) AS n FROM pragma_table_info('file_tokens') WHERE name IN ('scope', 'tag')",
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    let n: i32 = row.try_get("", "n").unwrap();
+    assert_eq!(n, 2, "file_tokens must be rebuilt in the keyed shape");
+
+    // The reversible name digest is blanked — which is also what marks the
+    // file as waiting for its owner's re-index sweep — while the content
+    // digest survives untouched: the sweep re-keys it from the stored value,
+    // so blanking it here would force a full re-download instead.
+    let row = context
+        .db
+        .query_one(entity::Statement::from_string(
+            entity::DbBackend::Sqlite,
+            format!("SELECT name_hash, sha256 FROM files WHERE id = '{file_id}'"),
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    let name_hash: String = row.try_get("", "name_hash").unwrap();
+    let stored_sha256: String = row.try_get("", "sha256").unwrap();
+    assert_eq!(name_hash, "", "the unsalted name digest must be purged");
+    assert_eq!(stored_sha256, sha256, "the content digest awaits the sweep");
+}

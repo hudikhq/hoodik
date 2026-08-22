@@ -15,12 +15,6 @@ pub struct Search {
     /// so a file can only ever match through one scope and the weight ranking
     /// stays honest.
     pub file_tags: Option<Vec<String>>,
-    /// A file content hash (md5/sha1/sha256/blake2b hex) matched verbatim
-    /// against the stored hash columns, letting a user find a file by the
-    /// digest of its bytes. Computed from the file's own content on the
-    /// client, and the server already stores all four, so it carries nothing
-    /// the server does not have.
-    pub hash: Option<String>,
     pub limit: Option<u64>,
     pub skip: Option<u64>,
     pub editable: Option<bool>,
@@ -40,7 +34,6 @@ impl Validation for Search {}
 
 pub type SearchData = (
     Option<Uuid>,
-    Option<String>,
     Vec<String>,
     Vec<String>,
     Option<u64>,
@@ -70,7 +63,6 @@ impl Search {
     pub fn into_tuple(self) -> SearchData {
         (
             option_string_to_uuid(self.dir_id),
-            self.hash.filter(|h| !h.is_empty()),
             sanitize(self.root_tags),
             sanitize(self.file_tags),
             self.limit,
@@ -135,7 +127,7 @@ mod test {
             ..Default::default()
         };
 
-        let (_, _, root, file, _, _, _) = search.into_tuple();
+        let (_, root, file, _, _, _) = search.into_tuple();
 
         assert_eq!(root, vec!["a3f1".to_string()]);
         assert!(file.is_empty());
