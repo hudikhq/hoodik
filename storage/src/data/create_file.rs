@@ -9,8 +9,9 @@
 use ::error::{AppResult, Error};
 use chrono::Utc;
 use entity::{
-    file_tokens::SearchTags, files::ActiveModel as ActiveModelFile, option_string_to_uuid,
-    ActiveValue, Uuid,
+    file_tokens::{DigestTags, SearchTags},
+    files::ActiveModel as ActiveModelFile,
+    option_string_to_uuid, ActiveValue, Uuid,
 };
 use serde::{Deserialize, Serialize};
 use validr::*;
@@ -42,14 +43,19 @@ pub struct CreateFile {
     pub file_id: Option<String>,
     /// Date of the file creation from the disk, if not provided we set it to now
     pub file_modified_at: Option<String>,
-    /// MD5 hash of the unencrypted file
+    /// MD5 of the plaintext, keyed under the file's search key
     pub md5: Option<String>,
-    /// SHA1 hash of the unencrypted file
+    /// SHA1 of the plaintext, keyed under the file's search key
     pub sha1: Option<String>,
-    /// SHA256 hash of the unencrypted file
+    /// SHA256 of the plaintext, keyed under the file's search key
     pub sha256: Option<String>,
-    /// BLAKE2B hash of the unencrypted file
+    /// BLAKE2B of the plaintext, keyed under the file's search key
     pub blake2b: Option<String>,
+    /// Digest tags for clients that know the digests at create time, in the
+    /// same wire form as the word tokens. They land in the digest scopes,
+    /// which renames never touch.
+    pub digest_tokens_root: Option<Vec<String>>,
+    pub digest_tokens_file: Option<Vec<String>>,
     /// Cipher used to encrypt file chunks and metadata.
     /// Defaults to `"ascon128a"` when not provided (backward-compatible).
     pub cipher: Option<String>,
@@ -140,7 +146,14 @@ impl Validation for CreateFile {
     }
 }
 
-pub type CreateFileData = (ActiveModelFile, String, SearchTags, i64, Option<Uuid>);
+pub type CreateFileData = (
+    ActiveModelFile,
+    String,
+    SearchTags,
+    DigestTags,
+    i64,
+    Option<Uuid>,
+);
 
 impl CreateFile {
     pub fn into_active_model(self) -> AppResult<CreateFileData> {
@@ -152,6 +165,20 @@ impl CreateFile {
         // than let the leak back in one file at a time.
         if let Some(hash) = data.name_hash.as_deref() {
             if cryptfns::search::is_legacy_name_hash(hash) {
+                return Err(Error::UpgradeRequired(
+                    "client_too_old_for_search".to_string(),
+                ));
+            }
+        }
+
+        // A bare digest in the columns is the same leak in a third place;
+        // refuse the reversible shapes. MD5 shares the tag's shape and
+        // cannot be told apart here.
+        for value in [&data.md5, &data.sha1, &data.sha256, &data.blake2b]
+            .into_iter()
+            .flatten()
+        {
+            if cryptfns::search::is_bare_digest(value) {
                 return Err(Error::UpgradeRequired(
                     "client_too_old_for_search".to_string(),
                 ));
@@ -186,7 +213,8 @@ impl CreateFile {
                                 .unwrap()
                         })
                         .unwrap_or(now)
-                        .and_utc().timestamp(),
+                        .and_utc()
+                        .timestamp(),
                 ),
                 md5: ActiveValue::Set(data.md5),
                 sha1: ActiveValue::Set(data.sha1),
@@ -211,6 +239,7 @@ impl CreateFile {
             },
             data.encrypted_key.unwrap(),
             SearchTags::new(data.search_tokens_root, data.search_tokens_file),
+            DigestTags::new(data.digest_tokens_root, data.digest_tokens_file),
             data.size.unwrap_or(0),
             file_id,
         ))

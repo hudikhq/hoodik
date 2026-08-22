@@ -4,7 +4,7 @@ use std::{collections::HashMap, fmt::Display, str::FromStr};
 
 use chrono::Utc;
 use entity::{
-    file_tokens::{Scope, SearchTags},
+    file_tokens::{DigestTags, SearchTags},
     file_versions, files, user_files, ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait,
     EntityTrait, Order, QueryFilter, QueryOrder, Statement, Uuid, Value,
 };
@@ -125,9 +125,7 @@ where
         self.repository
             .enrich_shared_with_counts(&mut children)
             .await?;
-        self.repository
-            .enrich_owner_emails(&mut parents)
-            .await?;
+        self.repository.enrich_owner_emails(&mut parents).await?;
         self.repository
             .enrich_shared_with_counts(&mut parents)
             .await?;
@@ -337,7 +335,7 @@ where
     /// duplicate-name check against the very hash it is about to write and
     /// reject the file for colliding with itself.
     pub(crate) async fn reindex(&self, id: Uuid, data: Reindex) -> AppResult<AppFile> {
-        let (name_hash, search_tags, hashes) = data.into_parts()?;
+        let (name_hash, search_tags, digest_tags, hashes) = data.into_parts()?;
         let file = self.repository.by_id(id, self.owner_id).await?;
 
         if !file.is_owner {
@@ -364,10 +362,9 @@ where
         .update(self.repository.connection())
         .await?;
 
-        self.repository
-            .tokens(self.owner_id)
-            .reindex(id, search_tags)
-            .await?;
+        let tokens = self.repository.tokens(self.owner_id);
+        tokens.reindex(id, search_tags).await?;
+        tokens.replace_digests(id, digest_tags).await?;
 
         self.repository.by_id(id, self.owner_id).await
     }
@@ -504,6 +501,7 @@ where
         create_file: files::ActiveModel,
         encrypted_key: &str,
         search_tags: SearchTags,
+        digest_tags: DigestTags,
     ) -> AppResult<AppFile> {
         if let Some(file_id) = create_file.file_id.clone().into_value() {
             if file_id.to_string().as_str() != "NULL" {
@@ -522,10 +520,9 @@ where
             .exec_without_returning(self.repository.connection())
             .await?;
 
-        self.repository
-            .tokens(self.owner_id)
-            .reindex(file_id, search_tags)
-            .await?;
+        let tokens = self.repository.tokens(self.owner_id);
+        tokens.reindex(file_id, search_tags).await?;
+        tokens.replace_digests(file_id, digest_tags).await?;
 
         let id = entity::Uuid::new_v4();
 
@@ -558,32 +555,29 @@ where
     /// Route gates by `permission::require_write` — Editors and
     /// Co-owners can update hashes on shared files they just chunk-
     /// uploaded.
-    pub(crate) async fn update_hashes(
-        &self,
-        id: Uuid,
-        data: UpdateHashes,
-    ) -> AppResult<AppFile> {
+    pub(crate) async fn update_hashes(&self, id: Uuid, data: UpdateHashes) -> AppResult<AppFile> {
         let file = self.repository.by_id(id, self.owner_id).await?;
 
         if file.is_dir() {
             return Err(Error::NotFound("file_not_found".to_string()));
         }
 
-        let (active_model, tags) = data.into_active_model(id)?;
+        let (active_model, mut tags) = data.into_active_model(id)?;
+
+        if !file.is_owner {
+            // Same guard as rename and replace_content: root-scope tags are
+            // keyed under the owner's key, which an editor does not hold. A
+            // value produced here would sit in the owner's scope unmatchable
+            // forever — and, worse, findable by the editor's own key.
+            tags.root = None;
+        }
+
         active_model.update(self.repository.connection()).await?;
 
-        // Digest tags append to what create wrote: digests only exist once
-        // the bytes have been read in full, so this is the first moment they
-        // can join the index.
-        let tokens = self.repository.tokens(self.owner_id);
-        for (scope, tagged) in [
-            (Scope::Root, tags.root),
-            (Scope::File, tags.file),
-        ] {
-            if let Some(tagged) = tagged {
-                tokens.upsert(id, scope, tagged).await?;
-            }
-        }
+        self.repository
+            .tokens(self.owner_id)
+            .replace_digests(id, tags)
+            .await?;
 
         self.repository.by_id(file.id, file.user_id).await
     }
@@ -639,9 +633,7 @@ where
         // `force = true`, abandoning the previous pending edit.
         let abandoned_pending = if let Some(pending) = file.pending_version {
             if !data.force {
-                return Err(Error::Conflict(
-                    "another_edit_is_in_progress".to_string(),
-                ));
+                return Err(Error::Conflict("another_edit_is_in_progress".to_string()));
             }
             Some(pending)
         } else {
@@ -715,7 +707,9 @@ where
         }
 
         if file.is_dir() {
-            return Err(Error::BadRequest("cannot_set_editable_on_directory".to_string()));
+            return Err(Error::BadRequest(
+                "cannot_set_editable_on_directory".to_string(),
+            ));
         }
 
         let validated = data.validate()?;

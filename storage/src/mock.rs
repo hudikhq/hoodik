@@ -73,12 +73,17 @@ pub async fn create_file(
         sha1: Some("asd".to_string()),
         sha256: Some("asd".to_string()),
         blake2b: Some("asd".to_string()),
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     };
 
-    let (am, _, tags, _, _) = file.into_active_model()?;
-    repository.manage(user.id).create(am, name, tags).await
+    let (am, _, tags, digests, _, _) = file.into_active_model()?;
+    repository
+        .manage(user.id)
+        .create(am, name, tags, digests)
+        .await
 }
 
 /// Index a file under a second account's root key, standing in for a file that

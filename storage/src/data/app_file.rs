@@ -145,8 +145,8 @@ impl AppFile {
     /// Only editable files use versioning — the snapshot/swap machinery
     /// exists to support in-place edits. Non-editable files are write-once,
     /// so pushing them through the versioned path would add cost for no
-    /// benefit and also trip S3's still-stubbed `_v` methods. Splitting
-    /// at the data layer keeps the provider traits dumb dispatchers.
+    /// benefit. Splitting at the data layer keeps the provider traits dumb
+    /// dispatchers.
     pub fn use_versioned_layout(&self) -> bool {
         self.editable
     }

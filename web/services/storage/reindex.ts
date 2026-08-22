@@ -25,6 +25,48 @@ export interface ReindexRequest {
   sha1?: string
   sha256?: string
   blake2b?: string
+  /** The tags that make those digests findable in search. Separate from the
+   *  word tokens because they land in the digest scopes, which renames never
+   *  touch. */
+  digest_tokens_root?: string[]
+  digest_tokens_file?: string[]
+}
+
+/** Bare digest lengths in hex, per algorithm. A keyed tag is 32 hex chars. */
+const BARE_DIGEST_LENGTH = { md5: 32, sha1: 40, sha256: 64, blake2b: 128 } as const
+
+type DigestName = keyof typeof BARE_DIGEST_LENGTH
+
+/**
+ * The digest columns a sweep may re-key: the ones still holding a bare
+ * digest. A file can pass through the sweep twice — a note edited before the
+ * sweep already got a keyed sha256 from its save, and a failed
+ * crypto-migration ceremony can run the whole sweep once on the old key —
+ * and keying a keyed value corrupts the column beyond repair. Shape decides
+ * for sha1/sha256/blake2b; bare MD5 is 32 hex chars like a tag, so it goes
+ * by its siblings: every writer that stored an MD5 stored a SHA-256 next to
+ * it, so a row keying any sibling is a bare row and one keying none is
+ * already done.
+ */
+export function bareDigests(
+  file: Partial<Record<DigestName, string>>
+): Partial<Record<DigestName, string>> {
+  const bare = (name: DigestName): string | undefined => {
+    const digest = file[name]
+    if (!digest || digest.length !== BARE_DIGEST_LENGTH[name]) return undefined
+    return /^[0-9a-f]+$/i.test(digest) ? digest : undefined
+  }
+
+  const digests: Partial<Record<DigestName, string>> = {
+    sha1: bare('sha1'),
+    sha256: bare('sha256'),
+    blake2b: bare('blake2b')
+  }
+  if (digests.sha1 || digests.sha256 || digests.blake2b) {
+    digests.md5 = bare('md5')
+  }
+
+  return digests
 }
 
 /**
@@ -112,13 +154,18 @@ export const store = defineStore('reindex', () => {
     // Migrated rows still carry bare content digests — the third copy of the
     // same leak. Re-key each from the stored value (no re-download needed)
     // and index it in both scopes, which is what makes pasting a digest into
-    // search find the file.
+    // search find the file. Only values still in the bare shape are re-keyed;
+    // `bareDigests` above says why.
+    const digests = bareDigests(file)
+
     for (const name of ['md5', 'sha1', 'sha256', 'blake2b'] as const) {
-      const digest = file[name]
+      const digest = digests[name]
       if (!digest) continue
       body[name] = cryptfns.searchTag(fileKey, digest)
-      body.search_tokens_root.push(`${cryptfns.searchTag(rootKey, digest)}:1`)
-      body.search_tokens_file.push(`${cryptfns.searchTag(fileKey, digest)}:1`)
+      body.digest_tokens_root = body.digest_tokens_root ?? []
+      body.digest_tokens_file = body.digest_tokens_file ?? []
+      body.digest_tokens_root.push(`${cryptfns.searchTag(rootKey, digest)}:1`)
+      body.digest_tokens_file.push(`${cryptfns.searchTag(fileKey, digest)}:1`)
     }
 
     await Api.put<ReindexRequest, AppFile>(`/api/storage/${file.id}/reindex`, undefined, body)

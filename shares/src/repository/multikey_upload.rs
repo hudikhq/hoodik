@@ -13,12 +13,10 @@ use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 
 use chrono::Utc;
-use cryptfns::asn1::{
-    encode_audit_event_sig_input_v1, AuditEventActionEnum, AuditEventSigInputV1,
-};
+use cryptfns::asn1::{encode_audit_event_sig_input_v1, AuditEventActionEnum, AuditEventSigInputV1};
 use cryptfns::identity::KeyType;
 use entity::{
-    file_tokens::{self, Scope, SearchTags},
+    file_tokens::{self, DigestTags, Scope, SearchTags},
     files,
     permission::{permission, SharePermission},
     user_files, users, ActiveValue, ColumnTrait, EntityTrait, QueryFilter, TransactionTrait, Uuid,
@@ -88,6 +86,20 @@ impl Repository<'_> {
             }
         }
 
+        // A bare digest in the columns is the same leak in a third place;
+        // refuse the reversible shapes. MD5 shares the tag's shape and
+        // cannot be told apart here.
+        for value in [&body.md5, &body.sha1, &body.sha256, &body.blake2b]
+            .into_iter()
+            .flatten()
+        {
+            if cryptfns::search::is_bare_digest(value) {
+                return Err(Error::UpgradeRequired(
+                    "client_too_old_for_search".to_string(),
+                ));
+            }
+        }
+
         let new_file_id = Uuid::parse_str(&body.new_file_id.clone().unwrap())
             .map_err(|_| Error::BadRequest("new_file_id_invalid".to_string()))?;
         let parent_id = Uuid::parse_str(&body.parent_file_id.clone().unwrap())
@@ -126,13 +138,7 @@ impl Repository<'_> {
 
         let member_keys = parse_member_keys(&raw_keys)?;
         let current_member_rows = current_member_rows(self, parent_id).await?;
-        verify_member_keys_match(
-            self,
-            parent_id,
-            &member_keys,
-            &current_member_rows,
-        )
-        .await?;
+        verify_member_keys_match(self, parent_id, &member_keys, &current_member_rows).await?;
         verify_snapshot_freshness(self, parent_id, &folder, &snapshot).await?;
         verify_ownership_claim(caller.id, &member_keys)?;
 
@@ -212,7 +218,9 @@ impl Repository<'_> {
                 member_signed_at: ActiveValue::Set(if entry.is_owner_of_file {
                     None
                 } else {
-                    inherited_member_signature.as_ref().map(|_| signed_timestamp)
+                    inherited_member_signature
+                        .as_ref()
+                        .map(|_| signed_timestamp)
                 }),
                 member_signature: ActiveValue::Set(if entry.is_owner_of_file {
                     None
@@ -231,6 +239,10 @@ impl Repository<'_> {
             SearchTags::new(
                 body.search_tokens_root.clone(),
                 body.search_tokens_file.clone(),
+            ),
+            DigestTags::new(
+                body.digest_tokens_root.clone(),
+                body.digest_tokens_file.clone(),
             ),
         )
         .await?;
@@ -430,7 +442,9 @@ impl Repository<'_> {
         // move route guards the same way with `cannot_move_to_itself`.
         let source_subtree = queries::file_tree_ids(&self.context.db, file_id).await?;
         if source_subtree.contains(&dest_id) {
-            return Err(Error::BadRequest("cannot_move_into_own_subtree".to_string()));
+            return Err(Error::BadRequest(
+                "cannot_move_into_own_subtree".to_string(),
+            ));
         }
 
         let current_member_rows = current_member_rows(self, dest_id).await?;
@@ -481,8 +495,7 @@ impl Repository<'_> {
                     return Err(Error::BadRequest("member_keys_empty".to_string()));
                 }
                 let member_keys = parse_member_keys(&raw_keys)?;
-                verify_member_keys_match(self, dest_id, &member_keys, &current_member_rows)
-                    .await?;
+                verify_member_keys_match(self, dest_id, &member_keys, &current_member_rows).await?;
 
                 let tx = self.context.db.begin().await?;
                 files::Entity::update(files::ActiveModel {
@@ -542,7 +555,9 @@ pub(super) fn parse_member_keys(raw: &[MemberKey]) -> AppResult<Vec<ParsedMember
             return Err(Error::BadRequest("member_key_duplicate".to_string()));
         }
         if encrypted_key.is_empty() {
-            return Err(Error::BadRequest("member_key_encrypted_key_empty".to_string()));
+            return Err(Error::BadRequest(
+                "member_key_encrypted_key_empty".to_string(),
+            ));
         }
         out.push(ParsedMemberKey {
             user_id,
@@ -566,8 +581,8 @@ pub(super) fn verify_event_signature(
     signature_b64: &str,
     signer: &users::Model,
 ) -> AppResult<()> {
-    let der = encode_audit_event_sig_input_v1(sig_input)
-        .map_err(|e| Error::CryptoError(Box::new(e)))?;
+    let der =
+        encode_audit_event_sig_input_v1(sig_input).map_err(|e| Error::CryptoError(Box::new(e)))?;
     let mut signing_input =
         Vec::with_capacity(cryptfns::asn1::AUDIT_EVENT_SIG_V1_PREFIX.len() + der.len());
     signing_input.extend_from_slice(cryptfns::asn1::AUDIT_EVENT_SIG_V1_PREFIX);
@@ -688,7 +703,11 @@ fn build_new_file(
         name_hash: ActiveValue::Set(body.name_hash.clone().unwrap_or_default()),
         encrypted_name: ActiveValue::Set(body.encrypted_name.clone().unwrap_or_default()),
         encrypted_thumbnail: ActiveValue::Set(body.encrypted_thumbnail.clone()),
-        mime: ActiveValue::Set(body.mime.clone().unwrap_or_else(|| "text/plain".to_string())),
+        mime: ActiveValue::Set(
+            body.mime
+                .clone()
+                .unwrap_or_else(|| "text/plain".to_string()),
+        ),
         size: ActiveValue::Set(body.size),
         chunks: ActiveValue::Set(body.chunks),
         chunks_stored: ActiveValue::Set(Some(0)),
@@ -697,9 +716,16 @@ fn build_new_file(
         sha1: ActiveValue::Set(body.sha1.clone()),
         sha256: ActiveValue::Set(body.sha256.clone()),
         blake2b: ActiveValue::Set(body.blake2b.clone()),
-        cipher: ActiveValue::Set(body.cipher.clone().unwrap_or_else(|| "ascon128a".to_string())),
+        cipher: ActiveValue::Set(
+            body.cipher
+                .clone()
+                .unwrap_or_else(|| "ascon128a".to_string()),
+        ),
         editable: ActiveValue::Set(body.editable.unwrap_or(false)),
-        file_modified_at: ActiveValue::Set(parse_modified_at(body.file_modified_at.as_deref(), now)),
+        file_modified_at: ActiveValue::Set(parse_modified_at(
+            body.file_modified_at.as_deref(),
+            now,
+        )),
         created_at: ActiveValue::Set(now),
         finished_upload_at: ActiveValue::Set(None),
         active_version: ActiveValue::Set(1),
@@ -724,27 +750,34 @@ fn parse_modified_at(input: Option<&str>, fallback: i64) -> i64 {
 ///
 /// The uploader owns the row they just created, so they can produce both
 /// scopes here — unlike an editor saving over an existing shared file, who can
-/// only refresh the file scope.
+/// only refresh the file scope. Digest tags ride along into their own scopes,
+/// which later renames leave alone.
 pub(crate) async fn upsert_tokens<C: entity::ConnectionTrait>(
     tx: &C,
     file_id: Uuid,
     tags: SearchTags,
+    digests: DigestTags,
 ) -> AppResult<()> {
-    let rows = [(Scope::Root, tags.root), (Scope::File, tags.file)]
-        .into_iter()
-        .filter_map(|(scope, tagged)| Some((scope, tagged?)))
-        .flat_map(|(scope, tagged)| {
-            cryptfns::search::from_wire(tagged)
-                .into_iter()
-                .map(move |(tag, weight)| file_tokens::ActiveModel {
-                    id: ActiveValue::Set(Uuid::new_v4()),
-                    file_id: ActiveValue::Set(file_id),
-                    scope: ActiveValue::Set(scope.into()),
-                    tag: ActiveValue::Set(tag),
-                    weight: ActiveValue::Set(weight),
-                })
-        })
-        .collect::<Vec<_>>();
+    let rows = [
+        (Scope::Root, tags.root),
+        (Scope::File, tags.file),
+        (Scope::DigestRoot, digests.root),
+        (Scope::DigestFile, digests.file),
+    ]
+    .into_iter()
+    .filter_map(|(scope, tagged)| Some((scope, tagged?)))
+    .flat_map(|(scope, tagged)| {
+        cryptfns::search::from_wire(tagged)
+            .into_iter()
+            .map(move |(tag, weight)| file_tokens::ActiveModel {
+                id: ActiveValue::Set(Uuid::new_v4()),
+                file_id: ActiveValue::Set(file_id),
+                scope: ActiveValue::Set(scope.into()),
+                tag: ActiveValue::Set(tag),
+                weight: ActiveValue::Set(weight),
+            })
+    })
+    .collect::<Vec<_>>();
 
     if rows.is_empty() {
         return Ok(());

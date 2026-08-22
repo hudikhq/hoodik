@@ -1,7 +1,7 @@
 use actix_web::{route, web, HttpRequest, HttpResponse};
 use auth::data::transfer_claims::StorageClaims;
 use context::Context;
-use entity::Uuid;
+use entity::{TransactionTrait, Uuid};
 use error::AppResult;
 
 use crate::{data::update_hashes::UpdateHashes, repository::Repository};
@@ -22,12 +22,18 @@ pub(crate) async fn update_hashes(
     let file_id: Uuid = util::actix::path_var(&req, "file_id")?;
     claims.validate_transfer_path(file_id, "upload")?;
     crate::permission::require_write(&context.db, file_id, claims.sub()).await?;
-    let repository = Repository::new(&context.db);
 
-    let file = repository
+    // One transaction across the column update and the tag replacement: a
+    // crash between the two would otherwise leave keyed columns whose digest
+    // is not findable, with nothing marking the file as needing another pass.
+    let connection = context.db.begin().await?;
+
+    let file = Repository::new(&connection)
         .manage(claims.sub())
         .update_hashes(file_id, data.into_inner())
         .await?;
+
+    connection.commit().await?;
 
     Ok(HttpResponse::Ok().json(file))
 }

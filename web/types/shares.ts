@@ -575,6 +575,10 @@ export interface ForkBody {
   search_tokens_root?: string[]
 
   search_tokens_file?: string[]
+  /** Digest tags for the copy, landing in the digest scopes renames never
+   *  touch. */
+  digest_tokens_root?: string[]
+  digest_tokens_file?: string[]
   event_signature: string
   timestamp: number
 }

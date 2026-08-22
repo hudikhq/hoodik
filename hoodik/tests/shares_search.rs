@@ -170,7 +170,10 @@ async fn test_search_finds_shared_file_for_every_recipient_role_but_not_stranger
     assert!(
         alice_hits.iter().any(|f| f.id == file.id && f.is_owner),
         "owner alice should still find her own file via search; got {:?}",
-        alice_hits.iter().map(|f| (f.id, f.is_owner)).collect::<Vec<_>>()
+        alice_hits
+            .iter()
+            .map(|f| (f.id, f.is_owner))
+            .collect::<Vec<_>>()
     );
 
     for recipient in [&reader, &editor, &co_owner] {
@@ -312,11 +315,7 @@ async fn test_search_by_content_digest_matches_via_keyed_tags() {
     let digest_tag = cryptfns::search::tag(&root_key(), &digest).unwrap();
 
     let mut payload = make_searchable_file(&alice.public_pem, "octopus-note");
-    payload
-        .search_tokens_root
-        .as_mut()
-        .unwrap()
-        .push(format!("{digest_tag}:1"));
+    payload.digest_tokens_root = Some(vec![format!("{digest_tag}:1")]);
     let req = test::TestRequest::post()
         .uri("/api/storage")
         .cookie(alice.jwt.clone())
@@ -496,7 +495,11 @@ async fn test_incoming_keys_include_files_inside_a_shared_folder() {
         &alice,
     );
     let resp = post_share!(app, alice, envelope);
-    assert!(resp.status().is_success(), "folder grant failed: {:?}", resp.status());
+    assert!(
+        resp.status().is_success(),
+        "folder grant failed: {:?}",
+        resp.status()
+    );
 
     // Browsing view: the folder only.
     let req = test::TestRequest::get()
@@ -531,10 +534,17 @@ async fn test_incoming_keys_include_files_inside_a_shared_folder() {
         .map(|k| k["file_id"].as_str().unwrap_or_default().to_string())
         .collect();
 
-    assert!(ids.contains(&inner.id.to_string()), "file inside the folder must be reachable");
-    assert!(ids.contains(&folder.id.to_string()), "the folder itself too");
     assert!(
-        keys.iter().all(|k| !k["encrypted_key"].as_str().unwrap_or_default().is_empty()),
+        ids.contains(&inner.id.to_string()),
+        "file inside the folder must be reachable"
+    );
+    assert!(
+        ids.contains(&folder.id.to_string()),
+        "the folder itself too"
+    );
+    assert!(
+        keys.iter()
+            .all(|k| !k["encrypted_key"].as_str().unwrap_or_default().is_empty()),
         "every row carries the key the recipient needs to derive its search key"
     );
     // Nothing beyond what a search needs.
@@ -583,7 +593,11 @@ async fn test_editor_rename_leaves_the_owners_index_alone() {
         }))
         .to_request();
     let resp = test::call_service(&app, req).await;
-    assert_eq!(resp.status(), StatusCode::OK, "an editor may rename a shared file");
+    assert_eq!(
+        resp.status(),
+        StatusCode::OK,
+        "an editor may rename a shared file"
+    );
 
     // Alice's root-scope index is untouched: she still finds her file by the
     // word it was indexed under, through her own key.
@@ -628,7 +642,11 @@ async fn test_legacy_name_hash_is_refused_on_create_and_rename() {
     register_user!(app, context, alice, "alice@example.com");
 
     let legacy = cryptfns::sha256::digest("Passwords.md".as_bytes());
-    assert_eq!(legacy.len(), 64, "the shape being refused is a 64-hex digest");
+    assert_eq!(
+        legacy.len(),
+        64,
+        "the shape being refused is a 64-hex digest"
+    );
 
     let mut payload = make_create_file(&alice.public_pem, "placeholder");
     payload.name_hash = Some(legacy.clone());
@@ -664,4 +682,202 @@ async fn test_legacy_name_hash_is_refused_on_create_and_rename() {
     );
 
     let _ = context;
+}
+
+/// Grab an upload transfer token for a file, the credential the hashes PUT
+/// rides so it still lands after the session that started the upload expires.
+macro_rules! upload_token {
+    ($app:expr, $user:expr, $file_id:expr) => {{
+        let req = actix_web::test::TestRequest::post()
+            .uri("/api/auth/transfer-token")
+            .cookie($user.jwt.clone())
+            .set_json(serde_json::json!({
+                "file_id": $file_id.to_string(),
+                "action": "upload",
+            }))
+            .to_request();
+        let body = actix_web::test::call_and_read_body(&$app, req).await;
+        serde_json::from_slice::<serde_json::Value>(&body).expect("transfer token json")["token"]
+            .as_str()
+            .expect("token string")
+            .to_string()
+    }};
+}
+
+/// Count the index rows one file holds in one scope, straight off the table.
+/// Ids are stored as 16-byte blobs, hence the `hex()` comparison.
+async fn scope_rows(context: &context::Context, file_id: entity::Uuid, scope: i32) -> i64 {
+    use entity::ConnectionTrait;
+
+    let row = context
+        .db
+        .query_one(entity::Statement::from_string(
+            entity::DbBackend::Sqlite,
+            format!(
+                "SELECT count(*) AS n FROM file_tokens WHERE hex(file_id) = '{}' AND scope = {scope}",
+                file_id.simple().to_string().to_uppercase()
+            ),
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    row.try_get::<i64>("", "n").unwrap()
+}
+
+/// A rename replaces every word token, and must not take the digest with it:
+/// digest tags live in scopes of their own precisely so the file stays
+/// findable by its digest after its name changes.
+#[actix_web::test]
+async fn test_digest_tags_survive_a_rename() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+
+    let digest = cryptfns::sha256::digest("the file bytes".as_bytes());
+    let digest_tag = cryptfns::search::tag(&root_key(), &digest).unwrap();
+
+    let mut payload = make_searchable_file(&alice.public_pem, "octopus-note");
+    payload.digest_tokens_root = Some(vec![format!("{digest_tag}:1")]);
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(alice.jwt.clone())
+        .set_json(&payload)
+        .to_request();
+    let body = test::call_and_read_body(&app, req).await;
+    let file: AppFile = serde_json::from_slice(&body).expect("create json");
+
+    let req = test::TestRequest::put()
+        .uri(&format!("/api/storage/{}", file.id))
+        .cookie(alice.jwt.clone())
+        .set_json(serde_json::json!({
+            "name_hash": cryptfns::search::tag(&root_key(), "renamed-note").unwrap(),
+            "encrypted_name": "renamed-ciphertext",
+            "search_tokens_root": index_tags(&root_key()),
+            "search_tokens_file": index_tags(&file_key()),
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK, "rename failed");
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage/search")
+        .cookie(alice.jwt.clone())
+        .set_json(serde_json::json!({ "root_tags": [digest_tag] }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let hits: Vec<AppFile> =
+        serde_json::from_slice(&test::read_body(resp).await).expect("search response");
+    assert!(
+        hits.iter().any(|f| f.id == file.id),
+        "the digest must keep finding the file after a rename; got {:?}",
+        hits.iter().map(|f| f.id).collect::<Vec<_>>()
+    );
+}
+
+/// The hashes PUT is retried freely — its transfer token exists so a late
+/// retry still lands — so writing the same digest twice must leave the same
+/// index behind, not a double-counted one.
+#[actix_web::test]
+async fn test_update_hashes_is_idempotent_across_retries() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+    let file = create_searchable_file!(app, alice, "octopus-note");
+    let token = upload_token!(app, alice, file.id);
+
+    let digest_tag = cryptfns::search::tag(&root_key(), "some digest").unwrap();
+    let body = serde_json::json!({
+        "sha256": "ab".repeat(16),
+        "search_tokens_root": [format!("{digest_tag}:1")],
+        "search_tokens_file": [format!("{digest_tag}:1")],
+    });
+
+    for _ in 0..2 {
+        let req = test::TestRequest::put()
+            .uri(&format!("/api/storage/{}/hashes", file.id))
+            .insert_header(("Authorization", format!("Bearer {token}")))
+            .set_json(&body)
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK, "hashes PUT failed");
+    }
+
+    assert_eq!(
+        scope_rows(&context, file.id, 2).await,
+        1,
+        "a retried hashes PUT must replace its digest-root tags, not append"
+    );
+    assert_eq!(scope_rows(&context, file.id, 3).await, 1);
+}
+
+/// An editor holds the file key but not the owner's root key: root-scope
+/// digest tags from them would sit in the owner's scope unmatchable forever,
+/// and findable under the editor's own key. The server drops them the same
+/// way rename and content saves do.
+#[actix_web::test]
+async fn test_update_hashes_from_an_editor_drops_root_scope_tags() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, editor, "editor@example.com");
+
+    let file = create_searchable_file!(app, alice, "octopus-note");
+    grant!(app, alice, editor, ShareRoleEnum::Editor, file.id);
+
+    let before_root = scope_rows(&context, file.id, 2).await;
+
+    let token = upload_token!(app, editor, file.id);
+    let digest_tag = cryptfns::search::tag(&file_key(), "some digest").unwrap();
+    let req = test::TestRequest::put()
+        .uri(&format!("/api/storage/{}/hashes", file.id))
+        .insert_header(("Authorization", format!("Bearer {token}")))
+        .set_json(serde_json::json!({
+            "sha256": "ab".repeat(16),
+            "search_tokens_root": [format!("{digest_tag}:1")],
+            "search_tokens_file": [format!("{digest_tag}:1")],
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK, "editor hashes PUT failed");
+
+    assert_eq!(
+        scope_rows(&context, file.id, 2).await,
+        before_root,
+        "an editor's root-scope digest tags must be dropped, not stored"
+    );
+    assert_eq!(
+        scope_rows(&context, file.id, 3).await,
+        1,
+        "the same write's file-scope tag is the one that belongs"
+    );
+}
+
+/// The digest columns store keyed tags; a bare digest arriving on the hashes
+/// PUT is a pre-keying client about to park the reversible copy server-side.
+#[actix_web::test]
+async fn test_update_hashes_refuses_a_bare_digest() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+    let file = create_searchable_file!(app, alice, "octopus-note");
+    let token = upload_token!(app, alice, file.id);
+
+    let req = test::TestRequest::put()
+        .uri(&format!("/api/storage/{}/hashes", file.id))
+        .insert_header(("Authorization", format!("Bearer {token}")))
+        .set_json(serde_json::json!({
+            "sha256": cryptfns::sha256::digest("the file bytes".as_bytes()),
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::UPGRADE_REQUIRED,
+        "a bare 64-hex digest must be refused, not stored"
+    );
 }

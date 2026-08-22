@@ -37,6 +37,8 @@ fn sized_create(name_hash: &str, chunk_lens: &[usize]) -> CreateFile {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     }

@@ -48,7 +48,9 @@ async fn test_non_editable_file_uses_legacy_layout_on_disk() {
     .await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    let jwt = helpers::register_curve25519(&app, "legacy-routing-1@test.com").await.jwt;
+    let jwt = helpers::register_curve25519(&app, "legacy-routing-1@test.com")
+        .await
+        .jwt;
 
     let (data, size, _) = create_byte_chunks();
     let checksum = calculate_checksum(data.clone());
@@ -69,6 +71,8 @@ async fn test_non_editable_file_uses_legacy_layout_on_disk() {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     };
@@ -133,7 +137,9 @@ async fn test_editable_note_uses_versioned_layout() {
     .await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    let jwt = helpers::register_curve25519(&app, "legacy-routing-2@test.com").await.jwt;
+    let jwt = helpers::register_curve25519(&app, "legacy-routing-2@test.com")
+        .await
+        .jwt;
 
     let payload = b"# hello world\n\nediting notes is nice".to_vec();
     let size = payload.len() as i64;
@@ -156,6 +162,8 @@ async fn test_editable_note_uses_versioned_layout() {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: Some(true),
     };
@@ -217,11 +225,16 @@ async fn test_set_editable_true_preserves_legacy_then_first_edit_snapshots_as_v1
     .await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    let jwt = helpers::register_curve25519(&app, "legacy-routing-3@test.com").await.jwt;
+    let jwt = helpers::register_curve25519(&app, "legacy-routing-3@test.com")
+        .await
+        .jwt;
 
     let v1_payload = b"original legacy content v1".to_vec();
     let v1_size = v1_payload.len() as i64;
     let v1_checksum = calculate_checksum(vec![v1_payload.clone()]);
+    // Half the digest, standing in for the keyed tag a real client stores in
+    // the column: the create route refuses the bare 64-hex shape.
+    let v1_keyed = v1_checksum[..32].to_string();
 
     let create = storage::data::create_file::CreateFile {
         encrypted_key: Some("encrypted-key".to_string()),
@@ -237,8 +250,10 @@ async fn test_set_editable_true_preserves_legacy_then_first_edit_snapshots_as_v1
         file_modified_at: None,
         md5: None,
         sha1: None,
-        sha256: Some(v1_checksum.clone()),
+        sha256: Some(v1_keyed.clone()),
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     };
@@ -269,7 +284,9 @@ async fn test_set_editable_true_preserves_legacy_then_first_edit_snapshots_as_v1
     let req = test::TestRequest::put()
         .uri(format!("/api/storage/{}/editable", file.id).as_str())
         .cookie(jwt.clone())
-        .set_json(&SetEditable { editable: Some(true) })
+        .set_json(&SetEditable {
+            editable: Some(true),
+        })
         .to_request();
     let body = test::call_and_read_body(&app, req).await;
     let file: AppFile = serde_json::from_slice(&body).unwrap();
@@ -324,7 +341,7 @@ async fn test_set_editable_true_preserves_legacy_then_first_edit_snapshots_as_v1
     assert_eq!(history[0].version, 1);
     assert_eq!(history[0].chunks, 1);
     assert_eq!(history[0].size, v1_size);
-    assert_eq!(history[0].sha256.as_deref(), Some(v1_checksum.as_str()));
+    assert_eq!(history[0].sha256.as_deref(), Some(v1_keyed.as_str()));
 
     // GET /versions/1 must stream the original legacy bytes back intact.
     let req = test::TestRequest::get()
@@ -363,7 +380,9 @@ async fn test_set_editable_false_rejects_with_history() {
     .await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    let jwt = helpers::register_curve25519(&app, "legacy-routing-4@test.com").await.jwt;
+    let jwt = helpers::register_curve25519(&app, "legacy-routing-4@test.com")
+        .await
+        .jwt;
 
     // Create editable and commit v1.
     let v1 = b"v1 payload".to_vec();
@@ -383,6 +402,8 @@ async fn test_set_editable_false_rejects_with_history() {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: Some(true),
     };
@@ -431,7 +452,9 @@ async fn test_set_editable_false_rejects_with_history() {
     let req = test::TestRequest::put()
         .uri(format!("/api/storage/{}/editable", file.id).as_str())
         .cookie(jwt.clone())
-        .set_json(&SetEditable { editable: Some(false) })
+        .set_json(&SetEditable {
+            editable: Some(false),
+        })
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::CONFLICT);
@@ -454,7 +477,9 @@ async fn test_set_editable_false_rejects_with_history() {
     let req = test::TestRequest::put()
         .uri(format!("/api/storage/{}/editable", file.id).as_str())
         .cookie(jwt.clone())
-        .set_json(&SetEditable { editable: Some(false) })
+        .set_json(&SetEditable {
+            editable: Some(false),
+        })
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(
@@ -478,7 +503,9 @@ async fn test_set_editable_during_pending_edit_is_409() {
     .await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    let jwt = helpers::register_curve25519(&app, "legacy-routing-5@test.com").await.jwt;
+    let jwt = helpers::register_curve25519(&app, "legacy-routing-5@test.com")
+        .await
+        .jwt;
 
     let v1 = b"v1 payload".to_vec();
     let create = storage::data::create_file::CreateFile {
@@ -497,6 +524,8 @@ async fn test_set_editable_during_pending_edit_is_409() {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: Some(true),
     };
@@ -533,7 +562,9 @@ async fn test_set_editable_during_pending_edit_is_409() {
     let req = test::TestRequest::put()
         .uri(format!("/api/storage/{}/editable", file.id).as_str())
         .cookie(jwt.clone())
-        .set_json(&SetEditable { editable: Some(false) })
+        .set_json(&SetEditable {
+            editable: Some(false),
+        })
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::CONFLICT);

@@ -91,9 +91,8 @@ const cancel = () => {
       <div class="flex flex-col w-1/2">{{ $t('files.details.uploaded') }}</div>
       <div class="flex flex-col w-1/2">{{ fileFinishedUploadAt || percentage }}</div>
     </div>
-    <!-- The digest rows retired with the hash re-keying: the stored values
-         are keyed tags now, so there is no bare digest left to copy out and
-         compare against a local file. Finding a file BY its digest still
-         works — paste it into search. -->
+    <!-- No digest rows: the stored values are keyed tags, so there is no
+         bare digest to copy out and compare against a local file. Finding a
+         file BY its digest still works — paste it into search. -->
   </CardBoxModal>
 </template>

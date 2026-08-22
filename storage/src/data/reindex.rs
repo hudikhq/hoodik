@@ -7,7 +7,7 @@
 //! each client walks its own files once and re-indexes them through here.
 
 use ::error::AppResult;
-use entity::file_tokens::SearchTags;
+use entity::file_tokens::{DigestTags, SearchTags};
 use serde::{Deserialize, Serialize};
 use validr::*;
 
@@ -28,6 +28,11 @@ pub struct Reindex {
     pub sha1: Option<String>,
     pub sha256: Option<String>,
     pub blake2b: Option<String>,
+    /// The digest tags that make the re-keyed values findable by pasting a
+    /// digest into search. Separate from the word tokens because they land in
+    /// the digest scopes, which renames never touch.
+    pub digest_tokens_root: Option<Vec<String>>,
+    pub digest_tokens_file: Option<Vec<String>>,
 }
 
 /// The keyed digest columns a re-index rewrites, `None` meaning "leave it".
@@ -45,7 +50,7 @@ impl Validation for Reindex {
 }
 
 impl Reindex {
-    pub fn into_parts(self) -> AppResult<(String, SearchTags, KeyedHashes)> {
+    pub fn into_parts(self) -> AppResult<(String, SearchTags, DigestTags, KeyedHashes)> {
         let data = self.validate()?;
         let name_hash = data.name_hash.unwrap();
 
@@ -59,9 +64,24 @@ impl Reindex {
             ));
         }
 
+        // The same refusal for the digest columns themselves: a sweep that
+        // would write a bare digest back defeats its own purpose. MD5 shares
+        // the tag's shape and cannot be told apart here.
+        for value in [&data.md5, &data.sha1, &data.sha256, &data.blake2b]
+            .into_iter()
+            .flatten()
+        {
+            if cryptfns::search::is_bare_digest(value) {
+                return Err(::error::Error::UpgradeRequired(
+                    "client_too_old_for_search".to_string(),
+                ));
+            }
+        }
+
         Ok((
             name_hash,
             SearchTags::new(data.search_tokens_root, data.search_tokens_file),
+            DigestTags::new(data.digest_tokens_root, data.digest_tokens_file),
             KeyedHashes {
                 md5: data.md5,
                 sha1: data.sha1,
@@ -96,12 +116,28 @@ mod test {
     }
 
     #[test]
+    fn a_bare_digest_column_is_refused() {
+        let result = Reindex {
+            name_hash: Some("a".repeat(32)),
+            sha1: Some(cryptfns::sha256::digest("bytes".as_bytes())),
+            ..Default::default()
+        }
+        .into_parts();
+
+        assert!(
+            matches!(result, Err(::error::Error::UpgradeRequired(_))),
+            "a digest column accepted a value that is not a keyed tag"
+        );
+    }
+
+    #[test]
     fn tags_and_keyed_hashes_ride_along_with_the_name_hash() {
-        let (name_hash, tags, hashes) = Reindex {
+        let (name_hash, tags, digests, hashes) = Reindex {
             name_hash: Some("abc".to_string()),
             search_tokens_root: Some(vec!["a3f1:2".to_string()]),
             search_tokens_file: Some(vec!["9c22:1".to_string()]),
             sha256: Some("b".repeat(32)),
+            digest_tokens_root: Some(vec![format!("{}:1", "c".repeat(32))]),
             ..Default::default()
         }
         .into_parts()
@@ -110,6 +146,8 @@ mod test {
         assert_eq!(name_hash, "abc");
         assert_eq!(tags.root.unwrap().len(), 1);
         assert_eq!(tags.file.unwrap().len(), 1);
+        assert_eq!(digests.root.unwrap().len(), 1);
+        assert!(digests.file.is_none());
         assert_eq!(hashes.sha256.unwrap(), "b".repeat(32));
         assert!(hashes.md5.is_none());
     }

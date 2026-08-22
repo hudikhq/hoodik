@@ -17,11 +17,16 @@ pub struct Model {
     pub weight: i32,
 }
 
-/// Which key a row's tag was produced under.
+/// Which key a row's tag was produced under, and what kind of token it is.
 ///
-/// A client sends root tags for what it owns and file tags for what is shared
-/// with it, never both for the same file, so the two scopes cannot double-count
-/// a file in the weight ranking.
+/// For the word scopes, a client sends root tags for what it owns and file
+/// tags for what is shared with it, never both for the same file, so the two
+/// cannot double-count a file in the weight ranking. Content digests get
+/// scopes of their own because their lifecycle differs: a rename replaces the
+/// word scopes wholesale, and digest tags — derived from the bytes, not the
+/// name — must survive that replacement. Searching treats each digest scope
+/// as part of its word counterpart, so an exact digest query matches through
+/// the ordinary tag equality.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Scope {
     /// Keyed on the owner's account-wide search key. Answers the owner's own
@@ -31,6 +36,12 @@ pub enum Scope {
     /// recipient inside `user_files.encrypted_key`. This is the scope that
     /// makes a share searchable without any index work at share time.
     File = 1,
+    /// A content digest tagged under the owner's root key. Written when the
+    /// digest lands, replaced only by another digest write.
+    DigestRoot = 2,
+    /// A content digest tagged under the file's own key, reaching every
+    /// holder of the file key the same way [`Scope::File`] does.
+    DigestFile = 3,
 }
 
 impl From<Scope> for i32 {
@@ -52,6 +63,22 @@ pub struct SearchTags {
 }
 
 impl SearchTags {
+    pub fn new(root: Option<Vec<String>>, file: Option<Vec<String>>) -> Self {
+        Self { root, file }
+    }
+}
+
+/// Content-digest tags, in the same wire form as [`SearchTags`] but destined
+/// for the digest scopes. Kept as a separate type because the two sets have
+/// different lifecycles: word tags are replaced by renames and content saves,
+/// digest tags only by another digest write.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct DigestTags {
+    pub root: Option<Vec<String>>,
+    pub file: Option<Vec<String>>,
+}
+
+impl DigestTags {
     pub fn new(root: Option<Vec<String>>, file: Option<Vec<String>>) -> Self {
         Self { root, file }
     }

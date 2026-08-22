@@ -38,6 +38,8 @@ async fn test_set_editable_converts_file_to_note() {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None, // not editable
     };
@@ -109,6 +111,8 @@ async fn test_set_editable_can_revert_note_to_regular_file() {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: Some(true),
     };
@@ -166,6 +170,8 @@ async fn test_set_editable_rejects_directory() {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     };
@@ -224,6 +230,8 @@ async fn test_set_editable_requires_editable_field() {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     };

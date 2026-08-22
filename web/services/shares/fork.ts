@@ -198,7 +198,13 @@ export async function forkFile(
 
   const newFileId = uuidv4()
   const timestamp = Math.floor(Date.now() / 1000)
-  const sha256 = await streamingSha256(plaintextChunks)
+  // Keyed before it touches the wire, like every hash persist: the column
+  // stores the digest under the new file's search key, and the digest tags
+  // are what answer a pasted-digest search — no hash worker runs for a fork,
+  // so this body is the digest's only way into the index. The bare digest
+  // never leaves this function.
+  const bareSha256 = await streamingSha256(plaintextChunks)
+  const sha256 = cryptfns.searchTag(fileKey, bareSha256)
   const totalBytes = source.size ?? totalPlaintextSize(plaintextChunks)
   const expectedChunks = chunkCount(plaintextChunks)
 
@@ -229,6 +235,8 @@ export async function forkFile(
     encrypted_key: wrappedKey,
     search_tokens_root: cryptfns.searchTags(rootKey, source.name.toLowerCase()),
     search_tokens_file: cryptfns.searchTags(fileKey, source.name.toLowerCase()),
+    digest_tokens_root: [`${cryptfns.searchTag(rootKey, bareSha256)}:1`],
+    digest_tokens_file: [`${sha256}:1`],
     event_signature: eventSignature,
     timestamp
   }

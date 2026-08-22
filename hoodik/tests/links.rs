@@ -49,6 +49,8 @@ async fn test_creating_and_downloading_link() {
         sha1: Some("asd".to_string()),
         sha256: Some("asd".to_string()),
         blake2b: Some("asd".to_string()),
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     };
@@ -204,6 +206,8 @@ async fn test_link_download_decrypts_aegis256_file() {
         sha1: Some("asd".to_string()),
         sha256: Some("asd".to_string()),
         blake2b: Some("asd".to_string()),
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: Some("aegis256".to_string()),
         editable: None,
     };
@@ -364,6 +368,8 @@ async fn test_link_download_missing_chunk_returns_404() {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     };

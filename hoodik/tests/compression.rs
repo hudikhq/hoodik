@@ -57,6 +57,8 @@ async fn test_json_compresses_and_ciphertext_stays_identity() {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     };

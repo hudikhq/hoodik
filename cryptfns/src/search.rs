@@ -58,15 +58,28 @@ pub fn file_key(file_key: &[u8]) -> CryptoResult<[u8; KEY_LENGTH]> {
     expand(file_key, FILE_INFO)
 }
 
-/// Whether `name_hash` is a pre-keyed SHA-256 digest (64 hex chars) rather
-/// than a keyed tag (`TAG_LENGTH` bytes = 32 hex chars).
+/// Whether `name_hash` is a pre-keyed SHA-256 digest (64 chars) rather than a
+/// keyed tag (`TAG_LENGTH` bytes = 32 hex chars).
 ///
 /// Clients from before keyed search send `sha256(name)` here — the reversible
 /// digest the keyed scheme exists to remove. A write carrying one is refused
 /// rather than stored, so an old client cannot re-introduce the leak the
-/// migration just purged.
+/// migration just purged. Length alone decides, matching the pending-reindex
+/// query that derives "still legacy" from `LENGTH(name_hash) = 64`: accepting
+/// a 64-char value that query counts as legacy would store a row that reports
+/// itself pending forever.
 pub fn is_legacy_name_hash(name_hash: &str) -> bool {
-    name_hash.len() == 64 && name_hash.bytes().all(|b| b.is_ascii_hexdigit())
+    name_hash.len() == 64
+}
+
+/// Whether `value` has the shape of a bare content digest: 40, 64 or 128 hex
+/// chars is SHA-1, SHA-256 or BLAKE2b, none of which a keyed tag
+/// (`TAG_LENGTH` bytes = 32 hex chars) can be. The digest columns store keyed
+/// tags, so writes refuse these shapes the way the name paths refuse the
+/// legacy name digest. Bare MD5 shares the tag's 32-hex shape and cannot be
+/// told apart here; the client sweeps' sibling rule covers it.
+pub fn is_bare_digest(value: &str) -> bool {
+    matches!(value.len(), 40 | 64 | 128) && value.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
 /// Tag one value under `key`. Used for single strings such as a file's
@@ -119,7 +132,9 @@ fn pem_body(pem: &str) -> CryptoResult<Vec<u8>> {
         .replace([' ', '\t', '\r'], "");
 
     if body.is_empty() {
-        return Err(Error::KeyEncoding("private key has no PEM body".to_string()));
+        return Err(Error::KeyEncoding(
+            "private key has no PEM body".to_string(),
+        ));
     }
 
     crate::base64::decode(&body).map_err(|e| Error::KeyEncoding(e.to_string()))
@@ -192,7 +207,10 @@ mod test {
         let key = root_key(&private_key()).unwrap();
 
         assert_eq!(tag(&key, "invoice").unwrap(), tag(&key, "invoice").unwrap());
-        assert_ne!(tag(&key, "invoice").unwrap(), tag(&key, "invoices").unwrap());
+        assert_ne!(
+            tag(&key, "invoice").unwrap(),
+            tag(&key, "invoices").unwrap()
+        );
         assert_eq!(tag(&key, "invoice").unwrap().len(), TAG_LENGTH * 2);
     }
 
@@ -202,7 +220,10 @@ mod test {
     fn tag_is_not_the_bare_digest() {
         let key = root_key(&private_key()).unwrap();
 
-        assert_ne!(tag(&key, "Hello").unwrap(), sha256::digest("Hello".as_bytes()));
+        assert_ne!(
+            tag(&key, "Hello").unwrap(),
+            sha256::digest("Hello".as_bytes())
+        );
     }
 
     #[test]
@@ -227,14 +248,27 @@ mod test {
     }
 
     #[test]
-    fn legacy_name_hash_is_the_64_hex_digest() {
+    fn legacy_name_hash_is_any_64_char_value() {
         // sha256 hex, the pre-keyed shape.
         assert!(is_legacy_name_hash(&"a".repeat(64)));
         // A keyed tag is half as long.
         assert!(!is_legacy_name_hash(&"a".repeat(TAG_LENGTH * 2)));
-        // Right length, not hex.
-        assert!(!is_legacy_name_hash(&"g".repeat(64)));
+        // Not hex, but the pending query counts length alone — storing this
+        // would leave the row pending forever, so it is refused all the same.
+        assert!(is_legacy_name_hash(&"g".repeat(64)));
         assert!(!is_legacy_name_hash(""));
+    }
+
+    #[test]
+    fn bare_digest_shapes_are_the_three_reversible_lengths() {
+        // SHA-1, SHA-256, BLAKE2b.
+        assert!(is_bare_digest(&"a".repeat(40)));
+        assert!(is_bare_digest(&"a".repeat(64)));
+        assert!(is_bare_digest(&"a".repeat(128)));
+        // A keyed tag, and things that are no digest at all.
+        assert!(!is_bare_digest(&"a".repeat(TAG_LENGTH * 2)));
+        assert!(!is_bare_digest(&"g".repeat(64)));
+        assert!(!is_bare_digest(""));
     }
 
     /// A query the search box lowercased has to match an index built from the

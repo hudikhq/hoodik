@@ -7,7 +7,7 @@
 //! back into a word.
 
 use entity::{
-    file_tokens::{self, Scope, SearchTags},
+    file_tokens::{self, DigestTags, Scope, SearchTags},
     files, links, user_files, ActiveValue, ColumnTrait, Condition, ConnectionTrait, EntityTrait,
     Expr, Func, QueryFilter, QueryOrder, QuerySelect, Uuid,
 };
@@ -74,9 +74,40 @@ where
     /// matters once the file stops being shared — until then both sides search
     /// it through the file scope.
     pub(crate) async fn reindex(&self, file_id: Uuid, tags: SearchTags) -> AppResult<u64> {
+        self.replace_scopes(
+            file_id,
+            [(Scope::Root, tags.root), (Scope::File, tags.file)],
+        )
+        .await
+    }
+
+    /// Replace the digest tags of every scope the caller supplied.
+    ///
+    /// Delete-then-insert rather than append: hash writes are retried freely
+    /// (the PUT rides a transfer token precisely so a late retry still lands),
+    /// and appending on each attempt would duplicate rows and inflate the
+    /// weight ranking. The digest scopes are untouched by [`Self::reindex`],
+    /// which is what lets a rename replace every word token while the file
+    /// stays findable by its digest.
+    pub(crate) async fn replace_digests(&self, file_id: Uuid, tags: DigestTags) -> AppResult<u64> {
+        self.replace_scopes(
+            file_id,
+            [
+                (Scope::DigestRoot, tags.root),
+                (Scope::DigestFile, tags.file),
+            ],
+        )
+        .await
+    }
+
+    async fn replace_scopes(
+        &self,
+        file_id: Uuid,
+        scopes: [(Scope, Option<Vec<String>>); 2],
+    ) -> AppResult<u64> {
         let mut written = 0;
 
-        for (scope, tagged) in [(Scope::Root, tags.root), (Scope::File, tags.file)] {
+        for (scope, tagged) in scopes {
             let Some(tagged) = tagged else {
                 continue;
             };
@@ -156,14 +187,20 @@ where
         let file_tags_empty = file_tags.is_empty();
         let mut filter = Condition::any();
 
-        for (scope, tags) in [(Scope::Root, root_tags), (Scope::File, file_tags)] {
+        // Each word scope brings its digest counterpart along: both are keyed
+        // on the same key, so the exact-match tag a client appends to its
+        // query matches a stored digest row with no extra query field.
+        for (scopes, tags) in [
+            ([Scope::Root, Scope::DigestRoot], root_tags),
+            ([Scope::File, Scope::DigestFile], file_tags),
+        ] {
             if tags.is_empty() {
                 continue;
             }
 
             filter = filter.add(
                 file_tokens::Column::Scope
-                    .eq(i32::from(scope))
+                    .is_in(scopes.map(i32::from))
                     .and(file_tokens::Column::Tag.is_in(tags)),
             );
         }

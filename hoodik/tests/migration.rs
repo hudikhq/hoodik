@@ -27,11 +27,7 @@ trait TestApp:
 impl<S, B> TestApp for S
 where
     B: actix_web::body::MessageBody,
-    S: Service<
-        actix_http::Request,
-        Response = ServiceResponse<B>,
-        Error = actix_web::Error,
-    >,
+    S: Service<actix_http::Request, Response = ServiceResponse<B>, Error = actix_web::Error>,
 {
     type Body = B;
 }
@@ -91,6 +87,8 @@ async fn create_file(app: &impl TestApp, jwt: &actix_web::cookie::Cookie<'static
         sha1: Some("a".to_string()),
         sha256: Some("a".to_string()),
         blake2b: Some("a".to_string()),
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: Some("aegis256".to_string()),
         editable: None,
     };
@@ -191,7 +189,9 @@ async fn build_migration_parts(app: &impl TestApp, user: &LegacyUser) -> Migrati
     let mut offset = 0i64;
     loop {
         let req = test::TestRequest::get()
-            .uri(&format!("/api/auth/migration/keys?offset={offset}&limit=500"))
+            .uri(&format!(
+                "/api/auth/migration/keys?offset={offset}&limit=500"
+            ))
             .cookie(user.jwt.clone())
             .to_request();
         let page: Value = test::read_body_json(test::call_service(app, req).await).await;
@@ -280,12 +280,7 @@ async fn build_migration_parts(app: &impl TestApp, user: &LegacyUser) -> Migrati
 /// Stage the re-wrapped keys through `migration/rewrap`, chunking the combined
 /// file-then-link sequence to respect the server's per-request cap — exactly how
 /// the real client batches. Asserts each batch is accepted.
-async fn stage_rewraps(
-    app: &impl TestApp,
-    user: &LegacyUser,
-    keys: &[Value],
-    link_keys: &[Value],
-) {
+async fn stage_rewraps(app: &impl TestApp, user: &LegacyUser, keys: &[Value], link_keys: &[Value]) {
     const REWRAP_BATCH: usize = 500;
     let total = keys.len() + link_keys.len();
     let mut start = 0;
@@ -383,7 +378,10 @@ async fn test_full_migration_flips_account_and_rewraps_keys() {
         .await
         .unwrap()
         .expect("a transition row was written");
-    assert_eq!(transition.new_identity_key_pem, migrated["pubkey"].as_str().unwrap());
+    assert_eq!(
+        transition.new_identity_key_pem,
+        migrated["pubkey"].as_str().unwrap()
+    );
     assert_eq!(
         transition.new_wrapping_key_pem,
         migrated["wrapping_pubkey"].as_str().unwrap()
@@ -417,7 +415,10 @@ async fn test_full_migration_flips_account_and_rewraps_keys() {
         .set_json(json!({ "email": EMAIL, "credential_request": start.message }))
         .to_request();
     let body: Value = test::read_body_json(test::call_service(&app, req).await).await;
-    assert_eq!(body["method"], "opaque", "migrated account authenticates via OPAQUE");
+    assert_eq!(
+        body["method"], "opaque",
+        "migrated account authenticates via OPAQUE"
+    );
 
     // Signature login with the NEW key resolves through the new fingerprint.
     assert_eq!(new_fingerprint.len(), 64);
@@ -616,7 +617,10 @@ async fn test_migration_aborts_on_foreign_link_key() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(migrator.security_version, 0, "account stays legacy after abort");
+    assert_eq!(
+        migrator.security_version, 0,
+        "account stays legacy after abort"
+    );
 
     let file_row = entity::user_files::Entity::find()
         .filter(entity::user_files::Column::FileId.eq(file_id))
@@ -781,7 +785,11 @@ async fn test_migration_appends_verifying_key_rotation_event() {
         &audit_row,
     )
     .unwrap();
-    assert_eq!(row.this_event_hash, recomputed.to_vec(), "chain hash matches");
+    assert_eq!(
+        row.this_event_hash,
+        recomputed.to_vec(),
+        "chain hash matches"
+    );
 
     let sig_b64 = cryptfns::base64::encode(row.sender_signature.as_ref().unwrap());
     cryptfns::transition::verify_key_rotation_audit(
@@ -865,7 +873,10 @@ async fn test_migration_resigns_link_under_new_key() {
         .await
         .unwrap()
         .unwrap();
-    assert_ne!(row.signature, "link-signature", "the RSA-era signature is gone");
+    assert_ne!(
+        row.signature, "link-signature",
+        "the RSA-era signature is gone"
+    );
     cryptfns::identity::KeyType::Curve25519
         .verify(&file_id.to_string(), &row.signature, new_pubkey)
         .expect("the stored link signature verifies under the new identity key");
@@ -941,7 +952,11 @@ async fn test_large_account_that_overflowed_the_old_post_migrates() {
     helpers::seed_owned_files(&context.db, user_id, FILES).await;
 
     let parts = build_migration_parts(&app, &user).await;
-    assert_eq!(parts.rewrap_keys.len(), FILES, "every seeded file is offered for re-wrap");
+    assert_eq!(
+        parts.rewrap_keys.len(),
+        FILES,
+        "every seeded file is offered for re-wrap"
+    );
 
     // The body the pre-fix client would have sent in one shot — prove it clears
     // 2 MB, which is exactly what made the old design 413 for this account.
@@ -984,7 +999,10 @@ async fn test_large_account_that_overflowed_the_old_post_migrates() {
         .unwrap()
         .unwrap();
     let recovered = cryptfns::ecdh::unwrap(&sample.encrypted_key, &parts.x_private).unwrap();
-    assert_eq!(recovered, parts.file_key, "file key survives the batched re-wrap");
+    assert_eq!(
+        recovered, parts.file_key,
+        "file key survives the batched re-wrap"
+    );
 }
 
 /// A 600-file account needs more than one `rewrap` batch (the per-request cap is
@@ -1049,7 +1067,11 @@ async fn test_rewrap_batch_is_idempotent() {
     let parts = build_migration_parts(&app, &user).await;
 
     stage_rewraps(&app, &user, &parts.rewrap_keys, &parts.rewrap_link_keys).await;
-    assert_eq!(staging_count(&context.db, user_id).await, 3, "first stage lands 3 rows");
+    assert_eq!(
+        staging_count(&context.db, user_id).await,
+        3,
+        "first stage lands 3 rows"
+    );
 
     stage_rewraps(&app, &user, &parts.rewrap_keys, &parts.rewrap_link_keys).await;
     assert_eq!(
@@ -1110,7 +1132,11 @@ async fn test_complete_with_empty_staging_succeeds() {
     let user_id = current_user_id(&app, &user.jwt).await;
 
     let (resp, _x, _fk, _l) = migrate(&app, &user).await;
-    assert_eq!(resp.status(), StatusCode::OK, "a zero-file account still migrates");
+    assert_eq!(
+        resp.status(),
+        StatusCode::OK,
+        "a zero-file account still migrates"
+    );
     let migrated: Value = test::read_body_json(resp).await;
     assert_eq!(migrated["security_version"], 1);
     assert_eq!(staging_count(&context.db, user_id).await, 0);
@@ -1194,15 +1220,24 @@ async fn test_retry_after_failure_between_staging_and_complete() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(legacy.security_version, 0, "account stays legacy after the failure");
+    assert_eq!(
+        legacy.security_version, 0,
+        "account stays legacy after the failure"
+    );
     let file_row = entity::user_files::Entity::find()
         .filter(entity::user_files::Column::FileId.eq(file_id))
         .one(&context.db)
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(file_row.encrypted_key, "old-rsa-wrapped-key", "key untouched");
-    assert!(staging_count(&context.db, user_id).await > 0, "staging survives for the retry");
+    assert_eq!(
+        file_row.encrypted_key, "old-rsa-wrapped-key",
+        "key untouched"
+    );
+    assert!(
+        staging_count(&context.db, user_id).await > 0,
+        "staging survives for the retry"
+    );
 
     // The retry completes from the same staged set.
     let req = test::TestRequest::post()
@@ -1225,14 +1260,21 @@ async fn test_retry_after_failure_between_staging_and_complete() {
         .await
         .unwrap()
         .unwrap();
-    assert_ne!(file_row.encrypted_key, "old-rsa-wrapped-key", "key re-wrapped on retry");
+    assert_ne!(
+        file_row.encrypted_key, "old-rsa-wrapped-key",
+        "key re-wrapped on retry"
+    );
 }
 
 /// The account-wide search key is derived from the private key, so a migration
 /// replaces it — and every root-scope tag written under the old one becomes
-/// unmatchable. Left in the table those tags would also keep the account off
-/// the re-index sweep, which lists a file as pending exactly while it has none:
-/// search would return nothing, for ever, with nothing offering to fix it.
+/// unmatchable, digest tags included. Left in the table they would answer no
+/// query ever again while looking like a working index. The word tags come
+/// back through the sweep the blanked `name_hash` re-enrols the file in; the
+/// digest-root tags cannot (nothing client-side can recover the bare digest
+/// from the keyed column), so those are simply gone until the next content
+/// write — while the file scopes, keyed on the file key the re-wrap carried
+/// across, keep working throughout.
 #[actix_web::test]
 async fn test_migration_clears_the_root_search_index_it_invalidates() {
     use entity::file_tokens;
@@ -1243,10 +1285,12 @@ async fn test_migration_clears_the_root_search_index_it_invalidates() {
     let user = register_legacy(&app, &context.db).await;
     let file_id = create_file(&app, &user.jwt).await;
 
-    // Tags in both scopes, the way an upload writes them.
+    // Tags in all four scopes, the way an upload with a digest writes them.
     for (scope, tag) in [
         (file_tokens::Scope::Root, "a3f1"),
         (file_tokens::Scope::File, "9c22"),
+        (file_tokens::Scope::DigestRoot, "d001"),
+        (file_tokens::Scope::DigestFile, "d002"),
     ] {
         file_tokens::Entity::insert(file_tokens::ActiveModel {
             id: entity::ActiveValue::Set(entity::Uuid::new_v4()),
@@ -1270,10 +1314,11 @@ async fn test_migration_clears_the_root_search_index_it_invalidates() {
         .unwrap();
 
     assert!(
-        remaining
-            .iter()
-            .all(|row| row.scope != i32::from(file_tokens::Scope::Root)),
-        "root-scope tags are keyed on the replaced key and must not survive"
+        remaining.iter().all(|row| {
+            row.scope != i32::from(file_tokens::Scope::Root)
+                && row.scope != i32::from(file_tokens::Scope::DigestRoot)
+        }),
+        "tags keyed on the replaced root key must not survive, digests included"
     );
 
     // The file scope is keyed on the file's own key, which the re-wrap carried
@@ -1284,9 +1329,15 @@ async fn test_migration_clears_the_root_search_index_it_invalidates() {
             .any(|row| row.scope == i32::from(file_tokens::Scope::File)),
         "file-scope tags survive the migration"
     );
+    assert!(
+        remaining
+            .iter()
+            .any(|row| row.scope == i32::from(file_tokens::Scope::DigestFile)),
+        "digest-file tags survive too — shared digest lookups keep working"
+    );
 
-    // And with no root tags the file is pending again, so the sweep offers to
-    // rebuild it rather than the account silently losing its search.
+    // And with its name_hash blanked the file is pending again, so the sweep
+    // offers to rebuild it rather than the account silently losing its search.
     let req = test::TestRequest::get()
         .uri("/api/storage/reindex")
         .cookie(user.jwt.clone())
@@ -1336,6 +1387,18 @@ async fn test_rekey_migration_transforms_a_pre_migration_database() {
         ))
         .await
         .expect("seed a pre-migration file row");
+    // A version snapshot the old world wrote alongside it, carrying the same
+    // bare content digest for restore-exactness.
+    context
+        .db
+        .execute_unprepared(&format!(
+            "INSERT INTO file_versions (id, file_id, version, is_anonymous, size, chunks, \
+             sha256, created_at) \
+             VALUES ('{}', '{file_id}', 1, 0, 4, 1, '{sha256}', 0)",
+            entity::Uuid::new_v4()
+        ))
+        .await
+        .expect("seed a pre-migration file_versions row");
     context
         .db
         .execute_unprepared(&format!(
@@ -1413,4 +1476,18 @@ async fn test_rekey_migration_transforms_a_pre_migration_database() {
     let stored_sha256: String = row.try_get("", "sha256").unwrap();
     assert_eq!(name_hash, "", "the unsalted name digest must be purged");
     assert_eq!(stored_sha256, sha256, "the content digest awaits the sweep");
+
+    // Version rows are immutable snapshots no client sweep revisits, so
+    // their bare digests cannot wait for anyone — they are dropped outright.
+    let row = context
+        .db
+        .query_one(entity::Statement::from_string(
+            entity::DbBackend::Sqlite,
+            format!("SELECT count(*) AS n FROM file_versions WHERE file_id = '{file_id}' AND sha256 IS NOT NULL"),
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    let n: i32 = row.try_get("", "n").unwrap();
+    assert_eq!(n, 0, "version rows must not keep the bare content digest");
 }

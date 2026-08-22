@@ -100,10 +100,7 @@ pub(crate) async fn download(
 /// chunks into it, and flips `active_version`. The previously-active
 /// version is snapshotted into history along the way, so the user can
 /// undo by restoring that one.
-#[route(
-    "/api/storage/{file_id}/versions/{version}/restore",
-    method = "POST"
-)]
+#[route("/api/storage/{file_id}/versions/{version}/restore", method = "POST")]
 pub(crate) async fn restore(
     req: HttpRequest,
     claims: Claims,
@@ -210,9 +207,12 @@ pub(crate) async fn fork(
     let mut payload = data.into_inner().file;
     payload.chunks = Some(chunks);
     payload.size = Some(size);
-    payload.sha256 = sha256;
+    // A version row from before keyed hashes carries the bare digest; the
+    // columns hold keyed tags now, so the copy is dropped rather than
+    // resurrecting the reversible value the migration purged.
+    payload.sha256 = sha256.filter(|v| !cryptfns::search::is_bare_digest(v));
 
-    let (mut active_model, encrypted_key, _search_tags, _size, _parent) =
+    let (mut active_model, encrypted_key, _search_tags, _digest_tags, _size, _parent) =
         payload.into_active_model()?;
     // Skip the chunk-upload pass — chunks land via copy_version below.
     let now = Utc::now().timestamp();
@@ -250,10 +250,7 @@ pub(crate) async fn fork(
 /// `DELETE /api/storage/{file_id}/versions/{version}` — drop a single
 /// historical version. Deleting the active version is rejected; use
 /// regular file deletion for that.
-#[route(
-    "/api/storage/{file_id}/versions/{version}",
-    method = "DELETE"
-)]
+#[route("/api/storage/{file_id}/versions/{version}", method = "DELETE")]
 pub(crate) async fn delete(
     req: HttpRequest,
     claims: Claims,
@@ -324,4 +321,3 @@ pub(crate) async fn purge_all_history(
 
     Ok(HttpResponse::NoContent().finish())
 }
-

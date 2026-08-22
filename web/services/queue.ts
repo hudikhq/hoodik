@@ -156,23 +156,32 @@ export const store = defineStore('queue', () => {
  *
  * The digest is keyed before anything touches the wire: the column stores it
  * under the file's search key — so any holder of the file key can still run
- * the resume equality check — and the same moment appends the digest tags
+ * the resume equality check — and the same moment carries the digest tags
  * that make the file findable by pasting its digest into search. The bare
  * digest never leaves this function.
  */
-async function handleHashDoneMessage(files: FilesStore, id: string, sha256: string) {
+export async function handleHashDoneMessage(files: FilesStore, id: string, sha256: string) {
   logger.info(`[queue] hash-done for ${id}: sha256=${sha256.slice(0, 8)}...`)
-
-  const current = files.getItem(id)
-  if (!current?.key) {
-    logger.warn(`[queue] file ${id} has no key in the store — hashes not persisted`)
-    return
-  }
 
   // Keying failure degrades to "hashes not persisted", never to an error
   // that escapes this fire-and-forget handler into the page.
   let update: meta.KeyedHashesUpdate
   try {
+    const { store: cryptoStore } = await import('./crypto')
+    const keypair = cryptoStore().keypair
+
+    // Navigating away can evict the row from the store before the digest of a
+    // large file arrives, but the server row still wants its hash — fetch it
+    // back rather than leaving the column empty forever.
+    let current = files.getItem(id)
+    if (!current?.key) {
+      if (!keypair?.input) {
+        logger.warn(`[queue] file ${id} has no key and no unlocked keypair — hashes not persisted`)
+        return
+      }
+      current = await meta.get(keypair, id)
+    }
+
     const cryptfns = await import('./cryptfns')
     const fileSearchKey = cryptfns.searchFileKey(current.key as Uint8Array)
     const keyed = cryptfns.searchTag(fileSearchKey, sha256)
@@ -184,14 +193,10 @@ async function handleHashDoneMessage(files: FilesStore, id: string, sha256: stri
 
     // Only the owner can produce root-scope tags; an editor uploading into a
     // shared folder indexes the digest under the file scope alone.
-    if (current.is_owner !== false) {
-      const { store: cryptoStore } = await import('./crypto')
-      const keypair = cryptoStore().keypair
-      if (keypair?.input) {
-        update.search_tokens_root = [
-          `${cryptfns.searchTag(cryptfns.searchRootKey(keypair), sha256)}:1`
-        ]
-      }
+    if (current.is_owner !== false && keypair?.input) {
+      update.search_tokens_root = [
+        `${cryptfns.searchTag(cryptfns.searchRootKey(keypair), sha256)}:1`
+      ]
     }
   } catch (err) {
     logger.error('[queue] could not key the digest for', id, ':', err)
@@ -206,8 +211,14 @@ async function handleHashDoneMessage(files: FilesStore, id: string, sha256: stri
     return
   }
 
-  logger.debug(`[queue] updating store item ${id} with keyed sha256`)
-  files.updateItem({ ...current, sha256: update.sha256 })
+  // Re-read rather than spreading the earlier snapshot: the upload finishes
+  // while the PUT above is in flight, and writing the pre-finish row back
+  // would strip `finished_upload_at` from the UI — a file stuck looking
+  // half-uploaded with most of its actions missing.
+  const latest = files.getItem(id)
+  if (latest) {
+    files.updateItem({ ...latest, sha256: update.sha256 })
+  }
 }
 
 /**
