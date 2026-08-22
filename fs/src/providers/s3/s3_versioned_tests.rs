@@ -45,12 +45,24 @@ async fn scope_with_direct_transfer(direct_transfer: bool) -> TestScope {
             .map(|v| v == "true")
             .unwrap_or(true),
         prefix: Some(prefix.clone()),
-        // The transport preconditions are a startup concern and never gate
-        // the provider itself, so nothing here depends on them.
         direct_transfer,
         direct_expiry_secs: 3600,
         direct_allow_insecure: true,
     };
+
+    // The provider hands out URLs only when the config asks for them *and*
+    // startup's transport probe agreed, and nothing here runs startup — so
+    // without this every direct test asks for URLs and gets `None`. Standing
+    // in for a server that passed its probes is the honest fixture: the
+    // probes check the transport, which is exactly what these tests then go
+    // over real HTTP to prove. Recording is first-call-wins and process-wide,
+    // and the withheld-URL tests still hold: `direct_enabled` needs both, so
+    // `direct_transfer: false` withholds regardless of the verdict.
+    config::direct::record(config::direct::DirectVerdict {
+        enabled: true,
+        blockers: vec![],
+    });
+
     let provider = S3Provider::new(&config);
 
     // Smoke-test the bucket so a fresh developer sees "run `just minio-up`"
@@ -191,7 +203,10 @@ async fn s3_copy_version_in_place() {
     s.p().push_v(&filename, 3, 0, b"a").await.unwrap();
     s.p().push_v(&filename, 3, 1, b"b").await.unwrap();
 
-    s.p().copy_version(&filename, 3, &filename, 4).await.unwrap();
+    s.p()
+        .copy_version(&filename, 3, &filename, 4)
+        .await
+        .unwrap();
 
     assert_eq!(
         s.p().get_uploaded_chunks_v(&filename, 3).await.unwrap(),
@@ -240,7 +255,10 @@ async fn s3_copy_version_from_legacy_source() {
     s.p().push(&filename, 0, b"x").await.unwrap();
     s.p().push(&filename, 1, b"y").await.unwrap();
 
-    s.p().copy_version(&filename, 1, &filename, 2).await.unwrap();
+    s.p()
+        .copy_version(&filename, 1, &filename, 2)
+        .await
+        .unwrap();
 
     assert_eq!(
         s.p().get_uploaded_chunks_v(&filename, 2).await.unwrap(),
@@ -320,7 +338,10 @@ async fn s3_stream_missing_chunk_is_not_found() {
 
     let versioned = fname();
     s.p().push_v(&versioned, 2, 0, b"present").await.unwrap();
-    assert_not_found(s.p().stream_v(&versioned, 2, Some(9)).await.err(), "stream_v");
+    assert_not_found(
+        s.p().stream_v(&versioned, 2, Some(9)).await.err(),
+        "stream_v",
+    );
     assert_not_found(s.p().pull_v(&versioned, 2, 9).await.err(), "pull_v");
 
     let legacy = fname();
@@ -369,7 +390,11 @@ async fn s3_purge_version_batch_gt_1000_chunks() {
     s.p().purge_version(&filename, 7).await.unwrap();
 
     let after = s.p().get_uploaded_chunks_v(&filename, 7).await.unwrap();
-    assert!(after.is_empty(), "{} chunks survived purge_version", after.len());
+    assert!(
+        after.is_empty(),
+        "{} chunks survived purge_version",
+        after.len()
+    );
 
     s.clean().await;
 }

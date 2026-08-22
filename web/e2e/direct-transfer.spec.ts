@@ -157,17 +157,20 @@ test.describe('Direct transfer', () => {
     const password = randomPassword()
     await createUser(page, email, password)
 
-    await page.setInputFiles('[name="upload-file-input"]', imageFixture)
-    await page.getByTestId('upload-active').waitFor({ state: 'hidden', timeout: 60_000 })
-
+    // Watching from before the upload, so the PUTs that write into the bucket
+    // are observed too. Attached after it, this only ever saw the read side —
+    // and the write side is the one carrying the user's bytes.
     const leaked: string[] = []
     page.on('request', (request) => {
       if (!request.url().includes(':9000/')) return
       const headers = request.headers()
       for (const name of ['cookie', 'authorization', 'x-auth-refresh']) {
-        if (headers[name]) leaked.push(`${name} on ${request.url()}`)
+        if (headers[name]) leaked.push(`${name} ${request.method()} ${request.url()}`)
       }
     })
+
+    await page.setInputFiles('[name="upload-file-input"]', imageFixture)
+    await page.getByTestId('upload-active').waitFor({ state: 'hidden', timeout: 60_000 })
 
     await page.getByTestId('file-row-test-image.png').dblclick()
     await expect(page.locator('img[name="original"]')).toBeVisible({ timeout: 60_000 })

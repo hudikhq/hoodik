@@ -107,10 +107,20 @@ export const store = defineStore('upload', () => {
     const alreadyDone = done.value.some((f) => f.temporaryId === file.temporaryId)
     const alreadyFailed = failed.value.some((f) => f.temporaryId === file.temporaryId)
 
+    // A failure can arrive for a file already listed as done: the direct path
+    // commits in a request of its own after the last chunk, and a late error
+    // is the only word the user gets that the file is not on the server after
+    // all. Take it out of `done` and let it fall through to the failure
+    // handling below rather than merging it in as a finished row.
+    if (alreadyDone && error) {
+      done.value = done.value.filter((f) => f.temporaryId !== file.temporaryId)
+      file.finished_upload_at = undefined
+    }
+
     // Hashes can arrive after the last chunk finishes (e.g. when using a separate hash worker).
     // In that case, the UI may have already moved the file to `done`, and we still want to
     // upsert the hash fields (md5/sha1/sha256/blake2b) without dropping `finished_upload_at`.
-    if (alreadyDone || alreadyFailed) {
+    if ((alreadyDone && !error) || alreadyFailed) {
       const current = storage.getItem(file.id)
       if (current) {
         const merged = { ...current, ...file }
@@ -246,6 +256,12 @@ export const store = defineStore('upload', () => {
         break
       }
     }
+
+    // A file can already be listed as done when it fails: the main-thread path
+    // reports its last chunk before asking the server to commit, and the
+    // commit is what can still fail. Listed in both places it reads as a
+    // finished upload with an error next to it.
+    done.value = done.value.filter((f) => f.id !== file.id)
 
     failed.value.push(file)
   }

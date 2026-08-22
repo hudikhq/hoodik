@@ -285,7 +285,14 @@ pub async fn upload_file(
             match http.finalize_upload(auth, file_id).await {
                 Ok(()) => break,
                 Err(_) if attempt < MAX_UPLOAD_RETRIES => attempt += 1,
-                Err(e) => return Err(e),
+                Err(e) => {
+                    // Reported the way a failed chunk is, not only returned:
+                    // the host has already been told every chunk landed, and
+                    // without this the upload it is watching simply stops
+                    // producing events while the file stays uncommitted.
+                    progress.on_error(file_id, &format!("Failed to commit the upload: {e}"));
+                    return Err(e);
+                }
             }
         }
     }

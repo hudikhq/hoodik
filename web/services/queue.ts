@@ -229,14 +229,14 @@ async function uploadMessage(
   upload: UploadStore,
   response: UploadChunkResponseMessage
 ) {
-  const storedChunks = response.transferableFile.uploaded_chunks?.length || 0
-
-  await upload.progress(
-    files,
-    response.transferableFile,
-    response.isDone || storedChunks === response.transferableFile.chunks,
-    response.error
-  )
+  // Only what the transfer layer reports. Counting the chunks this side has
+  // seen was equivalent while every chunk went through the server, which
+  // committed the file as its last one landed — but a chunk written straight
+  // to the bucket tells the server nothing, and the commit is a separate
+  // request afterwards. Left as an OR, the last bucket PUT marked the upload
+  // done and a finalize that then failed for good was never shown: the user
+  // saw a finished file the server had never committed.
+  await upload.progress(files, response.transferableFile, response.isDone === true, response.error)
 }
 
 /**

@@ -18,6 +18,11 @@ use std::net::IpAddr;
 /// is answered from the bucket's policy whether or not the key exists.
 const PROBE_KEY: &str = ".hoodik-direct-probe";
 
+/// How long one CORS preflight may take. Two of them run in sequence, so this
+/// also bounds what an unreachable bucket can add to startup.
+#[cfg(feature = "s3")]
+const PREFLIGHT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
 /// Run the checks once and record the answer for [`config::direct::verdict`].
 /// Called during startup, before the server binds.
 ///
@@ -31,7 +36,9 @@ pub async fn probe(config: &Config) {
     let verdict = evaluate(config).await;
 
     if verdict.enabled {
-        log::info!("Direct S3 transfer enabled: clients will read and write chunks from the bucket");
+        log::info!(
+            "Direct S3 transfer enabled: clients will read and write chunks from the bucket"
+        );
     } else if !verdict.blockers.is_empty() {
         log::warn!(
             "S3_DIRECT_TRANSFER is set but direct transfer stays off: {}. \
@@ -138,7 +145,9 @@ fn is_unreachable_from_clients(host: &str) -> bool {
     if let Ok(ip) = host.parse::<IpAddr>() {
         return match ip {
             IpAddr::V4(v4) => v4.is_private() || v4.is_loopback() || v4.is_link_local(),
-            IpAddr::V6(v6) => v6.is_loopback() || v6.is_unique_local() || v6.is_unicast_link_local(),
+            IpAddr::V6(v6) => {
+                v6.is_loopback() || v6.is_unique_local() || v6.is_unicast_link_local()
+            }
         };
     }
 
@@ -159,7 +168,17 @@ async fn cors_blockers(url: &url::Url, origin: &str, allow_insecure: bool) -> Ve
     // store here is the public webpki set. reqwest's default native-tls
     // backend would read the host's trust store and happily accept the
     // internal CA that no client of ours has.
-    let mut builder = reqwest::Client::builder().use_rustls_tls();
+    //
+    // The bound covers connect, handshake and response together, and it is
+    // not optional: this runs before the server binds its port, so an
+    // endpoint that completes the TCP handshake and then says nothing would
+    // hang startup outright — a process that is up, listening nowhere, with
+    // no log line saying why, restart-looping under any orchestrator. An
+    // endpoint too slow to answer in five seconds is one no browser would
+    // wait for either, and the timeout surfaces as an ordinary blocker.
+    let mut builder = reqwest::Client::builder()
+        .use_rustls_tls()
+        .timeout(PREFLIGHT_TIMEOUT);
 
     // S3_DIRECT_ALLOW_INSECURE exists for the home-lab bucket whose
     // certificate only the operator's own devices trust. The certificate
@@ -171,7 +190,11 @@ async fn cors_blockers(url: &url::Url, origin: &str, allow_insecure: bool) -> Ve
 
     let client = match builder.build() {
         Ok(client) => client,
-        Err(e) => return vec![format!("could not build an HTTP client to check CORS ({e})")],
+        Err(e) => {
+            return vec![format!(
+                "could not build an HTTP client to check CORS ({e})"
+            )]
+        }
     };
 
     let mut blockers = Vec::new();
@@ -214,7 +237,10 @@ async fn preflight(
         ));
     }
 
-    if !method_allowed(header(&response, "access-control-allow-methods").as_deref(), method) {
+    if !method_allowed(
+        header(&response, "access-control-allow-methods").as_deref(),
+        method,
+    ) {
         return Err(format!(
             "the bucket's CORS rule does not allow {method} from {origin}"
         ));
@@ -263,7 +289,10 @@ async fn probe_url(s3: &config::s3::S3Config) -> Result<url::Url, String> {
     let provider = crate::providers::s3::S3Provider::new(s3);
     let key = format!("{}{}", provider.prefix(), PROBE_KEY);
 
-    let signed = provider.presign_get(&key).await.map_err(|e| e.to_string())?;
+    let signed = provider
+        .presign_get(&key)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let mut url = url::Url::parse(&signed).map_err(|e| e.to_string())?;
     url.set_query(None);
@@ -285,7 +314,11 @@ mod test {
     #[test]
     fn plain_http_endpoints_are_blocked() {
         let reasons = blockers("http://files.example.org/bucket/key");
-        assert_eq!(reasons.len(), 1, "expected only the scheme to be faulted: {reasons:?}");
+        assert_eq!(
+            reasons.len(),
+            1,
+            "expected only the scheme to be faulted: {reasons:?}"
+        );
         assert!(reasons[0].contains("HTTPS"), "{}", reasons[0]);
     }
 
@@ -305,14 +338,26 @@ mod test {
     #[test]
     fn origin_matching_accepts_a_wildcard_and_ignores_a_trailing_slash() {
         assert!(origin_allowed("*", "https://drive.example.org"));
-        assert!(origin_allowed("https://drive.example.org", "https://drive.example.org"));
-        assert!(origin_allowed("https://drive.example.org/", "https://drive.example.org"));
-        assert!(origin_allowed("https://drive.example.org", "https://drive.example.org/"));
+        assert!(origin_allowed(
+            "https://drive.example.org",
+            "https://drive.example.org"
+        ));
+        assert!(origin_allowed(
+            "https://drive.example.org/",
+            "https://drive.example.org"
+        ));
+        assert!(origin_allowed(
+            "https://drive.example.org",
+            "https://drive.example.org/"
+        ));
     }
 
     #[test]
     fn origin_matching_rejects_a_different_origin() {
-        assert!(!origin_allowed("https://other.example.org", "https://drive.example.org"));
+        assert!(!origin_allowed(
+            "https://other.example.org",
+            "https://drive.example.org"
+        ));
         assert!(!origin_allowed("", "https://drive.example.org"));
     }
 
@@ -354,7 +399,10 @@ mod test {
             "bucket.internal",
             "::1",
         ] {
-            assert!(is_unreachable_from_clients(host), "{host} should be rejected");
+            assert!(
+                is_unreachable_from_clients(host),
+                "{host} should be rejected"
+            );
         }
     }
 
@@ -366,7 +414,10 @@ mod test {
             "files.example.org",
             "8.8.8.8",
         ] {
-            assert!(!is_unreachable_from_clients(host), "{host} should be accepted");
+            assert!(
+                !is_unreachable_from_clients(host),
+                "{host} should be accepted"
+            );
         }
     }
 }

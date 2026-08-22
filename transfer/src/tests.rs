@@ -2001,4 +2001,15 @@ async fn finalize_exhausted_retries_surface_the_error() {
     assert!(result.is_err());
     assert_eq!(http.finalize_calls.get(), MAX_UPLOAD_RETRIES + 1);
     assert!(!http.finalized.get());
+    // Reported, not just returned: the host has already been told every chunk
+    // landed, so a commit that fails has to arrive on the channel it watches
+    // or the upload it is showing simply stops moving while the file stays
+    // uncommitted.
+    assert!(
+        progress
+            .events()
+            .iter()
+            .any(|event| matches!(event, ProgressEvent::Error { .. })),
+        "a failed commit was never reported to the host"
+    );
 }

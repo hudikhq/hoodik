@@ -214,7 +214,12 @@ async function handleUploadFile(
           },
           chunk: progress.chunk,
           attempt: 0,
-          isDone: progress.is_done,
+          // `complete` is the only signal that arrives after the commit, so
+          // it is what "done" means on the direct path: the last chunk
+          // reports `is_done: false` there, because a bucket write leaves the
+          // file uncommitted until finalize succeeds. On the relaying path
+          // both fire and either would do.
+          isDone: progress.is_done === true || progress.type === 'complete',
           error: progress.type === 'error' ? { context: progress.error } : undefined
         } as UploadChunkResponseMessage
       })
