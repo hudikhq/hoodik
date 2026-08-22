@@ -69,11 +69,43 @@ function cached(key: string): string[] | undefined {
 }
 
 /**
+ * How long direct reads stand down after a transport-level failure.
+ *
+ * An error *answer* — an expired URL, a pruned object — heals by eviction,
+ * because a fresh manifest fixes it. A thrown fetch is different: broken
+ * bucket CORS or an unreachable endpoint, which no fresh manifest fixes,
+ * and without a stand-down every read of the session pays one failed bucket
+ * request plus a manifest round-trip before it relays.
+ */
+const TRANSPORT_COOLDOWN_SECONDS = 60
+
+let transportBrokenAt: number | null = null
+
+/**
+ * Report that a presigned read failed at the transport level. Manifests stop
+ * being handed out for [[TRANSPORT_COOLDOWN_SECONDS]], so reads relay
+ * immediately instead of each rediscovering the same broken transport.
+ */
+export function markDirectTransportBroken(): void {
+  transportBrokenAt = Math.floor(Date.now() / 1000)
+}
+
+function transportCoolingDown(): boolean {
+  if (transportBrokenAt === null) return false
+  if (Math.floor(Date.now() / 1000) - transportBrokenAt >= TRANSPORT_COOLDOWN_SECONDS) {
+    transportBrokenAt = null
+    return false
+  }
+  return true
+}
+
+/**
  * Forget every cached manifest. Call on logout: the URLs outlive the session
  * that obtained them, and nothing should carry across an account switch.
  */
 export function clearChunkUrlCache(): void {
   cache.clear()
+  transportBrokenAt = null
 }
 
 /**
@@ -128,6 +160,10 @@ async function chunkUrls(
   const capabilities = capabilitiesStore()
   await capabilities.ensureFetched()
   if (!capabilities.directTransfer) {
+    return undefined
+  }
+
+  if (transportCoolingDown()) {
     return undefined
   }
 

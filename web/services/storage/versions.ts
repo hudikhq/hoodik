@@ -8,8 +8,7 @@
  */
 
 import Api from '../api'
-import { evictChunkUrls } from './download/direct'
-import { versionChunkUrls } from './download/direct'
+import { evictChunkUrls, markDirectTransportBroken, versionChunkUrls } from './download/direct'
 import type { AppFile, FileVersion } from 'types'
 
 /**
@@ -66,8 +65,11 @@ export async function downloadChunk(
     response = direct ? await fetch(direct, { credentials: 'omit', signal }) : undefined
   } catch {
     // A broken CORS policy or an unreachable bucket throws instead of
-    // answering; heal it the same way an error answer heals below. Aborts
-    // rethrow from the relaying read, which shares the signal.
+    // answering; heal it the same way an error answer heals below, and stand
+    // direct reads down for a while — no fresh manifest fixes a transport
+    // that cannot be reached. Aborts rethrow from the relaying read, which
+    // shares the signal.
+    markDirectTransportBroken()
     response = undefined
   }
 

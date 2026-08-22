@@ -1,4 +1,5 @@
 import Api, { ErrorResponse } from '../api'
+import * as logger from '!/logger'
 import * as cryptfns from '../cryptfns'
 import { CHUNK_SIZE_BYTES } from '../constants'
 import { uploadChunk } from './upload/sync'
@@ -70,6 +71,49 @@ export async function replaceContent(
 }
 
 /**
+ * Persist a note's content digest, keyed, along with the tags that make the
+ * note findable by pasting that digest into search.
+ *
+ * Binary uploads get this from the hash worker. A note never goes near one —
+ * its bytes are written here — so without this its digest column stays empty
+ * and its digest never reaches the index. Keyed before anything touches the
+ * wire: the column stores the digest under the file's search key, and the
+ * bare digest never leaves this function.
+ *
+ * A failure here costs digest search on this note, never the save: the bytes
+ * are already committed by the time it runs.
+ */
+async function persistNoteDigest(
+  fileId: string,
+  contentBytes: Uint8Array,
+  fileKey: Uint8Array,
+  keypair: KeyPair,
+  isOwner: boolean
+): Promise<void> {
+  try {
+    const bare = cryptfns.sha256.digest(contentBytes)
+    const keyed = cryptfns.searchTag(cryptfns.searchFileKey(fileKey), bare)
+
+    const update: meta.KeyedHashesUpdate = {
+      sha256: keyed,
+      search_tokens_file: [`${keyed}:1`]
+    }
+
+    // Only the owner can produce root-scope tags; an editor saving a shared
+    // note indexes the digest under the file scope alone.
+    if (isOwner) {
+      update.search_tokens_root = [
+        `${cryptfns.searchTag(cryptfns.searchRootKey(keypair), bare)}:1`
+      ]
+    }
+
+    await meta.updateHashes(fileId, update)
+  } catch (err) {
+    logger.error('[save] could not persist the note digest for', fileId, ':', err)
+  }
+}
+
+/**
  * Save new content to an existing editable file. The default path
  * surfaces a 409 as [[SaveConflictError]] so the UI can prompt the
  * user; pass `force = true` to bypass.
@@ -90,13 +134,16 @@ export async function saveFileContent(
   const contentBytes = encoder.encode(safeContent)
   const size = contentBytes.length
   const chunkCount = Math.ceil(size / CHUNK_SIZE_BYTES) || 1
-  // A note's whole body is indexed, which is why the old unsalted digests
-  // leaked note contents and not just names. An editor who is not the owner
-  // can only refresh the file scope; the owner's stays as they last wrote it
-  // and is not consulted while the file is shared.
-  const fileTags = cryptfns.searchTags(cryptfns.searchFileKey(file.key), safeContent)
+  // A note is indexed by name and body together: the body is why the old
+  // unsalted digests leaked note contents and not just names, and the name
+  // rides along so a note stays findable by its title when the title's words
+  // never appear in the text. An editor who is not the owner can only refresh
+  // the file scope; the owner's stays as they last wrote it and is not
+  // consulted while the file is shared.
+  const indexed = `${file.name}\n${safeContent}`
+  const fileTags = cryptfns.searchTags(cryptfns.searchFileKey(file.key), indexed)
   const rootTags = file.is_owner
-    ? cryptfns.searchTags(cryptfns.searchRootKey(keypair), safeContent)
+    ? cryptfns.searchTags(cryptfns.searchRootKey(keypair), indexed)
     : undefined
 
   let updatedFile: AppFile
@@ -136,6 +183,8 @@ export async function saveFileContent(
     const chunkData = contentBytes.slice(start, end)
     await uploadChunk(uploadFile, chunkData, i, 0, api)
   }
+
+  await persistNoteDigest(file.id, contentBytes, file.key, keypair, file.is_owner !== false)
 
   return {
     ...updatedFile,
@@ -242,6 +291,10 @@ export async function createNote(
     api
   )
 
+  if (file.key) {
+    await persistNoteDigest(file.id, contentBytes, file.key, keypair, true)
+  }
+
   return file
 }
 
@@ -322,6 +375,9 @@ async function createNoteInSharedFolder(args: {
     0,
     api
   )
+
+  // The uploader owns what they created, shared folder or not.
+  await persistNoteDigest(newFileId, args.contentBytes, fileKey, args.keypair, true)
 
   return await meta.get(args.keypair, newFileId)
 }

@@ -225,13 +225,16 @@ describe('saveFileContent', () => {
     expect(uploadChunk).toHaveBeenCalledTimes(3)
   })
 
-  it('UNIT: passes search tokens from cryptfns into the body', async () => {
+  it('UNIT: indexes the note by its name and body together', async () => {
     const file = makeAppFile()
     ApiPutMock.mockResolvedValueOnce({ body: makeAppFile() })
 
     await saveFileContent(file, 'hello', keypair)
 
-    expect(searchTags).toHaveBeenCalledWith(expect.anything(), 'hello')
+    // Both, not either: indexing the body alone drops the title the moment a
+    // save follows a rename, and indexing the name alone was what broke body
+    // search in the first place.
+    expect(searchTags).toHaveBeenCalledWith(expect.anything(), 'note.md\nhello')
     const [, , body] = ApiPutMock.mock.calls[0]
     expect(body.search_tokens_root).toEqual(['tok-a', 'tok-b'])
     expect(body.search_tokens_file).toEqual(['tok-a', 'tok-b'])

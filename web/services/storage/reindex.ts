@@ -113,19 +113,21 @@ export const store = defineStore('reindex', () => {
   }
 
   /**
-   * A note's body is indexed word for word, which is why the old scheme leaked
-   * note contents and not just names. Rebuilding that means fetching and
-   * decrypting the note — there is no shortcut, the server holds only
-   * ciphertext.
+   * A note's body is indexed word for word alongside its name, which is why
+   * the old scheme leaked note contents and not just names. Rebuilding that
+   * means fetching and decrypting the note — there is no shortcut, the server
+   * holds only ciphertext — and the name rides along so a swept note carries
+   * the same tokens a saved one does.
    */
   async function textFor(file: AppFile): Promise<string> {
+    const name = file.name ?? ''
     if (!file.editable || !file.key) {
-      return file.name?.toLowerCase() ?? ''
+      return name
     }
 
     const bytes = await downloadAndDecrypt(file)
 
-    return new TextDecoder().decode(bytes)
+    return `${name}\n${new TextDecoder().decode(bytes)}`
   }
 
   async function reindexOne(keypair: KeyPair, encrypted: EncryptedAppFile): Promise<void> {
