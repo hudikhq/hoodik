@@ -39,6 +39,11 @@ pub(crate) async fn pending(
 ///
 /// Request: [crate::data::reindex::Reindex]
 ///
+/// The body includes the account fingerprint the tags were keyed under.
+/// Compared to `users.fingerprint` before the write; a leftover session
+/// still holding the previous key gets `reindex_key_rotated` and the file
+/// stays pending.
+///
 /// Response: [crate::data::app_file::AppFile]
 #[route("/api/storage/{file_id}/reindex", method = "PUT")]
 pub(crate) async fn reindex(

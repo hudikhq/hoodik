@@ -17,6 +17,10 @@ const BATCH_SIZE = 10
 
 export interface ReindexRequest {
   name_hash: string
+  /** Account fingerprint the tags were keyed under. The server rejects a
+   *  value that is not the live `users.fingerprint`, so a sweep that started
+   *  under a discarded key cannot retire files from the pending list. */
+  fingerprint: string
   search_tokens_root: string[]
   search_tokens_file: string[]
   /** Content digests re-keyed under the file's search key, replacing the
@@ -143,12 +147,18 @@ export const store = defineStore('reindex', () => {
       throw new Error('file has no key or name')
     }
 
+    const fingerprint = keypair.fingerprint
+    if (!fingerprint) {
+      throw new Error('Cannot re-index without the account fingerprint')
+    }
+
     const rootKey = cryptfns.searchRootKey(keypair)
     const fileKey = cryptfns.searchFileKey(file.key)
     const indexed = await textFor(file)
 
     const body: ReindexRequest = {
       name_hash: cryptfns.searchTag(rootKey, file.name),
+      fingerprint,
       search_tokens_root: cryptfns.searchTags(rootKey, indexed),
       search_tokens_file: cryptfns.searchTags(fileKey, indexed)
     }

@@ -1,8 +1,8 @@
 use context::Context;
 use entity::{
     file_tokens::{self, Scope},
-    files, user_files, ActiveValue, ColumnTrait, EntityTrait, Expr, PaginatorTrait, QueryFilter,
-    Uuid,
+    files, user_files, users, ActiveValue, ColumnTrait, EntityTrait, Expr, PaginatorTrait,
+    QueryFilter, Uuid,
 };
 
 use crate::{
@@ -27,6 +27,20 @@ async fn blank_name_hash(context: &Context, file_id: Uuid) {
         .exec(&context.db)
         .await
         .unwrap();
+}
+
+/// Mock users are inserted with a blank fingerprint. The reindex write
+/// compares against `users.fingerprint`, so tests that go through that path
+/// need a real epoch on the row.
+async fn stamp_fingerprint(context: &Context, user_id: Uuid) -> String {
+    const FP: &str = "reindex-epoch";
+    users::Entity::update_many()
+        .col_expr(users::Column::Fingerprint, Expr::value(FP))
+        .filter(users::Column::Id.eq(user_id))
+        .exec(&context.db)
+        .await
+        .unwrap();
+    FP.to_string()
 }
 
 /// Give `user_id` non-owner access to `file_id`, the way a share grant does.
@@ -237,6 +251,8 @@ async fn pending_reindex_shrinks_as_files_are_indexed() {
 
     blank_name_hash(&context, a.id).await;
 
+    let fingerprint = stamp_fingerprint(&context, user.id).await;
+
     let pending = repository.tokens(user.id).pending_reindex(100).await.unwrap();
     assert_eq!(pending.len(), 1);
     assert_eq!(pending[0].id, a.id);
@@ -248,6 +264,7 @@ async fn pending_reindex_shrinks_as_files_are_indexed() {
             a.id,
             Reindex {
                 name_hash: Some(cryptfns::search::tag(&search_key(), "alpha").unwrap()),
+                fingerprint: Some(fingerprint),
                 search_tokens_root: Some(index_tags(&search_key(), "alpha")),
                 ..Default::default()
             },
@@ -279,6 +296,8 @@ async fn pending_reindex_lets_go_of_a_file_that_indexed_to_zero_tags() {
         .unwrap();
     blank_name_hash(&context, file.id).await;
 
+    let fingerprint = stamp_fingerprint(&context, user.id).await;
+
     assert_eq!(
         repository
             .tokens(user.id)
@@ -295,6 +314,7 @@ async fn pending_reindex_lets_go_of_a_file_that_indexed_to_zero_tags() {
             file.id,
             Reindex {
                 name_hash: Some(cryptfns::search::tag(&search_key(), ";").unwrap()),
+                fingerprint: Some(fingerprint),
                 search_tokens_root: Some(vec![]),
                 search_tokens_file: Some(vec![]),
                 ..Default::default()
@@ -309,6 +329,50 @@ async fn pending_reindex_lets_go_of_a_file_that_indexed_to_zero_tags() {
         .await
         .unwrap()
         .is_empty());
+}
+
+/// A write keyed under a discarded private key must not take the file off
+/// the pending list. The 32-hex shape is what marks "done", and nothing
+/// would ever revisit a row that landed that way.
+#[actix_web::test]
+async fn reindex_rejects_a_fingerprint_that_is_not_the_live_key() {
+    let context = Context::mock_sqlite().await;
+    let repository = Repository::new(&context.db);
+    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
+
+    let file = create_file(&context, &user, "alpha", None, Some("dir"))
+        .await
+        .unwrap();
+    blank_name_hash(&context, file.id).await;
+    stamp_fingerprint(&context, user.id).await;
+
+    let err = repository
+        .manage(user.id)
+        .reindex(
+            file.id,
+            Reindex {
+                name_hash: Some(cryptfns::search::tag(&search_key(), "alpha").unwrap()),
+                fingerprint: Some("the-previous-key".to_string()),
+                search_tokens_root: Some(index_tags(&search_key(), "alpha")),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(err, error::Error::BadRequest(ref m) if m == "reindex_key_rotated"),
+        "got {err:?}"
+    );
+    assert_eq!(
+        repository
+            .tokens(user.id)
+            .pending_reindex(100)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
 }
 
 /// A row still carrying the legacy 64-hex digest counts as pending too:

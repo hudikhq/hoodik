@@ -5,8 +5,8 @@ use std::{collections::HashMap, fmt::Display, str::FromStr};
 use chrono::Utc;
 use entity::{
     file_tokens::{DigestTags, SearchTags},
-    file_versions, files, user_files, ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait,
-    EntityTrait, Order, QueryFilter, QueryOrder, Statement, Uuid, Value,
+    file_versions, files, user_files, users, ActiveModelTrait, ActiveValue, ColumnTrait,
+    ConnectionTrait, EntityTrait, Order, QueryFilter, QueryOrder, Statement, Uuid, Value,
 };
 use error::{AppResult, Error};
 use validr::Validation;
@@ -335,11 +335,23 @@ where
     /// duplicate-name check against the very hash it is about to write and
     /// reject the file for colliding with itself.
     pub(crate) async fn reindex(&self, id: Uuid, data: Reindex) -> AppResult<AppFile> {
-        let (name_hash, search_tags, digest_tags, hashes) = data.into_parts()?;
+        let (name_hash, fingerprint, search_tags, digest_tags, hashes) = data.into_parts()?;
         let file = self.repository.by_id(id, self.owner_id).await?;
 
         if !file.is_owner {
             return Err(Error::Forbidden("cannot_reindex_not_owner".to_string()));
+        }
+
+        // The session cookie outlives a key rotation, and pending is derived
+        // from `name_hash` shape alone. A sweep that started under the old
+        // key would otherwise store a 32-hex tag, leave the list, and never
+        // match a query under the new one. The fingerprint is the epoch.
+        let owner = users::Entity::find_by_id(self.owner_id)
+            .one(self.repository.connection())
+            .await?
+            .ok_or_else(|| Error::NotFound("user_not_found".to_string()))?;
+        if fingerprint != owner.fingerprint {
+            return Err(Error::BadRequest("reindex_key_rotated".to_string()));
         }
 
         // Absent digests stay untouched rather than being blanked: a sweep

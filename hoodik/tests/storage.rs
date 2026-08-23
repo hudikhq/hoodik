@@ -1572,6 +1572,16 @@ async fn blank_name_hash(context: &context::Context, file_id: entity::Uuid) {
         .unwrap();
 }
 
+async fn fingerprint_of(context: &context::Context, user_id: entity::Uuid) -> String {
+    use entity::EntityTrait;
+    entity::users::Entity::find_by_id(user_id)
+        .one(&context.db)
+        .await
+        .unwrap()
+        .unwrap()
+        .fingerprint
+}
+
 async fn pending_ids(
     app: &impl helpers::TestApp,
     jwt: &actix_web::cookie::Cookie<'static>,
@@ -1598,9 +1608,8 @@ async fn test_reindex_put_clears_the_pending_marker_with_zero_tags() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
 
-    let jwt = helpers::register_curve25519(&app, "reindex-put@test.com")
-        .await
-        .jwt;
+    let registered = helpers::register_curve25519(&app, "reindex-put@test.com").await;
+    let jwt = registered.jwt;
     let file = reindex_fixture_file(&app, &jwt, "reindex-me").await;
 
     blank_name_hash(&context, file.id).await;
@@ -1611,6 +1620,7 @@ async fn test_reindex_put_clears_the_pending_marker_with_zero_tags() {
         .cookie(jwt.clone())
         .set_json(serde_json::json!({
             "name_hash": helpers::name_tag("reindex-me"),
+            "fingerprint": fingerprint_of(&context, registered.user_id).await,
             "search_tokens_root": [],
             "search_tokens_file": [],
         }))
@@ -1619,6 +1629,39 @@ async fn test_reindex_put_clears_the_pending_marker_with_zero_tags() {
     assert_eq!(response.status(), StatusCode::OK);
 
     assert!(!pending_ids(&app, &jwt).await.contains(&file.id.to_string()));
+}
+
+/// A leftover session still holding the previous private key must not be
+/// able to retire a file from the sweep after a key rotation has committed.
+#[actix_web::test]
+async fn test_reindex_put_refuses_a_stale_key_epoch() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    let registered = helpers::register_curve25519(&app, "reindex-stale@test.com").await;
+    let jwt = registered.jwt;
+    let file = reindex_fixture_file(&app, &jwt, "stale-key").await;
+
+    blank_name_hash(&context, file.id).await;
+
+    let req = test::TestRequest::put()
+        .uri(&format!("/api/storage/{}/reindex", file.id))
+        .cookie(jwt.clone())
+        .set_json(serde_json::json!({
+            "name_hash": helpers::name_tag("stale-key"),
+            "fingerprint": "0".repeat(64),
+            "search_tokens_root": [],
+            "search_tokens_file": [],
+        }))
+        .to_request();
+    let response = test::call_service(&app, req).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = String::from_utf8_lossy(&test::read_body(response).await).into_owned();
+    assert!(
+        body.contains("reindex_key_rotated"),
+        "got: {body}"
+    );
+    assert!(pending_ids(&app, &jwt).await.contains(&file.id.to_string()));
 }
 
 /// A stranger gets the same not-found the metadata routes give — the reindex
@@ -1641,6 +1684,7 @@ async fn test_reindex_put_is_hidden_from_a_stranger() {
         .cookie(stranger)
         .set_json(serde_json::json!({
             "name_hash": helpers::name_tag("not-yours"),
+            "fingerprint": "not-the-owner",
             "search_tokens_root": [],
             "search_tokens_file": [],
         }))
@@ -1668,6 +1712,7 @@ async fn test_reindex_put_refuses_a_legacy_digest() {
         .cookie(jwt)
         .set_json(serde_json::json!({
             "name_hash": cryptfns::sha256::digest("legacy-digest".as_bytes()),
+            "fingerprint": "fp",
             "search_tokens_root": [],
             "search_tokens_file": [],
         }))
