@@ -214,8 +214,8 @@ async fn test_content_save_without_tags_enrols_the_file_for_reindex() {
         sha1: None,
         sha256: None,
         blake2b: None,
-        digest_tokens_root: None,
-        digest_tokens_file: None,
+        digest_tokens_root: Some(vec!["dd01:1".to_string()]),
+        digest_tokens_file: Some(vec!["dd02:1".to_string()]),
         cipher: None,
         editable: Some(true),
     };
@@ -254,6 +254,10 @@ async fn test_content_save_without_tags_enrols_the_file_for_reindex() {
         "an empty name_hash is what enrols the file in the sweep"
     );
 
+    // Every scope, digests included. Those cannot be rebuilt later the way
+    // the word tags can — `finish` nulls the digest columns, so the sweep
+    // finds nothing to re-key and would leave them describing content that
+    // no longer exists, long after the file has left the pending list.
     let tags_after = file_tokens::Entity::find()
         .filter(file_tokens::Column::FileId.eq(file.id))
         .all(&context.db)

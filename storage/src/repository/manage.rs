@@ -640,10 +640,14 @@ where
         // words it no longer contains and miss the words it now does, with
         // nothing anywhere recording that.
         //
-        // `file` and not `root`: an editor who is not the owner legitimately
-        // omits the root scope, so reading that as the signal would mark
-        // every collaborator's save.
-        let index_is_stale = data.search_tags.file.is_none();
+        // Both scopes absent, not either one. A caller that supplies a scope
+        // has told us what that scope should hold, and none of them is a
+        // legacy client: an owner sends both, an editor sends the file scope
+        // and has its root dropped just above, and a caller that supplies
+        // only root has still said something about the index. Only silence
+        // across the board is the old shape.
+        let index_is_stale =
+            data.search_tags.root.is_none() && data.search_tags.file.is_none();
 
         if file.is_dir() {
             return Err(Error::BadRequest("cannot_replace_directory".to_string()));
@@ -720,6 +724,26 @@ where
             .tokens(self.owner_id)
             .reindex(id, tags)
             .await?;
+
+        if index_is_stale {
+            // The digest scopes need the same treatment, and cannot be
+            // rebuilt by the sweep the way the word tags can: `finish` nulls
+            // the digest columns on the way through, expecting the hash write
+            // that an old client is refused. So the sweep finds nothing to
+            // re-key, sends no digest tags, and the ones describing the
+            // replaced content would outlive it — past the sweep, which takes
+            // the file off the pending list either way.
+            self.repository
+                .tokens(self.owner_id)
+                .replace_digests(
+                    id,
+                    DigestTags {
+                        root: file.is_owner.then(Vec::new),
+                        file: Some(Vec::new()),
+                    },
+                )
+                .await?;
+        }
 
         let file = self.repository.by_id(id, self.owner_id).await?;
         Ok((file, abandoned_pending))
