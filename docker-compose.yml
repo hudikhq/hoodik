@@ -52,7 +52,10 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - ./data/minio:/data
+      # A named volume, not a bind mount: the daemon creates a host bind as
+      # root, and one under data/ leaves the whole directory root-owned, so
+      # the e2e recipe could no longer mkdir its own data/e2e beside it.
+      - minio:/data
 
   # Creates the default bucket on first startup
   minio-init:
@@ -67,3 +70,5 @@ services:
       echo 'Bucket ready.';
       "
 
+volumes:
+  minio:
