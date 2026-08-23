@@ -4,7 +4,7 @@ on:
   pull_request:
     branches:
       - master
-  # Weekly run on master so the AWS presign tier keeps being exercised:
+  # Weekly run on master so the remote-provider job keeps being exercised:
   # pull-request runs cover it only from same-repo branches, and nothing
   # else would ever run it after a merge.
   schedule:
@@ -285,12 +285,11 @@ jobs:
             *) fail s3-r2-integration "$remote";;
           esac
 
-  # MinIO covers the S3 API in e2e-direct; this job is the one that runs
-  # against a real remote provider, where signing, TLS, CopyObject and the
-  # multi-key DeleteObjects POST all have to hold against a service we do not
-  # control. R2 is what deployments actually use, and it costs nothing per
-  # request — the AWS tier this used to run on billed for the privilege of
-  # testing a provider nobody was running.
+  # MinIO covers the S3 API in e2e-direct. This job is the one that answers to
+  # a service nobody here controls, where SigV4 signing, TLS, CopyObject and
+  # the multi-key DeleteObjects POST have to hold against someone else's
+  # implementation of them. R2 is what our own deployments run on, and it
+  # bills nothing per request, so the weekly cadence above is free.
   s3-r2-integration:
     runs-on: ubuntu-latest
     # GitHub secrets aren't available to forked-PR workflows — skip cleanly
