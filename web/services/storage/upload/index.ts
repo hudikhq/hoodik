@@ -59,6 +59,19 @@ function shouldSyncRow(id: string, terminal: boolean): boolean {
 
 export const store = defineStore('upload', () => {
   /**
+   * Files the user cancelled, by id.
+   *
+   * Cancelling does not stop what is already in flight: chunk requests that
+   * had left settle afterwards, and the worker reports each one. Those
+   * reports carry the worker's own copy of the file, which never learned it
+   * was cancelled, so they read as ordinary progress and put the row the user
+   * just deleted back in the listing — a ghost that survives until a reload.
+   * An id lands here the moment the user cancels and every later report for
+   * it is dropped.
+   */
+  const cancelled = new Set<string>()
+
+  /**
    * Start processing queue while its not stopped
    */
   async function start(storage: FilesStore, queue: QueueStore): Promise<IntervalType> {
@@ -104,6 +117,16 @@ export const store = defineStore('upload', () => {
    * Create function that will track the progress
    */
   async function progress(storage: FilesStore, file: UploadAppFile, isDone: boolean, error?: any) {
+    // Nothing a cancelled upload reports can change anything: its row is gone
+    // from the server and from the listing, and `cancel` has already moved it
+    // to the failed list.
+    if (cancelled.has(file.id)) {
+      running.value = running.value.filter((f) => f.id !== file.id)
+      storage.removeItem(file.id)
+
+      return
+    }
+
     const alreadyDone = done.value.some((f) => f.temporaryId === file.temporaryId)
     const alreadyFailed = failed.value.some((f) => f.temporaryId === file.temporaryId)
 
@@ -347,9 +370,40 @@ export const store = defineStore('upload', () => {
     }
 
     file.cancel = true
+    cancelled.add(file.id)
 
     if ('UPLOAD' in window) {
       window.UPLOAD.postMessage({ type: 'cancel', kind: 'upload', id: file.id })
+    }
+
+    // Moved to failed here rather than waiting for the worker to report the
+    // cancellation, because every report after this one is ignored.
+    running.value = running.value.filter((f) => f.id !== file.id)
+    if (!failed.value.some((f) => f.id === file.id)) {
+      failed.value.push(file)
+    }
+
+    // Cancelling means the user does not want the file, so the part of it
+    // already on the server goes too — including chunks an earlier attempt
+    // left behind, since those are the same file and count against the same
+    // quota. Left in place it is a row that lists as a partial upload for
+    // ever, holds the name against a later attempt, and charges the user for
+    // storage nothing will ever finish.
+    //
+    // A finished file is the one thing cancel must not touch: the row would
+    // have to reach this call while still listed as running, and deleting a
+    // complete upload is not what anyone means by cancel.
+    if (file.finished_upload_at) {
+      return
+    }
+
+    try {
+      await meta.remove(file.id)
+      files.removeItem(file.id)
+    } catch (err) {
+      // The upload is cancelled either way; a row that outlived its delete is
+      // worth a line in the log, not an error in the user's face.
+      logger.warn(`[upload:cancel] could not remove ${file.id}:`, err)
     }
   }
 

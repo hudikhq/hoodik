@@ -19,8 +19,27 @@ const storage = {
   dir: undefined,
   getItem: () => undefined,
   updateItem: () => undefined,
-  upsertItem: () => undefined
+  upsertItem: () => undefined,
+  removeItem: () => undefined
 } as unknown as FilesStore
+
+/** A listing that records what the queue does to it. */
+function trackingStore() {
+  const upserted: string[] = []
+  const removed: string[] = []
+
+  return {
+    store: {
+      dir: undefined,
+      getItem: () => undefined,
+      updateItem: () => undefined,
+      upsertItem: (f: UploadAppFile) => upserted.push(f.id),
+      removeItem: (id: string) => removed.push(id)
+    } as unknown as FilesStore,
+    upserted,
+    removed
+  }
+}
 
 function makeFile(id: string): UploadAppFile {
   return {
@@ -75,5 +94,25 @@ describe('a commit that fails after the chunks landed', () => {
       upload.failed.some((f: UploadAppFile) => f.id === d.id)
     )
     expect(inBoth).toEqual([])
+  })
+
+  it('UNIT: a report arriving after cancel does not put the row back', async () => {
+    const upload = uploadStore()
+    const file = makeFile('d')
+    const listing = trackingStore()
+
+    upload.running.push(file)
+    // The delete goes to the server inside `cancel`; here only the queue's
+    // own bookkeeping is under test.
+    await upload.cancel(listing.store, file).catch(() => undefined)
+
+    // What the worker sends next: its own copy of the file, which never
+    // learned about the cancel, reporting the chunk that was already in
+    // flight.
+    await upload.progress(listing.store, makeFile('d'), false)
+
+    expect(listing.upserted).not.toContain('d')
+    expect(upload.running.map((f: UploadAppFile) => f.id)).toEqual([])
+    expect(upload.failed.map((f: UploadAppFile) => f.id)).toEqual(['d'])
   })
 })
