@@ -633,6 +633,18 @@ where
             data.search_tags.root = None;
         }
 
+        // A client from before the keyed index sends no tags at all, and
+        // `reindex` leaves a scope it was given nothing for exactly as it
+        // was — so the note's text would change while its index went on
+        // describing the text it replaced. Searching would find the note by
+        // words it no longer contains and miss the words it now does, with
+        // nothing anywhere recording that.
+        //
+        // `file` and not `root`: an editor who is not the owner legitimately
+        // omits the root scope, so reading that as the signal would mark
+        // every collaborator's save.
+        let index_is_stale = data.search_tags.file.is_none();
+
         if file.is_dir() {
             return Err(Error::BadRequest("cannot_replace_directory".to_string()));
         }
@@ -679,11 +691,34 @@ where
             active_model.encrypted_thumbnail = ActiveValue::Set(Some(thumbnail));
         }
 
+        if index_is_stale {
+            // What the rekey migration uses to mean "this file is waiting for
+            // its owner's sweep". The sweep decrypts the note and rebuilds
+            // name and body together, so enrolling it here is the whole
+            // repair: it happens on the owner's next login from a client that
+            // can produce the tags.
+            active_model.name_hash = ActiveValue::Set(String::new());
+        }
+
         active_model.update(self.repository.connection()).await?;
+
+        // An empty set is a delete with nothing written after it, so a stale
+        // scope is cleared rather than left answering for content that is
+        // gone. Only the scopes this caller was entitled to write: the
+        // root-drop above already removed root for a non-owner, whose save
+        // must not clear an index they cannot rebuild.
+        let tags = if index_is_stale {
+            SearchTags {
+                root: file.is_owner.then(Vec::new),
+                file: Some(Vec::new()),
+            }
+        } else {
+            data.search_tags
+        };
 
         self.repository
             .tokens(self.owner_id)
-            .reindex(id, data.search_tags)
+            .reindex(id, tags)
             .await?;
 
         let file = self.repository.by_id(id, self.owner_id).await?;
