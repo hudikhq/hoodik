@@ -149,6 +149,19 @@ where
         // Flip pointers. `chunks/size/sha256` come from the target's
         // recorded metadata so the restored content's hashes match
         // exactly — no need for a follow-up `update_hashes` call.
+        //
+        // The index cannot come along the same way. The route carries no
+        // body, by design — a restore names a version and nothing else — so
+        // no client can send tags for the text being restored, and the server
+        // holds only ciphertext to derive them from. Left alone, the note
+        // would answer searches for the words of the version it just replaced
+        // and none of the words it now holds, with a name hash the sweep
+        // cannot select and therefore no way back.
+        //
+        // So the file is enrolled instead: the blank hash means "waiting for
+        // its owner's sweep", and the sweep decrypts the restored content and
+        // rebuilds name and body from it. Restore is owner-only, so both
+        // scopes are the caller's to clear.
         files::ActiveModel {
             id: ActiveValue::Set(file_id),
             active_version: ActiveValue::Set(next),
@@ -159,12 +172,36 @@ where
             md5: ActiveValue::Set(None),
             sha1: ActiveValue::Set(None),
             blake2b: ActiveValue::Set(None),
+            name_hash: ActiveValue::Set(String::new()),
             finished_upload_at: ActiveValue::Set(Some(now)),
             file_modified_at: ActiveValue::Set(now),
             ..Default::default()
         }
         .update(self.repository.connection())
         .await?;
+
+        // An empty set is a delete with nothing written after it. The digest
+        // scopes go too: the columns above are nulled apart from sha256, so
+        // there is nothing left for the sweep to re-key from.
+        let tokens = self.repository.tokens(self.owner_id);
+        tokens
+            .reindex(
+                file_id,
+                SearchTags {
+                    root: Some(Vec::new()),
+                    file: Some(Vec::new()),
+                },
+            )
+            .await?;
+        tokens
+            .replace_digests(
+                file_id,
+                DigestTags {
+                    root: Some(Vec::new()),
+                    file: Some(Vec::new()),
+                },
+            )
+            .await?;
 
         Ok(RestoreOutcome {
             source_version: target_version,

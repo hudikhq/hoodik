@@ -895,6 +895,38 @@ async fn test_versions_list_and_restore() {
         "v1 + v2 + v3 in history; the active restored copy lives on the file row"
     );
 
+    // The content moved, so the index that described the version it replaced
+    // has to go with it. The restore route carries no body — a restore names
+    // a version and nothing else — so no client can send tags for the text
+    // being restored, and the server holds only ciphertext. Enrolling the
+    // file is the whole repair: the sweep decrypts the restored content and
+    // rebuilds name and body from it.
+    //
+    // This assertion is the one that was missing. Version, bytes and history
+    // count all passed while the note answered searches for words it no
+    // longer contained, and with a keyed name_hash the sweep could not select
+    // it, nothing was ever going to fix that.
+    let row = entity::files::Entity::find_by_id(file.id)
+        .one(&context.db)
+        .await
+        .unwrap()
+        .expect("the restored file still exists");
+    assert_eq!(
+        row.name_hash, "",
+        "a restored file is enrolled in the owner's re-index sweep"
+    );
+
+    let tags = entity::file_tokens::Entity::find()
+        .filter(entity::file_tokens::Column::FileId.eq(file.id))
+        .all(&context.db)
+        .await
+        .unwrap();
+    assert!(
+        tags.is_empty(),
+        "tags describing the replaced version must not answer for the restored one, got {:?}",
+        tags
+    );
+
     use fs::prelude::{Fs, FsProviderContract};
     Fs::new(&context.config).purge_all(&restored).await.unwrap();
     context.config.app.cleanup();
