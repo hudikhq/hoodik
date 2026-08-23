@@ -254,14 +254,14 @@ jobs:
   # Branch protection requires a single check named "test". This gate is
   # that name: it succeeds only when every job above did, so the required
   # check stays stable no matter how the jobs behind it are re-arranged.
-  # Only s3-aws-integration may be skipped — it skips itself on forked PRs,
-  # where the AWS secrets are unavailable, and an outside contributor must
-  # not be blocked by a job they cannot run. Every other job skipping is a
+  # Only s3-r2-integration may be skipped — it skips itself on forked PRs,
+  # where the bucket credentials are unavailable, and an outside contributor
+  # must not be blocked by a job they cannot run. Every other job skipping is a
   # pipeline bug, and a gate that waved skips through would let a
   # misconfigured trigger merge untested code.
   test:
     runs-on: ubuntu-latest
-    needs: [lint, rust-unit, rust-integration, rust-integration-pg, web, e2e, e2e-direct, s3-aws-integration]
+    needs: [lint, rust-unit, rust-integration, rust-integration-pg, web, e2e, e2e-direct, s3-r2-integration]
     if: always()
     steps:
       - name: Verify all jobs passed
@@ -279,26 +279,34 @@ jobs:
             esac
             [ "$result" = "success" ] || fail "$job" "$result"
           done
-          aws="${{ needs.s3-aws-integration.result }}"
-          case "$aws" in
+          remote="${{ needs.s3-r2-integration.result }}"
+          case "$remote" in
             success|skipped) ;;
-            *) fail s3-aws-integration "$aws";;
+            *) fail s3-r2-integration "$remote";;
           esac
 
-  s3-aws-integration:
+  # MinIO covers the S3 API in e2e-direct; this job is the one that runs
+  # against a real remote provider, where signing, TLS, CopyObject and the
+  # multi-key DeleteObjects POST all have to hold against a service we do not
+  # control. R2 is what deployments actually use, and it costs nothing per
+  # request — the AWS tier this used to run on billed for the privilege of
+  # testing a provider nobody was running.
+  s3-r2-integration:
     runs-on: ubuntu-latest
     # GitHub secrets aren't available to forked-PR workflows — skip cleanly
     # instead of failing so external contributors' PRs aren't blocked. The
-    # weekly schedule always runs it; that is the run that keeps the AWS
-    # tier honest between same-repo PRs.
+    # weekly schedule always runs it; that is the run that keeps the remote
+    # provider honest between same-repo PRs.
     if: github.event_name == 'schedule' || github.event.pull_request.head.repo.full_name == github.repository
     env:
-      S3_ENDPOINT: ${{ secrets.AWS_S3_TEST_ENDPOINT }}
-      S3_REGION: ${{ secrets.AWS_S3_TEST_REGION }}
-      S3_BUCKET: ${{ secrets.AWS_S3_TEST_BUCKET }}
-      S3_ACCESS_KEY: ${{ secrets.AWS_S3_TEST_ACCESS_KEY }}
-      S3_SECRET_KEY: ${{ secrets.AWS_S3_TEST_SECRET_KEY }}
-      S3_PATH_STYLE: "false"
+      S3_ENDPOINT: ${{ secrets.R2_TEST_ENDPOINT }}
+      S3_REGION: ${{ secrets.R2_TEST_REGION }}
+      S3_BUCKET: ${{ secrets.R2_TEST_BUCKET }}
+      S3_ACCESS_KEY: ${{ secrets.R2_TEST_ACCESS_KEY }}
+      S3_SECRET_KEY: ${{ secrets.R2_TEST_SECRET_KEY }}
+      # R2 serves virtual-hosted style too, but path style is what the
+      # deployment docs and the dogfood rig use, so it is what gets tested.
+      S3_PATH_STYLE: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -306,5 +314,5 @@ jobs:
         with:
           packages: curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev
           version: 1.0
-      - name: Run S3 versioned integration tests against AWS
+      - name: Run S3 versioned integration tests against R2
         run: cargo test -p fs --features s3-integration-tests providers::s3::s3_versioned_tests -- --nocapture

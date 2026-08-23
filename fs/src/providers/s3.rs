@@ -303,9 +303,14 @@ impl S3Provider {
             .map_err(|e| Error::StorageError(format!("S3 presign_put failed for '{}': {}", key, e)))
     }
 
-    /// True when `version == 1` and the versioned directory is empty. Used
-    /// by every read-side `_v` method to transparently fall back to the
-    /// legacy flat layout for pre-migration files.
+    /// True when `version == 1` and the versioned directory is empty.
+    ///
+    /// Every `_v` method asks before it touches a key — readers, `push_v`,
+    /// and `purge_version` alike — so a file is served, extended and deleted
+    /// in one layout. Note what that means for a file written today: the
+    /// versioned directory is empty until something lands in it, so version 1
+    /// goes to the flat layout and only version 2 onward is stored under
+    /// `v{N}/`. Pre-migration files reach the same answer by the same route.
     async fn should_use_legacy(&self, filename: &Filename, version: i32) -> AppResult<bool> {
         if version != 1 {
             return Ok(false);
@@ -594,7 +599,18 @@ impl FsProviderContract for S3Provider {
     }
 
     async fn purge_version<T: IntoFilename>(&self, filename: &T, version: i32) -> AppResult<()> {
-        let prefix = self.version_prefix(&filename.filename()?, version);
+        let filename = filename.filename()?;
+
+        // The write side probes too, so a version-1 chunk sits in the flat
+        // layout whenever the versioned directory was empty when it was
+        // written — which for a new file is always. Purging only the
+        // versioned prefix would find nothing, report success, and leave
+        // every byte of that version in the bucket.
+        if self.should_use_legacy(&filename, version).await? {
+            return self.purge(&filename).await;
+        }
+
+        let prefix = self.version_prefix(&filename, version);
         let objects = self.list_objects(&prefix).await?;
 
         if objects.is_empty() {

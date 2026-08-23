@@ -66,12 +66,15 @@ async fn scope_with_direct_transfer(direct_transfer: bool) -> TestScope {
     let provider = S3Provider::new(&config);
 
     // Smoke-test the bucket so a fresh developer sees "run `just minio-up`"
-    // rather than a cryptic DNS or auth error.
-    let listing = provider.bucket().list("".to_string(), None).await;
+    // rather than a cryptic DNS or auth error. Listing this scope's own
+    // prefix rather than the whole bucket: it proves reachability and
+    // credentials just as well, and the remote bucket CI uses is shared with
+    // the dogfood rig, whose objects every scope would otherwise page through.
+    let listing = provider.bucket().list(prefix.clone(), None).await;
     assert!(
         listing.is_ok(),
-        "MinIO unreachable at the configured endpoint: {:?}. \
-         Bring it up with `just minio-up`, or set S3_ENDPOINT \
+        "no S3 endpoint answered at the configured address: {:?}. \
+         Bring MinIO up with `just minio-up`, or set S3_ENDPOINT \
          to point somewhere that speaks S3.",
         listing.err()
     );
@@ -87,6 +90,19 @@ struct TestScope {
 impl TestScope {
     fn p(&self) -> &S3Provider {
         &self.provider
+    }
+
+    /// Every key under this scope's prefix, so a test can assert which
+    /// layout a write chose rather than inferring it from a read.
+    async fn keys(&self) -> Vec<String> {
+        self.provider
+            .bucket()
+            .list(self.prefix.clone(), None)
+            .await
+            .expect("list for keys")
+            .into_iter()
+            .flat_map(|r| r.contents.into_iter().map(|o| o.key))
+            .collect()
     }
 
     async fn clean(&self) {
@@ -187,10 +203,19 @@ async fn s3_legacy_fallback_skipped_when_versioned_exists() {
     let filename = fname_with_timestamp();
 
     s.p().push(&filename, 0, b"legacy").await.unwrap();
-    s.p().push_v(&filename, 1, 0, b"versioned").await.unwrap();
+
+    // Not push_v: it probes, and with v1 empty it would fall back to the very
+    // flat key this test needs to see ignored. copy_version always writes the
+    // versioned layout, so it can put a chunk where nothing else would.
+    s.p().push_v(&filename, 2, 0, b"versioned").await.unwrap();
+    s.p()
+        .copy_version(&filename, 2, &filename, 1)
+        .await
+        .unwrap();
 
     let bytes = s.p().pull_v(&filename, 1, 0).await.unwrap();
     assert_eq!(bytes, b"versioned");
+    assert_eq!(s.p().pull(&filename, 0).await.unwrap(), b"legacy");
 
     s.clean().await;
 }
@@ -266,6 +291,28 @@ async fn s3_copy_version_from_legacy_source() {
     );
     assert_eq!(s.p().pull_v(&filename, 2, 0).await.unwrap(), b"x");
     assert_eq!(s.p().pull_v(&filename, 2, 1).await.unwrap(), b"y");
+
+    s.clean().await;
+}
+
+#[tokio::test]
+async fn s3_version_one_lands_in_the_flat_layout() {
+    let s = scope().await;
+    let filename = fname();
+
+    s.p().push_v(&filename, 1, 0, b"v1").await.unwrap();
+
+    let keys = s.keys().await;
+    assert!(
+        keys.iter().any(|k| k.ends_with(".part.0")),
+        "version 1 should be written flat, got {:?}",
+        keys
+    );
+    assert!(
+        !keys.iter().any(|k| k.contains("/v1/")),
+        "nothing should be under v1/, got {:?}",
+        keys
+    );
 
     s.clean().await;
 }
