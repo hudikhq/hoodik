@@ -47,9 +47,18 @@ impl MigrationTrait for Migration {
         // file, duplicate-name detection and resume-by-name skip it, which
         // the transition tolerates anyway: stored legacy hashes could never
         // match an incoming keyed one.
+        //
+        // Every hash, not only the reversible ones. The tables above are gone,
+        // so at this moment no file in the database has tags and every one of
+        // them is genuinely pending. A row can already hold a keyed hash here:
+        // an updated app writing to a server still on the old version sends
+        // one, and that server stores it while dropping the tags it does not
+        // understand. Blanking only the 64-character digests would leave that
+        // file with a hash the sweep's predicate does not select and no tags
+        // to its name — unfindable for good, with nothing marking it.
         manager
             .get_connection()
-            .execute_unprepared("UPDATE files SET name_hash = '' WHERE LENGTH(name_hash) = 64")
+            .execute_unprepared("UPDATE files SET name_hash = '' WHERE name_hash <> ''")
             .await?;
 
         // Version history keeps a per-version copy of `files.sha256` so a

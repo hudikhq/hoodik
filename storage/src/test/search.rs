@@ -225,6 +225,48 @@ async fn scopes_do_not_cross_match() {
     assert!(results.is_empty());
 }
 
+/// A keyed hash is not a marker, so a file that carries one is invisible to
+/// the sweep no matter how empty its index is.
+///
+/// That is not hypothetical: an updated app writing to a server still on the
+/// old version sends a keyed hash, and that server stores it while dropping
+/// the tags it does not understand. The file ends up with a hash the sweep
+/// cannot select and no tags to its name. It is why the rekey migration
+/// blanks every hash rather than only the reversible ones — at that moment it
+/// has just dropped the token tables, so every file is pending and the ones
+/// already holding a keyed hash are the only ones that could be missed.
+#[actix_web::test]
+async fn pending_reindex_cannot_see_a_file_that_kept_its_keyed_hash() {
+    let context = Context::mock_sqlite().await;
+    let repository = Repository::new(&context.db);
+    let user = entity::mock::create_user(&context.db, "kept@test.com", None).await;
+
+    let file = create_file(&context, &user, "stranded", None, Some("dir"))
+        .await
+        .unwrap();
+
+    // The state an old server leaves: the hash it stored, none of the tags.
+    file_tokens::Entity::delete_many()
+        .filter(file_tokens::Column::FileId.eq(file.id))
+        .exec(&context.db)
+        .await
+        .unwrap();
+
+    let pending = repository.tokens(user.id).pending_reindex(100).await.unwrap();
+    assert!(
+        pending.is_empty(),
+        "a keyed hash keeps a file off the sweep even with no tags at all — \
+         blanking it is the migration\'s job, not something the sweep can infer"
+    );
+
+    // And blanking it is all it takes to enrol.
+    blank_name_hash(&context, file.id).await;
+
+    let pending = repository.tokens(user.id).pending_reindex(100).await.unwrap();
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].id, file.id);
+}
+
 /// The re-index sweep is resumable because "pending" is derived from the
 /// blank `name_hash` the migration left rather than tracked separately:
 /// writing the keyed hash is what takes a file off the list.
