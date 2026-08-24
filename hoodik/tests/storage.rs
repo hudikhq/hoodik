@@ -801,10 +801,10 @@ async fn test_versions_list_and_restore() {
         encrypted_key: Some("encrypted-key".to_string()),
         encrypted_name: Some("note.md".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_root: None,
-        search_tokens_file: None,
-        content_tokens_root: None,
-        content_tokens_file: None,
+        search_tokens_root: Some(vec!["aa11:1".to_string()]),
+        search_tokens_file: Some(vec!["bb22:1".to_string()]),
+        content_tokens_root: Some(vec!["cc33:1".to_string()]),
+        content_tokens_file: Some(vec!["dd44:1".to_string()]),
         name_hash: Some("name-hash".to_string()),
         mime: Some("text/markdown".to_string()),
         size: Some(3),
@@ -928,14 +928,29 @@ async fn test_versions_list_and_restore() {
         "a restored file is enrolled in the owner's re-index sweep"
     );
 
+    // The content source, and only that one. A restore swaps the bytes and
+    // leaves the name alone, so the tags describing the note's text are the
+    // ones that now describe a version this file no longer has — while the
+    // name tags are still exactly right. Clearing everything would drop a
+    // working index; clearing the name source, which is what `reindex` does
+    // now that tags carry a source, would drop the right one and keep the
+    // wrong one.
     let tags = entity::file_tokens::Entity::find()
         .filter(entity::file_tokens::Column::FileId.eq(file.id))
         .all(&context.db)
         .await
         .unwrap();
+
+    let content = i32::from(entity::file_tokens::Source::Content);
+    let name = i32::from(entity::file_tokens::Source::Name);
     assert!(
-        tags.is_empty(),
+        tags.iter().all(|t| t.source != content),
         "tags describing the replaced version must not answer for the restored one, got {:?}",
+        tags
+    );
+    assert!(
+        tags.iter().any(|t| t.source == name),
+        "the name did not change, so its tags must survive, got {:?}",
         tags
     );
 

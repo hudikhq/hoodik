@@ -180,18 +180,24 @@ where
         .update(self.repository.connection())
         .await?;
 
-        // An empty set is a delete with nothing written after it. The digest
-        // scopes go too: the columns above are nulled apart from sha256, so
+        // An empty set is a delete with nothing written after it.
+        //
+        // The content source, not the name one: a restore swaps the bytes and
+        // leaves the name alone, so the tags describing the note's text are
+        // exactly the ones that now describe a version this file no longer
+        // has. Clearing the name tags instead would drop an index that was
+        // still correct and keep the one that had gone wrong.
+        //
+        // The digest scopes go too — they key on scope rather than source, and
+        // every digest column but sha256 is nulled in the statement above, so
         // there is nothing left for the sweep to re-key from.
+        let empty = || SearchTags {
+            root: Some(Vec::new()),
+            file: Some(Vec::new()),
+        };
         let tokens = self.repository.tokens(self.owner_id);
         tokens
-            .reindex(
-                file_id,
-                SearchTags {
-                    root: Some(Vec::new()),
-                    file: Some(Vec::new()),
-                },
-            )
+            .replace_source(file_id, Source::Content, empty())
             .await?;
         tokens
             .replace_digests(
