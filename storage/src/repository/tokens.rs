@@ -34,7 +34,6 @@ where
         }
     }
 
-    /// Write the tags for one scope and source of a file.
     pub(crate) async fn upsert(
         &self,
         file_id: Uuid,

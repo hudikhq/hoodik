@@ -269,7 +269,6 @@ async fn test_content_save_without_tags_enrols_the_file_for_reindex() {
 
     // Content and digest tags that described the replaced text must not answer
     // for the new one. Name tokens stay: they were never about the body.
-    // Extra would stay too, once a client has written any.
     let tags_after = file_tokens::Entity::find()
         .filter(file_tokens::Column::FileId.eq(file.id))
         .all(&context.db)

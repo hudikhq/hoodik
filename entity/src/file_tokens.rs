@@ -57,17 +57,16 @@ impl From<Scope> for i32 {
 ///
 /// Orthogonal to [`Scope`]: that column is which HMAC key tagged the token,
 /// this one is what the client tokenized. Write paths replace only their own
-/// source, so a later client can attach extra tags (OCR, image labels) that
-/// survive rename and note-save. Digest-scope rows also carry a source
-/// because the column is not null; they are replaced by scope, not source.
+/// source, so extra tags survive rename and note-save. Digest-scope rows also
+/// carry a source because the column is not null; they are replaced by scope,
+/// not source.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Source {
-    /// Filename / folder name tokens. Create, rename, and the re-index sweep
-    /// write here.
+    /// Create, rename, and the re-index sweep write here.
     Name = 0,
-    /// Editable note body tokens. `replace_content` writes here.
+    /// `replace_content` writes here.
     Content = 1,
-    /// Additional client-side context. `PUT .../extra-tokens` writes here.
+    /// `PUT .../extra-tokens` writes here.
     Extra = 2,
 }
 

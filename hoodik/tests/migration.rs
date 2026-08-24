@@ -1512,7 +1512,7 @@ async fn test_source_migration_keeps_existing_filename_tags() {
         .execute_unprepared(&format!(
             "INSERT INTO users (id, email, password, pubkey, fingerprint, key_type, \
              security_version, created_at, updated_at, share_notifications_enabled) \
-             VALUES ('{user_id}', 'source@test.com', '', '', '', 'rsa', 0, 0, 0, 1)"
+             VALUES ('{user_id}', 'source@test.com', '', '', '', 'rsa', 0, 0, 0, true)"
         ))
         .await
         .expect("seed a user");
@@ -1532,7 +1532,7 @@ async fn test_source_migration_keeps_existing_filename_tags() {
         .execute_unprepared(&format!(
             "INSERT INTO user_files (id, file_id, user_id, encrypted_key, is_owner, \
              created_at, share_role) \
-             VALUES ('{}', '{file_id}', '{user_id}', 'key', 1, 0, 'co-owner')",
+             VALUES ('{}', '{file_id}', '{user_id}', 'key', true, 0, 'co-owner')",
             entity::Uuid::new_v4()
         ))
         .await
@@ -1557,18 +1557,17 @@ async fn test_source_migration_keeps_existing_filename_tags() {
         .query_one(entity::Statement::from_string(
             backend,
             format!(
-                "SELECT ft.source AS source, f.id AS id \
+                "SELECT ft.source AS source \
                  FROM file_tokens ft \
                  JOIN user_files uf ON uf.file_id = ft.file_id \
                  JOIN files f ON f.id = ft.file_id \
-                 WHERE uf.user_id = '{user_id}' AND ft.tag = '{tag}' AND ft.scope = 0"
+                 WHERE uf.user_id = '{user_id}' AND ft.file_id = '{file_id}' \
+                   AND ft.tag = '{tag}' AND ft.scope = 0"
             ),
         ))
         .await
         .unwrap()
         .expect("the filename tag must still join the way search does");
     let source: i32 = row.try_get("", "source").unwrap();
-    let found: String = row.try_get("", "id").unwrap();
     assert_eq!(source, 0, "existing rows migrate to name");
-    assert_eq!(found, file_id.to_string());
 }

@@ -1,17 +1,11 @@
-//! Extra search tags for a file.
-//!
-//! A later client can attach hashed context (OCR, image labels, and so on)
-//! without another schema change. The tags are the same keyed `"{tag}:{weight}"`
-//! entries every other index write uses — not a second hasher, and never
-//! plaintext. The route replaces `source=extra` only.
+//! Extra-source search tags. Same keyed `"{tag}:{weight}"` wire form as
+//! every other index write; the route replaces `source=extra` only.
 
 use ::error::{AppResult, Error};
 use entity::file_tokens::SearchTags;
 use serde::{Deserialize, Serialize};
 
-/// Hard cap on extra tags per scope. OCR and similar producers should stay
-/// well under this; it exists so a buggy client cannot inflate the index
-/// without bound.
+/// Cap so a buggy client cannot inflate the index without bound.
 pub const MAX_EXTRA_TOKENS: usize = 128;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -25,8 +19,6 @@ pub struct ExtraTokens {
 }
 
 impl ExtraTokens {
-    /// Reject a list longer than [`MAX_EXTRA_TOKENS`] before any delete.
-    ///
     /// Count is the raw entries the client sent, not the ones `from_wire`
     /// keeps: 129 junk strings is still a 129-entry payload.
     pub fn into_search_tags(self) -> AppResult<SearchTags> {

@@ -64,8 +64,6 @@ fn ids(hits: &[AppFile]) -> Vec<entity::Uuid> {
     hits.iter().map(|f| f.id).collect()
 }
 
-/// Extra tags are searchable, survive rename and note-save, and clear without
-/// taking the filename index with them.
 #[actix_web::test]
 async fn test_extra_tokens_are_additive_and_survive_rename() {
     let context = context::Context::mock_sqlite().await;
