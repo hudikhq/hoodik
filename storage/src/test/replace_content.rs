@@ -1,8 +1,8 @@
 use context::Context;
 use entity::{
-    file_tokens::{self, Scope, SearchTags},
-    files, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, PaginatorTrait,
-    QueryFilter, TransactionTrait, Uuid,
+    file_tokens::{self, Scope, SearchTags, Source},
+    files, ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter,
+    TransactionTrait, Uuid,
 };
 
 use crate::{
@@ -34,10 +34,11 @@ async fn make_editable(context: &Context, id: Uuid) {
     .unwrap();
 }
 
-async fn tag_count(context: &Context, file_id: Uuid, scope: Scope) -> u64 {
+async fn tag_count(context: &Context, file_id: Uuid, scope: Scope, source: Source) -> u64 {
     file_tokens::Entity::find()
         .filter(file_tokens::Column::FileId.eq(file_id))
         .filter(file_tokens::Column::Scope.eq(i32::from(scope)))
+        .filter(file_tokens::Column::Source.eq(i32::from(source)))
         .count(&context.db)
         .await
         .unwrap()
@@ -70,8 +71,13 @@ async fn replacing_content_allocates_a_pending_version_and_reindexes() {
 
     assert_eq!(pending_version(&context, file.id).await, Some(2));
     assert_eq!(
-        tag_count(&context, file.id, Scope::Root).await,
+        tag_count(&context, file.id, Scope::Root, Source::Content).await,
         index_tags(&search_key(), "rewritten body").len() as u64
+    );
+    assert_eq!(
+        tag_count(&context, file.id, Scope::Root, Source::Name).await,
+        index_tags(&search_key(), "note.md").len() as u64,
+        "a content save must not replace name tokens"
     );
 }
 
@@ -93,7 +99,7 @@ async fn replacing_content_is_atomic_with_its_reindex() {
         .unwrap();
     make_editable(&context, file.id).await;
 
-    let tags_before = tag_count(&context, file.id, Scope::Root).await;
+    let tags_before = tag_count(&context, file.id, Scope::Root, Source::Name).await;
     assert!(tags_before > 0, "the file starts indexed");
 
     let tx = context.db.begin().await.unwrap();
@@ -110,7 +116,7 @@ async fn replacing_content_is_atomic_with_its_reindex() {
         "the pending version must not survive a rolled-back save"
     );
     assert_eq!(
-        tag_count(&context, file.id, Scope::Root).await,
+        tag_count(&context, file.id, Scope::Root, Source::Name).await,
         tags_before,
         "the index must not survive a rolled-back save either"
     );
@@ -134,7 +140,7 @@ async fn a_refused_concurrent_save_writes_nothing() {
         .await
         .unwrap();
 
-    let tags_after_first = tag_count(&context, file.id, Scope::Root).await;
+    let tags_after_first = tag_count(&context, file.id, Scope::Root, Source::Content).await;
 
     let refused = Repository::new(&context.db)
         .manage(user.id)
@@ -144,7 +150,7 @@ async fn a_refused_concurrent_save_writes_nothing() {
     assert!(refused.is_err(), "a second save without force is refused");
     assert_eq!(pending_version(&context, file.id).await, Some(2));
     assert_eq!(
-        tag_count(&context, file.id, Scope::Root).await,
+        tag_count(&context, file.id, Scope::Root, Source::Content).await,
         tags_after_first,
         "the refused save must not have touched the index"
     );

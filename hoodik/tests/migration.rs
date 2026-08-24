@@ -1296,6 +1296,7 @@ async fn test_migration_clears_the_root_search_index_it_invalidates() {
             id: entity::ActiveValue::Set(entity::Uuid::new_v4()),
             file_id: entity::ActiveValue::Set(file_id),
             scope: entity::ActiveValue::Set(i32::from(scope)),
+            source: entity::ActiveValue::Set(i32::from(file_tokens::Source::Name)),
             tag: entity::ActiveValue::Set(tag.to_string()),
             weight: entity::ActiveValue::Set(1),
         })
@@ -1487,4 +1488,87 @@ async fn test_rekey_migration_transforms_a_pre_migration_database() {
         .unwrap();
     let n: i64 = row.try_get("", "n").unwrap();
     assert_eq!(n, 0, "version rows must not keep the bare content digest");
+}
+
+/// Rows that predate `file_tokens.source` keep their tags and become `name`,
+/// so filename search against them still matches after the column lands.
+#[actix_web::test]
+async fn test_source_migration_keeps_existing_filename_tags() {
+    use entity::ConnectionTrait;
+    use migration::MigratorTrait;
+
+    let position = migration::Migrator::migrations()
+        .iter()
+        .position(|m| m.name() == "m20260824_000001_file_tokens_source")
+        .expect("the source migration is registered") as u32;
+    let context = context::Context::mock_sqlite_migrated_to(position).await;
+
+    let user_id = entity::Uuid::new_v4();
+    let file_id = entity::Uuid::new_v4();
+    let tag = "a3f1a3f1a3f1a3f1a3f1a3f1a3f1a3f1";
+
+    context
+        .db
+        .execute_unprepared(&format!(
+            "INSERT INTO users (id, email, password, pubkey, fingerprint, key_type, \
+             security_version, created_at, updated_at, share_notifications_enabled) \
+             VALUES ('{user_id}', 'source@test.com', '', '', '', 'rsa', 0, 0, 0, 1)"
+        ))
+        .await
+        .expect("seed a user");
+    context
+        .db
+        .execute_unprepared(&format!(
+            "INSERT INTO files (id, name_hash, encrypted_name, mime, size, chunks, \
+             chunks_stored, file_modified_at, created_at, finished_upload_at, \
+             cipher, editable, active_version) \
+             VALUES ('{file_id}', '0123456789abcdef0123456789abcdef', 'enc-name', \
+             'application/pdf', 4, 1, 1, 0, 0, 0, 'aegis128l', false, 1)"
+        ))
+        .await
+        .expect("seed a file");
+    context
+        .db
+        .execute_unprepared(&format!(
+            "INSERT INTO user_files (id, file_id, user_id, encrypted_key, is_owner, \
+             created_at, share_role) \
+             VALUES ('{}', '{file_id}', '{user_id}', 'key', 1, 0, 'co-owner')",
+            entity::Uuid::new_v4()
+        ))
+        .await
+        .expect("seed ownership");
+    context
+        .db
+        .execute_unprepared(&format!(
+            "INSERT INTO file_tokens (id, file_id, scope, tag, weight) \
+             VALUES ('{}', '{file_id}', 0, '{tag}', 1)",
+            entity::Uuid::new_v4()
+        ))
+        .await
+        .expect("seed a pre-source name tag");
+
+    migration::Migrator::up(&context.db, None)
+        .await
+        .expect("the source column lands over existing rows");
+
+    let backend = context.db.get_database_backend();
+    let row = context
+        .db
+        .query_one(entity::Statement::from_string(
+            backend,
+            format!(
+                "SELECT ft.source AS source, f.id AS id \
+                 FROM file_tokens ft \
+                 JOIN user_files uf ON uf.file_id = ft.file_id \
+                 JOIN files f ON f.id = ft.file_id \
+                 WHERE uf.user_id = '{user_id}' AND ft.tag = '{tag}' AND ft.scope = 0"
+            ),
+        ))
+        .await
+        .unwrap()
+        .expect("the filename tag must still join the way search does");
+    let source: i32 = row.try_get("", "source").unwrap();
+    let found: String = row.try_get("", "id").unwrap();
+    assert_eq!(source, 0, "existing rows migrate to name");
+    assert_eq!(found, file_id.to_string());
 }

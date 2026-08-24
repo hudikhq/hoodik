@@ -1,13 +1,14 @@
 //! Repository module for the searchable-token index of a file.
 //!
 //! Rows hold an HMAC tag of each token rather than its digest, under one of the
-//! two keys described on [`file_tokens::Scope`]. The server only ever sees
-//! tags, so indexing here is a straight insert and searching is an equality
-//! match — no server-side tokenization, and nothing in this file can turn a row
-//! back into a word.
+//! two keys described on [`file_tokens::Scope`]. [`file_tokens::Source`] says
+//! which client-side text produced the token; write paths replace only their
+//! own source. The server only ever sees tags, so indexing here is a straight
+//! insert and searching is an equality match — no server-side tokenization,
+//! and nothing in this file can turn a row back into a word.
 
 use entity::{
-    file_tokens::{self, DigestTags, Scope, SearchTags},
+    file_tokens::{self, DigestTags, Scope, SearchTags, Source},
     files, links, user_files, ActiveValue, ColumnTrait, Condition, ConnectionTrait, EntityTrait,
     Expr, Func, QueryFilter, QueryOrder, QuerySelect, Uuid,
 };
@@ -33,11 +34,12 @@ where
         }
     }
 
-    /// Write the tags for one scope of a file.
+    /// Write the tags for one scope and source of a file.
     pub(crate) async fn upsert(
         &self,
         file_id: Uuid,
         scope: Scope,
+        source: Source,
         tagged: Vec<String>,
     ) -> AppResult<u64> {
         let rows = cryptfns::search::from_wire(tagged)
@@ -46,6 +48,7 @@ where
                 id: ActiveValue::Set(Uuid::new_v4()),
                 file_id: ActiveValue::Set(file_id),
                 scope: ActiveValue::Set(scope.into()),
+                source: ActiveValue::Set(source.into()),
                 tag: ActiveValue::Set(tag),
                 weight: ActiveValue::Set(weight),
             })
@@ -63,22 +66,45 @@ where
         Ok(written)
     }
 
-    /// Replace the tags of every scope the caller supplied, leaving the others
-    /// untouched.
+    /// Replace the name-source tags of every scope the caller supplied.
     ///
-    /// The asymmetry is deliberate. An editor who is not the owner can rewrite
-    /// the file scope, because the file key reaches them, but cannot produce
-    /// the owner's root tags. Their save must therefore leave scope 0 alone
-    /// rather than clear an index it has no way to rebuild. The owner's own
-    /// scope goes stale on that file until they re-index it, which only
-    /// matters once the file stops being shared — until then both sides search
-    /// it through the file scope.
+    /// Create, rename, and the re-index sweep write here. Content and extra
+    /// sources are left alone, which is what lets extra tags survive a rename.
     pub(crate) async fn reindex(&self, file_id: Uuid, tags: SearchTags) -> AppResult<u64> {
-        self.replace_scopes(
-            file_id,
-            [(Scope::Root, tags.root), (Scope::File, tags.file)],
-        )
-        .await
+        self.replace_source(file_id, Source::Name, tags).await
+    }
+
+    /// Replace word-scope tags for one [`Source`], leaving the other sources
+    /// and the digest scopes untouched.
+    ///
+    /// The asymmetry on [`SearchTags`] is deliberate. An editor who is not the
+    /// owner can rewrite the file scope, because the file key reaches them,
+    /// but cannot produce the owner's root tags. Their save must therefore
+    /// leave scope 0 alone rather than clear an index it has no way to rebuild.
+    pub(crate) async fn replace_source(
+        &self,
+        file_id: Uuid,
+        source: Source,
+        tags: SearchTags,
+    ) -> AppResult<u64> {
+        let mut written = 0;
+
+        for (scope, tagged) in [(Scope::Root, tags.root), (Scope::File, tags.file)] {
+            let Some(tagged) = tagged else {
+                continue;
+            };
+
+            file_tokens::Entity::delete_many()
+                .filter(file_tokens::Column::FileId.eq(file_id))
+                .filter(file_tokens::Column::Source.eq(i32::from(source)))
+                .filter(file_tokens::Column::Scope.eq(i32::from(scope)))
+                .exec(self.repository.connection())
+                .await?;
+
+            written += self.upsert(file_id, scope, source, tagged).await?;
+        }
+
+        Ok(written)
     }
 
     /// Replace the digest tags of every scope the caller supplied.
@@ -86,28 +112,16 @@ where
     /// Delete-then-insert rather than append: hash writes are retried freely
     /// (the PUT rides a transfer token precisely so a late retry still lands),
     /// and appending on each attempt would duplicate rows and inflate the
-    /// weight ranking. The digest scopes are untouched by [`Self::reindex`],
-    /// which is what lets a rename replace every word token while the file
-    /// stays findable by its digest.
+    /// weight ranking. Digest scopes are replaced by scope, not source, which
+    /// is what lets a rename replace every name token while the file stays
+    /// findable by its digest.
     pub(crate) async fn replace_digests(&self, file_id: Uuid, tags: DigestTags) -> AppResult<u64> {
-        self.replace_scopes(
-            file_id,
-            [
-                (Scope::DigestRoot, tags.root),
-                (Scope::DigestFile, tags.file),
-            ],
-        )
-        .await
-    }
-
-    async fn replace_scopes(
-        &self,
-        file_id: Uuid,
-        scopes: [(Scope, Option<Vec<String>>); 2],
-    ) -> AppResult<u64> {
         let mut written = 0;
 
-        for (scope, tagged) in scopes {
+        for (scope, tagged) in [
+            (Scope::DigestRoot, tags.root),
+            (Scope::DigestFile, tags.file),
+        ] {
             let Some(tagged) = tagged else {
                 continue;
             };
@@ -118,7 +132,7 @@ where
                 .exec(self.repository.connection())
                 .await?;
 
-            written += self.upsert(file_id, scope, tagged).await?;
+            written += self.upsert(file_id, scope, Source::Name, tagged).await?;
         }
 
         Ok(written)
@@ -163,7 +177,8 @@ where
     /// each file's digests as keyed tags alongside the name and body tokens,
     /// and tag the raw query the same way, so an exact digest match rides the
     /// ordinary tag equality below — always on, and never a plaintext digest
-    /// on the wire.
+    /// on the wire. Source is not filtered: a query hash matches a file if it
+    /// hits name or content or extra.
     pub(crate) async fn search(&self, search: Search) -> AppResult<Vec<AppFile>> {
         let compact = search.compact.unwrap_or(false);
         let (file_id, root_tags, file_tags, limit, skip, editable) = search.into_tuple();

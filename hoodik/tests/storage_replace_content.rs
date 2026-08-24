@@ -16,7 +16,9 @@ async fn test_replace_content_rejects_non_editable_file() {
 
     let app = test::init_service(server::app(context.clone())).await;
 
-    let jwt = helpers::register_curve25519(&app, "noeditable@test.com").await.jwt;
+    let jwt = helpers::register_curve25519(&app, "noeditable@test.com")
+        .await
+        .jwt;
 
     let create = storage::data::create_file::CreateFile {
         encrypted_key: Some("encrypted-key".to_string()),
@@ -70,7 +72,9 @@ async fn test_replace_content_rejects_directory() {
 
     let app = test::init_service(server::app(context.clone())).await;
 
-    let jwt = helpers::register_curve25519(&app, "dirtest@test.com").await.jwt;
+    let jwt = helpers::register_curve25519(&app, "dirtest@test.com")
+        .await
+        .jwt;
 
     let create = storage::data::create_file::CreateFile {
         encrypted_key: Some("encrypted-key".to_string()),
@@ -126,7 +130,9 @@ async fn test_replace_content_validates_size_and_chunks() {
 
     let app = test::init_service(server::app(context.clone())).await;
 
-    let jwt = helpers::register_curve25519(&app, "validate@test.com").await.jwt;
+    let jwt = helpers::register_curve25519(&app, "validate@test.com")
+        .await
+        .jwt;
 
     let create = storage::data::create_file::CreateFile {
         encrypted_key: Some("encrypted-key".to_string()),
@@ -177,7 +183,8 @@ async fn test_replace_content_validates_size_and_chunks() {
 }
 
 /// A content save that carries no search tags leaves the file enrolled in the
-/// owner's re-index sweep, with the tags it invalidated cleared.
+/// owner's re-index sweep, with the content and digest tags it invalidated
+/// cleared. Name tokens stay: they were never about the body.
 ///
 /// This is the shape a client from before the keyed index sends: it has no
 /// tags to offer, and `reindex` leaves a scope it was given nothing for
@@ -196,7 +203,9 @@ async fn test_content_save_without_tags_enrols_the_file_for_reindex() {
             .await;
 
     let app = test::init_service(server::app(context.clone())).await;
-    let jwt = helpers::register_curve25519(&app, "untagged@test.com").await.jwt;
+    let jwt = helpers::register_curve25519(&app, "untagged@test.com")
+        .await
+        .jwt;
 
     let create = storage::data::create_file::CreateFile {
         encrypted_key: Some("encrypted-key".to_string()),
@@ -242,7 +251,11 @@ async fn test_content_save_without_tags_enrols_the_file_for_reindex() {
         .set_json(serde_json::json!({ "size": 20, "chunks": 1 }))
         .to_request();
     let resp = test::call_service(&app, req).await;
-    assert_eq!(resp.status(), StatusCode::OK, "the edit itself is not refused");
+    assert_eq!(
+        resp.status(),
+        StatusCode::OK,
+        "the edit itself is not refused"
+    );
 
     let row = files::Entity::find_by_id(file.id)
         .one(&context.db)
@@ -254,18 +267,26 @@ async fn test_content_save_without_tags_enrols_the_file_for_reindex() {
         "an empty name_hash is what enrols the file in the sweep"
     );
 
-    // Every scope, digests included. Those cannot be rebuilt later the way
-    // the word tags can — `finish` nulls the digest columns, so the sweep
-    // finds nothing to re-key and would leave them describing content that
-    // no longer exists, long after the file has left the pending list.
+    // Content and digest tags that described the replaced text must not answer
+    // for the new one. Name tokens stay: they were never about the body.
+    // Extra would stay too, once a client has written any.
     let tags_after = file_tokens::Entity::find()
         .filter(file_tokens::Column::FileId.eq(file.id))
         .all(&context.db)
         .await
         .unwrap();
     assert!(
-        tags_after.is_empty(),
-        "tags that described the replaced text must not answer for the new one, got {:?}",
+        tags_after.iter().any(|t| t.tag == "aa11"),
+        "name tokens must survive an untagged content save, got {:?}",
+        tags_after
+    );
+    assert!(
+        tags_after.iter().all(|t| {
+            t.source == i32::from(entity::file_tokens::Source::Name)
+                && t.tag != "dd01"
+                && t.tag != "dd02"
+        }),
+        "content and digest tags that described the replaced text must not remain, got {:?}",
         tags_after
     );
 
@@ -282,7 +303,9 @@ async fn test_content_save_with_tags_stays_indexed() {
         context::Context::mock_with_data_dir(Some("../data/test-replace-tagged".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
-    let jwt = helpers::register_curve25519(&app, "tagged@test.com").await.jwt;
+    let jwt = helpers::register_curve25519(&app, "tagged@test.com")
+        .await
+        .jwt;
 
     let create = storage::data::create_file::CreateFile {
         encrypted_key: Some("encrypted-key".to_string()),
@@ -332,17 +355,28 @@ async fn test_content_save_with_tags_stays_indexed() {
         .await
         .unwrap()
         .expect("the file still exists");
-    assert_ne!(row.name_hash, "", "an up-to-date save stays out of the sweep");
+    assert_ne!(
+        row.name_hash, "",
+        "an up-to-date save stays out of the sweep"
+    );
 
-    let tags: Vec<String> = file_tokens::Entity::find()
+    let tags: Vec<file_tokens::Model> = file_tokens::Entity::find()
         .filter(file_tokens::Column::FileId.eq(file.id))
         .all(&context.db)
         .await
-        .unwrap()
-        .into_iter()
-        .map(|t| t.tag)
-        .collect();
-    assert!(tags.contains(&"cc33".to_string()), "new tags landed, got {:?}", tags);
+        .unwrap();
+    assert!(
+        tags.iter()
+            .any(|t| t.tag == "aa11" && t.source == i32::from(entity::file_tokens::Source::Name)),
+        "name tokens must survive a tagged content save, got {:?}",
+        tags
+    );
+    assert!(
+        tags.iter().any(|t| t.tag == "cc33"
+            && t.source == i32::from(entity::file_tokens::Source::Content)),
+        "new content tags landed, got {:?}",
+        tags
+    );
 
     context.config.app.cleanup();
 }

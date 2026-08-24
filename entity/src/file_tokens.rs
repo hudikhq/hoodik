@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 ///
 /// The tag is an HMAC of the token under a key the server never sees, so this
 /// table cannot be read back into words. Each file carries the same tokens
-/// twice, under the two keys described on [`Scope`].
+/// twice, under the two keys described on [`Scope`]. [`Source`] is a separate
+/// axis: which client-side text produced the token, so a rename cannot wipe
+/// a note body or extra context tags.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "file_tokens")]
 pub struct Model {
@@ -13,6 +15,7 @@ pub struct Model {
     pub id: Uuid,
     pub file_id: Uuid,
     pub scope: i32,
+    pub source: i32,
     pub tag: String,
     pub weight: i32,
 }
@@ -23,8 +26,8 @@ pub struct Model {
 /// tags for what is shared with it, never both for the same file, so the two
 /// cannot double-count a file in the weight ranking. Content digests get
 /// scopes of their own because their lifecycle differs: a rename replaces the
-/// word scopes wholesale, and digest tags — derived from the bytes, not the
-/// name — must survive that replacement. Searching treats each digest scope
+/// name source, and digest tags — derived from the bytes, not the name —
+/// must survive that replacement. Searching treats each digest scope
 /// as part of its word counterpart, so an exact digest query matches through
 /// the ordinary tag equality.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -47,6 +50,30 @@ pub enum Scope {
 impl From<Scope> for i32 {
     fn from(scope: Scope) -> Self {
         scope as i32
+    }
+}
+
+/// Which client-side text a word-scope row was produced from.
+///
+/// Orthogonal to [`Scope`]: that column is which HMAC key tagged the token,
+/// this one is what the client tokenized. Write paths replace only their own
+/// source, so a later client can attach extra tags (OCR, image labels) that
+/// survive rename and note-save. Digest-scope rows also carry a source
+/// because the column is not null; they are replaced by scope, not source.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Source {
+    /// Filename / folder name tokens. Create, rename, and the re-index sweep
+    /// write here.
+    Name = 0,
+    /// Editable note body tokens. `replace_content` writes here.
+    Content = 1,
+    /// Additional client-side context. `PUT .../extra-tokens` writes here.
+    Extra = 2,
+}
+
+impl From<Source> for i32 {
+    fn from(source: Source) -> Self {
+        source as i32
     }
 }
 

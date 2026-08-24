@@ -36,6 +36,7 @@ pub(crate) mod m20260715_000001_alter_user_files_member_signed_at;
 pub(crate) mod m20260716_000001_create_used_nonces;
 pub(crate) mod m20260724_000001_alter_users_locale;
 pub(crate) mod m20260817_000001_rekey_search_index;
+pub(crate) mod m20260824_000001_file_tokens_source;
 
 #[cfg(test)]
 mod share_events_rebuild_test;
@@ -82,6 +83,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260716_000001_create_used_nonces::Migration),
             Box::new(m20260724_000001_alter_users_locale::Migration),
             Box::new(m20260817_000001_rekey_search_index::Migration),
+            Box::new(m20260824_000001_file_tokens_source::Migration),
         ]
     }
 }

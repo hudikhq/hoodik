@@ -773,6 +773,7 @@ pub(crate) async fn upsert_tokens<C: entity::ConnectionTrait>(
                 id: ActiveValue::Set(Uuid::new_v4()),
                 file_id: ActiveValue::Set(file_id),
                 scope: ActiveValue::Set(scope.into()),
+                source: ActiveValue::Set(i32::from(file_tokens::Source::Name)),
                 tag: ActiveValue::Set(tag),
                 weight: ActiveValue::Set(weight),
             })

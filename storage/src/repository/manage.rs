@@ -4,7 +4,7 @@ use std::{collections::HashMap, fmt::Display, str::FromStr};
 
 use chrono::Utc;
 use entity::{
-    file_tokens::{DigestTags, SearchTags},
+    file_tokens::{DigestTags, SearchTags, Source},
     file_versions, files, user_files, users, ActiveModelTrait, ActiveValue, ColumnTrait,
     ConnectionTrait, EntityTrait, Order, QueryFilter, QueryOrder, Statement, Uuid, Value,
 };
@@ -13,9 +13,9 @@ use validr::Validation;
 
 use super::Repository;
 use crate::data::{
-    app_file::AppFile, query::Query as RequestQuery, reindex::Reindex, rename::Rename,
-    replace_content::ValidatedReplaceContent, response::Response, set_editable::SetEditable,
-    update_hashes::UpdateHashes,
+    app_file::AppFile, extra_tokens::ExtraTokens, query::Query as RequestQuery, reindex::Reindex,
+    rename::Rename, replace_content::ValidatedReplaceContent, response::Response,
+    set_editable::SetEditable, update_hashes::UpdateHashes,
 };
 use futures::future::try_join_all;
 
@@ -416,6 +416,35 @@ where
         self.repository.by_id(file.id, file.user_id).await
     }
 
+    /// Replace extra-source tags. Name and content sources are left alone.
+    ///
+    /// An editor cannot produce the owner's root tags, so their write drops
+    /// root and leaves that extra scope as the owner last wrote it. Empty
+    /// lists clear the scopes the caller is allowed to write — this endpoint
+    /// is a full replace of extra, not a partial merge.
+    pub(crate) async fn replace_extra(&self, id: Uuid, data: ExtraTokens) -> AppResult<AppFile> {
+        let file = self.repository.by_id(id, self.owner_id).await?;
+        let mut tags = data.into_search_tags()?;
+
+        if file.is_owner {
+            if tags.root.is_none() {
+                tags.root = Some(Vec::new());
+            }
+        } else {
+            tags.root = None;
+        }
+        if tags.file.is_none() {
+            tags.file = Some(Vec::new());
+        }
+
+        self.repository
+            .tokens(self.owner_id)
+            .replace_source(id, Source::Extra, tags)
+            .await?;
+
+        self.repository.by_id(file.id, file.user_id).await
+    }
+
     /// Delete many files or directories for the owner. Each id in `ids`
     /// must be one the caller owns; non-owner
     /// ids are routed to [`Self::self_remove_recursive`] instead.
@@ -634,7 +663,7 @@ where
         }
 
         // A client from before the keyed index sends no tags at all, and
-        // `reindex` leaves a scope it was given nothing for exactly as it
+        // `replace_source` leaves a scope it was given nothing for exactly as it
         // was — so the note's text would change while its index went on
         // describing the text it replaced. Searching would find the note by
         // words it no longer contains and miss the words it now does, with
@@ -646,8 +675,7 @@ where
         // and has its root dropped just above, and a caller that supplies
         // only root has still said something about the index. Only silence
         // across the board is the old shape.
-        let index_is_stale =
-            data.search_tags.root.is_none() && data.search_tags.file.is_none();
+        let index_is_stale = data.search_tags.root.is_none() && data.search_tags.file.is_none();
 
         if file.is_dir() {
             return Err(Error::BadRequest("cannot_replace_directory".to_string()));
@@ -722,7 +750,7 @@ where
 
         self.repository
             .tokens(self.owner_id)
-            .reindex(id, tags)
+            .replace_source(id, Source::Content, tags)
             .await?;
 
         if index_is_stale {

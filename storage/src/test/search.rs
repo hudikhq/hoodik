@@ -1,6 +1,6 @@
 use context::Context;
 use entity::{
-    file_tokens::{self, Scope},
+    file_tokens::{self, Scope, Source},
     files, user_files, users, ActiveValue, ColumnTrait, EntityTrait, Expr, PaginatorTrait,
     QueryFilter, Uuid,
 };
@@ -168,7 +168,11 @@ async fn a_share_costs_no_index_rows_and_stays_searchable() {
         ..Default::default()
     };
 
-    let results = repository.tokens(recipient.id).search(search).await.unwrap();
+    let results = repository
+        .tokens(recipient.id)
+        .search(search)
+        .await
+        .unwrap();
 
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].id, file.id);
@@ -196,7 +200,11 @@ async fn a_recipient_cannot_match_the_owners_scope() {
         ..Default::default()
     };
 
-    let results = repository.tokens(recipient.id).search(search).await.unwrap();
+    let results = repository
+        .tokens(recipient.id)
+        .search(search)
+        .await
+        .unwrap();
 
     assert!(results.is_empty());
 }
@@ -252,7 +260,11 @@ async fn pending_reindex_cannot_see_a_file_that_kept_its_keyed_hash() {
         .await
         .unwrap();
 
-    let pending = repository.tokens(user.id).pending_reindex(100).await.unwrap();
+    let pending = repository
+        .tokens(user.id)
+        .pending_reindex(100)
+        .await
+        .unwrap();
     assert!(
         pending.is_empty(),
         "a keyed hash keeps a file off the sweep even with no tags at all — \
@@ -262,7 +274,11 @@ async fn pending_reindex_cannot_see_a_file_that_kept_its_keyed_hash() {
     // And blanking it is all it takes to enrol.
     blank_name_hash(&context, file.id).await;
 
-    let pending = repository.tokens(user.id).pending_reindex(100).await.unwrap();
+    let pending = repository
+        .tokens(user.id)
+        .pending_reindex(100)
+        .await
+        .unwrap();
     assert_eq!(pending.len(), 1);
     assert_eq!(pending[0].id, file.id);
 }
@@ -295,7 +311,11 @@ async fn pending_reindex_shrinks_as_files_are_indexed() {
 
     let fingerprint = stamp_fingerprint(&context, user.id).await;
 
-    let pending = repository.tokens(user.id).pending_reindex(100).await.unwrap();
+    let pending = repository
+        .tokens(user.id)
+        .pending_reindex(100)
+        .await
+        .unwrap();
     assert_eq!(pending.len(), 1);
     assert_eq!(pending[0].id, a.id);
 
@@ -501,7 +521,7 @@ async fn a_digest_tag_finds_the_file_it_was_indexed_for() {
     let tag = cryptfns::search::tag(&search_key(), &digest).unwrap();
     repository
         .tokens(user.id)
-        .upsert(file.id, Scope::Root, vec![format!("{tag}:1")])
+        .upsert(file.id, Scope::Root, Source::Name, vec![format!("{tag}:1")])
         .await
         .unwrap();
 
@@ -582,7 +602,12 @@ async fn the_same_digest_tags_differently_per_account() {
     let owner_tag = cryptfns::search::tag(&search_key(), &digest).unwrap();
     repository
         .tokens(owner.id)
-        .upsert(file.id, Scope::Root, vec![format!("{owner_tag}:1")])
+        .upsert(
+            file.id,
+            Scope::Root,
+            Source::Name,
+            vec![format!("{owner_tag}:1")],
+        )
         .await
         .unwrap();
 
@@ -621,7 +646,7 @@ async fn a_file_scope_digest_tag_reaches_the_share_recipient() {
     let tag = cryptfns::search::tag(&file_search_key("digest-test"), &digest).unwrap();
     repository
         .tokens(owner.id)
-        .upsert(file.id, Scope::File, vec![format!("{tag}:1")])
+        .upsert(file.id, Scope::File, Source::Name, vec![format!("{tag}:1")])
         .await
         .unwrap();
 
@@ -629,9 +654,12 @@ async fn a_file_scope_digest_tag_reaches_the_share_recipient() {
         file_tags: Some(vec![tag]),
         ..Default::default()
     };
-    let found = repository.tokens(recipient.id).search(search).await.unwrap();
+    let found = repository
+        .tokens(recipient.id)
+        .search(search)
+        .await
+        .unwrap();
 
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].id, file.id);
 }
-
