@@ -22,6 +22,23 @@ pub mod thumbnail;
 pub mod update_hashes;
 pub mod upload;
 pub(crate) mod upload_tar;
+
+/// Refuse `?format=tar` when the operator has switched the archive off.
+///
+/// Clients read the capability and skip the archive without asking, so this
+/// answers the ones that did not: an older app that only learns a server's
+/// shape by trying, or anything hand-rolled. 501 rather than 404 says the
+/// route exists and this deployment will not serve it — and every client that
+/// falls back does so on any status from a `?format=tar` URL, so the code is
+/// for the reader, not the fallback.
+pub(crate) fn reject_tar_when_disabled(context: &context::Context) -> error::AppResult<()> {
+    if context.config.app.tar_transfer_disabled {
+        return Err(error::Error::NotImplemented(
+            "tar_transfer_disabled".to_string(),
+        ));
+    }
+    Ok(())
+}
 pub mod versions;
 
 /// Register the storage routes

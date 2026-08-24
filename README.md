@@ -205,6 +205,7 @@ By default, encrypted file chunks are stored on the local filesystem inside `DAT
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `STORAGE_PROVIDER` | `local` | `local` or `s3` |
+| `TAR_TRANSFER_DISABLED` | `false` | Refuse `?format=tar` so clients transfer one chunk per request. Set this behind a proxy that caps request size — Cloudflare Tunnel stops at 100 MB |
 | `S3_BUCKET` | | Bucket name |
 | `S3_REGION` | `us-east-1` | AWS region |
 | `S3_ENDPOINT` | *(AWS default)* | Custom endpoint for S3-compatible services (MinIO, Backblaze B2, Wasabi, etc.) |

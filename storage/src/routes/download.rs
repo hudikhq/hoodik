@@ -49,6 +49,8 @@ pub(crate) async fn download(
     let versioned = file.use_versioned_layout();
 
     if format.as_deref() == Some("tar") {
+        super::reject_tar_when_disabled(&context)?;
+
         let (content_length, streamer) = if versioned {
             (
                 storage.tar_content_length_v(&file, file.active_version).await?,
@@ -116,6 +118,8 @@ pub(crate) async fn head(
         .ok_or_else(|| Error::NotFound("file_not_found".to_string()))?;
 
     if format.as_deref() == Some("tar") {
+        super::reject_tar_when_disabled(&context)?;
+
         let filename = format!("{}", file_id);
         return Ok(HttpResponse::Ok()
             .insert_header(("Content-Type", "application/x-tar"))

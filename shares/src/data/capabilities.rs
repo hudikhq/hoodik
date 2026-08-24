@@ -23,6 +23,24 @@ pub struct Capabilities {
     /// response, amounts to.
     #[serde(default)]
     pub direct_transfer: bool,
+
+    /// Whether this server will bundle a file's chunks into one archive
+    /// rather than serving them one request at a time.
+    ///
+    /// Also a property of the deployment: the archive is a single large
+    /// request, and a proxy in front of the server may cap what it will
+    /// carry. Absent means an older server, which has no switch for this and
+    /// always offers the archive — so it defaults to true, the opposite of
+    /// [`Self::direct_transfer`], where absence means the feature did not
+    /// exist yet.
+    #[serde(default = "tar_transfer_default")]
+    pub tar_transfer: bool,
+}
+
+/// Absence means a server from before the switch existed, and every one of
+/// those bundles.
+fn tar_transfer_default() -> bool {
+    true
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -32,7 +50,12 @@ pub struct SharingCapabilities {
 }
 
 impl Capabilities {
-    pub fn for_enabled(enabled: bool, default_cipher: String, direct_transfer: bool) -> Self {
+    pub fn for_enabled(
+        enabled: bool,
+        default_cipher: String,
+        direct_transfer: bool,
+        tar_transfer: bool,
+    ) -> Self {
         Self {
             sharing: SharingCapabilities {
                 enabled,
@@ -48,6 +71,7 @@ impl Capabilities {
             fork: true,
             default_cipher,
             direct_transfer,
+            tar_transfer,
         }
     }
 }

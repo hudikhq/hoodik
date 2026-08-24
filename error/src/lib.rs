@@ -69,6 +69,11 @@ pub enum Error {
     /// `BadRequest` so a client, a proxy, or a log reader can tell "update
     /// me" apart from "your request was malformed".
     UpgradeRequired(String),
+    /// HTTP 501. The route exists and this deployment will not serve it —
+    /// an operator switch, not a protocol gap. Distinct from `NotFound` so a
+    /// client can tell "this server does not do that" from "no such route",
+    /// and distinct from `UpgradeRequired` because updating changes nothing.
+    NotImplemented(String),
 }
 
 impl Error {
@@ -430,6 +435,11 @@ impl From<&Error> for ErrorResponse {
             },
             Error::UpgradeRequired(message) => ErrorResponse {
                 status: 426,
+                message: message.to_string(),
+                context: None,
+            },
+            Error::NotImplemented(message) => ErrorResponse {
+                status: 501,
                 message: message.to_string(),
                 context: None,
             },

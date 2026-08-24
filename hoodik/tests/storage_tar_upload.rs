@@ -410,3 +410,60 @@ async fn test_upload_tar_matches_per_chunk_final_state() {
     fs.purge_all(&file_pc).await.unwrap();
     context.config.app.cleanup();
 }
+
+/// With the archive switched off, both directions refuse `?format=tar` and the
+/// capability says so up front.
+///
+/// The switch exists for deployments behind a proxy that caps request size —
+/// Cloudflare Tunnel stops at 100 MB, and an archive above that dies there
+/// while the same file transfers fine a chunk at a time. Clients read the
+/// capability and skip the archive without asking; the refusal is for the ones
+/// that did not, which is every client older than the switch.
+#[actix_web::test]
+async fn test_tar_disabled_refuses_both_directions_and_advertises_it() {
+    let mut context =
+        context::Context::mock_with_data_dir(Some("../data/test-tar-disabled".to_string())).await;
+    context.config.app.tar_transfer_disabled = true;
+
+    let app = test::init_service(server::app(context.clone())).await;
+    let jwt = helpers::register_curve25519(&app, "tardisabled@test.com")
+        .await
+        .jwt;
+
+    let req = test::TestRequest::get()
+        .uri("/api/capabilities")
+        .to_request();
+    let caps: serde_json::Value = test::call_and_read_body_json(&app, req).await;
+    assert_eq!(
+        caps["tar_transfer"], false,
+        "the switch is advertised so clients never spend a refused request"
+    );
+
+    let chunks = vec![vec![7u8; 32]];
+    let file = create_file!(app, jwt, create_file_json(&chunks, "refused.enc"));
+
+    let req = test::TestRequest::post()
+        .uri(format!("/api/storage/{}?format=tar", file.id).as_str())
+        .cookie(jwt.clone())
+        .set_payload(vec![0u8; 32])
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::NOT_IMPLEMENTED,
+        "the archive upload is refused"
+    );
+
+    let req = test::TestRequest::get()
+        .uri(format!("/api/storage/{}?format=tar", file.id).as_str())
+        .cookie(jwt.clone())
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::NOT_IMPLEMENTED,
+        "and so is the archive download"
+    );
+
+    context.config.app.cleanup();
+}
