@@ -81,13 +81,7 @@ function totalPlaintextSize(chunks: Uint8Array[]): number {
   return chunks.reduce((total, chunk) => total + chunk.length, 0)
 }
 
-function chunkCount(plaintextChunks: Uint8Array[]): number {
-  const totalBytes = totalPlaintextSize(plaintextChunks)
-  if (totalBytes === 0) return 0
-  return Math.max(plaintextChunks.length, Math.ceil(totalBytes / CHUNK_SIZE_BYTES))
-}
-
-async function streamingSha256(chunks: Uint8Array[]): Promise<string> {
+function concatPlaintext(chunks: Uint8Array[]): Uint8Array {
   const totalBytes = totalPlaintextSize(chunks)
   const flat = new Uint8Array(totalBytes)
   let cursor = 0
@@ -95,7 +89,17 @@ async function streamingSha256(chunks: Uint8Array[]): Promise<string> {
     flat.set(chunk, cursor)
     cursor += chunk.length
   }
-  return cryptfns.sha256.digest(flat)
+  return flat
+}
+
+function chunkCount(plaintextChunks: Uint8Array[]): number {
+  const totalBytes = totalPlaintextSize(plaintextChunks)
+  if (totalBytes === 0) return 0
+  return Math.max(plaintextChunks.length, Math.ceil(totalBytes / CHUNK_SIZE_BYTES))
+}
+
+async function streamingSha256(chunks: Uint8Array[]): Promise<string> {
+  return cryptfns.sha256.digest(concatPlaintext(chunks))
 }
 
 export interface ForkArgs {
@@ -222,6 +226,7 @@ export async function forkFile(
   })
   const eventSignature = await shareCrypto.signAuditEvent(auditInput, keypair.input)
 
+  const nameIndexed = source.name.toLowerCase()
   const body: ForkBody = {
     new_file_id: newFileId,
     encrypted_metadata: encryptedName,
@@ -233,12 +238,18 @@ export async function forkFile(
     sha256,
     cipher,
     encrypted_key: wrappedKey,
-    search_tokens_root: cryptfns.searchTags(rootKey, source.name.toLowerCase()),
-    search_tokens_file: cryptfns.searchTags(fileKey, source.name.toLowerCase()),
+    search_tokens_root: cryptfns.searchTags(rootKey, nameIndexed),
+    search_tokens_file: cryptfns.searchTags(fileKey, nameIndexed),
     digest_tokens_root: [`${cryptfns.searchTag(rootKey, bareSha256)}:1`],
     digest_tokens_file: [`${sha256}:1`],
     event_signature: eventSignature,
     timestamp
+  }
+
+  if (source.editable) {
+    const noteBody = new TextDecoder().decode(concatPlaintext(plaintextChunks))
+    body.content_tokens_root = cryptfns.searchTags(rootKey, noteBody)
+    body.content_tokens_file = cryptfns.searchTags(fileKey, noteBody)
   }
 
   // 6 — server creates the file + user_files rows + audit row.

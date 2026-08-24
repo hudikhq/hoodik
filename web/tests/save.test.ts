@@ -37,6 +37,7 @@ vi.mock('../services/api', () => {
 
 vi.mock('../services/storage/meta', () => ({
   requestTransferToken: vi.fn(() => Promise.resolve({ token: 'transfer-token' })),
+  updateHashes: vi.fn(() => Promise.resolve(undefined)),
   create: vi.fn((_kp: unknown, input: { name: string; mime: string; editable?: boolean }) =>
     Promise.resolve({
       id: 'created-file-id',
@@ -225,19 +226,18 @@ describe('saveFileContent', () => {
     expect(uploadChunk).toHaveBeenCalledTimes(3)
   })
 
-  it('UNIT: indexes the note by its name and body together', async () => {
+  it('UNIT: indexes the note by its body, not its title', async () => {
     const file = makeAppFile()
     ApiPutMock.mockResolvedValueOnce({ body: makeAppFile() })
 
-    await saveFileContent(file, 'hello', keypair)
+    await saveFileContent(file, 'zanzibar', keypair)
 
-    // Both, not either: indexing the body alone drops the title the moment a
-    // save follows a rename, and indexing the name alone was what broke body
-    // search in the first place.
-    expect(searchTags).toHaveBeenCalledWith(expect.anything(), 'note.md\nhello')
+    expect(searchTags).toHaveBeenCalledWith(expect.anything(), 'zanzibar')
+    expect(searchTags).not.toHaveBeenCalledWith(expect.anything(), 'note.md\nzanzibar')
     const [, , body] = ApiPutMock.mock.calls[0]
     expect(body.search_tokens_root).toEqual(['tok-a', 'tok-b'])
     expect(body.search_tokens_file).toEqual(['tok-a', 'tok-b'])
+    expect(JSON.stringify(body)).not.toContain('zanzibar')
   })
 
   it('UNIT: 409 from the server becomes a SaveConflictError carrying the draft content', async () => {
@@ -308,13 +308,14 @@ describe('createNote', () => {
     expect(metaCreate).toHaveBeenCalledTimes(1)
     const [, data] = (metaCreate as unknown as { mock: { calls: unknown[][] } }).mock.calls[0] as [
       unknown,
-      { name: string; mime: string; editable: boolean; chunks: number; file_id?: string }
+      { name: string; mime: string; editable: boolean; chunks: number; file_id?: string; content?: string }
     ]
     expect(data.name).toBe('shopping-list.md')
     expect(data.mime).toBe('text/markdown')
     expect(data.editable).toBe(true)
     expect(data.chunks).toBe(1)
     expect(data.file_id).toBeUndefined()
+    expect(data.content).toBe('# shopping-list\n')
   })
 
   it('UNIT: keeps an existing .md suffix without doubling it', async () => {
@@ -425,6 +426,13 @@ describe('createNote into a shared folder', () => {
     await createNote(makeKeypair(), 'note', parent, 'caller-id')
 
     expect(uploadIntoSharedFolder).toHaveBeenCalledTimes(1)
+    const uploadArgs = (
+      uploadIntoSharedFolder as unknown as { mock: { calls: { payload: Record<string, unknown> }[][] } }
+    ).mock.calls[0][0]
+    expect(uploadArgs.payload.searchTokensRoot).toEqual(['tok-a', 'tok-b'])
+    expect(uploadArgs.payload.contentTokensRoot).toEqual(['tok-a', 'tok-b'])
+    expect(searchTags).toHaveBeenCalledWith(expect.anything(), 'note.md')
+    expect(searchTags).toHaveBeenCalledWith(expect.anything(), '# note\n')
     // Regular create must not fire — that would 400 with the
     // owner-only parent check.
     expect(metaCreate).not.toHaveBeenCalled()

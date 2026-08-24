@@ -212,7 +212,7 @@ pub(crate) async fn fork(
     // resurrecting the reversible value the migration purged.
     payload.sha256 = sha256.filter(|v| !cryptfns::search::is_bare_digest(v));
 
-    let (mut active_model, encrypted_key, search_tags, digest_tags, _size, _parent) =
+    let (mut active_model, encrypted_key, search_tags, content_tags, digest_tags, _size, _parent) =
         payload.into_active_model()?;
     // Skip the chunk-upload pass — chunks land via copy_version below.
     let now = Utc::now().timestamp();
@@ -229,8 +229,7 @@ pub(crate) async fn fork(
             source_version,
             active_model,
             encrypted_key,
-            search_tags,
-            digest_tags,
+            (search_tags, content_tags, digest_tags),
         )
         .await?;
     txn.commit().await?;

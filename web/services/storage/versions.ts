@@ -29,6 +29,8 @@ export interface ForkRequest {
   search_tokens_root?: string[]
 
   search_tokens_file?: string[]
+  content_tokens_root?: string[]
+  content_tokens_file?: string[]
 }
 
 /**

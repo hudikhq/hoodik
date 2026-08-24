@@ -168,6 +168,10 @@ describe('fork pipeline', () => {
     expect(body.sha256).toMatch(/^[0-9a-f]{32}$/)
     expect(body.digest_tokens_file).toEqual([`${body.sha256}:1`])
     expect(body.digest_tokens_root).toHaveLength(1)
+    // A binary has no body source. Decoding those bytes as text would tag
+    // whatever the header happened to look like.
+    expect(body.content_tokens_root).toBeUndefined()
+    expect(body.content_tokens_file).toBeUndefined()
   })
 
   it('fork_uses_same_cipher_as_source', async () => {

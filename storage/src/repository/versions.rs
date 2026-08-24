@@ -14,7 +14,7 @@
 
 use chrono::Utc;
 use entity::{
-    file_tokens::{DigestTags, SearchTags},
+    file_tokens::{DigestTags, SearchTags, Source},
     file_versions, files, ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait,
     Order, QueryFilter, QueryOrder, Uuid,
 };
@@ -220,9 +220,9 @@ where
         source_version: i32,
         new_file_active_model: files::ActiveModel,
         encrypted_key: String,
-        search_tags: SearchTags,
-        digest_tags: DigestTags,
+        tags: (SearchTags, SearchTags, DigestTags),
     ) -> AppResult<ForkOutcome> {
+        let (search_tags, content_tags, digest_tags) = tags;
         // Caller's permission was already gated at the route. The
         // `by_id(source_file_id, caller_id)` call confirms the caller
         // has at least a `user_files` row on the source — whether owner
@@ -273,6 +273,9 @@ where
 
         let tokens = self.repository.tokens(self.owner_id);
         tokens.reindex(new_file_id, search_tags).await?;
+        tokens
+            .replace_source(new_file_id, Source::Content, content_tags)
+            .await?;
         tokens.replace_digests(new_file_id, digest_tags).await?;
 
         Ok(ForkOutcome {

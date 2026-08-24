@@ -146,6 +146,11 @@ export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise
     ...encryptedParts
   }
 
+  if (unencrypted.content !== undefined) {
+    createFile.content_tokens_root = cryptfns.searchTags(rootKey, unencrypted.content)
+    createFile.content_tokens_file = cryptfns.searchTags(fileKey, unencrypted.content)
+  }
+
   const response = await Api.post<EncryptedCreateFile, AppFile>(
     '/api/storage',
     undefined,
@@ -162,36 +167,6 @@ export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise
   return {
     ...file,
     ...unencryptedPart
-  }
-}
-
-/**
- * The text a file's word tokens are built from: its name, and for a note its
- * body as well.
- *
- * A rename replaces every word token it sends, so a note renamed on its name
- * alone would lose its contents from search until the next save. The body is
- * only reachable by downloading and decrypting it — the server holds
- * ciphertext — which is affordable because notes are small and this runs once
- * per rename.
- *
- * `undefined` means the body could not be read. Callers send no tokens at all
- * then, leaving the note the ones it already has.
- *
- * Imported where it is used rather than at the top: the download module
- * reaches back into this one, and a static import would close the cycle at
- * module-initialization time.
- */
-async function indexedText(file: AppFile, name: string): Promise<string | undefined> {
-  if (!file.editable) return name
-
-  try {
-    const { downloadAndDecrypt } = await import('./download/sync')
-    const body = new TextDecoder().decode(await downloadAndDecrypt(file))
-
-    return `${name}\n${body}`
-  } catch {
-    return undefined
   }
 }
 
@@ -219,20 +194,15 @@ export async function rename(
   }
 
   const rootKey = cryptfns.searchRootKey(keypair)
-  const indexed = await indexedText(file, unencrypted.name)
+  const name = unencrypted.name
 
   const rename: EncryptedRename = {
     // An editor renaming someone else's file holds the file key but not the
     // owner's root key, so they refresh only the scope they can produce and
-    // the server leaves the other one alone. An unreadable body drops both
-    // scopes for the same reason: the server replaces only what it is sent,
-    // so the note keeps its tokens instead of being reduced to its new name.
-    search_tokens_root:
-      indexed !== undefined && file.is_owner ? cryptfns.searchTags(rootKey, indexed) : undefined,
-    search_tokens_file:
-      indexed !== undefined
-        ? cryptfns.searchTags(cryptfns.searchFileKey(file.key), indexed)
-        : undefined,
+    // the server leaves the other one alone. Name tokens only: the body lives
+    // in a different source, and sending it here would wipe it.
+    search_tokens_root: file.is_owner ? cryptfns.searchTags(rootKey, name) : undefined,
+    search_tokens_file: cryptfns.searchTags(cryptfns.searchFileKey(file.key), name),
     name_hash: cryptfns.searchTag(rootKey, unencrypted.name),
     encrypted_name: encryptedParts.encrypted_name
   }

@@ -102,6 +102,8 @@ export async function uploadIntoSharedFolder(
       file_modified_at: args.payload.fileModifiedAt,
       search_tokens_root: args.payload.searchTokensRoot,
       search_tokens_file: args.payload.searchTokensFile,
+      content_tokens_root: args.payload.contentTokensRoot,
+      content_tokens_file: args.payload.contentTokensFile,
       member_keys: memberKeys,
       members_list_snapshot: {
         members_signed_at: snapshot.members_signed_at,

@@ -16,7 +16,7 @@ use chrono::Utc;
 use cryptfns::asn1::{encode_audit_event_sig_input_v1, AuditEventActionEnum, AuditEventSigInputV1};
 use cryptfns::identity::KeyType;
 use entity::{
-    file_tokens::{self, DigestTags, Scope, SearchTags},
+    file_tokens::{self, DigestTags, Scope, SearchTags, Source},
     files,
     permission::{permission, SharePermission},
     user_files, users, ActiveValue, ColumnTrait, EntityTrait, QueryFilter, TransactionTrait, Uuid,
@@ -239,6 +239,10 @@ impl Repository<'_> {
             SearchTags::new(
                 body.search_tokens_root.clone(),
                 body.search_tokens_file.clone(),
+            ),
+            SearchTags::new(
+                body.content_tokens_root.clone(),
+                body.content_tokens_file.clone(),
             ),
             DigestTags::new(
                 body.digest_tokens_root.clone(),
@@ -756,24 +760,27 @@ pub(crate) async fn upsert_tokens<C: entity::ConnectionTrait>(
     tx: &C,
     file_id: Uuid,
     tags: SearchTags,
+    content: SearchTags,
     digests: DigestTags,
 ) -> AppResult<()> {
     let rows = [
-        (Scope::Root, tags.root),
-        (Scope::File, tags.file),
-        (Scope::DigestRoot, digests.root),
-        (Scope::DigestFile, digests.file),
+        (Scope::Root, Source::Name, tags.root),
+        (Scope::File, Source::Name, tags.file),
+        (Scope::Root, Source::Content, content.root),
+        (Scope::File, Source::Content, content.file),
+        (Scope::DigestRoot, Source::Name, digests.root),
+        (Scope::DigestFile, Source::Name, digests.file),
     ]
     .into_iter()
-    .filter_map(|(scope, tagged)| Some((scope, tagged?)))
-    .flat_map(|(scope, tagged)| {
+    .filter_map(|(scope, source, tagged)| Some((scope, source, tagged?)))
+    .flat_map(|(scope, source, tagged)| {
         cryptfns::search::from_wire(tagged)
             .into_iter()
             .map(move |(tag, weight)| file_tokens::ActiveModel {
                 id: ActiveValue::Set(Uuid::new_v4()),
                 file_id: ActiveValue::Set(file_id),
                 scope: ActiveValue::Set(scope.into()),
-                source: ActiveValue::Set(i32::from(file_tokens::Source::Name)),
+                source: ActiveValue::Set(i32::from(source)),
                 tag: ActiveValue::Set(tag),
                 weight: ActiveValue::Set(weight),
             })

@@ -201,6 +201,7 @@ impl Repository<'_> {
             &tx,
             new_file_id,
             SearchTags::new(validated.search_tokens_root, validated.search_tokens_file),
+            SearchTags::new(validated.content_tokens_root, validated.content_tokens_file),
             DigestTags::new(validated.digest_tokens_root, validated.digest_tokens_file),
         )
         .await?;

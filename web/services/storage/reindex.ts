@@ -23,6 +23,9 @@ export interface ReindexRequest {
   fingerprint: string
   search_tokens_root: string[]
   search_tokens_file: string[]
+  /** Note-body tokens, written to `source=content`. Absent on regular files. */
+  content_tokens_root?: string[]
+  content_tokens_file?: string[]
   /** Content digests re-keyed under the file's search key, replacing the
    *  bare digests migrated rows still carry. */
   md5?: string
@@ -117,21 +120,18 @@ export const store = defineStore('reindex', () => {
   }
 
   /**
-   * A note's body is indexed word for word alongside its name, which is why
-   * the old scheme leaked note contents and not just names. Rebuilding that
-   * means fetching and decrypting the note — there is no shortcut, the server
-   * holds only ciphertext — and the name rides along so a swept note carries
-   * the same tokens a saved one does.
+   * A note's body is a separate source from its name. Rebuilding the body
+   * index means fetching and decrypting the note — there is no shortcut, the
+   * server holds only ciphertext.
    */
-  async function textFor(file: AppFile): Promise<string> {
-    const name = file.name ?? ''
+  async function bodyFor(file: AppFile): Promise<string | undefined> {
     if (!file.editable || !file.key) {
-      return name
+      return undefined
     }
 
     const bytes = await downloadAndDecrypt(file)
 
-    return `${name}\n${new TextDecoder().decode(bytes)}`
+    return new TextDecoder().decode(bytes)
   }
 
   async function reindexOne(keypair: KeyPair, encrypted: EncryptedAppFile): Promise<void> {
@@ -154,13 +154,19 @@ export const store = defineStore('reindex', () => {
 
     const rootKey = cryptfns.searchRootKey(keypair)
     const fileKey = cryptfns.searchFileKey(file.key)
-    const indexed = await textFor(file)
+    const name = file.name
+    const noteBody = await bodyFor(file)
 
-    const body: ReindexRequest = {
+    const request: ReindexRequest = {
       name_hash: cryptfns.searchTag(rootKey, file.name),
       fingerprint,
-      search_tokens_root: cryptfns.searchTags(rootKey, indexed),
-      search_tokens_file: cryptfns.searchTags(fileKey, indexed)
+      search_tokens_root: cryptfns.searchTags(rootKey, name),
+      search_tokens_file: cryptfns.searchTags(fileKey, name)
+    }
+
+    if (noteBody !== undefined) {
+      request.content_tokens_root = cryptfns.searchTags(rootKey, noteBody)
+      request.content_tokens_file = cryptfns.searchTags(fileKey, noteBody)
     }
 
     // Migrated rows still carry bare content digests — the third copy of the
@@ -170,17 +176,17 @@ export const store = defineStore('reindex', () => {
     // `bareDigests` above says why.
     const digests = bareDigests(file)
 
-    for (const name of ['md5', 'sha1', 'sha256', 'blake2b'] as const) {
-      const digest = digests[name]
+    for (const digestName of ['md5', 'sha1', 'sha256', 'blake2b'] as const) {
+      const digest = digests[digestName]
       if (!digest) continue
-      body[name] = cryptfns.searchTag(fileKey, digest)
-      body.digest_tokens_root = body.digest_tokens_root ?? []
-      body.digest_tokens_file = body.digest_tokens_file ?? []
-      body.digest_tokens_root.push(`${cryptfns.searchTag(rootKey, digest)}:1`)
-      body.digest_tokens_file.push(`${cryptfns.searchTag(fileKey, digest)}:1`)
+      request[digestName] = cryptfns.searchTag(fileKey, digest)
+      request.digest_tokens_root = request.digest_tokens_root ?? []
+      request.digest_tokens_file = request.digest_tokens_file ?? []
+      request.digest_tokens_root.push(`${cryptfns.searchTag(rootKey, digest)}:1`)
+      request.digest_tokens_file.push(`${cryptfns.searchTag(fileKey, digest)}:1`)
     }
 
-    await Api.put<ReindexRequest, AppFile>(`/api/storage/${file.id}/reindex`, undefined, body)
+    await Api.put<ReindexRequest, AppFile>(`/api/storage/${file.id}/reindex`, undefined, request)
   }
 
   /**

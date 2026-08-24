@@ -47,6 +47,8 @@ async fn test_json_compresses_and_ciphertext_stays_identity() {
         encrypted_thumbnail: None,
         search_tokens_root: None,
         search_tokens_file: None,
+        content_tokens_root: None,
+        content_tokens_file: None,
         name_hash: Some(helpers::name_tag(&checksum)),
         mime: Some("application/octet-stream".to_string()),
         size: Some(size),

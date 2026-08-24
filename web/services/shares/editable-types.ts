@@ -109,6 +109,8 @@ export interface SharedFolderFilePayload {
   searchTokensRoot?: string[]
 
   searchTokensFile?: string[]
+  contentTokensRoot?: string[]
+  contentTokensFile?: string[]
 }
 
 export interface UploadIntoSharedFolderArgs {

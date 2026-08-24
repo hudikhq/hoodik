@@ -26,6 +26,10 @@ pub struct Reindex {
     pub fingerprint: Option<String>,
     pub search_tokens_root: Option<Vec<String>>,
     pub search_tokens_file: Option<Vec<String>>,
+    /// Note-body tokens, written to `source=content`. Absent on regular files
+    /// and on clients that still mix name and body into `search_tokens_*`.
+    pub content_tokens_root: Option<Vec<String>>,
+    pub content_tokens_file: Option<Vec<String>>,
     /// Content digests re-keyed under the file's search key, replacing the
     /// bare digests migrated rows still carry — the third copy of the same
     /// leak. The sweep computes them from the stored values, so nothing has
@@ -57,7 +61,16 @@ impl Validation for Reindex {
 }
 
 impl Reindex {
-    pub fn into_parts(self) -> AppResult<(String, String, SearchTags, DigestTags, KeyedHashes)> {
+    pub fn into_parts(
+        self,
+    ) -> AppResult<(
+        String,
+        String,
+        SearchTags,
+        SearchTags,
+        DigestTags,
+        KeyedHashes,
+    )> {
         let data = self.validate()?;
         let name_hash = data.name_hash.unwrap();
         let fingerprint = data.fingerprint.unwrap();
@@ -90,6 +103,7 @@ impl Reindex {
             name_hash,
             fingerprint,
             SearchTags::new(data.search_tokens_root, data.search_tokens_file),
+            SearchTags::new(data.content_tokens_root, data.content_tokens_file),
             DigestTags::new(data.digest_tokens_root, data.digest_tokens_file),
             KeyedHashes {
                 md5: data.md5,
@@ -154,7 +168,7 @@ mod test {
 
     #[test]
     fn tags_and_keyed_hashes_ride_along_with_the_name_hash() {
-        let (name_hash, fingerprint, tags, digests, hashes) = Reindex {
+        let (name_hash, fingerprint, tags, content, digests, hashes) = Reindex {
             name_hash: Some("abc".to_string()),
             fingerprint: Some("fp".to_string()),
             search_tokens_root: Some(vec!["a3f1:2".to_string()]),
@@ -170,9 +184,30 @@ mod test {
         assert_eq!(fingerprint, "fp");
         assert_eq!(tags.root.unwrap().len(), 1);
         assert_eq!(tags.file.unwrap().len(), 1);
+        assert!(content.root.is_none());
+        assert!(content.file.is_none());
         assert_eq!(digests.root.unwrap().len(), 1);
         assert!(digests.file.is_none());
         assert_eq!(hashes.sha256.unwrap(), "b".repeat(32));
         assert!(hashes.md5.is_none());
+    }
+
+    #[test]
+    fn content_tags_ride_along_separately_from_the_name() {
+        let (_, _, tags, content, _, _) = Reindex {
+            name_hash: Some("abc".to_string()),
+            fingerprint: Some("fp".to_string()),
+            search_tokens_root: Some(vec!["a3f1:2".to_string()]),
+            content_tokens_root: Some(vec!["b4e2:1".to_string()]),
+            content_tokens_file: Some(vec!["c5d3:1".to_string()]),
+            ..Default::default()
+        }
+        .into_parts()
+        .unwrap();
+
+        assert_eq!(tags.root.unwrap().len(), 1);
+        assert!(tags.file.is_none());
+        assert_eq!(content.root.unwrap().len(), 1);
+        assert_eq!(content.file.unwrap().len(), 1);
     }
 }

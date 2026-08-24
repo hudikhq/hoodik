@@ -164,13 +164,10 @@ async function forkAsNew(v: FileVersion) {
     const rootKey = cryptfns.searchRootKey(props.keypair)
     const fileKey = cryptfns.searchFileKey(props.file.key)
 
-    // Name and body together, the way every other note write indexes one. The
-    // copy holds the same words the version does, so indexing its title alone
-    // left it missing from every search that found the note it came from —
-    // and nothing revisits a fork, so it stayed that way. The bytes are
-    // already being fetched to decrypt; this reuses them.
-    const body = new TextDecoder().decode(await decryptVersionBytes(v))
-    const indexed = `${newName}\n${body}`
+    // Name and body on separate sources. Concatenating them left stale body
+    // words in the name source after a later rename, and nothing revisits a
+    // fork to repair it. The bytes are already being fetched to decrypt.
+    const noteBody = new TextDecoder().decode(await decryptVersionBytes(v))
 
     const payload: ForkRequest = {
       name_hash: cryptfns.searchTag(rootKey, newName),
@@ -180,8 +177,10 @@ async function forkAsNew(v: FileVersion) {
       cipher,
       editable: true,
       file_id: props.file.file_id ?? undefined,
-      search_tokens_root: cryptfns.searchTags(rootKey, indexed),
-      search_tokens_file: cryptfns.searchTags(fileKey, indexed)
+      search_tokens_root: cryptfns.searchTags(rootKey, newName),
+      search_tokens_file: cryptfns.searchTags(fileKey, newName),
+      content_tokens_root: cryptfns.searchTags(rootKey, noteBody),
+      content_tokens_file: cryptfns.searchTags(fileKey, noteBody)
     }
 
     const newFile = await versions.fork(props.file.id, v.version, payload)

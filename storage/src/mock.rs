@@ -75,14 +75,16 @@ pub async fn create_file(
         blake2b: Some("asd".to_string()),
         digest_tokens_root: None,
         digest_tokens_file: None,
+        content_tokens_root: None,
+        content_tokens_file: None,
         cipher: None,
         editable: None,
     };
 
-    let (am, _, tags, digests, _, _) = file.into_active_model()?;
+    let (am, _, tags, content, digests, _, _) = file.into_active_model()?;
     repository
         .manage(user.id)
-        .create(am, name, tags, digests)
+        .create(am, name, tags, content, digests)
         .await
 }
 

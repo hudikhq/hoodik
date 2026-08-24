@@ -41,6 +41,8 @@ fn create_file_json(chunks: &[Vec<u8>], name: &str) -> storage::data::create_fil
         encrypted_thumbnail: None,
         search_tokens_root: None,
         search_tokens_file: None,
+        content_tokens_root: None,
+        content_tokens_file: None,
         name_hash: Some(helpers::name_tag(&calculate_checksum(chunks.to_vec()))),
         mime: Some("application/octet-stream".to_string()),
         size: Some(size),

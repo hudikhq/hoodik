@@ -23,6 +23,8 @@ fn create_file_with_thumbnail(name_hash: &str) -> storage::data::create_file::Cr
         encrypted_thumbnail: Some(THUMBNAIL.to_string()),
         search_tokens_root: None,
         search_tokens_file: None,
+        content_tokens_root: None,
+        content_tokens_file: None,
         name_hash: Some(name_hash.to_string()),
         mime: Some("image/jpeg".to_string()),
         size: Some(100),

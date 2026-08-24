@@ -167,7 +167,7 @@ describe('fork', () => {
     ).rejects.toThrow('Failed to fork v1')
   })
 
-  it('UNIT: both search tag scopes flow through untouched', async () => {
+  it('UNIT: name and body tag lists flow through untouched', async () => {
     ;(ApiPost as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ body: makeFile() })
     const body = {
       name_hash: 'h',
@@ -176,7 +176,9 @@ describe('fork', () => {
       mime: 'text/markdown',
       cipher: 'aegis-128l',
       search_tokens_root: ['t1', 't2', 't3'],
-      search_tokens_file: ['f1', 'f2', 'f3']
+      search_tokens_file: ['f1', 'f2', 'f3'],
+      content_tokens_root: ['c1'],
+      content_tokens_file: ['c2']
     }
     await fork('file-1', 2, body)
     expect(ApiPost).toHaveBeenCalledWith(
@@ -184,7 +186,9 @@ describe('fork', () => {
       undefined,
       expect.objectContaining({
         search_tokens_root: ['t1', 't2', 't3'],
-        search_tokens_file: ['f1', 'f2', 'f3']
+        search_tokens_file: ['f1', 'f2', 'f3'],
+        content_tokens_root: ['c1'],
+        content_tokens_file: ['c2']
       })
     )
   })

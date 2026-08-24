@@ -27,6 +27,8 @@ fn sized_create(name_hash: &str, chunk_lens: &[usize]) -> CreateFile {
         encrypted_thumbnail: None,
         search_tokens_root: None,
         search_tokens_file: None,
+        content_tokens_root: None,
+        content_tokens_file: None,
         name_hash: Some(name_hash.to_string()),
         mime: Some("application/octet-stream".to_string()),
         size: Some(chunk_lens.iter().map(|n| *n as i64).sum()),

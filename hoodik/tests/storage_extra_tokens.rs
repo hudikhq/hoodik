@@ -2,6 +2,10 @@
 mod helpers;
 
 use actix_web::{http::StatusCode, test};
+use entity::{
+    file_tokens::{self, Source},
+    users, ColumnTrait, EntityTrait, QueryFilter,
+};
 use hoodik::server;
 use storage::data::app_file::AppFile;
 use storage::data::create_file::CreateFile;
@@ -14,6 +18,8 @@ fn create_payload(name_hash: &str, name_tag: &str) -> CreateFile {
         encrypted_thumbnail: None,
         search_tokens_root: Some(vec![format!("{name_tag}:1")]),
         search_tokens_file: Some(vec![format!("{name_tag}:1")]),
+        content_tokens_root: None,
+        content_tokens_file: None,
         name_hash: Some(name_hash.to_string()),
         mime: Some("application/pdf".to_string()),
         size: Some(100),
@@ -163,6 +169,139 @@ async fn test_extra_tokens_are_additive_and_survive_rename() {
         ids(&search(&app, &jwt, new_name_tag).await).contains(&file.id),
         "clearing extra must leave the filename searchable"
     );
+}
+
+#[actix_web::test]
+async fn test_create_content_tokens_survive_a_name_only_rename() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+    let jwt = helpers::register_curve25519(&app, "content-create@test.com")
+        .await
+        .jwt;
+
+    let name_tag = "aa11aa11aa11aa11aa11aa11aa11aa11";
+    let content_tag = "bb22bb22bb22bb22bb22bb22bb22bb22";
+    let new_name_tag = "cc33cc33cc33cc33cc33cc33cc33cc33";
+
+    let mut payload = create_payload(&helpers::name_tag("note.md"), name_tag);
+    payload.mime = Some("text/markdown".to_string());
+    payload.editable = Some(true);
+    payload.content_tokens_root = Some(vec![format!("{content_tag}:1")]);
+    payload.content_tokens_file = Some(vec![format!("{content_tag}:1")]);
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(jwt.clone())
+        .set_json(&payload)
+        .to_request();
+    let file: AppFile = serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
+
+    let rows = file_tokens::Entity::find()
+        .filter(file_tokens::Column::FileId.eq(file.id))
+        .all(&context.db)
+        .await
+        .unwrap();
+    let source_of = |tag: &str| {
+        rows.iter()
+            .find(|r| r.tag == tag)
+            .map(|r| r.source)
+            .expect(tag)
+    };
+    assert_eq!(source_of(name_tag), i32::from(Source::Name));
+    assert_eq!(source_of(content_tag), i32::from(Source::Content));
+
+    assert!(ids(&search(&app, &jwt, name_tag).await).contains(&file.id));
+    assert!(ids(&search(&app, &jwt, content_tag).await).contains(&file.id));
+
+    let req = test::TestRequest::put()
+        .uri(&format!("/api/storage/{}", file.id))
+        .cookie(jwt.clone())
+        .set_json(serde_json::json!({
+            "name_hash": helpers::name_tag("renamed.md"),
+            "encrypted_name": "renamed.md",
+            "search_tokens_root": [format!("{new_name_tag}:1")],
+            "search_tokens_file": [format!("{new_name_tag}:1")],
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    assert!(
+        ids(&search(&app, &jwt, content_tag).await).contains(&file.id),
+        "body tags must survive a rename that only sends the new name"
+    );
+    assert!(!ids(&search(&app, &jwt, name_tag).await).contains(&file.id));
+    assert!(ids(&search(&app, &jwt, new_name_tag).await).contains(&file.id));
+}
+
+#[actix_web::test]
+async fn test_reindex_writes_content_tokens_to_the_content_source() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+    let registered = helpers::register_curve25519(&app, "content-reindex@test.com").await;
+    let jwt = registered.jwt;
+
+    let name_tag = "aa11aa11aa11aa11aa11aa11aa11aa11";
+    let old_content = "bb22bb22bb22bb22bb22bb22bb22bb22";
+    let new_name = "cc33cc33cc33cc33cc33cc33cc33cc33";
+    let new_content = "dd44dd44dd44dd44dd44dd44dd44dd44";
+
+    let mut payload = create_payload(&helpers::name_tag("note.md"), name_tag);
+    payload.mime = Some("text/markdown".to_string());
+    payload.editable = Some(true);
+    payload.content_tokens_root = Some(vec![format!("{old_content}:1")]);
+    payload.content_tokens_file = Some(vec![format!("{old_content}:1")]);
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(jwt.clone())
+        .set_json(&payload)
+        .to_request();
+    let file: AppFile = serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
+
+    let fingerprint = users::Entity::find_by_id(registered.user_id)
+        .one(&context.db)
+        .await
+        .unwrap()
+        .unwrap()
+        .fingerprint;
+
+    let req = test::TestRequest::put()
+        .uri(&format!("/api/storage/{}/reindex", file.id))
+        .cookie(jwt.clone())
+        .set_json(serde_json::json!({
+            "name_hash": helpers::name_tag("note.md"),
+            "fingerprint": fingerprint,
+            "search_tokens_root": [format!("{new_name}:1")],
+            "search_tokens_file": [format!("{new_name}:1")],
+            "content_tokens_root": [format!("{new_content}:1")],
+            "content_tokens_file": [format!("{new_content}:1")],
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let rows = file_tokens::Entity::find()
+        .filter(file_tokens::Column::FileId.eq(file.id))
+        .all(&context.db)
+        .await
+        .unwrap();
+    let source_of = |tag: &str| {
+        rows.iter()
+            .find(|r| r.tag == tag)
+            .map(|r| r.source)
+            .expect(tag)
+    };
+    assert_eq!(source_of(new_name), i32::from(Source::Name));
+    assert_eq!(source_of(new_content), i32::from(Source::Content));
+    assert!(rows
+        .iter()
+        .all(|r| r.tag != name_tag && r.tag != old_content));
+
+    assert!(ids(&search(&app, &jwt, new_name).await).contains(&file.id));
+    assert!(ids(&search(&app, &jwt, new_content).await).contains(&file.id));
+    assert!(!ids(&search(&app, &jwt, name_tag).await).contains(&file.id));
+    assert!(!ids(&search(&app, &jwt, old_content).await).contains(&file.id));
 }
 
 #[actix_web::test]

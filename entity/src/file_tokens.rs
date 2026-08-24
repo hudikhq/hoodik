@@ -64,7 +64,8 @@ impl From<Scope> for i32 {
 pub enum Source {
     /// Create, rename, and the re-index sweep write here.
     Name = 0,
-    /// `replace_content` writes here.
+    /// Note-body tokens. `replace_content` always writes here; create,
+    /// reindex, and fork do when the client sends `content_tokens_*`.
     Content = 1,
     /// `PUT .../extra-tokens` writes here.
     Extra = 2,

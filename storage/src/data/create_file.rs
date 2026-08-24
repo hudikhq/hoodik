@@ -27,12 +27,17 @@ pub struct CreateFile {
     pub encrypted_name: Option<String>,
     /// File thumbnail encrypted with the AES file key
     pub encrypted_thumbnail: Option<String>,
-    /// Tags by which this file will be searchable, tokenized and tagged on
-    /// the client under the uploader's account-wide search key.
+    /// Name tokens, tagged under the uploader's account-wide search key.
+    /// A note's body belongs in `content_tokens_*` so a later rename cannot
+    /// wipe it.
     pub search_tokens_root: Option<Vec<String>>,
-    /// The same tokens tagged under the file's own key, so that sharing this
-    /// file later needs no re-index.
+    /// The same name tokens tagged under the file's own key, so that sharing
+    /// this file later needs no re-index.
     pub search_tokens_file: Option<Vec<String>>,
+    /// Note-body tokens. Absent on regular files; a new note sends them so
+    /// the body is searchable before the first save. Written to `source=content`.
+    pub content_tokens_root: Option<Vec<String>>,
+    pub content_tokens_file: Option<Vec<String>>,
     /// Mime type of the file or "dir" for directory
     pub mime: Option<String>,
     /// Total size of the file
@@ -150,6 +155,7 @@ pub type CreateFileData = (
     ActiveModelFile,
     String,
     SearchTags,
+    SearchTags,
     DigestTags,
     i64,
     Option<Uuid>,
@@ -239,6 +245,7 @@ impl CreateFile {
             },
             data.encrypted_key.unwrap(),
             SearchTags::new(data.search_tokens_root, data.search_tokens_file),
+            SearchTags::new(data.content_tokens_root, data.content_tokens_file),
             DigestTags::new(data.digest_tokens_root, data.digest_tokens_file),
             data.size.unwrap_or(0),
             file_id,

@@ -41,9 +41,9 @@ pub struct ReplaceContent {
     pub encrypted_name: Option<String>,
     /// Updated encrypted thumbnail (same opt-in semantics as `encrypted_name`).
     pub encrypted_thumbnail: Option<String>,
-    /// Updated search tags computed from the new plaintext content under the
+    /// Updated search tags computed from the new plaintext *body* under the
     /// caller's account-wide search key. An editor who is not the owner omits
-    /// this and sends only `search_tokens_file`.
+    /// this and sends only `search_tokens_file`. Written to `source=content`.
     pub search_tokens_root: Option<Vec<String>>,
     /// The same tags under the file's own key, which is the scope every
     /// reader of a shared file searches through.

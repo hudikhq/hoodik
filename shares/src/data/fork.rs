@@ -24,6 +24,8 @@ pub struct ForkBody {
     pub encrypted_key: Option<String>,
     pub search_tokens_root: Option<Vec<String>>,
     pub search_tokens_file: Option<Vec<String>>,
+    pub content_tokens_root: Option<Vec<String>>,
+    pub content_tokens_file: Option<Vec<String>>,
     /// Digest tags for the copy, landing in the digest scopes the same way
     /// the create route's do.
     pub digest_tokens_root: Option<Vec<String>>,

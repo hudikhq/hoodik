@@ -495,6 +495,8 @@ export interface UploadMultiKeyBody {
   search_tokens_root?: string[]
 
   search_tokens_file?: string[]
+  content_tokens_root?: string[]
+  content_tokens_file?: string[]
   member_keys: UploadMultiKeyMember[]
   members_list_snapshot: UploadMultiKeySnapshot
   event_signature: string
@@ -575,6 +577,8 @@ export interface ForkBody {
   search_tokens_root?: string[]
 
   search_tokens_file?: string[]
+  content_tokens_root?: string[]
+  content_tokens_file?: string[]
   /** Digest tags for the copy, landing in the digest scopes renames never
    *  touch. */
   digest_tokens_root?: string[]

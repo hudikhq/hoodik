@@ -120,8 +120,9 @@ impl<'ctx> Repository<'ctx> {
         let entries_hash_bytes: Vec<(Uuid, Vec<u8>)> = entries
             .iter()
             .map(|(file_id, encrypted_key)| {
-                let bytes = cryptfns::base64::decode(encrypted_key)
-                    .map_err(|_| Error::BadRequest("entry_encrypted_key_invalid_base64".to_string()))?;
+                let bytes = cryptfns::base64::decode(encrypted_key).map_err(|_| {
+                    Error::BadRequest("entry_encrypted_key_invalid_base64".to_string())
+                })?;
                 Ok::<_, Error>((*file_id, bytes))
             })
             .collect::<AppResult<Vec<_>>>()?;
@@ -148,10 +149,7 @@ impl<'ctx> Repository<'ctx> {
         let root_file = files::Entity::find_by_id(root_file_id)
             .one(&self.context.db)
             .await?;
-        let root_is_folder = root_file
-            .as_ref()
-            .map(|f| f.mime == "dir")
-            .unwrap_or(false);
+        let root_is_folder = root_file.as_ref().map(|f| f.mime == "dir").unwrap_or(false);
         let parsed_list_sig: Option<MembersListSig> = if root_is_folder {
             let raw = members_list_sig_input
                 .clone()
@@ -168,8 +166,8 @@ impl<'ctx> Repository<'ctx> {
                 encrypted_key: encrypted_key_raw.clone(),
             })
             .collect();
-        let entries_der = encode_entries_v1(&entries_for_hash)
-            .map_err(|e| Error::CryptoError(Box::new(e)))?;
+        let entries_der =
+            encode_entries_v1(&entries_for_hash).map_err(|e| Error::CryptoError(Box::new(e)))?;
         let mut hasher = Sha256::new();
         hasher.update(&entries_der);
         let computed_entries_hash: [u8; 32] = hasher.finalize().into();
@@ -178,7 +176,8 @@ impl<'ctx> Repository<'ctx> {
         }
 
         let sender_key_type = KeyType::from_str(&sender.key_type)?;
-        let mut signing_input = Vec::with_capacity(SHARE_REQUEST_V1_PREFIX.len() + payload_der.len());
+        let mut signing_input =
+            Vec::with_capacity(SHARE_REQUEST_V1_PREFIX.len() + payload_der.len());
         signing_input.extend_from_slice(SHARE_REQUEST_V1_PREFIX);
         signing_input.extend_from_slice(&payload_der);
         sender_key_type
@@ -252,19 +251,16 @@ impl<'ctx> Repository<'ctx> {
             .get(&root_file_id)
             .filter(|prev| !prev.is_owner && prev.share_role != requested_role_str)
             .map(|prev| prev.share_role.clone());
-        let root_previous_role_enum = root_previous_role
-            .as_deref()
-            .and_then(role_str_to_enum);
+        let root_previous_role_enum = root_previous_role.as_deref().and_then(role_str_to_enum);
 
         let (action, action_str): (AuditEventActionEnum, &'static str) =
             if root_previous_role.is_some() {
                 (AuditEventActionEnum::RoleChange, "role_change")
             } else {
                 match caller_perm {
-                    SharePermission::CoOwner => (
-                        AuditEventActionEnum::SharedByCoOwner,
-                        "shared_by_co_owner",
-                    ),
+                    SharePermission::CoOwner => {
+                        (AuditEventActionEnum::SharedByCoOwner, "shared_by_co_owner")
+                    }
                     _ => (AuditEventActionEnum::Grant, "grant"),
                 }
             };
@@ -279,8 +275,9 @@ impl<'ctx> Repository<'ctx> {
         };
         let sig_input_der = encode_audit_event_sig_input_v1(&sig_input)
             .map_err(|e| Error::CryptoError(Box::new(e)))?;
-        let mut audit_signing_input =
-            Vec::with_capacity(cryptfns::asn1::AUDIT_EVENT_SIG_V1_PREFIX.len() + sig_input_der.len());
+        let mut audit_signing_input = Vec::with_capacity(
+            cryptfns::asn1::AUDIT_EVENT_SIG_V1_PREFIX.len() + sig_input_der.len(),
+        );
         audit_signing_input.extend_from_slice(cryptfns::asn1::AUDIT_EVENT_SIG_V1_PREFIX);
         audit_signing_input.extend_from_slice(&sig_input_der);
         sender_key_type
@@ -307,9 +304,7 @@ impl<'ctx> Repository<'ctx> {
         for (file_id, encrypted_key) in &entries {
             if let Some(prev) = existing_by_file.get(file_id) {
                 if prev.is_owner {
-                    return Err(Error::BadRequest(
-                        "cannot_share_owner_row".to_string(),
-                    ));
+                    return Err(Error::BadRequest("cannot_share_owner_row".to_string()));
                 }
                 let previous_role = prev.share_role.clone();
                 if previous_role == requested_role_str {
@@ -399,9 +394,7 @@ impl<'ctx> Repository<'ctx> {
                     recipient_id: Some(recipient.id),
                     file_id: root_file_id,
                     action_str,
-                    share_role_before: root_previous_role
-                        .as_deref()
-                        .and_then(static_role_str),
+                    share_role_before: root_previous_role.as_deref().and_then(static_role_str),
                     share_role_after: Some(requested_role_str),
                     created_at: payload.timestamp,
                     event_signature: Some(event_signature_b64.clone()),
@@ -416,8 +409,7 @@ impl<'ctx> Repository<'ctx> {
             // idempotent calls (no produced rows) the live state still
             // reflects the current member set and the client's
             // signature is expected to cover that same set.
-            let (owner_id, members_after) =
-                prospective_from_db(&tx, root_file_id).await?;
+            let (owner_id, members_after) = prospective_from_db(&tx, root_file_id).await?;
             members_list_sig::verify_post_mutation_signature(
                 &tx,
                 root_file_id,
@@ -527,8 +519,9 @@ impl<'ctx> Repository<'ctx> {
         };
         let sig_input_der = encode_audit_event_sig_input_v1(&sig_input)
             .map_err(|e| Error::CryptoError(Box::new(e)))?;
-        let mut audit_signing_input =
-            Vec::with_capacity(cryptfns::asn1::AUDIT_EVENT_SIG_V1_PREFIX.len() + sig_input_der.len());
+        let mut audit_signing_input = Vec::with_capacity(
+            cryptfns::asn1::AUDIT_EVENT_SIG_V1_PREFIX.len() + sig_input_der.len(),
+        );
         audit_signing_input.extend_from_slice(cryptfns::asn1::AUDIT_EVENT_SIG_V1_PREFIX);
         audit_signing_input.extend_from_slice(&sig_input_der);
         KeyType::from_str(&caller.key_type)?
@@ -612,8 +605,7 @@ impl<'ctx> Repository<'ctx> {
                 .filter(user_files::Column::SharedByUserId.eq(recipient_id))
                 .filter(user_files::Column::IsOwner.eq(false))
                 .filter(
-                    user_files::Column::FileId
-                        .is_in(scope_ids.iter().copied().collect::<Vec<_>>()),
+                    user_files::Column::FileId.is_in(scope_ids.iter().copied().collect::<Vec<_>>()),
                 )
                 .all(&tx)
                 .await?;
@@ -650,11 +642,10 @@ impl<'ctx> Repository<'ctx> {
             // mirroring move-out / evict. Only the top of each owned subtree
             // re-parents; owned descendants keep their pointers and move with
             // their parent by transitivity.
-            let owned_ids: HashSet<Uuid> =
-                queries::file_tree_owner_ids(&tx, file_id, recipient_id)
-                    .await?
-                    .into_iter()
-                    .collect();
+            let owned_ids: HashSet<Uuid> = queries::file_tree_owner_ids(&tx, file_id, recipient_id)
+                .await?
+                .into_iter()
+                .collect();
             if !owned_ids.is_empty() {
                 let owned_id_vec: Vec<Uuid> = owned_ids.iter().copied().collect();
                 user_files::Entity::delete_many()
@@ -668,7 +659,10 @@ impl<'ctx> Repository<'ctx> {
                     .all(&tx)
                     .await?;
                 for file in &owned_files {
-                    let parent_owned = file.file_id.map(|p| owned_ids.contains(&p)).unwrap_or(false);
+                    let parent_owned = file
+                        .file_id
+                        .map(|p| owned_ids.contains(&p))
+                        .unwrap_or(false);
                     if parent_owned {
                         continue;
                     }
@@ -778,9 +772,8 @@ async fn verify_entries_match_subtree<C: ConnectionTrait>(
 }
 
 fn parse_list_sig(raw: FolderMemberListSig) -> AppResult<MembersListSig> {
-    let signed_by = Uuid::parse_str(&raw.signed_by_user_id).map_err(|_| {
-        Error::BadRequest("members_list_signed_by_user_id_invalid".to_string())
-    })?;
+    let signed_by = Uuid::parse_str(&raw.signed_by_user_id)
+        .map_err(|_| Error::BadRequest("members_list_signed_by_user_id_invalid".to_string()))?;
     Ok(MembersListSig {
         signature_b64: raw.signature,
         signed_at: raw.signed_at,

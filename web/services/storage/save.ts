@@ -134,16 +134,13 @@ export async function saveFileContent(
   const contentBytes = encoder.encode(safeContent)
   const size = contentBytes.length
   const chunkCount = Math.ceil(size / CHUNK_SIZE_BYTES) || 1
-  // A note is indexed by name and body together: the body is why the old
-  // unsalted digests leaked note contents and not just names, and the name
-  // rides along so a note stays findable by its title when the title's words
-  // never appear in the text. An editor who is not the owner can only refresh
-  // the file scope; the owner's stays as they last wrote it and is not
-  // consulted while the file is shared.
-  const indexed = `${file.name}\n${safeContent}`
-  const fileTags = cryptfns.searchTags(cryptfns.searchFileKey(file.key), indexed)
+  // Body only. The title lives in a different source; sending it here would
+  // wipe the name the moment a save follows a rename, and concatenating the
+  // two used to leave stale body words in the name source after a rename.
+  // An editor who is not the owner can only refresh the file scope.
+  const fileTags = cryptfns.searchTags(cryptfns.searchFileKey(file.key), safeContent)
   const rootTags = file.is_owner
-    ? cryptfns.searchTags(cryptfns.searchRootKey(keypair), indexed)
+    ? cryptfns.searchTags(cryptfns.searchRootKey(keypair), safeContent)
     : undefined
 
   let updatedFile: AppFile
@@ -271,7 +268,8 @@ export async function createNote(
     size: contentBytes.length,
     chunks: 1,
     file_id: parentFile?.id ?? (typeof parent === 'string' ? parent : undefined),
-    cipher: cryptfns.cipher.defaultCipher()
+    cipher: cryptfns.cipher.defaultCipher(),
+    content: initialContent
   }
 
   const file = await meta.create(keypair, createData)
@@ -311,7 +309,8 @@ async function createNoteInSharedFolder(args: {
   const encryptedName = await cryptfns.cipher.encryptString(cipher, args.fileName, fileKey)
   const rootKey = cryptfns.searchRootKey(args.keypair)
   const nameHash = cryptfns.searchTag(rootKey, args.fileName)
-  const indexed = args.fileName.toLowerCase()
+  const nameIndexed = args.fileName.toLowerCase()
+  const body = new TextDecoder().decode(args.contentBytes)
   const newFileId = uuidv4()
   const modified = new Date()
 
@@ -331,8 +330,10 @@ async function createNoteInSharedFolder(args: {
       cipher,
       editable: true,
       fileModifiedAt: utcStringFromLocal(modified),
-      searchTokensRoot: cryptfns.searchTags(rootKey, indexed),
-      searchTokensFile: cryptfns.searchTags(cryptfns.searchFileKey(fileKey), indexed)
+      searchTokensRoot: cryptfns.searchTags(rootKey, nameIndexed),
+      searchTokensFile: cryptfns.searchTags(cryptfns.searchFileKey(fileKey), nameIndexed),
+      contentTokensRoot: cryptfns.searchTags(rootKey, body),
+      contentTokensFile: cryptfns.searchTags(cryptfns.searchFileKey(fileKey), body)
     },
     trustedFingerprints: trustedFingerprintsStore(),
     onUnknownMember: async () => true

@@ -335,7 +335,8 @@ where
     /// duplicate-name check against the very hash it is about to write and
     /// reject the file for colliding with itself.
     pub(crate) async fn reindex(&self, id: Uuid, data: Reindex) -> AppResult<AppFile> {
-        let (name_hash, fingerprint, search_tags, digest_tags, hashes) = data.into_parts()?;
+        let (name_hash, fingerprint, search_tags, content_tags, digest_tags, hashes) =
+            data.into_parts()?;
         let file = self.repository.by_id(id, self.owner_id).await?;
 
         if !file.is_owner {
@@ -376,6 +377,9 @@ where
 
         let tokens = self.repository.tokens(self.owner_id);
         tokens.reindex(id, search_tags).await?;
+        tokens
+            .replace_source(id, Source::Content, content_tags)
+            .await?;
         tokens.replace_digests(id, digest_tags).await?;
 
         self.repository.by_id(id, self.owner_id).await
@@ -542,6 +546,7 @@ where
         create_file: files::ActiveModel,
         encrypted_key: &str,
         search_tags: SearchTags,
+        content_tags: SearchTags,
         digest_tags: DigestTags,
     ) -> AppResult<AppFile> {
         if let Some(file_id) = create_file.file_id.clone().into_value() {
@@ -563,6 +568,9 @@ where
 
         let tokens = self.repository.tokens(self.owner_id);
         tokens.reindex(file_id, search_tags).await?;
+        tokens
+            .replace_source(file_id, Source::Content, content_tags)
+            .await?;
         tokens.replace_digests(file_id, digest_tags).await?;
 
         let id = entity::Uuid::new_v4();

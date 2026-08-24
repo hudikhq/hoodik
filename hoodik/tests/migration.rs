@@ -77,6 +77,8 @@ async fn create_file(app: &impl TestApp, jwt: &actix_web::cookie::Cookie<'static
         encrypted_thumbnail: None,
         search_tokens_root: None,
         search_tokens_file: None,
+        content_tokens_root: None,
+        content_tokens_file: None,
         name_hash: Some("hash".to_string()),
         mime: Some("text/plain".to_string()),
         size: Some(1024),
