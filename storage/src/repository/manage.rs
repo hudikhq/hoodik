@@ -13,6 +13,7 @@ use validr::Validation;
 
 use super::Repository;
 use crate::data::{
+    content_tokens::ContentTokens,
     app_file::AppFile, extra_tokens::ExtraTokens, query::Query as RequestQuery, reindex::Reindex,
     rename::Rename, replace_content::ValidatedReplaceContent, response::Response,
     set_editable::SetEditable, update_hashes::UpdateHashes,
@@ -444,6 +445,39 @@ where
         self.repository
             .tokens(self.owner_id)
             .replace_source(id, Source::Extra, tags)
+            .await?;
+
+        self.repository.by_id(file.id, file.user_id).await
+    }
+
+    /// Replace the note-body tags for a file, leaving every other source
+    /// alone.
+    ///
+    /// Written for the client's follow-up after a restore: that request names
+    /// a version and carries no body, so the tags for the text being restored
+    /// cannot be derived server-side and the restore clears them instead. A
+    /// client that has decrypted the restored version sends them here, and the
+    /// note is findable by its own words again without waiting for the sweep.
+    ///
+    /// Same scope asymmetry as every other index write: an editor who is not
+    /// the owner holds the file key but not the owner's root key, so their
+    /// call carries only the file scope and must leave the root scope alone
+    /// rather than empty an index it cannot rebuild.
+    pub(crate) async fn replace_content_tokens(
+        &self,
+        id: Uuid,
+        data: ContentTokens,
+    ) -> AppResult<AppFile> {
+        let file = self.repository.by_id(id, self.owner_id).await?;
+        let mut tags = data.into_search_tags()?;
+
+        if !file.is_owner {
+            tags.root = None;
+        }
+
+        self.repository
+            .tokens(self.owner_id)
+            .replace_source(id, Source::Content, tags)
             .await?;
 
         self.repository.by_id(file.id, file.user_id).await

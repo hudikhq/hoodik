@@ -2,6 +2,7 @@ pub mod app_file;
 pub mod chunk_urls;
 pub mod create_file;
 pub mod delete_many;
+pub mod content_tokens;
 pub mod extra_tokens;
 pub mod meta;
 pub mod move_many;

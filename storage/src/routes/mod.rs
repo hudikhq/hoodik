@@ -8,6 +8,7 @@ pub mod create;
 pub mod delete;
 pub mod delete_many;
 pub mod download;
+pub(crate) mod content_tokens;
 pub mod extra_tokens;
 pub mod index;
 pub mod metadata;
@@ -59,6 +60,7 @@ pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
     cfg.service(reindex::pending);
     cfg.service(download::download);
     cfg.service(download::head);
+    cfg.service(content_tokens::content_tokens);
     cfg.service(extra_tokens::extra_tokens);
     cfg.service(index::index);
     cfg.service(metadata::metadata);

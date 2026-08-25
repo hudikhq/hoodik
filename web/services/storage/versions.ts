@@ -137,6 +137,27 @@ export async function restore(fileId: string, version: number): Promise<AppFile>
 }
 
 /**
+ * `PUT /api/storage/{fileId}/content-tokens` — replace the note-body search
+ * tags, leaving the name and extra sources alone.
+ *
+ * Sent after a restore. That request names a version and carries no body, and
+ * the server holds only ciphertext, so it cannot index the text it just
+ * restored — it clears the body tags and enrols the file in the owner's sweep.
+ * Having decrypted the restored version to show it, the client already holds
+ * what the server could not derive.
+ */
+export async function replaceContentTokens(
+  fileId: string,
+  contentTokensRoot: string[],
+  contentTokensFile: string[]
+): Promise<void> {
+  await Api.put(`/api/storage/${fileId}/content-tokens`, undefined, {
+    content_tokens_root: contentTokensRoot,
+    content_tokens_file: contentTokensFile
+  })
+}
+
+/**
  * `POST /api/storage/{fileId}/versions/{version}/fork` —
  * restore-as-new-note. The body is a `CreateFile` (same shape as
  * regular file creation): client builds the encrypted name/key/etc;

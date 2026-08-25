@@ -131,6 +131,7 @@ async function restore() {
   actionError.value = null
   try {
     const updated = await versions.restore(props.file.id, v.version)
+    await reindexRestoredBody(v)
     emit('restored', updated)
     confirmingRestore.value = null
     await load()
@@ -138,6 +139,35 @@ async function restore() {
     actionError.value = humanizeError(err)
   } finally {
     busyVersion.value = null
+  }
+}
+
+/**
+ * Index the body that was just restored.
+ *
+ * The restore itself cannot: it names a version and sends no body, and the
+ * server has only ciphertext, so it clears the body tags and marks the file for
+ * the owner's sweep. Until that sweep runs the note is not findable by its own
+ * words — and it has just been decrypted to be displayed, so the tags cost one
+ * tokenize rather than a download.
+ *
+ * Best effort on purpose: the restore has already succeeded here, and failing
+ * the action over the index would undo nothing while telling the user the
+ * restore did not happen. The sweep remains the backstop.
+ */
+async function reindexRestoredBody(v: FileVersion) {
+  if (!props.file.key) return
+
+  try {
+    const noteBody = new TextDecoder().decode(await decryptVersionBytes(v))
+    await versions.replaceContentTokens(
+      props.file.id,
+      cryptfns.searchTags(cryptfns.searchRootKey(props.keypair), noteBody),
+      cryptfns.searchTags(cryptfns.searchFileKey(props.file.key), noteBody)
+    )
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('could not index the restored body — the sweep will', err)
   }
 }
 
