@@ -1,4 +1,5 @@
 import * as logger from './logger'
+import { gateUntilReady } from './worker-gate'
 
 // @ts-ignore
 import { serviceWorkerFile } from 'virtual:vite-plugin-service-worker'
@@ -17,15 +18,19 @@ export function ensureWorkers(): void {
   try {
     if (!window.UPLOAD) {
       logger.debug('[queue] Creating UPLOAD worker from', serviceWorkerFile)
-      window.UPLOAD = new Worker(serviceWorkerFile, { type: 'module', name: 'Hoodik Upload Worker' })
+      window.UPLOAD = gateUntilReady(
+        new Worker(serviceWorkerFile, { type: 'module', name: 'Hoodik Upload Worker' })
+      )
     }
 
     if (!window.DOWNLOAD) {
       logger.debug('[queue] Creating DOWNLOAD worker from', serviceWorkerFile)
-      window.DOWNLOAD = new Worker(serviceWorkerFile, {
-        type: 'module',
-        name: 'Hoodik Download Worker'
-      })
+      window.DOWNLOAD = gateUntilReady(
+        new Worker(serviceWorkerFile, {
+          type: 'module',
+          name: 'Hoodik Download Worker'
+        })
+      )
     }
 
     if (!window.HASH) {

@@ -1,32 +1,84 @@
 import Api from '../../api'
-import { TransferDownloader } from 'transfer'
+import * as logger from '!/logger'
+import { evictChunkUrls, fileChunkUrls } from './direct'
+import { buildDownloader, type DownloadSpec } from './downloader'
+import { downloadBytesInWorker, downloadWorkerReady } from './worker'
 
 import type { DownloadProgressFunction, AppFile } from '../../../types'
 
 /**
- * Build a wasm downloader for an authenticated storage file. The crate owns
- * the whole transfer — HTTP, retries, ordering, decryption — so nothing
- * derived from the plaintext ever exists outside it until the result is
- * handed back. Callers must `free()` it (or go through the helpers below).
+ * Everything the crate needs to fetch this file, resolved once.
+ *
+ * The manifest lookup lives here rather than at each call site so that the
+ * worker and this thread are asking the same question of the same module —
+ * which is the only reason they cannot end up on different transports.
  */
-function fileDownloader(file: AppFile): TransferDownloader {
+async function specFor(file: AppFile): Promise<DownloadSpec> {
   if (!file.key) {
     throw new Error('Cannot download file without key')
   }
 
-  const { apiUrl, jwtToken, refreshToken } = new Api().toJson()
-  const downloader = new TransferDownloader(
-    file.id,
-    file.size || 0,
-    file.chunks,
-    apiUrl || '',
-    jwtToken || undefined,
-    refreshToken || undefined,
-    file.key as Uint8Array
-  )
-  downloader.set_cipher(file.cipher)
+  return {
+    id: file.id,
+    size: file.size || 0,
+    chunks: file.chunks,
+    cipher: file.cipher,
+    key: file.key as Uint8Array,
+    directUrls: await fileChunkUrls(file.id, file.active_version)
+  }
+}
 
-  return downloader
+/**
+ * Fetch through the download worker when there is one, and on this thread
+ * when there is not.
+ *
+ * Both routes are the same crate reading the same manifest, so which one runs
+ * changes where the work happens and nothing else. A worker that fails for its
+ * own reasons — it died, it was never spawned — falls back rather than failing
+ * the read.
+ */
+async function fetchBytes(file: AppFile, chunk?: number): Promise<Uint8Array> {
+  const spec = await specFor(file)
+
+  if (downloadWorkerReady()) {
+    try {
+      return await downloadBytesInWorker(spec, new Api().toJson(), chunk)
+    } catch (err) {
+      logger.warn('[download] worker could not serve the bytes, falling back:', err)
+    }
+  }
+
+  try {
+    return await runDownloader(spec, chunk)
+  } catch (err) {
+    // A manifest can outlive the content it described: another session — or a
+    // share editor — replaces the file, and the cached URLs keep pointing at
+    // the old version's chunks until they expire days later. Every read would
+    // fail the same way for the rest of the session, so drop the manifest and
+    // serve this read through the server instead.
+    if (!spec.directUrls) throw err
+
+    logger.warn('[download] direct manifest failed, evicting it and relaying:', err)
+    evictChunkUrls(file.id)
+
+    return runDownloader({ ...spec, directUrls: undefined }, chunk)
+  }
+}
+
+async function runDownloader(
+  spec: DownloadSpec,
+  chunk?: number,
+  onBytes?: (bytes: number) => void
+): Promise<Uint8Array> {
+  const downloader = buildDownloader(spec, new Api().toJson())
+
+  try {
+    return chunk === undefined
+      ? await downloader.download(bytesFromProgress(onBytes), () => false)
+      : await downloader.downloadChunk(chunk, undefined)
+  } finally {
+    downloader.free()
+  }
 }
 
 /**
@@ -50,12 +102,28 @@ export async function downloadAndDecrypt(
   file: AppFile,
   onBytes?: (bytes: number) => void
 ): Promise<Uint8Array> {
-  const downloader = fileDownloader(file)
+  // Byte progress only exists on the local route; the worker reports it for
+  // the transfers the queue owns, and these reads are short-lived enough that
+  // a caller watching them gets one final number rather than none.
+  if (downloadWorkerReady()) {
+    const bytes = await fetchBytes(file)
+    onBytes?.(bytes.length)
+    return bytes
+  }
+
+  const spec = await specFor(file)
 
   try {
-    return await downloader.download(bytesFromProgress(onBytes), () => false)
-  } finally {
-    downloader.free()
+    return await runDownloader(spec, undefined, onBytes)
+  } catch (err) {
+    // Same healing as `fetchBytes`: a stale manifest must not pin every read
+    // of this file to the same failure until its URLs expire.
+    if (!spec.directUrls) throw err
+
+    logger.warn('[download] direct manifest failed, evicting it and relaying:', err)
+    evictChunkUrls(file.id)
+
+    return runDownloader({ ...spec, directUrls: undefined }, undefined, onBytes)
   }
 }
 
@@ -112,11 +180,5 @@ export async function downloadChunk(file: AppFile, chunk: number, signal?: Abort
     throw new DOMException('Download aborted', 'AbortError')
   }
 
-  const downloader = fileDownloader(file)
-
-  try {
-    return await downloader.downloadChunk(chunk, undefined)
-  } finally {
-    downloader.free()
-  }
+  return fetchBytes(file, chunk)
 }

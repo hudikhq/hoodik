@@ -148,4 +148,42 @@ pub trait FsProviderContract {
     /// Delete the file's entire on-disk footprint — every version
     /// directory plus any legacy chunks. Used on full file deletion.
     async fn purge_all<T: IntoFilename>(&self, filename: &T) -> AppResult<()>;
+
+    /// URLs that let the client read the given chunks straight from the
+    /// backing store, in the order `chunks` gives them. `None` means the
+    /// provider has no such notion — the local filesystem has nothing to
+    /// hand out — and every caller falls back to streaming through the
+    /// existing routes.
+    ///
+    /// Batched rather than per-chunk because resolving whether a file still
+    /// lives in the legacy flat layout costs a `LIST`, and callers always
+    /// want a whole file at once. Signing itself is local HMAC, so the cost
+    /// of a large set is the response size, not the crypto.
+    async fn direct_get_urls<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+        chunks: &[i64],
+    ) -> AppResult<Option<Vec<String>>>;
+
+    /// URLs that let the client write the given chunks straight into the
+    /// backing store, one per `(chunk_index, byte_length)` pair and in the
+    /// same order. `None` carries the same meaning as in
+    /// [`Self::direct_get_urls`].
+    ///
+    /// The length is signed into each URL, so a client that sends anything
+    /// other than exactly that many bytes is rejected by the store rather
+    /// than by us. It replaces the per-chunk size cap the relaying upload
+    /// route applies, which nothing else on this path would enforce.
+    ///
+    /// Addresses whichever layout the file already lives in, the same probe
+    /// the read side runs: a non-editable file keeps its legacy flat keys, and
+    /// signing versioned ones instead would put the upload somewhere
+    /// `get_uploaded_chunks` never looks.
+    async fn direct_put_urls<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+        chunks: &[(i64, u64)],
+    ) -> AppResult<Option<Vec<String>>>;
 }

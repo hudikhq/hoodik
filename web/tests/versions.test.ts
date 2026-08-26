@@ -33,6 +33,8 @@ vi.mock('../services/api', () => {
 
 import { list, restore, fork, remove, purgeAll, downloadChunk } from '../services/storage/versions'
 import Api from '../services/api'
+import { capabilitiesStore } from '../services/shares/capabilities'
+import { clearChunkUrlCache } from '../services/storage/download/direct'
 import type { AppFile, FileVersion } from 'types'
 
 type Mocked<T> = T & { mock: { calls: unknown[][] } }
@@ -165,7 +167,7 @@ describe('fork', () => {
     ).rejects.toThrow('Failed to fork v1')
   })
 
-  it('UNIT: search_tokens_hashed flows through untouched', async () => {
+  it('UNIT: name and body tag lists flow through untouched', async () => {
     ;(ApiPost as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ body: makeFile() })
     const body = {
       name_hash: 'h',
@@ -173,13 +175,21 @@ describe('fork', () => {
       encrypted_key: 'ek',
       mime: 'text/markdown',
       cipher: 'aegis-128l',
-      search_tokens_hashed: ['t1', 't2', 't3']
+      search_tokens_root: ['t1', 't2', 't3'],
+      search_tokens_file: ['f1', 'f2', 'f3'],
+      content_tokens_root: ['c1'],
+      content_tokens_file: ['c2']
     }
     await fork('file-1', 2, body)
     expect(ApiPost).toHaveBeenCalledWith(
       '/api/storage/file-1/versions/2/fork',
       undefined,
-      expect.objectContaining({ search_tokens_hashed: ['t1', 't2', 't3'] })
+      expect.objectContaining({
+        search_tokens_root: ['t1', 't2', 't3'],
+        search_tokens_file: ['f1', 'f2', 'f3'],
+        content_tokens_root: ['c1'],
+        content_tokens_file: ['c2']
+      })
     )
   })
 })
@@ -246,6 +256,101 @@ describe('downloadChunk', () => {
   it('UNIT: throws when the response has no body', async () => {
     ApiDownload.mockResolvedValueOnce({ body: null })
     await expect(downloadChunk('file-1', 2, 0)).rejects.toThrow('Failed to download chunk 0 of v2')
+  })
+
+  // A historical version is ciphertext like any other, and the same manifest
+  // module answers for it. Without this the version tail was the one read path
+  // still relaying every byte after the rest went direct.
+  it('UNIT: fetches from the bucket, uncredentialed, when a manifest covers the chunk', async () => {
+    clearChunkUrlCache()
+    capabilitiesStore().caps = {
+      sharing: { enabled: false, roles: [] },
+      editable_folders: false,
+      share_groups: false,
+      audit_log: false,
+      fork: false,
+      direct_transfer: true
+    }
+    // Marked as fetched so `ensureFetched` in the gate does not issue a real
+    // request that fails in jsdom and stomps the fixture.
+    capabilitiesStore().lastFetchedAt = Math.floor(Date.now() / 1000)
+    ApiGet.mockResolvedValueOnce({
+      body: {
+        urls: [{ chunk: 0, url: 'https://bucket/v2/0' }],
+        expires_at: Math.floor(Date.now() / 1000) + 3600
+      }
+    })
+
+    const reader = {
+      read: vi
+        .fn()
+        .mockResolvedValueOnce({ value: new Uint8Array([9, 9]), done: false })
+        .mockResolvedValue({ value: undefined, done: true })
+    }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, body: { getReader: () => reader } })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await downloadChunk('file-1', 2, 0)
+
+    expect(result).toEqual(new Uint8Array([9, 9]))
+    expect(ApiDownload).not.toHaveBeenCalled()
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('https://bucket/v2/0')
+    expect(init.credentials).toBe('omit')
+
+    vi.unstubAllGlobals()
+    capabilitiesStore().caps = null
+    clearChunkUrlCache()
+  })
+
+  it('UNIT: a bucket refusal falls back to the relay instead of reading error XML as ciphertext', async () => {
+    clearChunkUrlCache()
+    capabilitiesStore().caps = {
+      sharing: { enabled: false, roles: [] },
+      editable_folders: false,
+      share_groups: false,
+      audit_log: false,
+      fork: false,
+      direct_transfer: true
+    }
+    // Marked as fetched so `ensureFetched` in the gate does not issue a real
+    // request that fails in jsdom and stomps the fixture.
+    capabilitiesStore().lastFetchedAt = Math.floor(Date.now() / 1000)
+    ApiGet.mockResolvedValueOnce({
+      body: {
+        urls: [{ chunk: 0, url: 'https://bucket/v2/0' }],
+        expires_at: Math.floor(Date.now() / 1000) + 3600
+      }
+    })
+
+    // An expired presigned URL answers 403 with an XML error document — a
+    // body, but not the chunk. Reading it as ciphertext used to surface much
+    // later as a baffling decrypt failure.
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      body: { getReader: () => ({ read: vi.fn() }) }
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const reader = {
+      read: vi
+        .fn()
+        .mockResolvedValueOnce({ value: new Uint8Array([7, 7]), done: false })
+        .mockResolvedValue({ value: undefined, done: true })
+    }
+    ApiDownload.mockResolvedValueOnce({ body: { getReader: () => reader } })
+
+    const result = await downloadChunk('file-1', 2, 0)
+
+    expect(result).toEqual(new Uint8Array([7, 7]))
+    expect(ApiDownload).toHaveBeenCalled()
+
+    vi.unstubAllGlobals()
+    capabilitiesStore().caps = null
+    clearChunkUrlCache()
   })
 
   it('UNIT: forwards the AbortSignal to Api.download', async () => {

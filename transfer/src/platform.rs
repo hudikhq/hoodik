@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::types::{Auth, ChunkResponse, DownloadSource, FileHashes};
+use crate::types::{Auth, ChunkResponse, ChunkTarget, FileHashes};
 
 /// Platform-agnostic HTTP client for upload/download chunk requests.
 pub trait HttpClient {
@@ -15,6 +15,10 @@ pub trait HttpClient {
 
     /// Download a single encrypted chunk as raw bytes.
     ///
+    /// The [`ChunkTarget`] decides both where the request goes and whether it
+    /// may carry credentials — see that type. Implementations must not reach
+    /// for auth outside what the target hands them.
+    ///
     /// `on_bytes` is invoked with the number of bytes received *so far for
     /// this chunk* as the response body streams in — starting from the first
     /// read, not from chunk completion. Implementations that cannot stream
@@ -23,8 +27,7 @@ pub trait HttpClient {
     /// total across retries.
     fn download_chunk<'a>(
         &'a self,
-        auth: &Auth,
-        source: DownloadSource<'_>,
+        target: ChunkTarget<'_>,
         chunk_index: u64,
         on_bytes: Box<dyn Fn(u64) + 'a>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + 'a>>;
@@ -53,6 +56,31 @@ pub trait HttpClient {
         file_id: &str,
         tar_body: Vec<u8>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ChunkResponse>> + '_>>;
+
+    /// Write one encrypted chunk straight into the storage bucket.
+    ///
+    /// The presigned URL is the whole credential: it is signed over the
+    /// method, the object key and the exact content length, so nothing about
+    /// the session may be attached. Implementations must send no
+    /// `Authorization` header and no cookies, for the reasons spelled out on
+    /// [`crate::types::ChunkTarget::Direct`].
+    fn put_chunk_direct(
+        &self,
+        url: &str,
+        data: &[u8],
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>>;
+
+    /// Commit a file whose chunks were written directly.
+    ///
+    /// The relaying routes finalize themselves once their own writes complete
+    /// the count. Nothing tells the server that a bucket write landed, so the
+    /// client says so — and the server lists the bucket to confirm it before
+    /// the version pointer moves.
+    fn finalize_upload(
+        &self,
+        auth: &Auth,
+        file_id: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>>;
 
     /// Send computed file hashes to the server after upload completes.
     fn update_hashes(

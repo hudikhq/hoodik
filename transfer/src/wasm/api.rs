@@ -2,7 +2,7 @@ use crate::config::{
     UploadHashOptions, HASH_DISABLE_BLAKE2B, HASH_DISABLE_MD5, HASH_DISABLE_SHA1,
     HASH_OFFLOAD_SHA256,
 };
-use crate::types::{Auth, DownloadSource, FileHashes};
+use crate::types::{Auth, ChunkTarget, DownloadSource, FileHashes};
 use crate::wasm::http::WasmHttpClient;
 use crate::wasm::progress::JsProgressReporter;
 use crate::wasm::source::FileSource;
@@ -36,6 +36,8 @@ pub struct TransferUploader {
     hash_mask: u32,
     /// Cipher identifier (e.g. `"ascon128a"`, `"chacha20poly1305"`).
     cipher: String,
+    /// Presigned bucket URLs indexed by chunk, when the deployment serves them.
+    direct_urls: Option<Vec<String>>,
 }
 
 #[wasm_bindgen]
@@ -67,6 +69,7 @@ impl TransferUploader {
             uploaded_chunks: Vec::new(),
             hash_mask: 0,
             cipher: cryptfns::cipher::DEFAULT.to_string(),
+            direct_urls: None,
         }
     }
 
@@ -76,6 +79,19 @@ impl TransferUploader {
     #[wasm_bindgen(js_name = "set_cipher")]
     pub fn set_cipher(&mut self, cipher: String) {
         self.cipher = cipher;
+    }
+
+    /// Presigned bucket URLs indexed by chunk, so those chunks are written
+    /// straight into storage instead of through this server.
+    ///
+    /// Obtain them from `POST /api/storage/{id}/upload-urls`, declaring the
+    /// sizes [`transferEncryptedChunkSizes`] returns — the server signs each
+    /// length into its URL and the bucket refuses a body of any other size.
+    /// An index left empty keeps using the relaying route. Call before
+    /// [`upload`].
+    #[wasm_bindgen(js_name = "set_direct_urls")]
+    pub fn set_direct_urls(&mut self, urls: Vec<String>) {
+        self.direct_urls = Some(urls);
     }
 
     /// Set the list of chunk indices already stored on the server.
@@ -126,6 +142,7 @@ impl TransferUploader {
         let file_id = self.file_id.clone();
         let encryption_key = self.encryption_key.clone();
         let cipher = self.cipher.clone();
+        let direct_urls = self.direct_urls.clone();
         let already: Vec<u64> = self.uploaded_chunks.iter().map(|&c| c as u64).collect();
 
         // When an external hash promise is supplied, skip all inline hashing — the caller
@@ -150,6 +167,7 @@ impl TransferUploader {
             hash_options,
             None,
             &cipher,
+            direct_urls.as_deref(),
         )
         .await
         .map_err(|e| JsValue::from_str(&format!("{e}")))?;
@@ -196,6 +214,8 @@ pub struct TransferDownloader {
     cipher: String,
     /// Chunks come from the anonymous public-link route instead of storage.
     public_link: bool,
+    /// Presigned bucket URLs by chunk index, when the host fetched a manifest.
+    direct_urls: Option<Vec<String>>,
 }
 
 fn source_of(id: &str, public_link: bool) -> DownloadSource<'_> {
@@ -240,6 +260,7 @@ impl TransferDownloader {
             decryption_key,
             cipher: cryptfns::cipher::DEFAULT.to_string(),
             public_link: false,
+            direct_urls: None,
         }
     }
 
@@ -270,6 +291,7 @@ impl TransferDownloader {
             decryption_key,
             cipher: cryptfns::cipher::DEFAULT.to_string(),
             public_link: true,
+            direct_urls: None,
         }
     }
 
@@ -279,6 +301,21 @@ impl TransferDownloader {
     #[wasm_bindgen(js_name = "set_cipher")]
     pub fn set_cipher(&mut self, cipher: String) {
         self.cipher = cipher;
+    }
+
+    /// Fetch chunks from these presigned bucket URLs, ordered by chunk index,
+    /// rather than from this instance.
+    ///
+    /// The host fetches the manifest because the host is what already reads
+    /// `/api/capabilities` and holds the session. Indices the list does not
+    /// cover fall back to the API, so a short list degrades rather than
+    /// failing. Must be called before `download`.
+    ///
+    /// Requests built from these URLs carry no cookie, bearer token or
+    /// refresh header — see `ChunkTarget`.
+    #[wasm_bindgen(js_name = "set_direct_urls")]
+    pub fn set_direct_urls(&mut self, urls: Vec<String>) {
+        self.direct_urls = Some(urls);
     }
 
     /// Download and decrypt the file, returning the complete plaintext as a `Uint8Array`.
@@ -302,11 +339,13 @@ impl TransferDownloader {
         let decryption_key = self.decryption_key.clone();
         let cipher = self.cipher.clone();
         let public_link = self.public_link;
+        let direct_urls = self.direct_urls.clone();
 
         let http = WasmHttpClient::new();
         let reporter = JsProgressReporter::new(on_progress, is_cancelled);
 
-        crate::download::download_file_from(
+        let mut result = Vec::with_capacity(file_size as usize);
+        crate::download::download_file_streaming(
             &http,
             &reporter,
             &auth,
@@ -315,9 +354,13 @@ impl TransferDownloader {
             chunk_count,
             &decryption_key,
             &cipher,
+            direct_urls.as_deref(),
+            &mut |chunk| result.extend_from_slice(&chunk),
         )
         .await
-        .map_err(|e| JsValue::from_str(&format!("{e}")))
+        .map_err(|e| JsValue::from_str(&format!("{e}")))?;
+
+        Ok(result)
     }
 
     /// Download the file, handing each decrypted chunk to `on_chunk` in
@@ -341,6 +384,7 @@ impl TransferDownloader {
         let decryption_key = self.decryption_key.clone();
         let cipher = self.cipher.clone();
         let public_link = self.public_link;
+        let direct_urls = self.direct_urls.clone();
 
         let http = WasmHttpClient::new();
         let reporter = JsProgressReporter::new(on_progress, is_cancelled);
@@ -354,6 +398,7 @@ impl TransferDownloader {
             chunk_count,
             &decryption_key,
             &cipher,
+            direct_urls.as_deref(),
             &mut |chunk| {
                 let array = js_sys::Uint8Array::from(chunk.as_slice());
                 let _ = on_chunk.call1(&JsValue::NULL, &array);
@@ -384,10 +429,26 @@ impl TransferDownloader {
 
         let http = WasmHttpClient::new();
 
+        // Progressive consumers land here one chunk at a time, so an index the
+        // manifest covers goes to the bucket and anything else keeps using the
+        // API — the same helper the whole-file pipeline resolves targets with,
+        // gaps included: manifests are index-aligned, so a chunk the server
+        // declined to sign arrives as an empty entry that means "through the
+        // API", not as a URL to fetch.
+        let target = match crate::download::direct_target(
+            self.direct_urls.as_deref(),
+            chunk_index as u64,
+        ) {
+            Some(target) => target,
+            None => ChunkTarget::Api {
+                auth: &auth,
+                source: source_of(&file_id, public_link),
+            },
+        };
+
         let (_, result) = crate::download::fetch_and_decrypt(
             &http,
-            &auth,
-            source_of(&file_id, public_link),
+            target,
             chunk_index as u64,
             &decryption_key,
             &cipher,
@@ -404,6 +465,20 @@ impl TransferDownloader {
 }
 
 /// Returns the bitmask value to OR into `set_hash_mask` to disable MD5 computation.
+/// The exact ciphertext length of every chunk of a `total_size`-byte file,
+/// indexed by chunk.
+///
+/// These are what `POST /api/storage/{id}/upload-urls` wants declared: the
+/// server signs each length into its URL, and the bucket refuses a body of any
+/// other size. Computed rather than guessed at the call site, so the sizes
+/// cannot drift from what the uploader goes on to produce.
+#[wasm_bindgen(js_name = "transferEncryptedChunkSizes")]
+pub fn transfer_encrypted_chunk_sizes(cipher: String, total_size: f64) -> Result<Vec<u32>, JsValue> {
+    crate::upload::encrypted_chunk_sizes(&cipher, total_size as u64)
+        .map(|sizes| sizes.into_iter().map(|size| size as u32).collect())
+        .map_err(|e| JsValue::from_str(&format!("{e}")))
+}
+
 #[wasm_bindgen(js_name = "transferHashDisableMd5")]
 pub fn transfer_hash_disable_md5() -> u32 {
     HASH_DISABLE_MD5

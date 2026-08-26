@@ -68,19 +68,31 @@ export async function encrypt(
  * Reads `encrypted.cipher` to determine which cipher was used when the file was created.
  * Falls back to `"ascon128a"` for existing files that predate the cipher field.
  */
+/**
+ * Unwrap a file key from the form it is stored in on the caller's row.
+ *
+ * Curve accounts wrap the raw key bytes with the hybrid construction; legacy
+ * accounts wrap the hex-encoded key with RSA. Split out of [[decrypt]] because
+ * search needs keys on their own, with no name or thumbnail to decrypt.
+ */
+export async function decryptFileKey(
+  encryptedKey: string,
+  privateKey: string
+): Promise<Uint8Array> {
+  if (isRsaKey(privateKey)) {
+    return cryptfns.uint8.fromHex(await cryptfns.rsa.decryptMessage(privateKey, encryptedKey))
+  }
+
+  return cryptfns.wrapping.unwrap(encryptedKey, privateKey)
+}
+
 export async function decrypt(
   encrypted: AppFileEncryptedPart,
   privateKey: string
 ): Promise<AppFileUnencryptedPart> {
   const cipher = encrypted.cipher
 
-  let key: Uint8Array
-  if (isRsaKey(privateKey)) {
-    const keyHex = await cryptfns.rsa.decryptMessage(privateKey, encrypted.encrypted_key)
-    key = cryptfns.uint8.fromHex(keyHex)
-  } else {
-    key = await cryptfns.wrapping.unwrap(encrypted.encrypted_key, privateKey)
-  }
+  const key = await decryptFileKey(encrypted.encrypted_key, privateKey)
 
   const name = await cryptfns.cipher.decryptString(cipher, encrypted.encrypted_name, key)
   const thumbnail = encrypted.encrypted_thumbnail
@@ -107,11 +119,20 @@ export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise
   }
 
   const wrapPub = keypair.wrappingPublic || keypair.publicKey
-  const encryptedParts = await encrypt(unencrypted, wrapPub, unencrypted.cipher)
+  const cipher = unencrypted.cipher || cryptfns.cipher.defaultCipher()
+  // Resolved here rather than inside `encrypt` so the file's search key can be
+  // derived from the same bytes the content is encrypted with.
+  const key = unencrypted.key || (await cryptfns.cipher.generateKey(cipher))
+  const encryptedParts = await encrypt({ ...unencrypted, key }, wrapPub, cipher)
+
+  const rootKey = cryptfns.searchRootKey(keypair)
+  const fileKey = cryptfns.searchFileKey(key)
+  const indexed = unencrypted.name.toLowerCase()
 
   const createFile: EncryptedCreateFile = {
-    search_tokens_hashed: unencrypted.search_tokens_hashed,
-    name_hash: cryptfns.sha256.digest(unencrypted.name),
+    search_tokens_root: cryptfns.searchTags(rootKey, indexed),
+    search_tokens_file: cryptfns.searchTags(fileKey, indexed),
+    name_hash: cryptfns.searchTag(rootKey, unencrypted.name),
     mime: unencrypted.mime,
     size: unencrypted.size,
     chunks: unencrypted.chunks,
@@ -123,6 +144,11 @@ export async function create(keypair: KeyPair, unencrypted: CreateFile): Promise
     blake2b: unencrypted.blake2b,
     editable: unencrypted.editable,
     ...encryptedParts
+  }
+
+  if (unencrypted.content !== undefined) {
+    createFile.content_tokens_root = cryptfns.searchTags(rootKey, unencrypted.content)
+    createFile.content_tokens_file = cryptfns.searchTags(fileKey, unencrypted.content)
   }
 
   const response = await Api.post<EncryptedCreateFile, AppFile>(
@@ -163,9 +189,21 @@ export async function rename(
   const wrapPub = keypair.wrappingPublic || keypair.publicKey
   const encryptedParts = await encrypt({ key: file.key, name: unencrypted.name }, wrapPub)
 
+  if (!file.key) {
+    throw new Error('Cannot rename a file without its key')
+  }
+
+  const rootKey = cryptfns.searchRootKey(keypair)
+  const name = unencrypted.name
+
   const rename: EncryptedRename = {
-    search_tokens_hashed: unencrypted.search_tokens_hashed,
-    name_hash: cryptfns.sha256.digest(unencrypted.name),
+    // An editor renaming someone else's file holds the file key but not the
+    // owner's root key, so they refresh only the scope they can produce and
+    // the server leaves the other one alone. Name tokens only: the body lives
+    // in a different source, and sending it here would wipe it.
+    search_tokens_root: file.is_owner ? cryptfns.searchTags(rootKey, name) : undefined,
+    search_tokens_file: cryptfns.searchTags(cryptfns.searchFileKey(file.key), name),
+    name_hash: cryptfns.searchTag(rootKey, unencrypted.name),
     encrypted_name: encryptedParts.encrypted_name
   }
 
@@ -220,7 +258,7 @@ export async function getByName(
     throw new Error('Cannot get file without private key')
   }
 
-  const nameHash = cryptfns.sha256.digest(name)
+  const nameHash = cryptfns.searchTag(cryptfns.searchRootKey(keypair), name)
 
   if (parent_id !== undefined && typeof parent_id !== 'string') {
     parent_id = undefined
@@ -286,38 +324,54 @@ export async function stats(): Promise<StorageStatsResponse> {
   return response.body || { stats: [], used_space: 0, quota: undefined }
 }
 
-/** Digest lengths in hex characters: MD5, SHA1, SHA256, BLAKE2b. */
-const HEX_HASH_LENGTHS = [32, 40, 64, 128]
-
 /**
- * A query that is itself a content digest is sent verbatim so the server can
- * match it against the stored hash columns — the lookup behind the copy
- * buttons in the file details panel, and the way to check whether a local
- * file is already here. The digest is computed from the file's own bytes on
- * the client and the server already stores all four, so it carries nothing
- * the server does not have. Anything else stays on the client.
+/**
+ * Indexing sends `"{tag}:{weight}"`; the search route wants bare tags, since
+ * the weight that ranks a hit is the stored one, not the query's.
  */
-function hashLookup(input: string): string | undefined {
-  const candidate = input.trim()
-
-  return HEX_HASH_LENGTHS.includes(candidate.length) && /^[0-9a-f]+$/i.test(candidate)
-    ? candidate
-    : undefined
+function stripWeight(entry: string): string {
+  return entry.split(':')[0]
 }
 
 /**
- * Full text search. The query is tokenized and hashed here so the plaintext
- * term never leaves the browser — the server matches the hashes against the
- * token index built the same way at upload time (which lowercases the name,
- * hence the lowercasing before tokenizing).
+ * Full text search. The query is tokenized and tagged here, so neither the
+ * plaintext term nor anything reversible reaches the server.
+ *
+ * Two scopes go out. Root tags cover everything the caller owns and cost one
+ * tag per query word however large the drive is. File tags cover files shared
+ * *with* the caller, one per (word, file), because those are keyed on each
+ * file's own key — which is exactly what lets a share grant skip the index
+ * entirely. Callers never send file tags for files they own, so a file can
+ * only match through one scope and the weight ranking stays honest.
  */
 export async function search(
   input: string,
+  keypair: KeyPair,
+  sharedKeys: Uint8Array[] = [],
   options?: { dir_id?: string; editable?: boolean; limit?: number }
 ): Promise<EncryptedAppFile[]> {
+  const term = input.toLowerCase()
+  const rootKey = cryptfns.searchRootKey(keypair)
+
+  // The whole trimmed query, tagged as one value alongside its tokens. This
+  // is what makes pasting a file's content digest find the file: digests are
+  // indexed as keyed tags when hashes land, so an exact match needs no
+  // special casing, no shape heuristic, and never a plaintext digest on the
+  // wire. Costs one extra tag per scope on every query.
+  const exact = input.trim().toLowerCase()
+
   const body: SearchQuery = {
-    search_tokens_hashed: cryptfns.stringToHashedTokens(input.toLowerCase()),
-    hash: hashLookup(input),
+    root_tags: [
+      ...cryptfns.searchTags(rootKey, term).map(stripWeight),
+      cryptfns.searchTag(rootKey, exact)
+    ],
+    file_tags: sharedKeys.flatMap((key) => {
+      const fileKey = cryptfns.searchFileKey(key)
+      return [
+        ...cryptfns.searchTags(fileKey, term).map(stripWeight),
+        cryptfns.searchTag(fileKey, exact)
+      ]
+    }),
     dir_id: options?.dir_id,
     editable: options?.editable,
     limit: options?.limit ?? 10,
@@ -334,20 +388,29 @@ export async function search(
   return response.body || []
 }
 
+export interface KeyedHashesUpdate {
+  /** The digest keyed under the file's search key — never the bare digest. */
+  sha256: string
+  /** Digest tags to append to the index, in `"{tag}:{weight}"` form. */
+  search_tokens_root?: string[]
+  search_tokens_file?: string[]
+}
+
 /**
- * Persist file content hashes (sha256) to the server.
+ * Persist a file's keyed content hash to the server, along with the digest
+ * tags that make it findable by pasting the digest into search.
  * Uses an upload transfer token so the request succeeds even after the session expires.
  * Returns the updated AppFile record.
  */
-export async function updateHashes(fileId: string, sha256: string): Promise<AppFile> {
+export async function updateHashes(fileId: string, update: KeyedHashesUpdate): Promise<AppFile> {
   const { token } = await requestTransferToken(fileId, 'upload')
   const api = new Api({ ...new Api().toJson(), jwtToken: token, refreshToken: undefined })
 
-  const response = await api.make<{ sha256: string }, AppFile>(
+  const response = await api.make<KeyedHashesUpdate, AppFile>(
     'put',
     `/api/storage/${fileId}/hashes`,
     undefined,
-    { sha256 }
+    update
   )
 
   if (!response?.body?.id) {

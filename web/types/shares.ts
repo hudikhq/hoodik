@@ -247,6 +247,17 @@ export interface Capabilities {
   fork: boolean
   default_cipher?: string
   server_version?: string
+  /**
+   * Whether this server can hand out presigned URLs so chunks move straight
+   * between the browser and the storage bucket.
+   *
+   * Optional because a server that predates the feature omits it, and absent
+   * has to read as `false`. It describes the deployment rather than the
+   * release: two servers on the same version differ by configuration and by
+   * whether their bucket answers a CORS preflight, so never infer it from
+   * `server_version`.
+   */
+  direct_transfer?: boolean
 }
 
 export interface FolderMember {
@@ -481,7 +492,11 @@ export interface UploadMultiKeyBody {
   cipher?: string
   editable?: boolean
   file_modified_at?: string
-  search_tokens_hashed?: string[]
+  search_tokens_root?: string[]
+
+  search_tokens_file?: string[]
+  content_tokens_root?: string[]
+  content_tokens_file?: string[]
   member_keys: UploadMultiKeyMember[]
   members_list_snapshot: UploadMultiKeySnapshot
   event_signature: string
@@ -559,7 +574,15 @@ export interface ForkBody {
   blake2b?: string
   cipher?: string
   encrypted_key: string
-  search_tokens_hashed?: string[]
+  search_tokens_root?: string[]
+
+  search_tokens_file?: string[]
+  content_tokens_root?: string[]
+  content_tokens_file?: string[]
+  /** Digest tags for the copy, landing in the digest scopes renames never
+   *  touch. */
+  digest_tokens_root?: string[]
+  digest_tokens_file?: string[]
   event_signature: string
   timestamp: number
 }

@@ -27,6 +27,8 @@ fn main() -> io::Result<()> {
     // permanently-empty client embed.
     println!("cargo:rerun-if-changed=../web/dist");
 
+    emit_client_compat();
+
     if !client_dist_dir.exists() {
         return handle_no_dist(&mut client_out_file);
     }
@@ -83,4 +85,38 @@ fn count_files(dir: &PathBuf) -> io::Result<usize> {
         }
     }
     Ok(count)
+}
+
+/// Lift `[package.metadata.compat]` out of Cargo.toml and into the binary.
+///
+/// Cargo does not hand `package.metadata` to the compiler, so it has to come
+/// through here. Keeping the values in the manifest means a release touches
+/// one file: the version and what it is compatible with sit together, rather
+/// than the second hiding in a source constant nobody remembers to bump.
+///
+/// A missing or malformed table is a hard error. Silently emitting an empty
+/// string would ship a server that tells every app it is compatible, which is
+/// the one answer that cannot be recovered from in the field.
+fn emit_client_compat() {
+    println!("cargo:rerun-if-changed=Cargo.toml");
+
+    let manifest: toml::Value = std::fs::read_to_string("Cargo.toml")
+        .expect("read Cargo.toml")
+        .parse()
+        .expect("parse Cargo.toml");
+
+    let compat = manifest
+        .get("package")
+        .and_then(|p| p.get("metadata"))
+        .and_then(|m| m.get("compat"))
+        .expect("[package.metadata.compat] is missing from Cargo.toml");
+
+    for key in ["minimum_client_version", "recommended_client_version"] {
+        let value = compat
+            .get(key)
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| panic!("{key} is missing from [package.metadata.compat]"));
+
+        println!("cargo:rustc-env=HOODIK_{}={}", key.to_uppercase(), value);
+    }
 }

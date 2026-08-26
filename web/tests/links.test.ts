@@ -1,9 +1,14 @@
-import { afterEach, describe, it, expect, vi } from 'vitest'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import * as cryptfns from '../services/cryptfns'
 import * as links from '../services/links'
+import { installCapabilities } from './helpers/capabilities'
 import type { AppLink, EncryptedAppLink } from '../types'
 
 describe('Testing links', () => {
+  // The direct-transfer gate must answer from the fixture, not by fetching
+  // the advertisement into this suite's counting fetch stub.
+  beforeEach(() => installCapabilities())
+
   afterEach(() => {
     vi.restoreAllMocks()
   })

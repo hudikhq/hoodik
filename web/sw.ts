@@ -4,12 +4,15 @@ import {
   aes_encrypt,
   aes_decrypt
 } from './node_modules/transfer/transfer.js'
+import { buildDownloader } from '!/storage/download/downloader'
 // @ts-ignore — resolved by the wasm plugin; carries the module's linear memory.
 import { memory as wasmMemory } from './node_modules/transfer/transfer_bg.wasm'
 import * as logger from '!/logger'
 
 import type { ApiTransfer, ErrorResponse } from './services/api'
 import type {
+  DownloadBytesMessage,
+  DownloadBytesResponseMessage,
   DownloadCompletedResponseMessage,
   DownloadFileMessage,
   DownloadProgressResponseMessage,
@@ -75,6 +78,65 @@ onmessage = async (message: MessageEvent<any>) => {
   if (message.data?.type === 'download-file') {
     handleDownloadFile(message.data.apiTransfer, message.data.message)
   }
+
+  if (message.data?.type === 'download-bytes') {
+    handleDownloadBytes(message.data.apiTransfer, message.data.message)
+  }
+}
+
+// The wasm import wraps this whole module in an async initializer, so the
+// worker exists — and accepts messages — for as long as the crypto module
+// takes to compile before the handler above is attached. Anything delivered
+// in that window is dropped. The spawner holds messages back until this
+// announcement instead (see worker-gate.ts).
+postMessage({ type: 'ready' })
+
+/**
+ * Answer a request for decrypted bytes — the whole file, or one chunk.
+ *
+ * The transfer never touches the page's thread, which is the point: a preview
+ * decrypting 200 MB used to do it between animation frames. Errors come back
+ * as a reply rather than an exception, because the caller is a promise on the
+ * other side of a message port.
+ */
+async function handleDownloadBytes(
+  apiTransfer: ApiTransfer,
+  { request, spec, chunk }: DownloadBytesMessage
+) {
+  let downloader: TransferDownloader | undefined
+  try {
+    downloader = buildDownloader(spec, apiTransfer)
+
+    const bytes =
+      chunk === undefined
+        ? await downloader.download(
+            () => {},
+            (fileId: string) => self.canceled?.download?.includes(fileId) ?? false
+          )
+        : await downloader.downloadChunk(chunk, undefined)
+
+    postMessage({
+      type: 'download-bytes',
+      response: { request, bytes } as DownloadBytesResponseMessage
+    })
+  } catch (err) {
+    logger.error(`[sw:bytes] "${spec.id}" failed:`, err)
+    postMessage({
+      type: 'download-bytes',
+      response: { request, error: handleError(err as Error) } as DownloadBytesResponseMessage
+    })
+  } finally {
+    // Consume the cancel the same way `handleDownloadFile` does. A cancel
+    // that raced completion would otherwise sit in the list forever and
+    // silently abort every later byte-read of the same file.
+    const idx = self.canceled?.download?.indexOf(spec.id) ?? -1
+    if (idx !== -1) self.canceled.download.splice(idx, 1)
+    try {
+      downloader?.free()
+    } catch {
+      /* ignore errors during cleanup */
+    }
+  }
 }
 
 async function handleCrypto(
@@ -97,7 +159,7 @@ async function handleCrypto(
 
 async function handleUploadFile(
   apiTransfer: ApiTransfer,
-  { transferableUploadedChunks, transferableFile }: UploadFileMessage
+  { transferableUploadedChunks, transferableFile, directUrls }: UploadFileMessage
 ) {
   const file = transferableFile as UploadAppFile
   const t0 = performance.now()
@@ -152,7 +214,12 @@ async function handleUploadFile(
           },
           chunk: progress.chunk,
           attempt: 0,
-          isDone: progress.is_done,
+          // `complete` is the only signal that arrives after the commit, so
+          // it is what "done" means on the direct path: the last chunk
+          // reports `is_done: false` there, because a bucket write leaves the
+          // file uncommitted until finalize succeeds. On the relaying path
+          // both fire and either would do.
+          isDone: progress.is_done === true || progress.type === 'complete',
           error: progress.type === 'error' ? { context: progress.error } : undefined
         } as UploadChunkResponseMessage
       })
@@ -168,6 +235,13 @@ async function handleUploadFile(
     uploader.set_uploaded_chunks(new Uint32Array(transferableUploadedChunks || []))
     uploader.set_hash_mask(hashDisableMask)
     uploader.set_cipher(cipher)
+
+    // An empty manifest is meaningful: it is a resume with nothing left to
+    // PUT, kept on the direct path so the crate still delivers the finalize
+    // its predecessor never got to. Only `undefined` means "relay".
+    if (directUrls) {
+      uploader.set_direct_urls(directUrls)
+    }
 
     await uploader.upload(
       file.file as File,
@@ -203,7 +277,7 @@ async function handleUploadFile(
 
 async function handleDownloadFile(
   apiTransfer: ApiTransfer,
-  { transferableFile }: DownloadFileMessage
+  { transferableFile, directUrls }: DownloadFileMessage
 ) {
   const t0 = performance.now()
   logger.info(
@@ -218,16 +292,17 @@ async function handleDownloadFile(
 
     const cipher = transferableFile.cipher
 
-    downloader = new TransferDownloader(
-      transferableFile.id,
-      transferableFile.size || 0,
-      transferableFile.chunks || 0,
-      baseUrl,
-      jwtToken,
-      refreshToken,
-      transferableFile.key as Uint8Array
+    downloader = buildDownloader(
+      {
+        id: transferableFile.id,
+        size: transferableFile.size || 0,
+        chunks: transferableFile.chunks || 0,
+        cipher,
+        key: transferableFile.key as Uint8Array,
+        directUrls
+      },
+      { apiUrl: baseUrl, jwtToken, refreshToken }
     )
-    downloader.set_cipher(cipher)
 
     // Each chunk becomes its own small Blob the moment it arrives, moving
     // it into browser-managed blob storage (disk-backed for large files)

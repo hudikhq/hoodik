@@ -33,8 +33,15 @@ pub(crate) async fn create(
 ) -> AppResult<HttpResponse> {
     let context = context.into_inner();
     let connection = context.db.begin().await?;
-    let (create_file, encrypted_metadata, hashed_tokens, file_size, file_id) =
-        data.into_inner().into_active_model()?;
+    let (
+        create_file,
+        encrypted_metadata,
+        search_tags,
+        content_tags,
+        digest_tags,
+        file_size,
+        file_id,
+    ) = data.into_inner().into_active_model()?;
 
     let repository = Repository::new(&connection);
 
@@ -76,7 +83,13 @@ pub(crate) async fn create(
     }
 
     let file = manage
-        .create(create_file, &encrypted_metadata, hashed_tokens)
+        .create(
+            create_file,
+            &encrypted_metadata,
+            search_tags,
+            content_tags,
+            digest_tags,
+        )
         .await?;
 
     connection.commit().await?;

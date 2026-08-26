@@ -131,14 +131,22 @@ impl AppFile {
         self.pending_chunks.or(self.chunks)
     }
 
+    /// The declared byte size the upload in flight is charged against: the
+    /// pending edit's during a `replaceContent`, otherwise the file's own from
+    /// its initial create. The finalize byte-reconcile checks the stored
+    /// footprint against this.
+    pub fn target_size(&self) -> Option<i64> {
+        self.pending_size.or(self.size)
+    }
+
     /// Whether this file goes through the versioned-chunks layout
     /// (`{uuid}/v{N}/…`) or the legacy flat layout (`{timestamp}-{uuid}.part.N`).
     ///
     /// Only editable files use versioning — the snapshot/swap machinery
     /// exists to support in-place edits. Non-editable files are write-once,
     /// so pushing them through the versioned path would add cost for no
-    /// benefit and also trip S3's still-stubbed `_v` methods. Splitting
-    /// at the data layer keeps the provider traits dumb dispatchers.
+    /// benefit. Splitting at the data layer keeps the provider traits dumb
+    /// dispatchers.
     pub fn use_versioned_layout(&self) -> bool {
         self.editable
     }

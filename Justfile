@@ -80,45 +80,22 @@ test-rust-unit:
     cargo test --workspace --lib -- --nocapture
 
 # Run Rust integration tests (auth, storage, links, email, shares fixtures)
+#
+# The suite list is derived from the directory rather than kept by hand: the
+# hand-written one had drifted eleven suites behind — migration, fork, groups,
+# quota and the rest never ran locally, while CI derived its own list and ran
+# them. A green `just ci-test` has to mean what CI means. Helper modules
+# compile to zero-test targets, which is harmless and what clippy already
+# proves they can do.
 test-rust-integration:
-    cargo test --test web_authentication -- --nocapture
-    cargo test --test web_liveness -- --nocapture
-    cargo test --test readiness -- --nocapture
-    cargo test --test web_registration -- --nocapture
-    cargo test --test storage -- --nocapture
-    cargo test --test storage_replace_content -- --nocapture
-    cargo test --test storage_set_editable -- --nocapture
-    cargo test --test storage_legacy_routing -- --nocapture
-    cargo test --test storage_tar_upload -- --nocapture
-    cargo test --test storage_instance_quota -- --nocapture
-    cargo test --test thumbnails -- --nocapture
-    cargo test --test compression -- --nocapture
-    cargo test --test links -- --nocapture
-    cargo test --test email -- --nocapture
-    cargo test --test shares_asn1_fixtures -- --nocapture
-    cargo test --test shares_basic -- --nocapture
-    cargo test --test shares_folder -- --nocapture
-    cargo test --test shares_editable_folders -- --nocapture
-    cargo test --test shares_permissions -- --nocapture
-    cargo test --test shares_search -- --nocapture
-    cargo test --test shares_audit -- --nocapture
-    cargo test --test shares_admin_kill_switch -- --nocapture
-    cargo test --test shares_default_cipher -- --nocapture
-    cargo test --test shares_dual_key -- --nocapture
-    cargo test --test key_transitions -- --nocapture
-    cargo test --test shares_key_transition_chain -- --nocapture
-    cargo test --test opaque_login -- --nocapture
-    cargo test --test opaque_password_change -- --nocapture
-    cargo test --test migration -- --nocapture
-    cargo test --test auth_rate_limit -- --nocapture
-    cargo test --test register_v2 -- --nocapture
-    cargo test --test shares_groups -- --nocapture
-    cargo test --test shares_fork -- --nocapture
-    cargo test --test shares_quota -- --nocapture
-    cargo test --test shares_discover -- --nocapture
-    cargo test --test shares_account_deletion -- --nocapture
-    cargo test --test shares_email -- --nocapture
-    cargo test --test shares_recipient_navigation -- --nocapture
+    #!/usr/bin/env bash
+    set -euo pipefail
+    args=""
+    for suite in $(ls hoodik/tests/*.rs | xargs -n1 basename | sed 's/\.rs$//' | sort); do
+        args="$args --test $suite"
+    done
+    echo "Running:$args"
+    cargo test $args -- --nocapture
 
 # ── Postgres integration testing ──────────────────────────────────────────────
 
@@ -192,7 +169,15 @@ e2e *args:
     #!/usr/bin/env bash
     set -eo pipefail
 
-    export DATA_DIR=$PWD/data-e2e
+    # A dev server already on these ports would either collide with the
+    # release binary below or, worse, serve the suite stale code. Refuse
+    # loudly instead of hanging on the port for ten minutes.
+    if lsof -ti tcp:5443 -i tcp:5173 >/dev/null 2>&1; then
+        echo "ports 5443/5173 are in use — stop 'just dev' (or the stray server) first" >&2
+        exit 1
+    fi
+
+    export DATA_DIR=$PWD/data/e2e
     export ENV_FILE=".env.e2e"
 
     # Force plain HTTP for the e2e server regardless of what .env.e2e says,
@@ -217,7 +202,7 @@ e2e *args:
     RUST_LOG=error $PWD/target/release/hoodik &
     SERVER_PID=$!
 
-    cleanup() { kill -9 $SERVER_PID 2>/dev/null; rm -rf $PWD/data-e2e; }
+    cleanup() { kill -9 $SERVER_PID 2>/dev/null; rm -rf $PWD/data/e2e; }
     trap cleanup EXIT
 
     node_modules/.bin/wait-on -t 600000 http://127.0.0.1:5443/api/liveness
@@ -229,8 +214,45 @@ e2e *args:
     # name here must match the constants in web/e2e/migration.spec.ts.
     $PWD/target/release/seed_legacy "$DATA_DIR/sqlite.db" "legacy-migrate@e2e.test" "legacy-password-1234" "$PWD/web/e2e/fixtures/test-image.png"
 
+    # Two more for reindex.spec.ts, one per test: pending re-index state can
+    # only come from the migrations (the write routes refuse everything that
+    # would recreate it), so each test brings its own pre-migration account.
+    $PWD/target/release/seed_legacy "$DATA_DIR/sqlite.db" "legacy-reindex-a@e2e.test" "legacy-password-1234" "$PWD/web/e2e/fixtures/test-image.png"
+    $PWD/target/release/seed_legacy "$DATA_DIR/sqlite.db" "legacy-reindex-b@e2e.test" "legacy-password-1234" "$PWD/web/e2e/fixtures/test-image.png"
+
     export ENV_FILE="../.env.e2e"
     yarn workspace @hoodik/web test:e2e -- {{args}}
+
+# Run the browser suite against S3-backed storage with direct transfer on, so
+# the browser fetches chunks from the bucket instead of from the server.
+#
+# The default `e2e` recipe covers the relaying path; this covers the one that
+# bypasses it. Both matter: direct transfer is opt-in, and the relaying path
+# stays the fallback for every deployment that cannot use it.
+#
+# S3_DIRECT_ALLOW_INSECURE is required here and not a shortcut: the harness
+# serves the app over plain HTTP on localhost against a bucket on localhost,
+# which is exactly the shape the transport preconditions refuse by default.
+e2e-direct *args:
+    #!/usr/bin/env bash
+    set -eo pipefail
+    just minio-up
+    export STORAGE_PROVIDER=s3
+    export S3_BUCKET="${S3_BUCKET:-hoodik}"
+    export S3_REGION="${S3_REGION:-us-east-1}"
+    export S3_ENDPOINT="${S3_ENDPOINT:-http://127.0.0.1:9000}"
+    export S3_ACCESS_KEY="${S3_ACCESS_KEY:-minioadmin}"
+    export S3_SECRET_KEY="${S3_SECRET_KEY:-minioadmin}"
+    export S3_PATH_STYLE=true
+    export S3_PREFIX="e2e-direct/"
+    export S3_DIRECT_TRANSFER=true
+    export S3_DIRECT_ALLOW_INSECURE=true
+    # Turns "server does not advertise direct transfer" from a skip into a
+    # failure: this recipe exists to prove the direct path, and a run where
+    # every direct spec quietly skipped would prove nothing while staying
+    # green.
+    export E2E_REQUIRE_DIRECT=true
+    just e2e {{args}}
 
 # Open Playwright test UI interactively (useful for debugging).
 # Pass any Playwright flags as extra args, e.g. just e2e-ui --headed
@@ -349,8 +371,10 @@ setup:
 
 # ── CI Helpers ────────────────────────────────────────────────────────────────
 
-# Full CI test pipeline (used by GitHub Actions)
-ci-test: clippy test-rust-unit test-rust-integration wasm test-web build-web e2e
+# Full CI test pipeline (used by GitHub Actions). `e2e-direct` needs Docker
+# for MinIO — without it the direct-transfer suite has no bucket to talk to
+# and every one of its specs self-skips, which is the same as not running it.
+ci-test: clippy test-rust-unit test-rust-integration wasm test-web build-web e2e e2e-direct
 
 # CI pipeline against Postgres instead of SQLite (clippy + unit + integration-pg).
 # Skips the WASM/web/e2e stack — those don't care which RDBMS the server uses.

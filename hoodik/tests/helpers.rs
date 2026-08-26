@@ -216,7 +216,8 @@ pub(crate) async fn build_curve25519_register_body(
     let x_private = cryptfns::ecdh::private::generate().unwrap();
     let x_public = cryptfns::ecdh::public::from_private(&x_private).unwrap();
 
-    let reg_start = cryptfns::opaque::client_registration_start(LEGACY_PASSWORD.as_bytes()).unwrap();
+    let reg_start =
+        cryptfns::opaque::client_registration_start(LEGACY_PASSWORD.as_bytes()).unwrap();
     let req = test::TestRequest::post()
         .uri("/api/auth/register/pake/start")
         .set_json(serde_json::json!({ "email": email, "registration_request": reg_start.message }))
@@ -232,11 +233,9 @@ pub(crate) async fn build_curve25519_register_body(
 
     let export_key = cryptfns::base64::decode(&reg_finish.export_key).unwrap();
     let kek = cryptfns::envelope::derive_kek(&export_key).unwrap();
-    let envelope = cryptfns::envelope::seal(
-        &kek,
-        format!("v1|ed:{ed_private}|x:{x_private}").as_bytes(),
-    )
-    .unwrap();
+    let envelope =
+        cryptfns::envelope::seal(&kek, format!("v1|ed:{ed_private}|x:{x_private}").as_bytes())
+            .unwrap();
 
     serde_json::json!({
         "email": email,
@@ -261,7 +260,11 @@ pub(crate) async fn register_curve25519(app: &impl TestApp, email: &str) -> Regi
         .set_json(&build_curve25519_register_body(app, email).await)
         .to_request();
     let resp = test::call_service(app, req).await;
-    assert!(resp.status().is_success(), "register {email} failed: {:?}", resp.status());
+    assert!(
+        resp.status().is_success(),
+        "register {email} failed: {:?}",
+        resp.status()
+    );
     let (jwt, _) = extract_cookies(resp.headers());
     let jwt = jwt.expect("register response missing JWT cookie");
     let body: serde_json::Value = test::read_body_json(resp).await;
@@ -318,7 +321,18 @@ pub(crate) fn create_byte_chunks() -> (Vec<Vec<u8>>, i64, String) {
     (byte_chunks, total_len, checksum)
 }
 
+/// A `name_hash` the shape a current client produces: a keyed tag, 32 hex
+/// characters wide.
+///
+/// The suites used to pass a file's own content digest here, which is a 64-hex
+/// SHA-256 — the pre-keyed shape the create and rename routes now refuse,
+/// because an old client sending one is the name leak coming back. Seeding
+/// from the same value keeps each fixture's hash as distinct as it was.
 #[allow(dead_code)]
+pub(crate) fn name_tag(seed: &str) -> String {
+    cryptfns::search::tag(&[7u8; 32], seed).expect("tag a fixture name")
+}
+
 pub(crate) fn calculate_checksum(data: Vec<Vec<u8>>) -> String {
     let mut body = vec![];
 

@@ -268,7 +268,7 @@ async fn test_reader_rename_403() {
         .set_json(serde_json::json!({
             "encrypted_name": "renamed",
             "name_hash": "new-hash",
-            "search_tokens_hashed": [],
+            "root_tags": [],
         }))
         .to_request();
     let resp = test::call_service(&app, req).await;
@@ -317,7 +317,7 @@ async fn test_editor_replace_content_200() {
         .set_json(serde_json::json!({
             "size": 1024,
             "chunks": 1,
-            "search_tokens_hashed": [],
+            "root_tags": [],
         }))
         .to_request();
     let resp = test::call_service(&app, req).await;
@@ -415,7 +415,7 @@ async fn test_co_owner_replace_content_200() {
         .set_json(serde_json::json!({
             "size": 1024,
             "chunks": 1,
-            "search_tokens_hashed": [],
+            "root_tags": [],
         }))
         .to_request();
     let resp = test::call_service(&app, req).await;

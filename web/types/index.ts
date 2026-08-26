@@ -54,9 +54,10 @@ export interface Parameters extends Query {
 }
 
 export interface SearchQuery {
-  search_tokens_hashed: string[]
-  /** A content digest matched verbatim against the stored hash columns. */
-  hash?: string
+  /** Query words tagged under the caller's account-wide key: matches what they own. */
+  root_tags?: string[]
+  /** The same words tagged per file shared *with* the caller, under each file's own key. */
+  file_tags?: string[]
   dir_id?: string
   limit?: number
   skip?: number

@@ -12,6 +12,8 @@ use entity::{
 };
 use error::AppResult;
 
+use crate::data::incoming::IncomingKey;
+
 use crate::data::{
     app_share::AppShare,
     incoming::IncomingShare,
@@ -78,6 +80,31 @@ pub(crate) async fn recipient_list<C: ConnectionTrait>(
 /// the synthetic "Shared with me" root would flatten the tree.
 /// `__shared_with_me__` lists the entry points; navigation drills into the
 /// real folder ids from there.
+/// Every file shared with `recipient_id`, as `(file_id, encrypted_key)`.
+///
+/// Deliberately not the root-trimmed set that [`incoming_for_recipient`]
+/// returns. Search tags files inside a shared folder under their own keys, so
+/// a recipient needs all of them, not just the entry points they browse.
+///
+/// One statement, two columns, no joins — this is called once per session on
+/// accounts that may hold thousands of shared files.
+pub(crate) async fn incoming_keys<C: ConnectionTrait>(
+    db: &C,
+    recipient_id: Uuid,
+) -> AppResult<Vec<IncomingKey>> {
+    let keys = user_files::Entity::find()
+        .select_only()
+        .column(user_files::Column::FileId)
+        .column(user_files::Column::EncryptedKey)
+        .filter(user_files::Column::UserId.eq(recipient_id))
+        .filter(user_files::Column::IsOwner.eq(false))
+        .into_model::<IncomingKey>()
+        .all(db)
+        .await?;
+
+    Ok(keys)
+}
+
 pub(crate) async fn incoming_for_recipient<C: ConnectionTrait>(
     db: &C,
     recipient_id: Uuid,

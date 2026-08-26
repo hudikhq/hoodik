@@ -1,12 +1,12 @@
 use crate::config::DOWNLOAD_POOL_LIMIT;
 use crate::error::{Error, Result};
 use crate::platform::{HttpClient, ProgressReporter};
-use crate::types::{Auth, DownloadSource};
+use crate::types::{Auth, ChunkTarget, DownloadSource};
 use futures::future::LocalBoxFuture;
-use std::cell::RefCell;
-use std::str::FromStr;
 use futures::stream::{FuturesUnordered, StreamExt};
+use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
+use std::str::FromStr;
 
 /// Minimum growth in received bytes between two progress emissions.
 ///
@@ -79,6 +79,7 @@ pub struct Downloader {
     chunk_count: u64,
     decryption_key: Vec<u8>,
     cipher: String,
+    direct_urls: Option<Vec<String>>,
 }
 
 impl Downloader {
@@ -97,6 +98,7 @@ impl Downloader {
             chunk_count,
             decryption_key,
             cipher: cryptfns::cipher::DEFAULT.to_string(),
+            direct_urls: None,
         }
     }
 
@@ -104,6 +106,19 @@ impl Downloader {
     /// Defaults to [`cryptfns::cipher::DEFAULT`] when not called.
     pub fn with_cipher(mut self, cipher: impl Into<String>) -> Self {
         self.cipher = cipher.into();
+        self
+    }
+
+    /// Fetch chunks from these URLs, indexed by chunk number, instead of from
+    /// the API.
+    ///
+    /// The host supplies them rather than this crate fetching them, because
+    /// the host is what already reads `/api/capabilities`, holds the session,
+    /// and knows whether the server offers direct transfer at all. Any index
+    /// the list does not cover falls back to the API, so a short or empty list
+    /// degrades instead of failing.
+    pub fn with_direct_urls(mut self, urls: Vec<String>) -> Self {
+        self.direct_urls = Some(urls);
         self
     }
 
@@ -120,17 +135,21 @@ impl Downloader {
         http: &dyn HttpClient,
         progress: &dyn ProgressReporter,
     ) -> Result<Vec<u8>> {
-        download_file(
+        let mut result = Vec::with_capacity(self.file_size as usize);
+        run_download_pipeline(
             http,
             progress,
             &self.auth,
-            &self.file_id,
+            DownloadSource::Storage(&self.file_id),
             self.file_size,
             self.chunk_count,
             &self.decryption_key,
             &self.cipher,
+            self.direct_urls.as_deref(),
+            &mut |chunk| result.extend_from_slice(&chunk),
         )
-        .await
+        .await?;
+        Ok(result)
     }
 }
 
@@ -193,6 +212,7 @@ pub async fn download_file_from(
         chunk_count,
         decryption_key,
         cipher,
+        None,
         &mut |chunk| result.extend_from_slice(&chunk),
     )
     .await?;
@@ -216,6 +236,7 @@ pub async fn download_file_streaming(
     chunk_count: u64,
     decryption_key: &[u8],
     cipher: &str,
+    direct_urls: Option<&[String]>,
     emit: &mut dyn FnMut(Vec<u8>),
 ) -> Result<()> {
     run_download_pipeline(
@@ -227,9 +248,26 @@ pub async fn download_file_streaming(
         chunk_count,
         decryption_key,
         cipher,
+        direct_urls,
         emit,
     )
     .await
+}
+
+/// Where chunk `chunk` should be fetched from, when the manifest covers it.
+///
+/// Callers index the manifest by chunk number, so a chunk it does not cover
+/// arrives as an empty slot rather than as a shorter array. Either way the
+/// answer is `None` and the caller keeps using the API: a partial manifest is
+/// still worth the chunks it does cover.
+pub(crate) fn direct_target<'a>(
+    direct_urls: Option<&'a [String]>,
+    chunk: u64,
+) -> Option<ChunkTarget<'a>> {
+    direct_urls
+        .and_then(|urls| urls.get(chunk as usize))
+        .filter(|url| !url.is_empty())
+        .map(|url| ChunkTarget::Direct(url))
 }
 
 /// Sliding-window download pipeline.
@@ -247,6 +285,7 @@ async fn run_download_pipeline<'a>(
     chunk_count: u64,
     decryption_key: &'a [u8],
     cipher: &'a str,
+    direct_urls: Option<&'a [String]>,
     emit: &mut dyn FnMut(Vec<u8>),
 ) -> Result<()> {
     let mut bytes_emitted: u64 = 0;
@@ -266,10 +305,11 @@ async fn run_download_pipeline<'a>(
             let chunk = next_to_dispatch;
             next_to_dispatch += 1;
             let tally = &tally;
+            let target =
+                direct_target(direct_urls, chunk).unwrap_or(ChunkTarget::Api { auth, source });
             in_flight.push(Box::pin(fetch_and_decrypt(
                 http,
-                auth,
-                source,
+                target,
                 chunk,
                 decryption_key,
                 cipher,
@@ -292,7 +332,38 @@ async fn run_download_pipeline<'a>(
 
         // Wait for whichever download finishes first.
         let (chunk_idx, chunk_result) = in_flight.next().await.expect("non-empty");
-        pending.insert(chunk_idx, chunk_result?);
+        let data = match chunk_result {
+            Ok(data) => data,
+            // A chunk that failed against the bucket is fetched again through
+            // the server — the same degrade-don't-die rule the upload side
+            // applies to a failed PUT. Without it the first dropped chunk
+            // ends the whole transfer, and a file is many independent
+            // requests to a third-party host: at a quarter of a percent lost
+            // per chunk, a gigabyte fails more often than it succeeds. One
+            // that was already relaying has nowhere left to go.
+            Err(e) => {
+                if direct_target(direct_urls, chunk_idx).is_none() {
+                    return Err(e);
+                }
+
+                let (_, retried) = fetch_and_decrypt(
+                    http,
+                    ChunkTarget::Api { auth, source },
+                    chunk_idx,
+                    decryption_key,
+                    cipher,
+                    // The failed attempt already reported whatever it read,
+                    // and the exact total is restated once the last chunk is
+                    // emitted, so this one stays quiet rather than counting
+                    // the same bytes twice.
+                    Box::new(|_| {}),
+                )
+                .await;
+
+                retried?
+            }
+        };
+        pending.insert(chunk_idx, data);
 
         // Drain all consecutively-ready chunks in order.
         while let Some(data) = pending.remove(&next_to_emit) {
@@ -315,15 +386,14 @@ async fn run_download_pipeline<'a>(
 /// associate the result with its position in the file without relying on completion order.
 pub(crate) async fn fetch_and_decrypt<'a>(
     http: &'a dyn HttpClient,
-    auth: &'a Auth,
-    source: DownloadSource<'a>,
+    target: ChunkTarget<'a>,
     chunk: u64,
     decryption_key: &'a [u8],
     cipher: &'a str,
     on_bytes: Box<dyn Fn(u64) + 'a>,
 ) -> (u64, Result<Vec<u8>>) {
     let result = async {
-        let encrypted = http.download_chunk(auth, source, chunk, on_bytes).await?;
+        let encrypted = http.download_chunk(target, chunk, on_bytes).await?;
         let plaintext = cryptfns::cipher::Cipher::from_str(cipher)
             .map_err(Error::from)?
             .decrypt_chunk(decryption_key, chunk, encrypted)
@@ -353,6 +423,7 @@ pub async fn download_chunks_to_dir(
     chunk_count: u64,
     output_dir: &str,
     already_downloaded: &[u64],
+    direct_urls: Option<&[String]>,
 ) -> Result<()> {
     use std::collections::HashSet;
 
@@ -372,10 +443,13 @@ pub async fn download_chunks_to_dir(
                 continue;
             }
             let tally = &tally;
+            let target = direct_target(direct_urls, chunk).unwrap_or(ChunkTarget::Api {
+                auth,
+                source: DownloadSource::Storage(file_id),
+            });
             in_flight.push(Box::pin(fetch_and_save(
                 http,
-                auth,
-                DownloadSource::Storage(file_id),
+                target,
                 chunk,
                 output_dir,
                 Box::new(move |bytes| {
@@ -394,8 +468,31 @@ pub async fn download_chunks_to_dir(
             return Err(Error::Cancelled);
         }
 
-        let (_chunk_idx, chunk_result) = in_flight.next().await.expect("non-empty");
-        let chunk_len = chunk_result?;
+        let (chunk_idx, chunk_result) = in_flight.next().await.expect("non-empty");
+        let chunk_len = match chunk_result {
+            Ok(len) => len,
+            // Same fallback the streaming pipeline takes: a bucket that drops
+            // one chunk costs this transfer its speed, not its life.
+            Err(e) => {
+                if direct_target(direct_urls, chunk_idx).is_none() {
+                    return Err(e);
+                }
+
+                let (_, retried) = fetch_and_save(
+                    http,
+                    ChunkTarget::Api {
+                        auth,
+                        source: DownloadSource::Storage(file_id),
+                    },
+                    chunk_idx,
+                    output_dir,
+                    Box::new(|_| {}),
+                )
+                .await;
+
+                retried?
+            }
+        };
         bytes_downloaded += chunk_len as u64;
     }
 
@@ -408,14 +505,13 @@ pub async fn download_chunks_to_dir(
 #[cfg(any(feature = "native", feature = "mobile"))]
 async fn fetch_and_save<'a>(
     http: &'a dyn HttpClient,
-    auth: &'a Auth,
-    source: DownloadSource<'a>,
+    target: ChunkTarget<'a>,
     chunk: u64,
     output_dir: &'a str,
     on_bytes: Box<dyn Fn(u64) + 'a>,
 ) -> (u64, Result<usize>) {
     let result = async {
-        let encrypted = http.download_chunk(auth, source, chunk, on_bytes).await?;
+        let encrypted = http.download_chunk(target, chunk, on_bytes).await?;
         let len = encrypted.len();
         let path = format!("{}/{:06}.enc", output_dir, chunk);
         tokio::fs::write(&path, &encrypted)

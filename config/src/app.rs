@@ -112,6 +112,23 @@ pub struct AppConfig {
     /// self-hosted case.
     pub storage_instance_quota_bytes: Option<u64>,
 
+    /// TAR_TRANSFER_DISABLED: refuse `?format=tar`, so clients move chunks one
+    /// request at a time instead of bundling them into a single archive.
+    ///
+    /// The bundle is an optimisation — one request instead of N — and it is
+    /// the wrong one behind a proxy that caps request size. Cloudflare Tunnel
+    /// stops at 100 MB, and a tar of a larger file dies there while the same
+    /// file uploads fine a chunk at a time. Clients read the matching
+    /// capability and skip the archive entirely rather than learning this from
+    /// a failure.
+    ///
+    /// Phrased as a disable so that not setting it leaves the faster path on.
+    ///
+    /// *optional*
+    ///
+    /// default: false
+    pub tar_transfer_disabled: bool,
+
     /// MAILER_DISABLE_TEST — hide the admin "send test email" action and reject
     /// its endpoint.
     ///
@@ -152,6 +169,7 @@ impl AppConfig {
         let workers = vars.maybe_var::<usize>("WORKERS");
         let storage_instance_quota_bytes = vars.maybe_var::<u64>("STORAGE_INSTANCE_QUOTA_BYTES");
         let mailer_disable_test = vars.var_default("MAILER_DISABLE_TEST", false).get();
+        let tar_transfer_disabled = vars.var_default("TAR_TRANSFER_DISABLED", false).get();
 
         vars.panic_if_errors("AppConfig");
 
@@ -169,6 +187,7 @@ impl AppConfig {
             workers: workers.maybe_get(),
             storage_instance_quota_bytes: storage_instance_quota_bytes.maybe_get(),
             mailer_disable_test,
+            tar_transfer_disabled,
         }
         .set_env()
     }

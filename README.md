@@ -23,7 +23,7 @@ Hoodik is a lightweight, self-hosted, end-to-end encrypted cloud storage server.
 ## Features
 
 - **End-to-end encryption** — files are encrypted in the browser with AEGIS-128L before upload and decrypted after download; file keys are wrapped with a quantum-resistant X25519 + ML-KEM-768 hybrid (RSA on legacy accounts)
-- **Secure search** — file metadata is tokenized and hashed so the server can match search queries without storing plaintext names
+- **Secure search** — file metadata is tokenized and tagged with a key the server never sees, so it can match a query without being able to read the index
 - **Encrypted notes** — create and edit rich markdown notes with a WYSIWYG editor; content is encrypted, auto-saved, and searchable just like uploaded files
 - **Public sharing links** — share files via a link; the recipient decrypts everything in their browser with the key in the URL fragment, and the server never decrypts a public link
 - **Two-factor authentication** — optional TOTP-based 2FA per user
@@ -57,7 +57,7 @@ Download mirrors the same split: `GET /api/storage/{file_id}?chunk=N` streams a 
 
 ### Search
 
-Searchable metadata (file name, etc.) is tokenized, hashed, and stored as opaque tokens. When you search, the same operation is applied to your query and the hashes are matched server-side — no plaintext ever leaves the browser.
+Searchable metadata (file names, and the contents of notes) is tokenized in the browser and each token is tagged with HMAC under a key derived from your private key. Only those tags are stored. When you search, the same tagging is applied to your query and the tags are matched server-side. No plaintext leaves the browser, and the key never does either, so the index cannot be read back into words by anyone holding the database.
 
 ### Public links
 
@@ -205,6 +205,7 @@ By default, encrypted file chunks are stored on the local filesystem inside `DAT
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `STORAGE_PROVIDER` | `local` | `local` or `s3` |
+| `TAR_TRANSFER_DISABLED` | `false` | Refuse `?format=tar` so clients transfer one chunk per request. Set this behind a proxy that caps request size — Cloudflare Tunnel stops at 100 MB |
 | `S3_BUCKET` | | Bucket name |
 | `S3_REGION` | `us-east-1` | AWS region |
 | `S3_ENDPOINT` | *(AWS default)* | Custom endpoint for S3-compatible services (MinIO, Backblaze B2, Wasabi, etc.) |
@@ -212,6 +213,9 @@ By default, encrypted file chunks are stored on the local filesystem inside `DAT
 | `S3_SECRET_KEY` | | Secret access key |
 | `S3_PATH_STYLE` | `false` | Path-style addressing (required for MinIO) |
 | `S3_PREFIX` | | Optional key prefix to namespace objects within a shared bucket |
+| `S3_DIRECT_TRANSFER` | `false` | Let clients read and write chunks straight from the bucket. See [Direct transfer](#direct-transfer) — it has requirements your bucket must meet |
+| `S3_DIRECT_EXPIRY_SECS` | `604800` | How long a presigned chunk URL stays valid. Maximum is 604800 (7 days) |
+| `S3_DIRECT_ALLOW_INSECURE` | `false` | Skip the HTTPS, certificate and private-address checks. For deployments where clients share a network with the bucket |
 
 > **Note:** `DATA_DIR` is still required when using S3 — it holds the SQLite database (if not using PostgreSQL) and other local state. Only the encrypted file chunks move to S3.
 
@@ -231,6 +235,42 @@ docker run --name hoodik -d \
   -p 5443:5443 \
   hudik/hoodik:latest
 ```
+
+> This example puts MinIO on a container hostname over plain HTTP, which is fine
+> for the default setup where Hoodik relays every chunk. It cannot be used with
+> `S3_DIRECT_TRANSFER`: browsers refuse plain HTTP from an HTTPS page, and no
+> client outside the Docker network can resolve `minio`. See below.
+
+### Direct transfer
+
+With `S3_DIRECT_TRANSFER=true`, Hoodik hands clients short-lived signed URLs and
+they move chunks to and from the bucket themselves. The server stops relaying
+file data, which removes it as a bandwidth bottleneck. Encryption is unchanged:
+the bucket only ever holds ciphertext, and file keys never leave the client.
+
+Your bucket has to be usable **by the client**, not just by the server:
+
+| Requirement | Why |
+|-------------|-----|
+| Reachable from clients | A signed URL is useless if it points somewhere only the server can reach |
+| HTTPS | A page served over HTTPS cannot fetch plain HTTP, and there is no way for the user to override that |
+| Publicly trusted certificate | Browsers and phones do not have your internal CA. Hoodik checks against public roots, not the host's trust store, because that is what a client does |
+| CORS allowing your `APP_URL`, with `GET` and `PUT` | Without it the browser discards the response |
+| One endpoint hostname that works from both sides | The signature covers the hostname, so the server cannot sign for an internal name and have the client substitute an external one |
+
+Hoodik verifies all of this at startup, including a real CORS preflight against
+your bucket. If anything fails it logs the reason, leaves the feature switched
+off, and keeps relaying transfers as before — so a wrong setting costs you a log
+line, not a broken client. Check what it decided at `/api/readiness`:
+
+```shell
+curl -s https://my-app.example.com/api/readiness
+```
+
+Set `S3_DIRECT_ALLOW_INSECURE=true` to skip the first three checks. That is
+meant for a bucket on your own network with clients on that same network — a
+home NAS, say. CORS is still required, because browsers enforce it regardless of
+where the bucket sits.
 
 ### Migrating from local storage to S3
 

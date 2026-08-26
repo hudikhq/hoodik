@@ -7,6 +7,7 @@
 use chrono::Utc;
 use cryptfns::asn1::{AuditEventActionEnum, AuditEventSigInputV1};
 use entity::{
+    file_tokens::{DigestTags, SearchTags},
     files,
     permission::{permission, SharePermission},
     user_files, users, ActiveValue, EntityTrait, TransactionTrait, Uuid,
@@ -46,6 +47,33 @@ impl Repository<'_> {
         let encrypted_metadata = validated.encrypted_metadata.unwrap();
         let name_hash = validated.name_hash.unwrap();
         let mime = validated.mime.unwrap();
+
+        // Refuse a pre-keyed `sha256(name)` the same way create does, so an
+        // old client can't put the reversible digest back by saving a copy.
+        if cryptfns::search::is_legacy_name_hash(&name_hash) {
+            return Err(Error::UpgradeRequired(
+                "client_too_old_for_search".to_string(),
+            ));
+        }
+
+        // A bare digest in the columns is the same leak in a third place;
+        // refuse the reversible shapes. MD5 shares the tag's shape and
+        // cannot be told apart here.
+        for value in [
+            &validated.md5,
+            &validated.sha1,
+            &validated.sha256,
+            &validated.blake2b,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if cryptfns::search::is_bare_digest(value) {
+                return Err(Error::UpgradeRequired(
+                    "client_too_old_for_search".to_string(),
+                ));
+            }
+        }
         if mime == "dir" {
             return Err(Error::BadRequest("cannot_fork_directory".to_string()));
         }
@@ -169,11 +197,14 @@ impl Repository<'_> {
             .exec_without_returning(&tx)
             .await?;
 
-        if let Some(token_hashes) = validated.search_tokens_hashed {
-            if !token_hashes.is_empty() {
-                super::multikey_upload::upsert_tokens(&tx, new_file_id, token_hashes).await?;
-            }
-        }
+        super::multikey_upload::upsert_tokens(
+            &tx,
+            new_file_id,
+            SearchTags::new(validated.search_tokens_root, validated.search_tokens_file),
+            SearchTags::new(validated.content_tokens_root, validated.content_tokens_file),
+            DigestTags::new(validated.digest_tokens_root, validated.digest_tokens_file),
+        )
+        .await?;
 
         audit::append_event(
             &tx,
@@ -198,4 +229,3 @@ impl Repository<'_> {
         })
     }
 }
-

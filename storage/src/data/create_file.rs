@@ -6,9 +6,13 @@
 //! the resume will have to continue with the returned key in that case.
 //!
 //! If not, the file will be corrupted and we have no way of knowing if that is the case.
-use ::error::AppResult;
+use ::error::{AppResult, Error};
 use chrono::Utc;
-use entity::{files::ActiveModel as ActiveModelFile, option_string_to_uuid, ActiveValue, Uuid};
+use entity::{
+    file_tokens::{DigestTags, SearchTags},
+    files::ActiveModel as ActiveModelFile,
+    option_string_to_uuid, ActiveValue, Uuid,
+};
 use serde::{Deserialize, Serialize};
 use validr::*;
 
@@ -23,9 +27,17 @@ pub struct CreateFile {
     pub encrypted_name: Option<String>,
     /// File thumbnail encrypted with the AES file key
     pub encrypted_thumbnail: Option<String>,
-    /// Tokens by which this file will be searchable broken down
-    /// into tokens using the tokenizing methods
-    pub search_tokens_hashed: Option<Vec<String>>,
+    /// Name tokens, tagged under the uploader's account-wide search key.
+    /// A note's body belongs in `content_tokens_*` so a later rename cannot
+    /// wipe it.
+    pub search_tokens_root: Option<Vec<String>>,
+    /// The same name tokens tagged under the file's own key, so that sharing
+    /// this file later needs no re-index.
+    pub search_tokens_file: Option<Vec<String>>,
+    /// Note-body tokens. Absent on regular files; a new note sends them so
+    /// the body is searchable before the first save. Written to `source=content`.
+    pub content_tokens_root: Option<Vec<String>>,
+    pub content_tokens_file: Option<Vec<String>>,
     /// Mime type of the file or "dir" for directory
     pub mime: Option<String>,
     /// Total size of the file
@@ -36,14 +48,19 @@ pub struct CreateFile {
     pub file_id: Option<String>,
     /// Date of the file creation from the disk, if not provided we set it to now
     pub file_modified_at: Option<String>,
-    /// MD5 hash of the unencrypted file
+    /// MD5 of the plaintext, keyed under the file's search key
     pub md5: Option<String>,
-    /// SHA1 hash of the unencrypted file
+    /// SHA1 of the plaintext, keyed under the file's search key
     pub sha1: Option<String>,
-    /// SHA256 hash of the unencrypted file
+    /// SHA256 of the plaintext, keyed under the file's search key
     pub sha256: Option<String>,
-    /// BLAKE2B hash of the unencrypted file
+    /// BLAKE2B of the plaintext, keyed under the file's search key
     pub blake2b: Option<String>,
+    /// Digest tags for clients that know the digests at create time, in the
+    /// same wire form as the word tokens. They land in the digest scopes,
+    /// which renames never touch.
+    pub digest_tokens_root: Option<Vec<String>>,
+    pub digest_tokens_file: Option<Vec<String>>,
     /// Cipher used to encrypt file chunks and metadata.
     /// Defaults to `"ascon128a"` when not provided (backward-compatible).
     pub cipher: Option<String>,
@@ -134,11 +151,46 @@ impl Validation for CreateFile {
     }
 }
 
-pub type CreateFileData = (ActiveModelFile, String, Vec<String>, i64, Option<Uuid>);
+pub type CreateFileData = (
+    ActiveModelFile,
+    String,
+    SearchTags,
+    SearchTags,
+    DigestTags,
+    i64,
+    Option<Uuid>,
+);
 
 impl CreateFile {
     pub fn into_active_model(self) -> AppResult<CreateFileData> {
         let data = self.validate()?;
+
+        // A client from before keyed search sends `sha256(name)` here. Storing
+        // it would re-introduce the exact reversible digest the keyed scheme
+        // removed, so refuse the write and tell the client to update rather
+        // than let the leak back in one file at a time.
+        if let Some(hash) = data.name_hash.as_deref() {
+            if cryptfns::search::is_legacy_name_hash(hash) {
+                return Err(Error::UpgradeRequired(
+                    "client_too_old_for_search".to_string(),
+                ));
+            }
+        }
+
+        // A bare digest in the columns is the same leak in a third place;
+        // refuse the reversible shapes. MD5 shares the tag's shape and
+        // cannot be told apart here.
+        for value in [&data.md5, &data.sha1, &data.sha256, &data.blake2b]
+            .into_iter()
+            .flatten()
+        {
+            if cryptfns::search::is_bare_digest(value) {
+                return Err(Error::UpgradeRequired(
+                    "client_too_old_for_search".to_string(),
+                ));
+            }
+        }
+
         let now = Utc::now().naive_utc();
 
         let chunks_stored = if data.mime != Some("dir".to_string()) {
@@ -167,7 +219,8 @@ impl CreateFile {
                                 .unwrap()
                         })
                         .unwrap_or(now)
-                        .and_utc().timestamp(),
+                        .and_utc()
+                        .timestamp(),
                 ),
                 md5: ActiveValue::Set(data.md5),
                 sha1: ActiveValue::Set(data.sha1),
@@ -191,7 +244,9 @@ impl CreateFile {
                 members_list_signed_by_user_id: ActiveValue::Set(None),
             },
             data.encrypted_key.unwrap(),
-            data.search_tokens_hashed.unwrap_or_default(),
+            SearchTags::new(data.search_tokens_root, data.search_tokens_file),
+            SearchTags::new(data.content_tokens_root, data.content_tokens_file),
+            DigestTags::new(data.digest_tokens_root, data.digest_tokens_file),
             data.size.unwrap_or(0),
             file_id,
         ))

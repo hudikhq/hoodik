@@ -168,6 +168,24 @@ impl FsProviderContract for StorageProvider<'_> {
     async fn purge_all<T: IntoFilename>(&self, filename: &T) -> AppResult<()> {
         dispatch!(self, purge_all(filename))
     }
+
+    async fn direct_get_urls<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+        chunks: &[i64],
+    ) -> AppResult<Option<Vec<String>>> {
+        dispatch!(self, direct_get_urls(filename, version, chunks))
+    }
+
+    async fn direct_put_urls<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+        chunks: &[(i64, u64)],
+    ) -> AppResult<Option<Vec<String>>> {
+        dispatch!(self, direct_put_urls(filename, version, chunks))
+    }
 }
 
 pub struct Fs<'ctx> {
@@ -362,5 +380,23 @@ impl FsProviderContract for Fs<'_> {
 
     async fn purge_all<T: IntoFilename>(&self, filename: &T) -> AppResult<()> {
         self.provider().purge_all(filename).await
+    }
+
+    async fn direct_get_urls<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+        chunks: &[i64],
+    ) -> AppResult<Option<Vec<String>>> {
+        self.provider().direct_get_urls(filename, version, chunks).await
+    }
+
+    async fn direct_put_urls<T: IntoFilename>(
+        &self,
+        filename: &T,
+        version: i32,
+        chunks: &[(i64, u64)],
+    ) -> AppResult<Option<Vec<String>>> {
+        self.provider().direct_put_urls(filename, version, chunks).await
     }
 }

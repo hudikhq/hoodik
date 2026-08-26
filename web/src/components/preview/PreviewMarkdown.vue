@@ -101,15 +101,27 @@ function ownedFile(): AppFile | undefined {
 }
 
 function save() {
-  doSave(ownedFile(), markdownContent.value)
+  doSave(ownedFile(), markdownContent.value, Crypto.keypair)
 }
 
 async function onResolveConflict() {
-  await resolveConflict(ownedFile())
+  await resolveConflict(ownedFile(), Crypto.keypair)
 }
 
 function onDiscardConflict() {
   discardConflict()
+}
+
+/**
+ * A note renamed from inside the editor: the open preview still holds the row
+ * as it was, and every save indexes the note under the name it is holding. Left
+ * unhanded, the next save would put the note back under its old title and leave
+ * the new one unsearchable until something else re-indexed it.
+ */
+function onRenamed(renamed: AppFile) {
+  if (preview.value instanceof FilePreview) {
+    ;(preview.value as FilePreview).updateFile(renamed)
+  }
 }
 
 async function onVersionRestored(updated: AppFile) {
@@ -402,7 +414,13 @@ defineExpose({ exportPdf: handleExportPdf })
     </div>
 
     <!-- Modals -->
-    <RenameModal v-if="renameFile" v-model="renameFile" :Storage="Storage" :Crypto="Crypto" />
+    <RenameModal
+      v-if="renameFile"
+      v-model="renameFile"
+      :Storage="Storage"
+      :Crypto="Crypto"
+      @confirm="onRenamed"
+    />
     <DetailsModal v-model="detailsFile" />
     <SharingModal
       v-if="sharingFile && login.authenticated"

@@ -1,6 +1,7 @@
 import * as sync from './sync'
 import { defineStore } from 'pinia'
 import * as logger from '!/logger'
+import { evictChunkUrls } from './direct'
 
 import type {
   DownloadAppFile,
@@ -81,6 +82,12 @@ export const store = defineStore('download', () => {
   const active = ref(false)
 
   /**
+   * Downloads the user cancelled, by id. Reports for these are dropped: see
+   * the guard at the top of `progress`.
+   */
+  const cancelled = new Set<string>()
+
+  /**
    * Create function that will track the progress
    */
   async function progress(
@@ -90,9 +97,24 @@ export const store = defineStore('download', () => {
     error?: any,
     stage?: 'downloading' | 'processing'
   ) {
+    // Chunk fetches already in flight settle after the cancel reaches the
+    // worker, and each one reports. The worker's copy of the file never
+    // learned about the cancel, so without this the transfer the user just
+    // stopped climbs back into the running list until the cancellation error
+    // happens to arrive.
+    if (cancelled.has(file.id)) {
+      running.value = running.value.filter((f) => f.id !== file.id)
+
+      return
+    }
+
     if (error) {
       file.error = error
       logger.error(`File "${file.name}" download failed:`, error)
+      // The failure may be a stale manifest — URLs signed for a version that
+      // another session has since replaced. Dropping it costs one refetch on
+      // the next attempt; keeping it pins every retry to the same failure.
+      evictChunkUrls(file.id)
       setFailed(file)
       return
     }
@@ -240,9 +262,17 @@ export const store = defineStore('download', () => {
     }
 
     file.cancel = true
+    cancelled.add(file.id)
 
     if ('DOWNLOAD' in window) {
       window.DOWNLOAD.postMessage({ type: 'cancel', kind: 'download', id: file.id })
+    }
+
+    // Listed as failed here rather than when the worker gets round to saying
+    // so, because every report after this one is ignored.
+    running.value = running.value.filter((f) => f.id !== file.id)
+    if (!failed.value.some((f) => f.id === file.id)) {
+      failed.value.push(file)
     }
   }
 

@@ -26,7 +26,7 @@
 //! re-upload path.
 
 use ::error::AppResult;
-use entity::Uuid;
+use entity::{file_tokens::SearchTags, Uuid};
 use serde::{Deserialize, Serialize};
 use validr::*;
 
@@ -41,8 +41,13 @@ pub struct ReplaceContent {
     pub encrypted_name: Option<String>,
     /// Updated encrypted thumbnail (same opt-in semantics as `encrypted_name`).
     pub encrypted_thumbnail: Option<String>,
-    /// Updated search tokens computed from the new plaintext content.
-    pub search_tokens_hashed: Option<Vec<String>>,
+    /// Updated search tags computed from the new plaintext *body* under the
+    /// caller's account-wide search key. An editor who is not the owner omits
+    /// this and sends only `search_tokens_file`. Written to `source=content`.
+    pub search_tokens_root: Option<Vec<String>>,
+    /// The same tags under the file's own key, which is the scope every
+    /// reader of a shared file searches through.
+    pub search_tokens_file: Option<Vec<String>>,
     /// When true, abandon any in-progress edit (`pending_version`) and
     /// start fresh. The repository purges the orphaned pending directory
     /// on disk and allocates a brand-new pending version. Without this
@@ -86,7 +91,7 @@ pub struct ValidatedReplaceContent {
     pub chunks: i64,
     pub encrypted_name: Option<String>,
     pub encrypted_thumbnail: Option<String>,
-    pub search_tokens_hashed: Vec<String>,
+    pub search_tags: SearchTags,
     pub force: bool,
 }
 
@@ -101,7 +106,7 @@ impl ReplaceContent {
             chunks: data.chunks.unwrap(),
             encrypted_name: data.encrypted_name,
             encrypted_thumbnail: data.encrypted_thumbnail,
-            search_tokens_hashed: data.search_tokens_hashed.unwrap_or_default(),
+            search_tags: SearchTags::new(data.search_tokens_root, data.search_tokens_file),
             force: data.force.unwrap_or(false),
         })
     }

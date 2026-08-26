@@ -4,17 +4,19 @@ use std::{collections::HashMap, fmt::Display, str::FromStr};
 
 use chrono::Utc;
 use entity::{
-    file_versions, files, user_files, ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait,
-    EntityTrait, Order, QueryFilter, QueryOrder, Statement, Uuid, Value,
+    file_tokens::{DigestTags, SearchTags, Source},
+    file_versions, files, user_files, users, ActiveModelTrait, ActiveValue, ColumnTrait,
+    ConnectionTrait, EntityTrait, Order, QueryFilter, QueryOrder, Statement, Uuid, Value,
 };
 use error::{AppResult, Error};
 use validr::Validation;
 
 use super::Repository;
 use crate::data::{
-    app_file::AppFile, query::Query as RequestQuery, rename::Rename,
-    replace_content::ValidatedReplaceContent, response::Response, set_editable::SetEditable,
-    update_hashes::UpdateHashes,
+    content_tokens::ContentTokens,
+    app_file::AppFile, extra_tokens::ExtraTokens, query::Query as RequestQuery, reindex::Reindex,
+    rename::Rename, replace_content::ValidatedReplaceContent, response::Response,
+    set_editable::SetEditable, update_hashes::UpdateHashes,
 };
 use futures::future::try_join_all;
 
@@ -124,9 +126,7 @@ where
         self.repository
             .enrich_shared_with_counts(&mut children)
             .await?;
-        self.repository
-            .enrich_owner_emails(&mut parents)
-            .await?;
+        self.repository.enrich_owner_emails(&mut parents).await?;
         self.repository
             .enrich_shared_with_counts(&mut parents)
             .await?;
@@ -329,6 +329,63 @@ where
         Ok(results.rows_affected)
     }
 
+    /// Rewrite a file's search tags and `name_hash` without touching its
+    /// content or its name.
+    ///
+    /// Deliberately not routed through [`Self::rename`], which would run the
+    /// duplicate-name check against the very hash it is about to write and
+    /// reject the file for colliding with itself.
+    pub(crate) async fn reindex(&self, id: Uuid, data: Reindex) -> AppResult<AppFile> {
+        let (name_hash, fingerprint, search_tags, content_tags, digest_tags, hashes) =
+            data.into_parts()?;
+        let file = self.repository.by_id(id, self.owner_id).await?;
+
+        if !file.is_owner {
+            return Err(Error::Forbidden("cannot_reindex_not_owner".to_string()));
+        }
+
+        // The session cookie outlives a key rotation, and pending is derived
+        // from `name_hash` shape alone. A sweep that started under the old
+        // key would otherwise store a 32-hex tag, leave the list, and never
+        // match a query under the new one. The fingerprint is the epoch.
+        let owner = users::Entity::find_by_id(self.owner_id)
+            .one(self.repository.connection())
+            .await?
+            .ok_or_else(|| Error::NotFound("user_not_found".to_string()))?;
+        if fingerprint != owner.fingerprint {
+            return Err(Error::BadRequest("reindex_key_rotated".to_string()));
+        }
+
+        // Absent digests stay untouched rather than being blanked: a sweep
+        // re-keys the values the row already carries, and a file whose row
+        // never had a digest has nothing to re-key.
+        let keyed = |value: Option<String>| match value {
+            Some(v) => ActiveValue::Set(Some(v)),
+            None => ActiveValue::NotSet,
+        };
+
+        files::ActiveModel {
+            id: ActiveValue::Set(id),
+            name_hash: ActiveValue::Set(name_hash),
+            md5: keyed(hashes.md5),
+            sha1: keyed(hashes.sha1),
+            sha256: keyed(hashes.sha256),
+            blake2b: keyed(hashes.blake2b),
+            ..Default::default()
+        }
+        .update(self.repository.connection())
+        .await?;
+
+        let tokens = self.repository.tokens(self.owner_id);
+        tokens.reindex(id, search_tags).await?;
+        tokens
+            .replace_source(id, Source::Content, content_tags)
+            .await?;
+        tokens.replace_digests(id, digest_tags).await?;
+
+        self.repository.by_id(id, self.owner_id).await
+    }
+
     /// Rename a file or directory.
     ///
     /// The route layer gates this with `permission::require_write` plus
@@ -336,19 +393,91 @@ where
     /// caller is a non-owner. For owner callers there's no extra guard
     /// — owners can rename anything they own.
     pub(crate) async fn rename(&self, id: Uuid, data: Rename) -> AppResult<AppFile> {
-        let (active_model, hashed_tokens, name_hash) = data.into_active_model(id)?;
-
         let file = self.repository.by_id(id, self.owner_id).await?;
+        let (mut active_model, mut search_tags, name_hash) = data.into_active_model(id)?;
 
-        if self.by_name(&name_hash, file.file_id).await.is_ok() {
-            return Err(Error::BadRequest("file_already_exists".to_string()));
+        if file.is_owner {
+            if self.by_name(&name_hash, file.file_id).await.is_ok() {
+                return Err(Error::BadRequest("file_already_exists".to_string()));
+            }
+        } else {
+            // An editor holds the file key but not the owner's root key. The
+            // name_hash and root-scope tags are keyed under that root key, so a
+            // value produced here would be one the owner can never match —
+            // leaving the owner's index looking corrupt. Keep both as the owner
+            // last wrote them; only the file-scope tags, keyed under the file
+            // key the editor does hold, refresh.
+            active_model.name_hash = ActiveValue::NotSet;
+            search_tags.root = None;
         }
 
         active_model.update(self.repository.connection()).await?;
 
         self.repository
             .tokens(self.owner_id)
-            .rename(id, hashed_tokens)
+            .reindex(id, search_tags)
+            .await?;
+
+        self.repository.by_id(file.id, file.user_id).await
+    }
+
+    /// Replace extra-source tags. Name and content sources are left alone.
+    ///
+    /// An editor cannot produce the owner's root tags, so their write drops
+    /// root and leaves that extra scope as the owner last wrote it. Empty
+    /// lists clear the scopes the caller is allowed to write — this endpoint
+    /// is a full replace of extra, not a partial merge.
+    pub(crate) async fn replace_extra(&self, id: Uuid, data: ExtraTokens) -> AppResult<AppFile> {
+        let file = self.repository.by_id(id, self.owner_id).await?;
+        let mut tags = data.into_search_tags()?;
+
+        if file.is_owner {
+            if tags.root.is_none() {
+                tags.root = Some(Vec::new());
+            }
+        } else {
+            tags.root = None;
+        }
+        if tags.file.is_none() {
+            tags.file = Some(Vec::new());
+        }
+
+        self.repository
+            .tokens(self.owner_id)
+            .replace_source(id, Source::Extra, tags)
+            .await?;
+
+        self.repository.by_id(file.id, file.user_id).await
+    }
+
+    /// Replace the note-body tags for a file, leaving every other source
+    /// alone.
+    ///
+    /// Written for the client's follow-up after a restore: that request names
+    /// a version and carries no body, so the tags for the text being restored
+    /// cannot be derived server-side and the restore clears them instead. A
+    /// client that has decrypted the restored version sends them here, and the
+    /// note is findable by its own words again without waiting for the sweep.
+    ///
+    /// Same scope asymmetry as every other index write: an editor who is not
+    /// the owner holds the file key but not the owner's root key, so their
+    /// call carries only the file scope and must leave the root scope alone
+    /// rather than empty an index it cannot rebuild.
+    pub(crate) async fn replace_content_tokens(
+        &self,
+        id: Uuid,
+        data: ContentTokens,
+    ) -> AppResult<AppFile> {
+        let file = self.repository.by_id(id, self.owner_id).await?;
+        let mut tags = data.into_search_tags()?;
+
+        if !file.is_owner {
+            tags.root = None;
+        }
+
+        self.repository
+            .tokens(self.owner_id)
+            .replace_source(id, Source::Content, tags)
             .await?;
 
         self.repository.by_id(file.id, file.user_id).await
@@ -450,7 +579,9 @@ where
         &self,
         create_file: files::ActiveModel,
         encrypted_key: &str,
-        hashed_tokens: Vec<String>,
+        search_tags: SearchTags,
+        content_tags: SearchTags,
+        digest_tags: DigestTags,
     ) -> AppResult<AppFile> {
         if let Some(file_id) = create_file.file_id.clone().into_value() {
             if file_id.to_string().as_str() != "NULL" {
@@ -469,10 +600,12 @@ where
             .exec_without_returning(self.repository.connection())
             .await?;
 
-        self.repository
-            .tokens(self.owner_id)
-            .upsert(file_id, hashed_tokens)
+        let tokens = self.repository.tokens(self.owner_id);
+        tokens.reindex(file_id, search_tags).await?;
+        tokens
+            .replace_source(file_id, Source::Content, content_tags)
             .await?;
+        tokens.replace_digests(file_id, digest_tags).await?;
 
         let id = entity::Uuid::new_v4();
 
@@ -505,19 +638,29 @@ where
     /// Route gates by `permission::require_write` — Editors and
     /// Co-owners can update hashes on shared files they just chunk-
     /// uploaded.
-    pub(crate) async fn update_hashes(
-        &self,
-        id: Uuid,
-        data: UpdateHashes,
-    ) -> AppResult<AppFile> {
+    pub(crate) async fn update_hashes(&self, id: Uuid, data: UpdateHashes) -> AppResult<AppFile> {
         let file = self.repository.by_id(id, self.owner_id).await?;
 
         if file.is_dir() {
             return Err(Error::NotFound("file_not_found".to_string()));
         }
 
-        let active_model = data.into_active_model(id)?;
+        let (active_model, mut tags) = data.into_active_model(id)?;
+
+        if !file.is_owner {
+            // Same guard as rename and replace_content: root-scope tags are
+            // keyed under the owner's key, which an editor does not hold. A
+            // value produced here would sit in the owner's scope unmatchable
+            // forever — and, worse, findable by the editor's own key.
+            tags.root = None;
+        }
+
         active_model.update(self.repository.connection()).await?;
+
+        self.repository
+            .tokens(self.owner_id)
+            .replace_digests(id, tags)
+            .await?;
 
         self.repository.by_id(file.id, file.user_id).await
     }
@@ -544,7 +687,7 @@ where
     pub(crate) async fn replace_content(
         &self,
         id: Uuid,
-        data: ValidatedReplaceContent,
+        mut data: ValidatedReplaceContent,
     ) -> AppResult<(AppFile, Option<i32>)> {
         // Caller may be the file's owner or an Editor / Co-owner on a
         // share — the route layer gates with `permission::require_write`
@@ -553,6 +696,28 @@ where
         // the saver-attribution machinery in `finish` writes the
         // caller's id into `file_versions.user_id`.
         let file = self.repository.by_id(id, self.owner_id).await?;
+
+        if !file.is_owner {
+            // Root-scope tags are keyed under the owner's key, which an editor
+            // does not hold; theirs would overwrite the owner's index with
+            // unmatchable tags. Drop them and keep only the file-scope tags.
+            data.search_tags.root = None;
+        }
+
+        // A client from before the keyed index sends no tags at all, and
+        // `replace_source` leaves a scope it was given nothing for exactly as it
+        // was — so the note's text would change while its index went on
+        // describing the text it replaced. Searching would find the note by
+        // words it no longer contains and miss the words it now does, with
+        // nothing anywhere recording that.
+        //
+        // Both scopes absent, not either one. A caller that supplies a scope
+        // has told us what that scope should hold, and none of them is a
+        // legacy client: an owner sends both, an editor sends the file scope
+        // and has its root dropped just above, and a caller that supplies
+        // only root has still said something about the index. Only silence
+        // across the board is the old shape.
+        let index_is_stale = data.search_tags.root.is_none() && data.search_tags.file.is_none();
 
         if file.is_dir() {
             return Err(Error::BadRequest("cannot_replace_directory".to_string()));
@@ -566,9 +731,7 @@ where
         // `force = true`, abandoning the previous pending edit.
         let abandoned_pending = if let Some(pending) = file.pending_version {
             if !data.force {
-                return Err(Error::Conflict(
-                    "another_edit_is_in_progress".to_string(),
-                ));
+                return Err(Error::Conflict("another_edit_is_in_progress".to_string()));
             }
             Some(pending)
         } else {
@@ -602,12 +765,55 @@ where
             active_model.encrypted_thumbnail = ActiveValue::Set(Some(thumbnail));
         }
 
+        if index_is_stale {
+            // What the rekey migration uses to mean "this file is waiting for
+            // its owner's sweep". The sweep decrypts the note and rebuilds
+            // name and body together, so enrolling it here is the whole
+            // repair: it happens on the owner's next login from a client that
+            // can produce the tags.
+            active_model.name_hash = ActiveValue::Set(String::new());
+        }
+
         active_model.update(self.repository.connection()).await?;
+
+        // An empty set is a delete with nothing written after it, so a stale
+        // scope is cleared rather than left answering for content that is
+        // gone. Only the scopes this caller was entitled to write: the
+        // root-drop above already removed root for a non-owner, whose save
+        // must not clear an index they cannot rebuild.
+        let tags = if index_is_stale {
+            SearchTags {
+                root: file.is_owner.then(Vec::new),
+                file: Some(Vec::new()),
+            }
+        } else {
+            data.search_tags
+        };
 
         self.repository
             .tokens(self.owner_id)
-            .rename(id, data.search_tokens_hashed)
+            .replace_source(id, Source::Content, tags)
             .await?;
+
+        if index_is_stale {
+            // The digest scopes need the same treatment, and cannot be
+            // rebuilt by the sweep the way the word tags can: `finish` nulls
+            // the digest columns on the way through, expecting the hash write
+            // that an old client is refused. So the sweep finds nothing to
+            // re-key, sends no digest tags, and the ones describing the
+            // replaced content would outlive it — past the sweep, which takes
+            // the file off the pending list either way.
+            self.repository
+                .tokens(self.owner_id)
+                .replace_digests(
+                    id,
+                    DigestTags {
+                        root: file.is_owner.then(Vec::new),
+                        file: Some(Vec::new()),
+                    },
+                )
+                .await?;
+        }
 
         let file = self.repository.by_id(id, self.owner_id).await?;
         Ok((file, abandoned_pending))
@@ -642,7 +848,9 @@ where
         }
 
         if file.is_dir() {
-            return Err(Error::BadRequest("cannot_set_editable_on_directory".to_string()));
+            return Err(Error::BadRequest(
+                "cannot_set_editable_on_directory".to_string(),
+            ));
         }
 
         let validated = data.validate()?;

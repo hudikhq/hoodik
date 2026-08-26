@@ -61,7 +61,9 @@ impl TestUser {
     pub fn sign_bytes(&self, message: &[u8]) -> String {
         match self.key_type {
             KeyType::Rsa => cryptfns::rsa::private::sign_bytes(message, &self.private_pem),
-            KeyType::Curve25519 => cryptfns::ed25519::private::sign_bytes(message, &self.private_pem),
+            KeyType::Curve25519 => {
+                cryptfns::ed25519::private::sign_bytes(message, &self.private_pem)
+            }
         }
         .expect("sign with identity key")
     }
@@ -83,22 +85,14 @@ impl TestUser {
 }
 
 pub trait TestApp:
-    Service<
-    actix_http::Request,
-    Response = ServiceResponse<Self::Body>,
-    Error = actix_web::Error,
->
+    Service<actix_http::Request, Response = ServiceResponse<Self::Body>, Error = actix_web::Error>
 {
     type Body: actix_web::body::MessageBody;
 }
 impl<S, B> TestApp for S
 where
     B: actix_web::body::MessageBody,
-    S: Service<
-        actix_http::Request,
-        Response = ServiceResponse<B>,
-        Error = actix_web::Error,
-    >,
+    S: Service<actix_http::Request, Response = ServiceResponse<B>, Error = actix_web::Error>,
 {
     type Body = B;
 }
@@ -146,7 +140,11 @@ pub async fn register_curve25519(app: &impl TestApp, email: &str) -> TestUser {
         }))
         .to_request();
     let resp = test::call_service(app, req).await;
-    assert!(resp.status().is_success(), "register {email} failed: {:?}", resp.status());
+    assert!(
+        resp.status().is_success(),
+        "register {email} failed: {:?}",
+        resp.status()
+    );
     let (jwt, _) = extract_cookies(resp.headers());
     let jwt = jwt.expect("register response missing JWT cookie");
     let body = test::read_body(resp).await;
@@ -170,7 +168,11 @@ pub async fn register_curve25519(app: &impl TestApp, email: &str) -> TestUser {
 /// it in through the credentials endpoint for a session cookie. The RSA private
 /// key is retained so the fixture can sign and wrap exactly as a pre-migration
 /// client would.
-pub async fn seed_legacy_test_user(app: &impl TestApp, db: &entity::DbConn, email: &str) -> TestUser {
+pub async fn seed_legacy_test_user(
+    app: &impl TestApp,
+    db: &entity::DbConn,
+    email: &str,
+) -> TestUser {
     let seeded = helpers::seed_legacy_user(db, email).await;
 
     let req = test::TestRequest::post()
@@ -178,7 +180,11 @@ pub async fn seed_legacy_test_user(app: &impl TestApp, db: &entity::DbConn, emai
         .set_json(serde_json::json!({ "email": email, "password": helpers::LEGACY_PASSWORD }))
         .to_request();
     let resp = test::call_service(app, req).await;
-    assert!(resp.status().is_success(), "login {email} failed: {:?}", resp.status());
+    assert!(
+        resp.status().is_success(),
+        "login {email} failed: {:?}",
+        resp.status()
+    );
     let (jwt, _) = extract_cookies(resp.headers());
     let jwt = jwt.expect("login response missing JWT cookie");
 
@@ -224,14 +230,20 @@ pub fn make_create_curve25519_user(
     user
 }
 
-pub fn make_create_file(public_pem: &str, name_hash: &str) -> storage::data::create_file::CreateFile {
+pub fn make_create_file(
+    public_pem: &str,
+    name_hash: &str,
+) -> storage::data::create_file::CreateFile {
     make_create_file_with_key(
         cryptfns::rsa::public::encrypt("deadbeef", public_pem).unwrap(),
         name_hash,
     )
 }
 
-pub fn make_create_file_for(user: &TestUser, name_hash: &str) -> storage::data::create_file::CreateFile {
+pub fn make_create_file_for(
+    user: &TestUser,
+    name_hash: &str,
+) -> storage::data::create_file::CreateFile {
     make_create_file_with_key(user.wrap_key("deadbeef"), name_hash)
 }
 
@@ -243,7 +255,10 @@ fn make_create_file_with_key(
         encrypted_key: Some(encrypted_key),
         encrypted_name: Some("encrypted-name".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
+        content_tokens_root: None,
+        content_tokens_file: None,
         name_hash: Some(name_hash.to_string()),
         mime: Some("text/plain".to_string()),
         size: Some(1024),
@@ -254,6 +269,8 @@ fn make_create_file_with_key(
         sha1: Some("sha1".to_string()),
         sha256: Some("sha256".to_string()),
         blake2b: Some("b2b".to_string()),
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     }
@@ -268,7 +285,10 @@ pub fn make_create_folder(
         encrypted_key: Some(user.wrap_key("deadbeef")),
         encrypted_name: Some("encrypted-name".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
+        content_tokens_root: None,
+        content_tokens_file: None,
         name_hash: Some(name_hash.to_string()),
         mime: Some("dir".to_string()),
         size: None,
@@ -279,6 +299,8 @@ pub fn make_create_folder(
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     }
@@ -454,8 +476,17 @@ pub fn build_folder_share_envelope_with_entries(
     members_after: &[FolderListMemberSpec<'_>],
     list_signer: &TestUser,
 ) -> Value {
-    let envelope = build_share_envelope(sender, recipient, role, folder_id, entries, nonce, timestamp);
-    inject_list_signature(envelope, folder_id, folder_owner_id, members_after, list_signer, timestamp)
+    let envelope = build_share_envelope(
+        sender, recipient, role, folder_id, entries, nonce, timestamp,
+    );
+    inject_list_signature(
+        envelope,
+        folder_id,
+        folder_owner_id,
+        members_after,
+        list_signer,
+        timestamp,
+    )
 }
 
 /// Folder variant of `build_role_change_envelope`. Use when the recipient
@@ -486,7 +517,14 @@ pub fn build_folder_role_change_envelope(
         nonce,
         timestamp,
     );
-    inject_list_signature(envelope, folder_id, folder_owner_id, members_after, list_signer, timestamp)
+    inject_list_signature(
+        envelope,
+        folder_id,
+        folder_owner_id,
+        members_after,
+        list_signer,
+        timestamp,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -510,7 +548,14 @@ pub fn build_co_owner_folder_share_envelope(
         nonce,
         timestamp,
     );
-    inject_list_signature(envelope, folder_id, folder_owner_id, members_after, list_signer, timestamp)
+    inject_list_signature(
+        envelope,
+        folder_id,
+        folder_owner_id,
+        members_after,
+        list_signer,
+        timestamp,
+    )
 }
 
 fn inject_list_signature(
@@ -528,9 +573,7 @@ fn inject_list_signature(
         list_signer,
         timestamp,
     );
-    let map = envelope
-        .as_object_mut()
-        .expect("envelope object");
+    let map = envelope.as_object_mut().expect("envelope object");
     map.insert("members_list_signature".to_string(), list_sig);
     envelope
 }
@@ -666,10 +709,7 @@ pub fn inject_member_signature(
 ) -> Value {
     let sig = sign_member_payload(signer, recipient, share_role, signed_at);
     let map = envelope.as_object_mut().expect("envelope object");
-    map.insert(
-        "member_signature".to_string(),
-        Value::String(sig),
-    );
+    map.insert("member_signature".to_string(), Value::String(sig));
     map.insert(
         "member_signed_at".to_string(),
         Value::Number(signed_at.into()),
@@ -797,11 +837,13 @@ pub fn build_upload_multikey_body(
 ) -> Value {
     let keys: Vec<Value> = member_keys
         .into_iter()
-        .map(|(uid, key, is_owner)| serde_json::json!({
-            "user_id": uid.to_string(),
-            "encrypted_key": key,
-            "is_owner_of_file": is_owner,
-        }))
+        .map(|(uid, key, is_owner)| {
+            serde_json::json!({
+                "user_id": uid.to_string(),
+                "encrypted_key": key,
+                "is_owner_of_file": is_owner,
+            })
+        })
         .collect();
     serde_json::json!({
         "new_file_id": new_file_id.to_string(),
@@ -833,10 +875,12 @@ pub fn build_move_into_shared_body(
 ) -> Value {
     let keys: Vec<Value> = member_keys
         .into_iter()
-        .map(|(uid, key)| serde_json::json!({
-            "user_id": uid.to_string(),
-            "encrypted_key": key,
-        }))
+        .map(|(uid, key)| {
+            serde_json::json!({
+                "user_id": uid.to_string(),
+                "encrypted_key": key,
+            })
+        })
         .collect();
     serde_json::json!({
         "file_id": file_id.to_string(),
@@ -968,7 +1012,12 @@ pub fn sign_fork_event(actor: &TestUser, source_file_id: Uuid, timestamp: i64) -
     sign_no_recipient_event(actor, source_file_id, AuditEventActionEnum::Fork, timestamp)
 }
 
-pub fn build_evict_body(actor: &TestUser, target: &TestUser, file_id: Uuid, timestamp: i64) -> Value {
+pub fn build_evict_body(
+    actor: &TestUser,
+    target: &TestUser,
+    file_id: Uuid,
+    timestamp: i64,
+) -> Value {
     let event_signature = sign_audit_event(
         actor,
         target,
@@ -1013,7 +1062,13 @@ pub fn generate_curve25519_keypair() -> (String, String, String, String, String)
     let fingerprint = cryptfns::spki::fingerprint(&public_pem).unwrap();
     let wrapping_private_pem = cryptfns::ecdh::private::generate().unwrap();
     let wrapping_public_pem = cryptfns::ecdh::public::from_private(&wrapping_private_pem).unwrap();
-    (private_pem, public_pem, fingerprint, wrapping_private_pem, wrapping_public_pem)
+    (
+        private_pem,
+        public_pem,
+        fingerprint,
+        wrapping_private_pem,
+        wrapping_public_pem,
+    )
 }
 
 /// Seed a legacy RSA account at the data layer and log it in. Registration no
@@ -1035,8 +1090,7 @@ macro_rules! register_user {
 #[macro_export]
 macro_rules! register_curve25519_user {
     ($app:expr, $user:ident, $email:expr) => {
-        let $user =
-            $crate::shares_common::register_curve25519(&$app, $email).await;
+        let $user = $crate::shares_common::register_curve25519(&$app, $email).await;
     };
 }
 
@@ -1068,7 +1122,8 @@ macro_rules! create_folder {
             .expect("create_folder json")
     }};
     ($app:expr, $user:expr, $name_hash:expr, $parent_id:expr) => {{
-        let payload = $crate::shares_common::make_create_folder(&$user, $name_hash, Some($parent_id));
+        let payload =
+            $crate::shares_common::make_create_folder(&$user, $name_hash, Some($parent_id));
         let req = actix_web::test::TestRequest::post()
             .uri("/api/storage")
             .cookie($user.jwt.clone())
@@ -1083,8 +1138,7 @@ macro_rules! create_folder {
 #[macro_export]
 macro_rules! create_child_file {
     ($app:expr, $user:expr, $name_hash:expr, $parent_id:expr) => {{
-        let payload =
-            $crate::shares_common::make_create_child_file(&$user, $name_hash, $parent_id);
+        let payload = $crate::shares_common::make_create_child_file(&$user, $name_hash, $parent_id);
         let req = actix_web::test::TestRequest::post()
             .uri("/api/storage")
             .cookie($user.jwt.clone())

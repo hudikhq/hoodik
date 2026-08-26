@@ -21,7 +21,10 @@ fn create_file_with_thumbnail(name_hash: &str) -> storage::data::create_file::Cr
         encrypted_key: Some("encrypted-gibberish".to_string()),
         encrypted_name: Some("name".to_string()),
         encrypted_thumbnail: Some(THUMBNAIL.to_string()),
-        search_tokens_hashed: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
+        content_tokens_root: None,
+        content_tokens_file: None,
         name_hash: Some(name_hash.to_string()),
         mime: Some("image/jpeg".to_string()),
         size: Some(100),
@@ -32,6 +35,8 @@ fn create_file_with_thumbnail(name_hash: &str) -> storage::data::create_file::Cr
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     }
@@ -40,7 +45,7 @@ fn create_file_with_thumbnail(name_hash: &str) -> storage::data::create_file::Cr
 #[actix_web::test]
 async fn test_storage_compact_listing_and_thumbnail_route() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-thumbnails".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-thumbnails".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
 
@@ -156,7 +161,7 @@ async fn test_storage_compact_listing_and_thumbnail_route() {
 #[actix_web::test]
 async fn test_links_compact_listing_and_metadata_blob() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-thumbnails-links".to_string()))
+        context::Context::mock_with_data_dir(Some("../data/test-thumbnails-links".to_string()))
             .await;
 
     let app = test::init_service(server::app(context.clone())).await;
@@ -251,21 +256,23 @@ async fn test_links_compact_listing_and_metadata_blob() {
 #[actix_web::test]
 async fn test_search_compact_withholds_thumbnail_blob() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-thumbnails-search".to_string()))
+        context::Context::mock_with_data_dir(Some("../data/test-thumbnails-search".to_string()))
             .await;
 
     let app = test::init_service(server::app(context.clone())).await;
 
     let jwt = helpers::register_curve25519(&app, "john@doe.com").await.jwt;
 
-    let hashed: Vec<String> = cryptfns::tokenizer::into_hashed_tokens("octopus")
-        .expect("tokenize search word")
-        .into_iter()
+    let key = [23u8; 32];
+    let tagged = cryptfns::search::tag_tokens(&key, "octopus").expect("tag search word");
+    let indexed: Vec<String> = tagged
+        .iter()
         .map(|t| format!("{}:{}", t.token, t.weight))
         .collect();
+    let query: Vec<String> = tagged.into_iter().map(|t| t.token).collect();
 
     let mut payload = create_file_with_thumbnail("searchable-thumb");
-    payload.search_tokens_hashed = Some(hashed.clone());
+    payload.search_tokens_root = Some(indexed);
 
     let req = test::TestRequest::post()
         .uri("/api/storage")
@@ -280,7 +287,7 @@ async fn test_search_compact_withholds_thumbnail_blob() {
     let req = test::TestRequest::post()
         .uri("/api/storage/search")
         .cookie(jwt.clone())
-        .set_json(json!({ "search_tokens_hashed": hashed }))
+        .set_json(json!({ "root_tags": query }))
         .to_request();
     let hits: Vec<AppFile> =
         serde_json::from_slice(&test::call_and_read_body(&app, req).await).unwrap();
@@ -291,7 +298,7 @@ async fn test_search_compact_withholds_thumbnail_blob() {
     let req = test::TestRequest::post()
         .uri("/api/storage/search")
         .cookie(jwt.clone())
-        .set_json(json!({ "search_tokens_hashed": hashed, "compact": true }))
+        .set_json(json!({ "root_tags": query, "compact": true }))
         .to_request();
     let body = test::call_and_read_body(&app, req).await;
     assert!(!String::from_utf8(body.to_vec())

@@ -39,8 +39,11 @@ fn create_file_json(chunks: &[Vec<u8>], name: &str) -> storage::data::create_fil
         encrypted_key: Some("encrypted-key".to_string()),
         encrypted_name: Some(name.to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
-        name_hash: Some(calculate_checksum(chunks.to_vec())),
+        search_tokens_root: None,
+        search_tokens_file: None,
+        content_tokens_root: None,
+        content_tokens_file: None,
+        name_hash: Some(helpers::name_tag(&calculate_checksum(chunks.to_vec()))),
         mime: Some("application/octet-stream".to_string()),
         size: Some(size),
         chunks: Some(chunks.len() as i64),
@@ -50,6 +53,8 @@ fn create_file_json(chunks: &[Vec<u8>], name: &str) -> storage::data::create_fil
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     }
@@ -134,7 +139,7 @@ macro_rules! download_bytes {
 
 #[actix_web::test]
 async fn test_upload_tar_happy_path() {
-    setup!(context, app, jwt, "../data-test-tar-upload-happy", "tar-happy@test.com");
+    setup!(context, app, jwt, "../data/test-tar-upload-happy", "tar-happy@test.com");
 
     let chunks = mock_chunks(4, 1024);
     let file = create_file!(app, jwt, create_file_json(&chunks, "happy.enc"));
@@ -156,7 +161,7 @@ async fn test_upload_tar_happy_path() {
 
 #[actix_web::test]
 async fn test_upload_tar_idempotent_replay() {
-    setup!(context, app, jwt, "../data-test-tar-upload-replay", "tar-replay@test.com");
+    setup!(context, app, jwt, "../data/test-tar-upload-replay", "tar-replay@test.com");
 
     let chunks = mock_chunks(3, 512);
     let file = create_file!(app, jwt, create_file_json(&chunks, "replay.enc"));
@@ -179,7 +184,7 @@ async fn test_upload_tar_idempotent_replay() {
 
 #[actix_web::test]
 async fn test_upload_tar_partial_then_complete() {
-    setup!(context, app, jwt, "../data-test-tar-upload-split", "tar-split@test.com");
+    setup!(context, app, jwt, "../data/test-tar-upload-split", "tar-split@test.com");
 
     let chunks = mock_chunks(5, 256);
     let file = create_file!(app, jwt, create_file_json(&chunks, "split.enc"));
@@ -213,7 +218,7 @@ async fn test_upload_tar_partial_then_complete() {
 
 #[actix_web::test]
 async fn test_upload_tar_malformed_rejected() {
-    setup!(context, app, jwt, "../data-test-tar-upload-malformed", "tar-malformed@test.com");
+    setup!(context, app, jwt, "../data/test-tar-upload-malformed", "tar-malformed@test.com");
 
     let chunks = mock_chunks(1, 128);
     let file = create_file!(app, jwt, create_file_json(&chunks, "malformed.enc"));
@@ -237,7 +242,7 @@ async fn test_upload_tar_malformed_rejected() {
 
 #[actix_web::test]
 async fn test_upload_tar_out_of_range_chunk_rejected() {
-    setup!(context, app, jwt, "../data-test-tar-upload-oor", "tar-oor@test.com");
+    setup!(context, app, jwt, "../data/test-tar-upload-oor", "tar-oor@test.com");
 
     let chunks = mock_chunks(2, 64);
     let file = create_file!(app, jwt, create_file_json(&chunks, "oor.enc"));
@@ -250,7 +255,7 @@ async fn test_upload_tar_out_of_range_chunk_rejected() {
 
 #[actix_web::test]
 async fn test_upload_tar_duplicate_index_rejected() {
-    setup!(context, app, jwt, "../data-test-tar-upload-dup", "tar-dup@test.com");
+    setup!(context, app, jwt, "../data/test-tar-upload-dup", "tar-dup@test.com");
 
     let chunks = mock_chunks(3, 32);
     let file = create_file!(app, jwt, create_file_json(&chunks, "dup.enc"));
@@ -263,7 +268,7 @@ async fn test_upload_tar_duplicate_index_rejected() {
 #[actix_web::test]
 async fn test_upload_tar_unauthenticated() {
     let context = context::Context::mock_with_data_dir(Some(
-        "../data-test-tar-upload-unauth".to_string(),
+        "../data/test-tar-upload-unauth".to_string(),
     ))
     .await;
     let app = test::init_service(server::app(context.clone())).await;
@@ -280,7 +285,7 @@ async fn test_upload_tar_unauthenticated() {
 
 #[actix_web::test]
 async fn test_upload_tar_not_owned() {
-    setup!(context, app, owner_jwt, "../data-test-tar-upload-notowned", "tar-owner@test.com");
+    setup!(context, app, owner_jwt, "../data/test-tar-upload-notowned", "tar-owner@test.com");
 
     let stranger_jwt = helpers::register_curve25519(&app, "tar-stranger@test.com").await.jwt;
 
@@ -308,7 +313,7 @@ async fn test_upload_tar_three_chunk_aegis_encrypted_file() {
         context,
         app,
         jwt,
-        "../data-test-tar-upload-multi-chunk-aegis",
+        "../data/test-tar-upload-multi-chunk-aegis",
         "tar-multi-aegis@test.com"
     );
 
@@ -364,7 +369,7 @@ async fn test_upload_tar_three_chunk_aegis_encrypted_file() {
 
 #[actix_web::test]
 async fn test_upload_tar_matches_per_chunk_final_state() {
-    setup!(context, app, jwt, "../data-test-tar-upload-parity", "tar-parity@test.com");
+    setup!(context, app, jwt, "../data/test-tar-upload-parity", "tar-parity@test.com");
 
     let chunks = mock_chunks(4, 2048);
     let file_tar = create_file!(
@@ -405,5 +410,62 @@ async fn test_upload_tar_matches_per_chunk_final_state() {
     let fs = Fs::new(&context.config);
     fs.purge_all(&file_tar).await.unwrap();
     fs.purge_all(&file_pc).await.unwrap();
+    context.config.app.cleanup();
+}
+
+/// With the archive switched off, both directions refuse `?format=tar` and the
+/// capability says so up front.
+///
+/// The switch exists for deployments behind a proxy that caps request size —
+/// Cloudflare Tunnel stops at 100 MB, and an archive above that dies there
+/// while the same file transfers fine a chunk at a time. Clients read the
+/// capability and skip the archive without asking; the refusal is for the ones
+/// that did not, which is every client older than the switch.
+#[actix_web::test]
+async fn test_tar_disabled_refuses_both_directions_and_advertises_it() {
+    let mut context =
+        context::Context::mock_with_data_dir(Some("../data/test-tar-disabled".to_string())).await;
+    context.config.app.tar_transfer_disabled = true;
+
+    let app = test::init_service(server::app(context.clone())).await;
+    let jwt = helpers::register_curve25519(&app, "tardisabled@test.com")
+        .await
+        .jwt;
+
+    let req = test::TestRequest::get()
+        .uri("/api/capabilities")
+        .to_request();
+    let caps: serde_json::Value = test::call_and_read_body_json(&app, req).await;
+    assert_eq!(
+        caps["tar_transfer"], false,
+        "the switch is advertised so clients never spend a refused request"
+    );
+
+    let chunks = vec![vec![7u8; 32]];
+    let file = create_file!(app, jwt, create_file_json(&chunks, "refused.enc"));
+
+    let req = test::TestRequest::post()
+        .uri(format!("/api/storage/{}?format=tar", file.id).as_str())
+        .cookie(jwt.clone())
+        .set_payload(vec![0u8; 32])
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::NOT_IMPLEMENTED,
+        "the archive upload is refused"
+    );
+
+    let req = test::TestRequest::get()
+        .uri(format!("/api/storage/{}?format=tar", file.id).as_str())
+        .cookie(jwt.clone())
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(
+        resp.status(),
+        StatusCode::NOT_IMPLEMENTED,
+        "and so is the archive download"
+    );
+
     context.config.app.cleanup();
 }

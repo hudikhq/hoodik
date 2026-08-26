@@ -25,7 +25,10 @@ fn sized_create(name_hash: &str, chunk_lens: &[usize]) -> CreateFile {
         encrypted_key: Some("encrypted-key".to_string()),
         encrypted_name: Some("encrypted-name".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
+        content_tokens_root: None,
+        content_tokens_file: None,
         name_hash: Some(name_hash.to_string()),
         mime: Some("application/octet-stream".to_string()),
         size: Some(chunk_lens.iter().map(|n| *n as i64).sum()),
@@ -36,6 +39,8 @@ fn sized_create(name_hash: &str, chunk_lens: &[usize]) -> CreateFile {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     }
@@ -169,7 +174,7 @@ async fn instance_quota_shapes_admin_available_space() {
 #[actix_web::test]
 async fn instance_quota_rejects_tar_pre_read() {
     let mut context = context::Context::mock_with_data_dir(Some(
-        "../data-test-instq-preread".to_string(),
+        "../data/test-instq-preread".to_string(),
     ))
     .await;
     context.config.app.storage_instance_quota_bytes = Some(2048);
@@ -206,7 +211,7 @@ async fn instance_quota_rejects_tar_pre_read() {
 #[actix_web::test]
 async fn instance_quota_rejects_tar_mid_stream() {
     let mut context = context::Context::mock_with_data_dir(Some(
-        "../data-test-instq-midstream".to_string(),
+        "../data/test-instq-midstream".to_string(),
     ))
     .await;
     context.config.app.storage_instance_quota_bytes = Some(3000);

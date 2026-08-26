@@ -1,12 +1,16 @@
-//! Repository module for manipulating the tokens for a file in order to index
-//! it better and enable full text search.
+//! Repository module for the searchable-token index of a file.
+//!
+//! Rows hold an HMAC tag of each token rather than its digest, under one of the
+//! two keys described on [`file_tokens::Scope`]. [`file_tokens::Source`] says
+//! which client-side text produced the token; write paths replace only their
+//! own source. The server only ever sees tags, so indexing here is a straight
+//! insert and searching is an equality match — no server-side tokenization,
+//! and nothing in this file can turn a row back into a word.
 
-use std::cmp::Ordering;
-
-use cryptfns::tokenizer::Token;
 use entity::{
-    file_tokens, files, links, tokens, user_files, ActiveValue, ColumnTrait, ConnectionTrait,
-    EntityTrait, QueryFilter, QueryOrder, QuerySelect, Uuid,
+    file_tokens::{self, DigestTags, Scope, SearchTags, Source},
+    files, links, user_files, ActiveValue, ColumnTrait, Condition, ConnectionTrait, EntityTrait,
+    Expr, Func, QueryFilter, QueryOrder, QuerySelect, Uuid,
 };
 use error::AppResult;
 
@@ -30,148 +34,160 @@ where
         }
     }
 
-    /// Link file with given tokens
-    pub(crate) async fn upsert(&self, file_id: Uuid, hashed_tokens: Vec<String>) -> AppResult<u64> {
-        let tokens = cryptfns::tokenizer::from_vec(hashed_tokens)?;
-
-        let existing = tokens::Entity::find()
-            .filter(
-                tokens::Column::Hash.is_in(
-                    tokens
-                        .iter()
-                        .map(|t| t.token.clone())
-                        .collect::<Vec<String>>(),
-                ),
-            )
-            .all(self.repository.connection())
-            .await?;
-
-        let mut links = vec![];
-        let mut new_tokens = vec![];
-
-        for token in tokens {
-            if let Some(existing) = existing.iter().find(|t| t.hash == token.token) {
-                links.push(file_tokens::ActiveModel {
-                    id: ActiveValue::Set(Uuid::new_v4()),
-                    file_id: ActiveValue::Set(file_id),
-                    token_id: ActiveValue::Set(existing.id),
-                    weight: ActiveValue::Set(token.weight as i32),
-                });
-            } else {
-                let id = Uuid::new_v4();
-
-                links.push(file_tokens::ActiveModel {
-                    id: ActiveValue::Set(Uuid::new_v4()),
-                    file_id: ActiveValue::Set(file_id),
-                    token_id: ActiveValue::Set(id),
-                    weight: ActiveValue::Set(token.weight as i32),
-                });
-
-                new_tokens.push(tokens::ActiveModel {
-                    id: ActiveValue::Set(id),
-                    hash: ActiveValue::Set(token.token),
-                });
-            }
-        }
-
-        if !new_tokens.is_empty() {
-            tokens::Entity::insert_many(new_tokens)
-                .exec_without_returning(self.repository.connection())
-                .await?;
-        }
-
-        if !links.is_empty() {
-            let result = file_tokens::Entity::insert_many(links)
-                .exec_without_returning(self.repository.connection())
-                .await?;
-
-            Ok(result)
-        } else {
-            Ok(0)
-        }
-    }
-
-    /// Delete all tokens for a file and then recreate them.
-    /// This is used when renaming a file or doing file content update. It is not the most
-    /// efficient way to get this done, but it is the easiest.
-    pub(crate) async fn rename(&self, id: Uuid, hashed_tokens: Vec<String>) -> AppResult<u64> {
-        file_tokens::Entity::delete_many()
-            .filter(file_tokens::Column::FileId.eq(id))
-            .exec(self.repository.connection())
-            .await?;
-
-        self.upsert(id, hashed_tokens).await
-    }
-
-    /// Create a new token
-    #[allow(dead_code)]
-    pub(crate) async fn create(&self, token: Token) -> AppResult<tokens::Model> {
-        let id = Uuid::new_v4();
-
-        let token = tokens::ActiveModel {
-            id: ActiveValue::Set(id),
-            hash: ActiveValue::Set(token.token),
-        };
-
-        tokens::Entity::insert(token)
-            .exec_without_returning(self.repository.connection())
-            .await?;
-
-        tokens::Entity::find_by_id(id)
-            .one(self.repository.connection())
-            .await?
-            .ok_or_else(|| error::Error::NotFound("token_not_found".to_string()))
-    }
-
-    /// Get a token by hash
-    #[allow(dead_code)]
-    pub(crate) async fn get(&self, hash: &str) -> AppResult<tokens::Model> {
-        tokens::Entity::find()
-            .filter(tokens::Column::Hash.eq(hash))
-            .one(self.repository.connection())
-            .await?
-            .ok_or_else(|| error::Error::NotFound("token_not_found".to_string()))
-    }
-
-    /// Get all tokens for a file
-    #[allow(dead_code)]
-    pub(crate) async fn get_tokens(&self, file_id: Uuid) -> AppResult<Vec<Token>> {
-        let tokens = file_tokens::Entity::find()
-            .inner_join(tokens::Entity)
-            .filter(file_tokens::Column::FileId.eq(file_id))
-            .select_also(tokens::Entity)
-            .all(self.repository.connection())
-            .await?;
-
-        let mut tokens = tokens
+    pub(crate) async fn upsert(
+        &self,
+        file_id: Uuid,
+        scope: Scope,
+        source: Source,
+        tagged: Vec<String>,
+    ) -> AppResult<u64> {
+        let rows = cryptfns::search::from_wire(tagged)
             .into_iter()
-            .filter(|(_, token)| token.is_some())
-            .map(|(file_token, token)| Token {
-                token: token.unwrap().hash,
-                weight: file_token.weight as usize,
+            .map(|(tag, weight)| file_tokens::ActiveModel {
+                id: ActiveValue::Set(Uuid::new_v4()),
+                file_id: ActiveValue::Set(file_id),
+                scope: ActiveValue::Set(scope.into()),
+                source: ActiveValue::Set(source.into()),
+                tag: ActiveValue::Set(tag),
+                weight: ActiveValue::Set(weight),
             })
             .collect::<Vec<_>>();
 
-        tokens.sort_by(|a, b| match a.weight.cmp(&b.weight) {
-            Ordering::Less => Ordering::Greater,
-            Ordering::Equal => Ordering::Equal,
-            Ordering::Greater => Ordering::Less,
-        });
+        if rows.is_empty() {
+            return Ok(0);
+        }
 
-        Ok(tokens)
+        let written = rows.len() as u64;
+        file_tokens::Entity::insert_many(rows)
+            .exec_without_returning(self.repository.connection())
+            .await?;
+
+        Ok(written)
     }
 
-    /// Search files based on given tokens and sort by the token weight
+    /// Replace the name-source tags of every scope the caller supplied.
+    ///
+    /// Create, rename, and the re-index sweep write here. Content and extra
+    /// sources are left alone, which is what lets extra tags survive a rename.
+    pub(crate) async fn reindex(&self, file_id: Uuid, tags: SearchTags) -> AppResult<u64> {
+        self.replace_source(file_id, Source::Name, tags).await
+    }
+
+    /// Replace word-scope tags for one [`Source`], leaving the other sources
+    /// and the digest scopes untouched.
+    ///
+    /// The asymmetry on [`SearchTags`] is deliberate. An editor who is not the
+    /// owner can rewrite the file scope, because the file key reaches them,
+    /// but cannot produce the owner's root tags. Their save must therefore
+    /// leave scope 0 alone rather than clear an index it has no way to rebuild.
+    pub(crate) async fn replace_source(
+        &self,
+        file_id: Uuid,
+        source: Source,
+        tags: SearchTags,
+    ) -> AppResult<u64> {
+        let mut written = 0;
+
+        for (scope, tagged) in [(Scope::Root, tags.root), (Scope::File, tags.file)] {
+            let Some(tagged) = tagged else {
+                continue;
+            };
+
+            file_tokens::Entity::delete_many()
+                .filter(file_tokens::Column::FileId.eq(file_id))
+                .filter(file_tokens::Column::Source.eq(i32::from(source)))
+                .filter(file_tokens::Column::Scope.eq(i32::from(scope)))
+                .exec(self.repository.connection())
+                .await?;
+
+            written += self.upsert(file_id, scope, source, tagged).await?;
+        }
+
+        Ok(written)
+    }
+
+    /// Replace the digest tags of every scope the caller supplied.
+    ///
+    /// Delete-then-insert rather than append: hash writes are retried freely
+    /// (the PUT rides a transfer token precisely so a late retry still lands),
+    /// and appending on each attempt would duplicate rows and inflate the
+    /// weight ranking. Digest scopes are replaced by scope, not source, which
+    /// is what lets a rename replace every name token while the file stays
+    /// findable by its digest.
+    pub(crate) async fn replace_digests(&self, file_id: Uuid, tags: DigestTags) -> AppResult<u64> {
+        let mut written = 0;
+
+        for (scope, tagged) in [
+            (Scope::DigestRoot, tags.root),
+            (Scope::DigestFile, tags.file),
+        ] {
+            let Some(tagged) = tagged else {
+                continue;
+            };
+
+            file_tokens::Entity::delete_many()
+                .filter(file_tokens::Column::FileId.eq(file_id))
+                .filter(file_tokens::Column::Scope.eq(i32::from(scope)))
+                .exec(self.repository.connection())
+                .await?;
+
+            written += self.upsert(file_id, scope, Source::Name, tagged).await?;
+        }
+
+        Ok(written)
+    }
+
+    /// Files the caller owns whose `name_hash` is not a keyed tag yet: blank
+    /// where the re-key migration purged the old digest, or still the legacy
+    /// 64-hex shape on a row that slipped past it.
+    ///
+    /// After the migration that is every file they have, and the set shrinks
+    /// as the client works through it — the keyed `name_hash` every re-index
+    /// writes is itself the record of having done so, so a client that closes
+    /// mid-sweep resumes where it left off without any progress bookkeeping
+    /// to keep in sync. The record deliberately isn't "has root tags": a
+    /// name the tokenizer reduces to nothing produces zero tags on a
+    /// perfectly successful re-index, and a file like that must leave this
+    /// set rather than come back on every fetch forever.
+    pub(crate) async fn pending_reindex(&self, limit: u64) -> AppResult<Vec<AppFile>> {
+        let results = self
+            .repository
+            .compact_selector(self.user_id, true)
+            .filter(
+                Condition::any().add(files::Column::NameHash.eq("")).add(
+                    Expr::expr(Func::char_length(Expr::col((
+                        files::Entity,
+                        files::Column::NameHash,
+                    ))))
+                    .eq(64),
+                ),
+            )
+            .limit(limit)
+            .into_model::<AppFile>()
+            .all(self.repository.connection())
+            .await?;
+
+        Ok(results)
+    }
+
+    /// Search files by tag, ranked by the summed weight of the tags that hit.
+    ///
+    /// Content-digest lookup is not a separate arm any more: clients index
+    /// each file's digests as keyed tags alongside the name and body tokens,
+    /// and tag the raw query the same way, so an exact digest match rides the
+    /// ordinary tag equality below — always on, and never a plaintext digest
+    /// on the wire. Source is not filtered: a query hash matches a file if it
+    /// hits name or content or extra.
     pub(crate) async fn search(&self, search: Search) -> AppResult<Vec<AppFile>> {
         let compact = search.compact.unwrap_or(false);
-        let (file_id, hash, tokens, limit, skip, editable) = search.into_tuple();
+        let (file_id, root_tags, file_tags, limit, skip, editable) = search.into_tuple();
 
         let user_id = self.user_id;
         let selector = match compact {
             true => self.repository.compact_selector(user_id, false),
             false => self.repository.selector(user_id, false),
         };
-        let mut query = selector.inner_join(tokens::Entity);
+        let mut query = selector.inner_join(file_tokens::Entity);
 
         if let Some(file_id) = file_id {
             query = query.filter(files::Column::FileId.eq(file_id));
@@ -181,23 +197,26 @@ where
             query = query.filter(files::Column::Editable.eq(editable));
         }
 
-        let mut filter = tokens::Column::Hash.is_in(
-            tokens
-                .iter()
-                .map(|t| t.token.clone())
-                .collect::<Vec<String>>(),
-        );
+        let root_tags_empty = root_tags.is_empty();
+        let file_tags_empty = file_tags.is_empty();
+        let mut filter = Condition::any();
 
-        // A query that is itself a content digest matches the file whose
-        // bytes hash to it. Only added when the client sent one, so an
-        // ordinary search never compares against these columns.
-        if let Some(hash) = hash {
-            filter = files::Column::Md5
-                .eq(&hash)
-                .or(files::Column::Sha1.eq(&hash))
-                .or(files::Column::Sha256.eq(&hash))
-                .or(files::Column::Blake2b.eq(&hash))
-                .or(filter);
+        // Each word scope brings its digest counterpart along: both are keyed
+        // on the same key, so the exact-match tag a client appends to its
+        // query matches a stored digest row with no extra query field.
+        for (scopes, tags) in [
+            ([Scope::Root, Scope::DigestRoot], root_tags),
+            ([Scope::File, Scope::DigestFile], file_tags),
+        ] {
+            if tags.is_empty() {
+                continue;
+            }
+
+            filter = filter.add(
+                file_tokens::Column::Scope
+                    .is_in(scopes.map(i32::from))
+                    .and(file_tokens::Column::Tag.is_in(tags)),
+            );
         }
 
         // Postgres only infers functional dependency from the GROUP BY
@@ -223,11 +242,16 @@ where
             query = query.offset(skip);
         }
 
-        let results = query
+        if root_tags_empty && file_tags_empty {
+            // No tags to match. Skipping the query matters: an unfiltered one
+            // would join every indexed row the caller can see and return the
+            // whole drive.
+            return Ok(vec![]);
+        }
+
+        Ok(query
             .into_model::<AppFile>()
             .all(self.repository.connection())
-            .await?;
-
-        Ok(results)
+            .await?)
     }
 }

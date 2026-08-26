@@ -26,7 +26,7 @@ pub(crate) async fn require_read<C: ConnectionTrait>(
 
 /// Write access: Owner / Co-owner / Editor → ok. Reader → 403
 /// `forbidden_read_only`. None → 404. Used by chunk-push, replace-
-/// content, rename, move, hashes, version-restore.
+/// content, rename, move, hashes, version-restore, extra-tokens.
 pub(crate) async fn require_write<C: ConnectionTrait>(
     db: &C,
     file_id: Uuid,
@@ -56,4 +56,3 @@ pub(crate) async fn require_owner<C: ConnectionTrait>(
         _ => Err(Error::Forbidden("forbidden_not_owner".to_string())),
     }
 }
-

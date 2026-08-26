@@ -1,25 +1,20 @@
-use cryptfns::tokenizer::Token;
 use entity::{option_string_to_uuid, Uuid};
+use ::error::{AppResult, Error};
 use serde::{Deserialize, Serialize};
 use validr::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Search {
     pub dir_id: Option<String>,
-    /// Plaintext query. Only clients that predate client-side query hashing
-    /// send this; it is tokenized here and ignored entirely when
-    /// `search_tokens_hashed` is present.
-    pub search: Option<String>,
-    /// Search tokens in `"{sha256-hex}:{weight}"` form, tokenized and hashed
-    /// on the client — the same shape the create and rename routes accept —
-    /// so the plaintext query never reaches the server.
-    pub search_tokens_hashed: Option<Vec<String>>,
-    /// A file content hash (md5/sha1/sha256/blake2b hex) to match verbatim
-    /// against the stored hash columns, letting a user find a file by the
-    /// digest of its bytes. Computed from the file's own content on the
-    /// client, and the server already stores all four, so it carries nothing
-    /// the server does not have.
-    pub hash: Option<String>,
+    /// Query words tagged under the caller's account-wide search key. Matches
+    /// everything they own, one tag per word regardless of how large the drive
+    /// is.
+    pub root_tags: Option<Vec<String>>,
+    /// The same words tagged once per file that is shared *with* the caller,
+    /// under each file's own key. Callers never send these for files they own,
+    /// so a file can only ever match through one scope and the weight ranking
+    /// stays honest.
+    pub file_tags: Option<Vec<String>>,
     pub limit: Option<u64>,
     pub skip: Option<u64>,
     pub editable: Option<bool>,
@@ -27,45 +22,114 @@ pub struct Search {
     /// `has_thumbnail`. Absent means full rows — the compatible default
     /// for older clients.
     pub compact: Option<bool>,
+    /// Plaintext query from clients that predate client-side tokenization.
+    /// Refused outright: see [`Search::reject_legacy`].
+    pub search: Option<String>,
+    /// Bare SHA-256 token digests from clients that predate keyed tags.
+    /// Refused outright: see [`Search::reject_legacy`].
+    pub search_tokens_hashed: Option<Vec<String>>,
 }
 
 impl Validation for Search {}
 
 pub type SearchData = (
     Option<Uuid>,
-    Option<String>,
-    Vec<Token>,
+    Vec<String>,
+    Vec<String>,
     Option<u64>,
     Option<u64>,
     Option<bool>,
 );
 
 impl Search {
+    /// Refuse a query built by a client that predates keyed tags.
+    ///
+    /// Those clients send either a plaintext query or bare SHA-256 digests of
+    /// the query words. Neither can be served: the index no longer holds
+    /// anything they would match, and honouring them would mean writing
+    /// reversible material back into the database. Answering with an empty
+    /// result set would be worse than an error — a user whose search silently
+    /// returns nothing concludes their files are gone.
+    pub fn reject_legacy(&self) -> AppResult<()> {
+        if self.search.is_some() || self.search_tokens_hashed.is_some() {
+            return Err(Error::UpgradeRequired(
+                "client_too_old_for_search".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
     pub fn into_tuple(self) -> SearchData {
-        let (hash, tokens) = match self.search_tokens_hashed {
-            Some(hashed) => (
-                self.hash,
-                cryptfns::tokenizer::from_vec(hashed).unwrap_or_default(),
-            ),
-            // Legacy clients send one plaintext string that serves as both the
-            // term to tokenize and the hash to match, which is how the route
-            // behaved before tokenization moved to the client.
-            None => {
-                let search = self.search.unwrap_or_default();
-                let tokens =
-                    cryptfns::tokenizer::into_hashed_tokens(&search).unwrap_or_default();
-
-                (Some(search), tokens)
-            }
-        };
-
         (
             option_string_to_uuid(self.dir_id),
-            hash.filter(|h| !h.is_empty()),
-            tokens,
+            sanitize(self.root_tags),
+            sanitize(self.file_tags),
             self.limit,
             self.skip,
             self.editable,
         )
+    }
+}
+
+fn sanitize(tags: Option<Vec<String>>) -> Vec<String> {
+    tags.unwrap_or_default()
+        .into_iter()
+        .filter(|tag| !tag.is_empty())
+        .collect()
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn legacy_plaintext_query_is_refused() {
+        let search = Search {
+            search: Some("invoice".to_string()),
+            ..Default::default()
+        };
+
+        assert!(matches!(
+            search.reject_legacy(),
+            Err(Error::UpgradeRequired(_))
+        ));
+    }
+
+    #[test]
+    fn legacy_digest_query_is_refused() {
+        let search = Search {
+            search_tokens_hashed: Some(vec!["deadbeef:1".to_string()]),
+            ..Default::default()
+        };
+
+        assert!(matches!(
+            search.reject_legacy(),
+            Err(Error::UpgradeRequired(_))
+        ));
+    }
+
+    #[test]
+    fn tagged_query_is_accepted() {
+        let search = Search {
+            root_tags: Some(vec!["a3f1".to_string()]),
+            ..Default::default()
+        };
+
+        assert!(search.reject_legacy().is_ok());
+    }
+
+    #[test]
+    fn empty_tags_are_dropped() {
+        let search = Search {
+            root_tags: Some(vec!["a3f1".to_string(), String::new()]),
+            file_tags: Some(vec![String::new()]),
+            ..Default::default()
+        };
+
+        let (_, root, file, _, _, _) = search.into_tuple();
+
+        assert_eq!(root, vec!["a3f1".to_string()]);
+        assert!(file.is_empty());
     }
 }

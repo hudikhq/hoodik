@@ -133,3 +133,26 @@ pub struct IncomingShareQuery {
     /// for older clients.
     pub compact: Option<bool>,
 }
+
+/// One file shared with the caller, reduced to what a search query needs: the
+/// id and the key wrapped for them.
+///
+/// Files inside a shared folder are tagged under their own keys, so a
+/// recipient has to hold each of those keys to build a query that reaches
+/// them. Kept deliberately free of names, thumbnails and metadata — an account
+/// with a large shared folder pulls one row per file, and every extra column
+/// is paid for that many times.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct IncomingKey {
+    pub file_id: Uuid,
+    pub encrypted_key: String,
+}
+
+impl FromQueryResult for IncomingKey {
+    fn from_query_result(res: &QueryResult, pre: &str) -> Result<Self, DbErr> {
+        Ok(Self {
+            file_id: res.try_get(pre, "file_id")?,
+            encrypted_key: res.try_get(pre, "encrypted_key")?,
+        })
+    }
+}

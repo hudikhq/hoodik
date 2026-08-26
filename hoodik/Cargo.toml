@@ -1,6 +1,6 @@
 [package]
 name = "hoodik"
-version = "2.4.1"
+version = "2.5.0"
 edition = "2021"
 rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
@@ -10,6 +10,21 @@ description = "Hoodik is a simple, fast and end to end encrypted cloud storage."
 default-run = "hoodik"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+# Which app builds this server works with, published on `/api/liveness` so the
+# app can say "update me" or "update your server" itself instead of failing in
+# a way the user cannot interpret.
+#
+# Kept here rather than in source because it is release metadata: it belongs
+# next to the version it ships with, and that is the one number a release
+# already has to touch. `build.rs` lifts both into the binary.
+[package.metadata.compat]
+# Below this an app is refused outright — 2.5.0 keyed the search index, and an
+# older app can only produce digests this server no longer stores.
+minimum_client_version = "2.5.0"
+# Below this everything still works; the app only nudges. Raising this is
+# cheap, raising the minimum breaks people, which is why they are separate.
+recommended_client_version = "2.5.0"
 
 [dependencies]
 openssl = { workspace = true }
@@ -116,3 +131,7 @@ depends = "adduser, passwd, libc6 (>= 2.28)"
 
 [package.metadata.deb.variants.debian-bullseye-armv7-unknown-linux-gnueabihf]
 depends = "adduser, passwd, libc6 (>= 2.28)"
+
+[build-dependencies]
+# Build-only: reads the compat table above so it lives in one place.
+toml = "^0.8"

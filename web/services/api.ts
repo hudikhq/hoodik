@@ -518,6 +518,13 @@ export default class Api {
   getHeaders(headers?: Headers): Headers {
     const _headers = headers || {}
 
+    // Identifies the caller so the server can refuse a client too old to
+    // write safely. No version: this bundle is compiled into the server
+    // binary that serves it, so it can never be the stale one — and a
+    // version here would be a number to keep in sync, which is a number to
+    // eventually get wrong.
+    _headers['X-Hoodik-Client'] = 'web'
+
     if (this.jwtToken) {
       _headers['Authorization'] = `Bearer ${this.jwtToken}`
     }

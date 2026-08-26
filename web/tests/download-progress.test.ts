@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as cryptfns from '../services/cryptfns'
 import { downloadAndDecrypt } from '../services/storage/download/sync'
+import { installCapabilities } from './helpers/capabilities'
 import type { AppFile } from '../types'
 
 /**
@@ -32,6 +33,10 @@ function split(data: Uint8Array): Uint8Array[] {
 }
 
 describe('download byte progress through the wasm pipeline', () => {
+  // The direct-transfer gate must answer from the fixture, not by fetching
+  // the advertisement into this suite's counting fetch stub.
+  beforeEach(() => installCapabilities())
+
   afterEach(() => {
     vi.unstubAllGlobals()
   })

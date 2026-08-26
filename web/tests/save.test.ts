@@ -37,6 +37,7 @@ vi.mock('../services/api', () => {
 
 vi.mock('../services/storage/meta', () => ({
   requestTransferToken: vi.fn(() => Promise.resolve({ token: 'transfer-token' })),
+  updateHashes: vi.fn(() => Promise.resolve(undefined)),
   create: vi.fn((_kp: unknown, input: { name: string; mime: string; editable?: boolean }) =>
     Promise.resolve({
       id: 'created-file-id',
@@ -65,7 +66,10 @@ vi.mock('../services', () => ({
 }))
 
 vi.mock('../services/cryptfns', () => ({
-  stringToHashedTokens: vi.fn(() => ['tok-a', 'tok-b']),
+  searchTags: vi.fn(() => ['tok-a', 'tok-b']),
+  searchTag: vi.fn(() => 'name-hash'),
+  searchRootKey: vi.fn(() => 'root-key'),
+  searchFileKey: vi.fn(() => 'file-key'),
   sha256: { digest: vi.fn(() => 'name-hash') },
   cipher: {
     defaultCipher: vi.fn(() => 'aegis-128l'),
@@ -96,8 +100,11 @@ import Api, { ErrorResponse } from '../services/api'
 import { requestTransferToken, create as metaCreate, get as metaGet } from '../services/storage/meta'
 import { uploadIntoSharedFolder } from '../services/shares/editable'
 import { uploadChunk } from '../services/storage/upload/sync'
-import { stringToHashedTokens } from '../services/cryptfns'
+import { searchTags } from '../services/cryptfns'
 import type { AppFile, KeyPair } from 'types'
+
+/** cryptfns is mocked above, so this only has to be non-empty. */
+const keypair = { input: 'private-key', publicKey: 'public-key' } as unknown as KeyPair
 
 const ApiPutMock = (Api as unknown as { put: ReturnType<typeof vi.fn> }).put
 
@@ -136,14 +143,14 @@ describe('replaceContent', () => {
     const result = await replaceContent('file-1', {
       size: 10,
       chunks: 1,
-      search_tokens_hashed: ['a']
+      search_tokens_root: ['a']
     })
 
     expect(ApiPutMock).toHaveBeenCalledTimes(1)
     expect(ApiPutMock).toHaveBeenCalledWith(
       '/api/storage/file-1/content',
       undefined,
-      { size: 10, chunks: 1, search_tokens_hashed: ['a'] }
+      { size: 10, chunks: 1, search_tokens_root: ['a'] }
     )
     expect(result.id).toBe('file-1')
     expect(result.active_version).toBe(2)
@@ -174,7 +181,7 @@ describe('saveFileContent', () => {
 
   it('UNIT: rejects without a file key', async () => {
     const file = makeAppFile({ key: undefined })
-    await expect(saveFileContent(file, 'hello')).rejects.toThrow('File key is required')
+    await expect(saveFileContent(file, 'hello', keypair)).rejects.toThrow('File key is required')
   })
 
   it('UNIT: orchestrates replaceContent → transfer-token → uploadChunk', async () => {
@@ -182,7 +189,7 @@ describe('saveFileContent', () => {
     const updated = makeAppFile({ active_version: 2 })
     ApiPutMock.mockResolvedValueOnce({ body: updated })
 
-    const out = await saveFileContent(file, '# hello world')
+    const out = await saveFileContent(file, '# hello world', keypair)
 
     expect(ApiPutMock).toHaveBeenCalledTimes(1)
     expect(requestTransferToken).toHaveBeenCalledWith(file.id, 'upload')
@@ -198,7 +205,7 @@ describe('saveFileContent', () => {
     const file = makeAppFile()
     ApiPutMock.mockResolvedValueOnce({ body: makeAppFile() })
 
-    await saveFileContent(file, '')
+    await saveFileContent(file, '', keypair)
 
     const [, , body] = ApiPutMock.mock.calls[0]
     expect(body.size).toBe(1)
@@ -219,15 +226,18 @@ describe('saveFileContent', () => {
     expect(uploadChunk).toHaveBeenCalledTimes(3)
   })
 
-  it('UNIT: passes search tokens from cryptfns into the body', async () => {
+  it('UNIT: indexes the note by its body, not its title', async () => {
     const file = makeAppFile()
     ApiPutMock.mockResolvedValueOnce({ body: makeAppFile() })
 
-    await saveFileContent(file, 'hello')
+    await saveFileContent(file, 'zanzibar', keypair)
 
-    expect(stringToHashedTokens).toHaveBeenCalledWith('hello')
+    expect(searchTags).toHaveBeenCalledWith(expect.anything(), 'zanzibar')
+    expect(searchTags).not.toHaveBeenCalledWith(expect.anything(), 'note.md\nzanzibar')
     const [, , body] = ApiPutMock.mock.calls[0]
-    expect(body.search_tokens_hashed).toEqual(['tok-a', 'tok-b'])
+    expect(body.search_tokens_root).toEqual(['tok-a', 'tok-b'])
+    expect(body.search_tokens_file).toEqual(['tok-a', 'tok-b'])
+    expect(JSON.stringify(body)).not.toContain('zanzibar')
   })
 
   it('UNIT: 409 from the server becomes a SaveConflictError carrying the draft content', async () => {
@@ -235,7 +245,7 @@ describe('saveFileContent', () => {
     ApiPutMock.mockRejectedValueOnce(new ErrorResponse(409))
 
     try {
-      await saveFileContent(file, 'my draft content')
+      await saveFileContent(file, 'my draft content', keypair)
       throw new Error('expected a SaveConflictError')
     } catch (err) {
       expect(err).toBeInstanceOf(SaveConflictError)
@@ -255,14 +265,14 @@ describe('saveFileContent', () => {
     const err = new ErrorResponse(500)
     ApiPutMock.mockRejectedValueOnce(err)
 
-    await expect(saveFileContent(file, 'content')).rejects.toBe(err)
+    await expect(saveFileContent(file, 'content', keypair)).rejects.toBe(err)
   })
 
   it('UNIT: forwards force=true to replaceContent', async () => {
     const file = makeAppFile()
     ApiPutMock.mockResolvedValueOnce({ body: makeAppFile() })
 
-    await saveFileContent(file, 'content', true)
+    await saveFileContent(file, 'content', keypair, true)
 
     const [, , body] = ApiPutMock.mock.calls[0]
     expect(body.force).toBe(true)
@@ -272,7 +282,7 @@ describe('saveFileContent', () => {
     const file = makeAppFile()
     ApiPutMock.mockResolvedValueOnce({ body: makeAppFile() })
 
-    await saveFileContent(file, 'content')
+    await saveFileContent(file, 'content', keypair)
 
     const [, , body] = ApiPutMock.mock.calls[0]
     expect(body.force).toBe(false)
@@ -298,13 +308,14 @@ describe('createNote', () => {
     expect(metaCreate).toHaveBeenCalledTimes(1)
     const [, data] = (metaCreate as unknown as { mock: { calls: unknown[][] } }).mock.calls[0] as [
       unknown,
-      { name: string; mime: string; editable: boolean; chunks: number; file_id?: string }
+      { name: string; mime: string; editable: boolean; chunks: number; file_id?: string; content?: string }
     ]
     expect(data.name).toBe('shopping-list.md')
     expect(data.mime).toBe('text/markdown')
     expect(data.editable).toBe(true)
     expect(data.chunks).toBe(1)
     expect(data.file_id).toBeUndefined()
+    expect(data.content).toBe('# shopping-list\n')
   })
 
   it('UNIT: keeps an existing .md suffix without doubling it', async () => {
@@ -415,6 +426,13 @@ describe('createNote into a shared folder', () => {
     await createNote(makeKeypair(), 'note', parent, 'caller-id')
 
     expect(uploadIntoSharedFolder).toHaveBeenCalledTimes(1)
+    const uploadArgs = (
+      uploadIntoSharedFolder as unknown as { mock: { calls: { payload: Record<string, unknown> }[][] } }
+    ).mock.calls[0][0]
+    expect(uploadArgs.payload.searchTokensRoot).toEqual(['tok-a', 'tok-b'])
+    expect(uploadArgs.payload.contentTokensRoot).toEqual(['tok-a', 'tok-b'])
+    expect(searchTags).toHaveBeenCalledWith(expect.anything(), 'note.md')
+    expect(searchTags).toHaveBeenCalledWith(expect.anything(), '# note\n')
     // Regular create must not fire — that would 400 with the
     // owner-only parent check.
     expect(metaCreate).not.toHaveBeenCalled()

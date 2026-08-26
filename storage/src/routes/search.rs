@@ -19,6 +19,7 @@ pub(crate) async fn search(
     let context = context.into_inner();
 
     let data = data.into_inner();
+    data.reject_legacy()?;
 
     let file = Repository::new(&context.db)
         .tokens(claims.sub)

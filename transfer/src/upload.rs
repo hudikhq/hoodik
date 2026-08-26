@@ -1,7 +1,7 @@
 use crate::checksum;
 use crate::config::{
-    CHUNK_SIZE_BYTES, CONCURRENT_UPLOADS_IN_FLIGHT, ENCRYPTED_CHUNKS_BUFFER_LIMIT,
-    MAX_UPLOAD_RETRIES, UploadHashOptions,
+    UploadHashOptions, CHUNK_SIZE_BYTES, CONCURRENT_UPLOADS_IN_FLIGHT,
+    ENCRYPTED_CHUNKS_BUFFER_LIMIT, MAX_UPLOAD_RETRIES,
 };
 use crate::error::{Error, HttpError, Result};
 use crate::platform::{DataSource, HttpClient, ProgressReporter};
@@ -9,9 +9,9 @@ use crate::types::{Auth, FileHashes};
 use crate::upload_trace;
 use digest::Digest;
 use futures::future::LocalBoxFuture;
-use std::str::FromStr;
 use futures::stream::{FuturesUnordered, StreamExt};
 use std::collections::{HashSet, VecDeque};
+use std::str::FromStr;
 
 /// Called for every plaintext chunk in order when SHA-256 (and optional other hashes) are
 /// offloaded to a separate execution context (e.g. a dedicated Web Worker).
@@ -44,6 +44,7 @@ pub struct Uploader {
     already_uploaded: HashSet<u64>,
     hash_options: UploadHashOptions,
     cipher: String,
+    direct_urls: Option<Vec<String>>,
 }
 
 impl Uploader {
@@ -56,6 +57,7 @@ impl Uploader {
             already_uploaded: HashSet::new(),
             hash_options: UploadHashOptions::default(),
             cipher: cryptfns::cipher::DEFAULT.to_string(),
+            direct_urls: None,
         }
     }
 
@@ -81,6 +83,18 @@ impl Uploader {
     /// Defaults to [`cryptfns::cipher::DEFAULT`] when not called.
     pub fn with_cipher(mut self, cipher: impl Into<String>) -> Self {
         self.cipher = cipher.into();
+        self
+    }
+
+    /// Presigned bucket URLs indexed by chunk, so those chunks are written
+    /// straight into storage instead of through the server.
+    ///
+    /// Each URL is signed over the exact ciphertext length the chunk will
+    /// have — see [`encrypted_chunk_sizes`], which is what the caller declared
+    /// when it asked for them. An index this does not cover, or covers with an
+    /// empty entry, keeps using the relaying route.
+    pub fn with_direct_urls(mut self, urls: Vec<String>) -> Self {
+        self.direct_urls = Some(urls);
         self
     }
 
@@ -113,6 +127,7 @@ impl Uploader {
             self.hash_options,
             plaintext_hook,
             &self.cipher,
+            self.direct_urls.as_deref(),
         )
         .await
     }
@@ -212,6 +227,7 @@ pub async fn upload_file(
     hash_options: UploadHashOptions,
     plaintext_hook: Option<&dyn PlaintextChunkHook>,
     cipher: &str,
+    direct_urls: Option<&[String]>,
 ) -> Result<FileHashes> {
     // When inline_sha256 = false and no hook is provided, all hash computation is skipped.
     // The caller is responsible for computing and submitting hashes via another mechanism.
@@ -246,8 +262,40 @@ pub async fn upload_file(
         &mut hash_state,
         plaintext_hook,
         cipher,
+        direct_urls,
     )
     .await?;
+
+    // A chunk written straight into the bucket tells this server nothing, so
+    // the version is still uncommitted at this point. Whenever a direct
+    // manifest is in play the client is the only party that can say "done" —
+    // including a resume that found every chunk already stored and uploaded
+    // nothing at all, which is exactly the run that exists to deliver the
+    // finalize its predecessor never got to. The server treats a repeated
+    // finalize as a no-op, so saying it once too often costs nothing, while
+    // the old any-new-direct-chunk condition left fully-stored files
+    // uncommitted forever.
+    if direct_urls.is_some() {
+        // Same bounded retry the chunks get. This is the one request that
+        // commits a fully-stored upload, so a single transient failure must
+        // not mark gigabytes of landed ciphertext as failed — and finalize is
+        // idempotent, so a retry after an ambiguous outcome is safe.
+        let mut attempt = 0;
+        loop {
+            match http.finalize_upload(auth, file_id).await {
+                Ok(()) => break,
+                Err(_) if attempt < MAX_UPLOAD_RETRIES => attempt += 1,
+                Err(e) => {
+                    // Reported the way a failed chunk is, not only returned:
+                    // the host has already been told every chunk landed, and
+                    // without this the upload it is watching simply stops
+                    // producing events while the file stays uncommitted.
+                    progress.on_error(file_id, &format!("Failed to commit the upload: {e}"));
+                    return Err(e);
+                }
+            }
+        }
+    }
 
     let hashes = hash_state.finalize();
 
@@ -298,6 +346,7 @@ async fn run_upload_pipeline<'a>(
     hash_state: &mut HashState,
     plaintext_hook: Option<&'a dyn PlaintextChunkHook>,
     cipher: &str,
+    direct_urls: Option<&'a [String]>,
 ) -> Result<()> {
     let mut in_flight: FuturesUnordered<LocalBoxFuture<'a, Result<u64>>> = FuturesUnordered::new();
     let mut encrypted_waiting = VecDeque::<EncryptedChunk>::new();
@@ -336,6 +385,7 @@ async fn run_upload_pipeline<'a>(
                 file_id,
                 total_chunks,
                 progress,
+                direct_urls,
             );
             let t_wait = upload_trace::now_ms();
             upload_trace::log(&format!(
@@ -433,6 +483,7 @@ async fn run_upload_pipeline<'a>(
                     file_id,
                     total_chunks,
                     progress,
+                    direct_urls,
                 );
             }
         }
@@ -465,6 +516,7 @@ async fn run_upload_pipeline<'a>(
         file_id,
         total_chunks,
         progress,
+        direct_urls,
     );
     upload_trace::log(&format!(
         "[transfer:upload] main loop done file_id={} draining uploading={} buffered={}",
@@ -476,6 +528,16 @@ async fn run_upload_pipeline<'a>(
     // Drain: wait for all in-flight uploads and dispatch any still-waiting chunks.
     let t_drain = upload_trace::now_ms();
     while !encrypted_waiting.is_empty() || !in_flight.is_empty() {
+        // The producer loop above polls for cancellation too, but it only
+        // runs while the encrypted buffer is full — which for anything under
+        // that buffer's worth never happens. A small file is read, hashed and
+        // encrypted faster than a hand can reach the cancel button, and every
+        // one of its uploads then happens here. Without this the file lands
+        // and commits after the user cancelled it.
+        if progress.is_cancelled(file_id) {
+            return Err(Error::Cancelled);
+        }
+
         pump_uploads(
             &mut in_flight,
             &mut encrypted_waiting,
@@ -485,6 +547,7 @@ async fn run_upload_pipeline<'a>(
             file_id,
             total_chunks,
             progress,
+            direct_urls,
         );
         let Some(result) = in_flight.next().await else {
             break;
@@ -525,6 +588,7 @@ fn pump_uploads<'a>(
     file_id: &'a str,
     total_chunks: u64,
     progress: &'a dyn ProgressReporter,
+    direct_urls: Option<&'a [String]>,
 ) {
     while in_flight.len() < in_flight_cap {
         let Some(next) = encrypted_waiting.pop_front() else {
@@ -546,6 +610,7 @@ fn pump_uploads<'a>(
             next.encrypted,
             progress,
             0,
+            direct_url(direct_urls, next.chunk),
         )));
     }
 }
@@ -556,11 +621,25 @@ struct EncryptedChunk {
     crc: String,
 }
 
-/// Upload one encrypted chunk to the server, retrying on CRC16 checksum mismatch.
+/// The presigned URL for `chunk`, when the manifest covers it.
 ///
-/// A checksum mismatch means the server received corrupted bytes; we retry with the same
-/// encrypted data.  After [`MAX_UPLOAD_RETRIES`] retries the error is propagated.
-/// A `chunk_already_exists` error is treated as success (idempotent upload).
+/// Manifests are indexed by chunk number, so a chunk they do not cover
+/// arrives as an empty entry rather than as a shorter array. Either way the
+/// chunk keeps using the relaying route, which is what makes a partial
+/// manifest usable instead of fatal.
+fn direct_url(direct_urls: Option<&[String]>, chunk: u64) -> Option<&str> {
+    direct_urls
+        .and_then(|urls| urls.get(chunk as usize))
+        .map(String::as_str)
+        .filter(|url| !url.is_empty())
+}
+
+/// Upload one encrypted chunk, retrying on CRC16 checksum mismatch.
+///
+/// With a presigned URL the chunk goes straight into the bucket, which
+/// answers with bytes-accepted and nothing else: there is no checksum to
+/// disagree about and no stored count to read back, so neither retry arm
+/// below applies. Without one it goes through the server as it always has.
 #[allow(clippy::too_many_arguments)]
 async fn upload_encrypted(
     http: &dyn HttpClient,
@@ -572,8 +651,52 @@ async fn upload_encrypted(
     encrypted: Vec<u8>,
     progress: &dyn ProgressReporter,
     attempt: u32,
+    direct_url: Option<&str>,
 ) -> Result<u64> {
     let t0 = upload_trace::now_ms();
+
+    if let Some(url) = direct_url {
+        match http.put_chunk_direct(url, &encrypted).await {
+            Ok(()) => {
+                upload_trace::log(&format!(
+                    "[transfer:upload] chunk {} direct ok total {:.1}ms",
+                    chunk,
+                    upload_trace::now_ms() - t0
+                ));
+                progress.on_chunk_uploaded(file_id, chunk, total_chunks, false);
+                return Ok(chunk);
+            }
+            // Buckets shed load with transient 5xx answers that every S3 SDK
+            // retries, so one of those must not sink a multi-gigabyte upload
+            // on its last chunk. Retry the same URL a bounded number of
+            // times, then let the chunk fall through to the relaying route:
+            // a direct-path failure degrades to a slower upload, not a dead
+            // one.
+            Err(_) if attempt < MAX_UPLOAD_RETRIES => {
+                return Box::pin(upload_encrypted(
+                    http,
+                    auth,
+                    file_id,
+                    chunk,
+                    total_chunks,
+                    crc,
+                    encrypted,
+                    progress,
+                    attempt + 1,
+                    Some(url),
+                ))
+                .await;
+            }
+            Err(e) => {
+                upload_trace::log(&format!(
+                    "[transfer:upload] chunk {} direct failed after {} attempts, relaying: {}",
+                    chunk,
+                    attempt + 1,
+                    e
+                ));
+            }
+        }
+    }
 
     let t_http = upload_trace::now_ms();
     match http
@@ -610,6 +733,7 @@ async fn upload_encrypted(
                 encrypted,
                 progress,
                 attempt + 1,
+                None,
             ))
             .await
         }
@@ -624,6 +748,31 @@ async fn upload_encrypted(
         }
         Err(e) => Err(e),
     }
+}
+
+/// The exact ciphertext length of every chunk of a `total_size`-byte file
+/// encrypted with `cipher`, indexed by chunk.
+///
+/// A caller asking for presigned upload URLs has to declare these before it
+/// has encrypted anything, because the server signs each length into its URL
+/// and the bucket refuses a body of any other size. Chunking here is the same
+/// arithmetic [`run_upload_pipeline`] runs, and the per-chunk overhead comes
+/// from the cipher itself, so the two cannot disagree.
+pub fn encrypted_chunk_sizes(cipher: &str, total_size: u64) -> Result<Vec<u64>> {
+    let overhead = cryptfns::cipher::Cipher::from_str(cipher)
+        .map_err(Error::from)?
+        .overhead()
+        .map_err(Error::from)? as u64;
+
+    let total_chunks = compute_chunk_count(total_size);
+
+    Ok((0..total_chunks)
+        .map(|chunk| {
+            let offset = chunk * CHUNK_SIZE_BYTES;
+            let plaintext = (total_size - offset).min(CHUNK_SIZE_BYTES);
+            plaintext + overhead
+        })
+        .collect())
 }
 
 /// Compute the number of chunks required to upload `total_size` bytes.

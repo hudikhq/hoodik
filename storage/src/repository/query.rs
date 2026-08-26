@@ -2,8 +2,8 @@
 //! them for only the files where the user has the file shared with him.
 
 use entity::{
-    files, numeric::Numeric, user_files, ColumnTrait, ConnectionTrait, EntityTrait, Expr,
-    IntoCondition, JoinType, QueryFilter, QuerySelect, RelationTrait, Uuid,
+    files, numeric::Numeric, user_files, ColumnTrait, ConnectionTrait,
+    EntityTrait, Expr, IntoCondition, JoinType, QueryFilter, QuerySelect, RelationTrait, Uuid,
 };
 use error::AppResult;
 

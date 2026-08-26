@@ -149,6 +149,31 @@ describe('fork pipeline', () => {
     expect(Array.from(decryptedFlat)).toEqual(Array.from(env.plaintext))
   })
 
+  it('fork_keys_the_digest_and_sends_no_bare_hash', async () => {
+    const env = await prepareForkEnvironment()
+    await forkFile({
+      source: env.source,
+      keypair: env.kp,
+      callerUserId: CALLER_ID,
+      callerRecipient: { pubkey: env.kp.publicKey as string }
+    })
+    const callArgs = (sharesApi.forkFile as unknown as { mock: { calls: unknown[][] } }).mock.calls
+    const body = callArgs[0][1] as Parameters<typeof sharesApi.forkFile>[1]
+
+    // No hash worker runs for a fork, so this body is the digest's only way
+    // into the column and the index — keyed, with the bare digest nowhere on
+    // the wire. The server refuses the bare 64-hex shape outright.
+    const bare = cryptfns.sha256.digest(env.plaintext)
+    expect(JSON.stringify(body)).not.toContain(bare)
+    expect(body.sha256).toMatch(/^[0-9a-f]{32}$/)
+    expect(body.digest_tokens_file).toEqual([`${body.sha256}:1`])
+    expect(body.digest_tokens_root).toHaveLength(1)
+    // A binary has no body source. Decoding those bytes as text would tag
+    // whatever the header happened to look like.
+    expect(body.content_tokens_root).toBeUndefined()
+    expect(body.content_tokens_file).toBeUndefined()
+  })
+
   it('fork_uses_same_cipher_as_source', async () => {
     const env = await prepareForkEnvironment()
     await forkFile({ source: env.source, keypair: env.kp, callerUserId: CALLER_ID, callerRecipient: { pubkey: env.kp.publicKey as string } })

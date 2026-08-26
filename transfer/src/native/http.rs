@@ -1,7 +1,7 @@
 use crate::error::{Error, HttpError, Result};
 use crate::platform::HttpClient;
 use futures::StreamExt;
-use crate::types::{Auth, ChunkResponse, DownloadSource, FileHashes};
+use crate::types::{Auth, ChunkResponse, ChunkTarget, FileHashes};
 use std::collections::HashMap;
 
 /// Native HTTP client backed by `reqwest`.
@@ -115,24 +115,29 @@ impl HttpClient for NativeHttpClient {
 
     fn download_chunk<'a>(
         &'a self,
-        auth: &Auth,
-        source: DownloadSource<'_>,
+        target: ChunkTarget<'_>,
         chunk_index: u64,
         on_bytes: Box<dyn Fn(u64) + 'a>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + 'a>> {
-        let auth = auth.clone();
-        let url = source.chunk_url(&auth.base_url, chunk_index);
-        let method = source.method();
+        let url = target.url(chunk_index);
+        let method = target.method();
+        // The `Direct` arm carries no auth to clone, so a request to the
+        // storage bucket has nothing to attach even by mistake.
+        let auth = match target {
+            ChunkTarget::Api { auth, .. } => Some(auth.clone()),
+            ChunkTarget::Direct(_) => None,
+        };
 
         Box::pin(async move {
-            let headers = Self::auth_headers(&auth);
-
             let request = match method {
                 "POST" => self.client.post(&url),
                 _ => self.client.get(&url),
             };
+            let request = match auth {
+                Some(auth) => request.headers(Self::auth_headers(&auth)),
+                None => request,
+            };
             let resp = request
-                .headers(headers)
                 .send()
                 .await
                 .map_err(|e| Error::Io(format!("Download request failed: {e}")))?;
@@ -236,6 +241,85 @@ impl HttpClient for NativeHttpClient {
 
             serde_json::from_str::<ChunkResponse>(&text)
                 .map_err(|e| Error::Io(format!("Failed to parse upload-tar response: {e}")))
+        })
+    }
+
+    fn put_chunk_direct(
+        &self,
+        url: &str,
+        data: &[u8],
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>> {
+        let url = url.to_string();
+        let data = data.to_vec();
+
+        Box::pin(async move {
+            // No `auth_headers` here, deliberately: the presigned URL is the
+            // whole credential, and several S3 implementations refuse a
+            // request that carries a signature and an `Authorization` header
+            // at once.
+            let resp = self
+                .client
+                .put(&url)
+                .header("Content-Type", "application/octet-stream")
+                .body(data)
+                .send()
+                .await
+                .map_err(|e| Error::Io(format!("Direct chunk upload failed: {e}")))?;
+
+            let status = resp.status().as_u16();
+
+            if status >= 400 {
+                let text = resp
+                    .text()
+                    .await
+                    .map_err(|e| Error::Io(format!("Failed to read error response: {e}")))?;
+                return Err(Error::Http(HttpError {
+                    status,
+                    message: text,
+                    validation: None,
+                }));
+            }
+
+            Ok(())
+        })
+    }
+
+    fn finalize_upload(
+        &self,
+        auth: &Auth,
+        file_id: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>> {
+        let auth = auth.clone();
+        let file_id = file_id.to_string();
+
+        Box::pin(async move {
+            let url = format!("{}/api/storage/{}/finalize", auth.base_url, file_id);
+            let headers = Self::auth_headers(&auth);
+
+            let resp = self
+                .client
+                .post(&url)
+                .headers(headers)
+                .send()
+                .await
+                .map_err(|e| Error::Io(format!("Finalize request failed: {e}")))?;
+
+            let status = resp.status().as_u16();
+            let text = resp
+                .text()
+                .await
+                .map_err(|e| Error::Io(format!("Failed to read response: {e}")))?;
+
+            if status >= 400 {
+                let validation = parse_validation(&text, status);
+                return Err(Error::Http(HttpError {
+                    status,
+                    message: text,
+                    validation,
+                }));
+            }
+
+            Ok(())
         })
     }
 

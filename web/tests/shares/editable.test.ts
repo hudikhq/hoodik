@@ -903,7 +903,9 @@ describe('editable folder upload pipeline', () => {
       newFileId: NEW_FILE_ID,
       parentFileId: FOLDER_ID,
       file,
-      searchTokensHashed: ['t1'],
+      searchRootKey: 'a'.repeat(64),
+      searchTokensRoot: ['t1'],
+      searchTokensFile: ['f1'],
       chunkSizeBytes: 1024
     })
     expect(payload.newFileId).toEqual(NEW_FILE_ID)

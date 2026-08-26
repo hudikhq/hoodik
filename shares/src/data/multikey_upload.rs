@@ -33,7 +33,14 @@ pub struct UploadMultikeyBody {
     pub cipher: Option<String>,
     pub editable: Option<bool>,
     pub file_modified_at: Option<String>,
-    pub search_tokens_hashed: Option<Vec<String>>,
+    pub search_tokens_root: Option<Vec<String>>,
+    pub search_tokens_file: Option<Vec<String>>,
+    pub content_tokens_root: Option<Vec<String>>,
+    pub content_tokens_file: Option<Vec<String>>,
+    /// Digest tags for the upload, landing in the digest scopes the same way
+    /// the create route's do.
+    pub digest_tokens_root: Option<Vec<String>>,
+    pub digest_tokens_file: Option<Vec<String>>,
     pub member_keys: Option<Vec<MemberKey>>,
     pub members_list_snapshot: Option<MembersListSnapshot>,
     pub event_signature: Option<String>,
@@ -74,7 +81,6 @@ impl Validation for MemberKey {
         vec![rule_required!(user_id), rule_required!(encrypted_key)]
     }
 }
-
 
 /// Body for `POST /api/storage/{file_id}/evict-from-folder`. The folder
 /// owner authorises the eviction; the file_id in the URL is the

@@ -4,6 +4,10 @@ import { errorIntoWorkerError, localDateFromUtcString, utcStringFromLocal, uuidv
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as sync from './sync'
+import { finalizeUpload } from './direct'
+// Straight from the module that defines it, for the same reason `./direct`
+// does: the `!/shares` barrel imports this store back.
+import { capabilitiesStore } from '!/shares/capabilities'
 import { pushUploadToWorker } from '../workers'
 import * as cryptfns from '../../cryptfns'
 import { emitFileTreeChange } from '../events'
@@ -55,6 +59,19 @@ function shouldSyncRow(id: string, terminal: boolean): boolean {
 
 export const store = defineStore('upload', () => {
   /**
+   * Files the user cancelled, by id.
+   *
+   * Cancelling does not stop what is already in flight: chunk requests that
+   * had left settle afterwards, and the worker reports each one. Those
+   * reports carry the worker's own copy of the file, which never learned it
+   * was cancelled, so they read as ordinary progress and put the row the user
+   * just deleted back in the listing — a ghost that survives until a reload.
+   * An id lands here the moment the user cancels and every later report for
+   * it is dropped.
+   */
+  const cancelled = new Set<string>()
+
+  /**
    * Start processing queue while its not stopped
    */
   async function start(storage: FilesStore, queue: QueueStore): Promise<IntervalType> {
@@ -100,13 +117,33 @@ export const store = defineStore('upload', () => {
    * Create function that will track the progress
    */
   async function progress(storage: FilesStore, file: UploadAppFile, isDone: boolean, error?: any) {
+    // Nothing a cancelled upload reports can change anything: its row is gone
+    // from the server and from the listing, and `cancel` has already moved it
+    // to the failed list.
+    if (cancelled.has(file.id)) {
+      running.value = running.value.filter((f) => f.id !== file.id)
+      storage.removeItem(file.id)
+
+      return
+    }
+
     const alreadyDone = done.value.some((f) => f.temporaryId === file.temporaryId)
     const alreadyFailed = failed.value.some((f) => f.temporaryId === file.temporaryId)
+
+    // A failure can arrive for a file already listed as done: the direct path
+    // commits in a request of its own after the last chunk, and a late error
+    // is the only word the user gets that the file is not on the server after
+    // all. Take it out of `done` and let it fall through to the failure
+    // handling below rather than merging it in as a finished row.
+    if (alreadyDone && error) {
+      done.value = done.value.filter((f) => f.temporaryId !== file.temporaryId)
+      file.finished_upload_at = undefined
+    }
 
     // Hashes can arrive after the last chunk finishes (e.g. when using a separate hash worker).
     // In that case, the UI may have already moved the file to `done`, and we still want to
     // upsert the hash fields (md5/sha1/sha256/blake2b) without dropping `finished_upload_at`.
-    if (alreadyDone || alreadyFailed) {
+    if ((alreadyDone && !error) || alreadyFailed) {
       const current = storage.getItem(file.id)
       if (current) {
         const merged = { ...current, ...file }
@@ -243,6 +280,12 @@ export const store = defineStore('upload', () => {
       }
     }
 
+    // A file can already be listed as done when it fails: the main-thread path
+    // reports its last chunk before asking the server to commit, and the
+    // commit is what can still fail. Listed in both places it reads as a
+    // finished upload with an error next to it.
+    done.value = done.value.filter((f) => f.id !== file.id)
+
     failed.value.push(file)
   }
 
@@ -327,9 +370,40 @@ export const store = defineStore('upload', () => {
     }
 
     file.cancel = true
+    cancelled.add(file.id)
 
     if ('UPLOAD' in window) {
       window.UPLOAD.postMessage({ type: 'cancel', kind: 'upload', id: file.id })
+    }
+
+    // Moved to failed here rather than waiting for the worker to report the
+    // cancellation, because every report after this one is ignored.
+    running.value = running.value.filter((f) => f.id !== file.id)
+    if (!failed.value.some((f) => f.id === file.id)) {
+      failed.value.push(file)
+    }
+
+    // Cancelling means the user does not want the file, so the part of it
+    // already on the server goes too — including chunks an earlier attempt
+    // left behind, since those are the same file and count against the same
+    // quota. Left in place it is a row that lists as a partial upload for
+    // ever, holds the name against a later attempt, and charges the user for
+    // storage nothing will ever finish.
+    //
+    // A finished file is the one thing cancel must not touch: the row would
+    // have to reach this call while still listed as running, and deleting a
+    // complete upload is not what anyone means by cancel.
+    if (file.finished_upload_at) {
+      return
+    }
+
+    try {
+      await meta.remove(file.id)
+      files.removeItem(file.id)
+    } catch (err) {
+      // The upload is cancelled either way; a row that outlived its delete is
+      // worth a line in the log, not an error in the user's face.
+      logger.warn(`[upload:cancel] could not remove ${file.id}:`, err)
     }
   }
 
@@ -359,7 +433,6 @@ export const store = defineStore('upload', () => {
       throw new Error('Cannot upload without an active keypair')
     }
     const modified = file.lastModified ? new Date(file.lastModified) : new Date()
-    const search_tokens_hashed = cryptfns.stringToHashedTokens(file.name.toLowerCase())
     const thumbnail = await createThumbnail(file)
     const isMarkdown =
       file.name.toLowerCase().endsWith('.md') ||
@@ -373,7 +446,7 @@ export const store = defineStore('upload', () => {
     const encryptedThumbnail = thumbnail
       ? await cryptfns.cipher.encryptString(cipher, thumbnail, fileKey)
       : undefined
-    const nameHash = cryptfns.sha256.digest(file.name)
+    const nameHash = cryptfns.searchTag(cryptfns.searchRootKey(keypair), file.name)
     const chunks = Math.ceil(file.size / CHUNK_SIZE_BYTES)
     const newFileId = uuidv4()
 
@@ -397,7 +470,14 @@ export const store = defineStore('upload', () => {
         cipher,
         editable: isMarkdown || undefined,
         fileModifiedAt: utcStringFromLocal(modified),
-        searchTokensHashed: search_tokens_hashed
+        searchTokensRoot: cryptfns.searchTags(
+          cryptfns.searchRootKey(keypair),
+          file.name.toLowerCase()
+        ),
+        searchTokensFile: cryptfns.searchTags(
+          cryptfns.searchFileKey(fileKey),
+          file.name.toLowerCase()
+        )
       },
       trustedFingerprints: trusted,
       onUnknownMember: options.onUnknownMember ?? (async () => true)
@@ -443,9 +523,6 @@ export const store = defineStore('upload', () => {
     const t0 = performance.now()
     const modified = file.lastModified ? new Date(file.lastModified) : new Date()
 
-    logger.debug(`[upload:create] "${file.name}" — generating search tokens`)
-    const search_tokens_hashed = cryptfns.stringToHashedTokens(file.name.toLowerCase())
-
     logger.debug(`[upload:create] "${file.name}" — generating thumbnail`)
     const thumbnail = await createThumbnail(file)
 
@@ -465,7 +542,6 @@ export const store = defineStore('upload', () => {
       chunks: Math.ceil(file.size / CHUNK_SIZE_BYTES),
       file_id: parent_id,
       file_modified_at: utcStringFromLocal(modified),
-      search_tokens_hashed,
       thumbnail,
       cipher: cryptfns.cipher.defaultCipher(),
       editable: isMarkdown || undefined
@@ -509,38 +585,64 @@ export async function upload(file: UploadAppFile, progress?: UploadProgressFunct
   const { token } = await meta.requestTransferToken(file.id, 'upload')
   const api = new Api({ ...new Api().toJson(), jwtToken: token, refreshToken: undefined })
 
-  const workers = [...new Array(file.chunks)]
-    .filter((_, c) => {
-      return !file.uploaded_chunks?.includes(c)
-    })
-    .map((_, chunk) => {
-      return async () => {
-        // Skip already uploaded chunks
-        if (file.uploaded_chunks?.includes(chunk)) {
-          if (progress) {
-            const storedChunks = file.uploaded_chunks?.length || 0
-            await progress(file, storedChunks === file.chunks)
-          }
+  // The chunk indexes still missing, kept as real indexes: filtering the
+  // array and letting `map` hand out positions again would renumber chunk 3
+  // of a resume as chunk 0 and write the wrong slice into the wrong slot.
+  const missing = [...new Array(file.chunks).keys()].filter(
+    (chunk) => !file.uploaded_chunks?.includes(chunk)
+  )
 
-          return file
-        }
+  const workers = missing.map((chunk) => {
+    return async () => {
+      const data = await sliceChunk(file.file as File, chunk)
 
-        const data = await sliceChunk(file.file as File, chunk)
+      file = await sync.uploadChunk(file, data, chunk, 0, api)
 
-        file = await sync.uploadChunk(file, data, chunk, 0, api)
-
-        if (progress) {
-          const storedChunks = file.uploaded_chunks?.length || 0
-          await progress(file, storedChunks === file.chunks)
-        }
-
-        return file
+      // Never done from here, however many chunks have landed: on the direct
+      // path the commit is still to come, and the commit is what can fail.
+      // The one `progress(file, true)` this path makes is below, after it.
+      if (progress) {
+        await progress(file, false)
       }
-    })
+
+      return file
+    }
+  })
 
   while (workers.length) {
     const batch = workers.splice(0, 1)
     file = await Promise.race(batch.map((worker) => worker()))
+  }
+
+  // Chunks that went straight into the bucket never told the server they
+  // landed, so a resume with nothing left to PUT — or an upload that finished
+  // through the relay after starting directly — still owes the commit. The
+  // server treats a repeated finalize as a no-op, so on a deployment without
+  // direct transfer this is skipped and everywhere else it is safe to say
+  // once too often. Awaited like every other gate read: an unfetched store
+  // fails closed and would silently skip the commit.
+  const capabilities = capabilitiesStore()
+  await capabilities.ensureFetched()
+  if (capabilities.directTransfer) {
+    const committed = await finalizeUpload(file, api)
+    if (committed) {
+      file = {
+        ...file,
+        ...committed,
+        key: file.key,
+        name: file.name,
+        thumbnail: file.thumbnail,
+        temporaryId: file.temporaryId,
+        file: file.file
+      }
+    }
+  }
+
+  // Done only here — past the commit, or past the point where there was none
+  // to make. A throw above never reaches this, and the caller's catch is what
+  // marks the file failed.
+  if (progress) {
+    await progress(file, true)
   }
 
   return file

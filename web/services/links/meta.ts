@@ -4,6 +4,8 @@ import * as storageMeta from '!/storage/meta'
 import Api from '!/api'
 import { CHUNK_SIZE_BYTES } from '!/constants'
 import { TransferDownloader } from 'transfer'
+import { evictLinkChunkUrls, linkChunkUrls } from '!/storage/download/direct'
+import { buildDownloader } from '!/storage/download/downloader'
 
 import type { AppLink, CreateLink, EncryptedAppLink, KeyPair, AppFile } from 'types'
 
@@ -37,21 +39,26 @@ export function linkChunks(link: AppLink): number {
  * fragment key and never leaves the browser — the server only ever streams
  * ciphertext. Callers must `free()` the downloader.
  */
-function linkDownloader(link: AppLink): TransferDownloader {
+function linkDownloader(link: AppLink, directUrls: string[] | undefined): TransferDownloader {
   if (!link.key) {
     throw new Error('Cannot decrypt link content without the file key')
   }
 
-  const downloader = TransferDownloader.forPublicLink(
-    link.id,
-    link.file_size || 0,
-    linkChunks(link),
-    new Api().toJson().apiUrl || '',
-    link.key
+  // Built by the same factory as every authenticated read, so the link route
+  // cannot quietly miss what the rest of the client gained. It stays on this
+  // thread: a share-link page is not signed in and never starts the workers.
+  return buildDownloader(
+    {
+      id: link.id,
+      size: link.file_size || 0,
+      chunks: linkChunks(link),
+      cipher: link.file_cipher,
+      key: link.key as Uint8Array,
+      directUrls,
+      publicLink: true
+    },
+    new Api().toJson()
   )
-  downloader.set_cipher(link.file_cipher)
-
-  return downloader
 }
 
 /**
@@ -63,19 +70,36 @@ export async function downloadAndDecrypt(
   link: AppLink,
   onBytes?: (bytes: number) => void
 ): Promise<Uint8Array> {
-  const downloader = linkDownloader(link)
+  const run = async (directUrls: string[] | undefined) => {
+    const downloader = linkDownloader(link, directUrls)
+
+    try {
+      return await downloader.download((progressJson: string) => {
+        if (!onBytes) return
+
+        const progress = JSON.parse(progressJson)
+        if (progress.type === 'download' && typeof progress.bytes_downloaded === 'number') {
+          onBytes(progress.bytes_downloaded)
+        }
+      }, () => false)
+    } finally {
+      downloader.free()
+    }
+  }
+
+  const directUrls = await linkChunkUrls(link.id)
 
   try {
-    return await downloader.download((progressJson: string) => {
-      if (!onBytes) return
+    return await run(directUrls)
+  } catch (err) {
+    // The owner can replace the shared content while this page holds a
+    // manifest signed for the previous version; every read would then fail
+    // the same way until the URLs expire. Drop it and read through the
+    // server instead.
+    if (!directUrls) throw err
 
-      const progress = JSON.parse(progressJson)
-      if (progress.type === 'download' && typeof progress.bytes_downloaded === 'number') {
-        onBytes(progress.bytes_downloaded)
-      }
-    }, () => false)
-  } finally {
-    downloader.free()
+    evictLinkChunkUrls(link.id)
+    return run(undefined)
   }
 }
 
@@ -92,12 +116,26 @@ export async function downloadLinkChunk(
     throw new DOMException('Download aborted', 'AbortError')
   }
 
-  const downloader = linkDownloader(link)
+  const run = async (directUrls: string[] | undefined) => {
+    const downloader = linkDownloader(link, directUrls)
+
+    try {
+      return await downloader.downloadChunk(chunk, undefined)
+    } finally {
+      downloader.free()
+    }
+  }
+
+  const directUrls = await linkChunkUrls(link.id)
 
   try {
-    return await downloader.downloadChunk(chunk, undefined)
-  } finally {
-    downloader.free()
+    return await run(directUrls)
+  } catch (err) {
+    // Same healing as the whole-file read above.
+    if (!directUrls) throw err
+
+    evictLinkChunkUrls(link.id)
+    return run(undefined)
   }
 }
 

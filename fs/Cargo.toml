@@ -12,7 +12,7 @@ description = "File system abstraction library"
 
 [features]
 default = []
-s3 = ["dep:s3", "dep:base64", "dep:hex", "dep:md-5", "dep:sha2", "dep:hmac", "dep:http", "dep:hyper", "dep:time", "dep:url"]
+s3 = ["dep:s3", "dep:base64", "dep:hex", "dep:md-5", "dep:sha2", "dep:hmac", "dep:http", "dep:hyper", "dep:time", "dep:url", "dep:reqwest"]
 # Gate the S3 versioned-chunk integration suite so the regular `cargo test`
 # pipeline doesn't try to hit MinIO. Enable via `just test-s3-integration`.
 s3-integration-tests = ["s3"]
@@ -28,6 +28,12 @@ http = { version = "0.2", optional = true }
 hyper = { version = "0.14", optional = true }
 time = { version = "0.3", optional = true, features = ["formatting", "macros"] }
 url = { version = "^2", optional = true }
+# `rustls-tls` resolves to `rustls-tls-webpki-roots`, which is the point: the
+# probe in `direct.rs` stands in for a browser, and a browser has never heard
+# of an operator's internal CA. The workspace pulls reqwest's default
+# native-tls backend in as well and a crate cannot opt out of that from here,
+# so the probe picks its backend explicitly at the builder.
+reqwest = { workspace = true, optional = true, features = ["rustls-tls"] }
 
 config = { path = "../config" }
 error = { path = "../error" }

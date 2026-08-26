@@ -4,6 +4,11 @@ on:
   pull_request:
     branches:
       - master
+  # Weekly run on master so the remote-provider job keeps being exercised:
+  # pull-request runs cover it only from same-repo branches, and nothing
+  # else would ever run it after a merge.
+  schedule:
+    - cron: "0 5 * * 1"
 
 # A superseded run has no audience — kill it the moment a newer push
 # arrives instead of letting two full pipelines queue behind each other.
@@ -91,6 +96,50 @@ jobs:
           echo "Running:$args"
           cargo test $args -- --nocapture
 
+  # SQLite and PostgreSQL are not interchangeable — different types, different
+  # transaction semantics, and a GROUP BY that PG rejects and SQLite waves
+  # through. Every other suite here runs on SQLite, so without this the
+  # PostgreSQL half of the supported matrix ships on the strength of a local
+  # `just ci-test-pg` someone remembered to run.
+  rust-integration-pg:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hoodik_test
+          POSTGRES_PASSWORD: hoodik_test
+          POSTGRES_DB: hoodik_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U hoodik_test"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      TEST_DATABASE_URL: postgres://hoodik_test:hoodik_test@localhost:5433/hoodik_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-integration-pg
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev
+          version: 1.0
+      - uses: extractions/setup-just@v2
+      # The service container above is what `just test-pg-up` starts locally,
+      # so the recipe's own docker step is skipped and the suites run against
+      # it directly.
+      - name: Integration tests against PostgreSQL
+        run: just test-rust-integration
+
   web:
     runs-on: ubuntu-latest
     steps:
@@ -157,36 +206,106 @@ jobs:
             web/test-results/
           retention-days: 14
 
+  # The same browser suite against MinIO with presigned URLs switched on.
+  # Every spec in direct-transfer.spec.ts skips itself unless the server
+  # advertises the capability, so without this job the flagship transfer
+  # path would be green on every PR by never running at all.
+  e2e-direct:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: yarn
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Same cache line as the plain e2e job: both run the identical
+          # release server build.
+          shared-key: e2e-release
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev
+          version: 1.0
+      - uses: extractions/setup-just@v2
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Install yarn and dependencies
+        run: npm install -g yarn && yarn install
+      - name: Install Playwright browsers
+        run: cd web && npx playwright install --with-deps chromium
+      - name: E2E tests against MinIO with direct transfer
+        run: just e2e-direct
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-direct
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 14
+
   # Branch protection requires a single check named "test". This gate is
   # that name: it succeeds only when every job above did, so the required
   # check stays stable no matter how the jobs behind it are re-arranged.
+  # Only s3-r2-integration may be skipped — it skips itself on forked PRs,
+  # where the bucket credentials are unavailable, and an outside contributor
+  # must not be blocked by a job they cannot run. Every other job skipping is a
+  # pipeline bug, and a gate that waved skips through would let a
+  # misconfigured trigger merge untested code.
   test:
     runs-on: ubuntu-latest
-    needs: [lint, rust-unit, rust-integration, web, e2e]
+    needs: [lint, rust-unit, rust-integration, rust-integration-pg, web, e2e, e2e-direct, s3-r2-integration]
     if: always()
     steps:
       - name: Verify all jobs passed
         run: |
-          results="${{ join(needs.*.result, ' ') }}"
-          echo "Job results: $results"
-          for result in $results; do
-            if [ "$result" != "success" ]; then
-              exit 1
-            fi
+          fail() { echo "$1 finished as '$2'"; exit 1; }
+          for job in lint rust-unit rust-integration rust-integration-pg web e2e e2e-direct; do
+            case "$job" in
+              lint) result="${{ needs.lint.result }}";;
+              rust-unit) result="${{ needs.rust-unit.result }}";;
+              rust-integration) result="${{ needs.rust-integration.result }}";;
+              rust-integration-pg) result="${{ needs.rust-integration-pg.result }}";;
+              web) result="${{ needs.web.result }}";;
+              e2e) result="${{ needs.e2e.result }}";;
+              e2e-direct) result="${{ needs.e2e-direct.result }}";;
+            esac
+            [ "$result" = "success" ] || fail "$job" "$result"
           done
+          remote="${{ needs.s3-r2-integration.result }}"
+          case "$remote" in
+            success|skipped) ;;
+            *) fail s3-r2-integration "$remote";;
+          esac
 
-  s3-aws-integration:
+  # MinIO covers the S3 API in e2e-direct. This job is the one that answers to
+  # a service nobody here controls, where SigV4 signing, TLS, CopyObject and
+  # the multi-key DeleteObjects POST have to hold against someone else's
+  # implementation of them. R2 is what our own deployments run on, and it
+  # bills nothing per request, so the weekly cadence above is free.
+  s3-r2-integration:
     runs-on: ubuntu-latest
     # GitHub secrets aren't available to forked-PR workflows — skip cleanly
-    # instead of failing so external contributors' PRs aren't blocked.
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # instead of failing so external contributors' PRs aren't blocked. The
+    # weekly schedule always runs it; that is the run that keeps the remote
+    # provider honest between same-repo PRs.
+    if: github.event_name == 'schedule' || github.event.pull_request.head.repo.full_name == github.repository
     env:
-      S3_ENDPOINT: ${{ secrets.AWS_S3_TEST_ENDPOINT }}
-      S3_REGION: ${{ secrets.AWS_S3_TEST_REGION }}
-      S3_BUCKET: ${{ secrets.AWS_S3_TEST_BUCKET }}
-      S3_ACCESS_KEY: ${{ secrets.AWS_S3_TEST_ACCESS_KEY }}
-      S3_SECRET_KEY: ${{ secrets.AWS_S3_TEST_SECRET_KEY }}
-      S3_PATH_STYLE: "false"
+      S3_ENDPOINT: ${{ secrets.R2_TEST_ENDPOINT }}
+      S3_REGION: ${{ secrets.R2_TEST_REGION }}
+      S3_BUCKET: ${{ secrets.R2_TEST_BUCKET }}
+      S3_ACCESS_KEY: ${{ secrets.R2_TEST_ACCESS_KEY }}
+      S3_SECRET_KEY: ${{ secrets.R2_TEST_SECRET_KEY }}
+      # R2 serves virtual-hosted style too, but path style is what the
+      # deployment docs and the dogfood rig use, so it is what gets tested.
+      S3_PATH_STYLE: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -194,5 +313,5 @@ jobs:
         with:
           packages: curl libpq-dev clang llvm pkg-config nettle-dev libc6-dev
           version: 1.0
-      - name: Run S3 versioned integration tests against AWS
+      - name: Run S3 versioned integration tests against R2
         run: cargo test -p fs --features s3-integration-tests providers::s3::s3_versioned_tests -- --nocapture

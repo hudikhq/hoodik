@@ -52,7 +52,7 @@ test.describe('Recipient-side metadata propagation', () => {
     await expect(progressBar).toHaveCount(0)
   })
 
-  test('details modal on a shared file shows real size + hashes + 100% uploaded', async ({ page }) => {
+  test('details modal on a shared file shows real size + 100% uploaded', async ({ page }) => {
     const alice = await createUser(page, randomEmail(), randomPassword())
     await logout(page)
     const bob = await createUser(page, randomEmail(), randomPassword())
@@ -96,15 +96,12 @@ test.describe('Recipient-side metadata propagation', () => {
     expect(uploadedText?.trim()).not.toBe('0%')
     expect(uploadedText?.trim()).not.toMatch(/^\d+%$/)
 
-    // The DetailsModal renders the SHA256 row once the upload-finalize
-    // hash worker has caught up. The shared row's hashes come through
-    // the same /api/shares/mine payload — once `sha256` is set on the
-    // wire the row in the recipient surface mirrors the owner's view.
-    // MD5/SHA1/BLAKE2b have no in-app computation path today so they
-    // stay null on the row and the DetailsModal omits them.
-    const sha256Field = page.locator('input[name="sha256"]')
-    await expect(sha256Field).toBeVisible({ timeout: 15_000 })
-    await expect(sha256Field).toHaveValue(/^[0-9a-f]{32,}/i)
+    // The digest rows retired with the hash re-keying: stored values are
+    // keyed tags now, so there is no bare digest for the modal to offer.
+    // Finding a file by digest is search's job — covered by the reindex
+    // spec — and the modal must not render an opaque tag under a "SHA256"
+    // label as if it were one.
+    await expect(page.locator('input[name="sha256"]')).toHaveCount(0)
   })
 
   test('incoming-share payload carries size + chunks + finished_upload_at for the recipient', async ({

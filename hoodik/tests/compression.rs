@@ -15,7 +15,7 @@ use crate::helpers::{calculate_checksum, create_byte_chunks, CHUNK_SIZE_BYTES};
 #[actix_web::test]
 async fn test_json_compresses_and_ciphertext_stays_identity() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-compression".to_string())).await;
+        context::Context::mock_with_data_dir(Some("../data/test-compression".to_string())).await;
 
     let app = test::init_service(server::app(context.clone())).await;
 
@@ -45,8 +45,11 @@ async fn test_json_compresses_and_ciphertext_stays_identity() {
         encrypted_key: Some("encrypted-gibberish".to_string()),
         encrypted_name: Some("name".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
-        name_hash: Some(checksum),
+        search_tokens_root: None,
+        search_tokens_file: None,
+        content_tokens_root: None,
+        content_tokens_file: None,
+        name_hash: Some(helpers::name_tag(&checksum)),
         mime: Some("application/octet-stream".to_string()),
         size: Some(size),
         chunks: Some(1),
@@ -56,6 +59,8 @@ async fn test_json_compresses_and_ciphertext_stays_identity() {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     };

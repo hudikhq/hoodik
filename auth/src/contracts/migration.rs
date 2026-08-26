@@ -3,9 +3,9 @@ use cryptfns::asn1::{audit_event_chain_hash, AuditEventRowV1};
 use cryptfns::identity::KeyType;
 use cryptfns::transition::{verify_key_rotation_audit, Certificate, Signatures};
 use entity::{
-    key_transitions, links, migration_rewrap_staging, opaque_ksf, share_events, user_files, users,
-    ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, Expr, OnConflict, Order, PaginatorTrait,
-    QueryFilter, QueryOrder, QuerySelect, TransactionTrait, Uuid,
+    file_tokens, files, key_transitions, links, migration_rewrap_staging, opaque_ksf, share_events,
+    user_files, users, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, Expr, OnConflict,
+    Order, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, TransactionTrait, Uuid,
 };
 use error::{AppResult, Error};
 use std::collections::{HashMap, HashSet};
@@ -61,7 +61,9 @@ where
         limit: Option<i64>,
     ) -> AppResult<MigrationKeys> {
         let offset = offset.unwrap_or(0).max(0);
-        let limit = limit.unwrap_or(MIGRATION_KEYS_MAX_PAGE).clamp(1, MIGRATION_KEYS_MAX_PAGE);
+        let limit = limit
+            .unwrap_or(MIGRATION_KEYS_MAX_PAGE)
+            .clamp(1, MIGRATION_KEYS_MAX_PAGE);
 
         let file_count = user_files::Entity::find()
             .filter(user_files::Column::UserId.eq(user_id))
@@ -115,7 +117,11 @@ where
         let next = offset + limit;
         let next_offset = (next < file_count + link_count).then_some(next);
 
-        Ok(MigrationKeys { keys, link_keys, next_offset })
+        Ok(MigrationKeys {
+            keys,
+            link_keys,
+            next_offset,
+        })
     }
 
     /// Stage one batch of re-wrapped keys for a still-legacy account. The client
@@ -165,7 +171,9 @@ where
                 .map(|row| row.id)
                 .collect();
             if link_ids.iter().any(|id| !owned.contains(id)) {
-                return Err(Error::BadRequest("rewrapped_link_key_not_owned".to_string()));
+                return Err(Error::BadRequest(
+                    "rewrapped_link_key_not_owned".to_string(),
+                ));
             }
         }
 
@@ -182,15 +190,18 @@ where
         let tx = self.ctx().db.begin().await?;
 
         if !batch.keys.is_empty() {
-            let rows = batch.keys.iter().map(|k| migration_rewrap_staging::ActiveModel {
-                id: ActiveValue::Set(Uuid::new_v4()),
-                user_id: ActiveValue::Set(user.id),
-                file_id: ActiveValue::Set(Some(k.file_id)),
-                link_id: ActiveValue::Set(None),
-                encrypted_key: ActiveValue::Set(k.encrypted_key.clone()),
-                signature: ActiveValue::Set(None),
-                created_at: ActiveValue::Set(now),
-            });
+            let rows = batch
+                .keys
+                .iter()
+                .map(|k| migration_rewrap_staging::ActiveModel {
+                    id: ActiveValue::Set(Uuid::new_v4()),
+                    user_id: ActiveValue::Set(user.id),
+                    file_id: ActiveValue::Set(Some(k.file_id)),
+                    link_id: ActiveValue::Set(None),
+                    encrypted_key: ActiveValue::Set(k.encrypted_key.clone()),
+                    signature: ActiveValue::Set(None),
+                    created_at: ActiveValue::Set(now),
+                });
             migration_rewrap_staging::Entity::insert_many(rows)
                 .on_conflict(
                     OnConflict::columns([
@@ -208,15 +219,18 @@ where
         }
 
         if !batch.link_keys.is_empty() {
-            let rows = batch.link_keys.iter().map(|k| migration_rewrap_staging::ActiveModel {
-                id: ActiveValue::Set(Uuid::new_v4()),
-                user_id: ActiveValue::Set(user.id),
-                file_id: ActiveValue::Set(None),
-                link_id: ActiveValue::Set(Some(k.link_id)),
-                encrypted_key: ActiveValue::Set(k.encrypted_link_key.clone()),
-                signature: ActiveValue::Set(Some(k.signature.clone())),
-                created_at: ActiveValue::Set(now),
-            });
+            let rows = batch
+                .link_keys
+                .iter()
+                .map(|k| migration_rewrap_staging::ActiveModel {
+                    id: ActiveValue::Set(Uuid::new_v4()),
+                    user_id: ActiveValue::Set(user.id),
+                    file_id: ActiveValue::Set(None),
+                    link_id: ActiveValue::Set(Some(k.link_id)),
+                    encrypted_key: ActiveValue::Set(k.encrypted_link_key.clone()),
+                    signature: ActiveValue::Set(Some(k.signature.clone())),
+                    created_at: ActiveValue::Set(now),
+                });
             migration_rewrap_staging::Entity::insert_many(rows)
                 .on_conflict(
                     OnConflict::columns([
@@ -259,7 +273,9 @@ where
         // brick. The client self-check should already prevent this; reject it
         // here regardless.
         if data.encrypted_private_key.trim().is_empty() {
-            return Err(Error::BadRequest("encrypted_private_key_required".to_string()));
+            return Err(Error::BadRequest(
+                "encrypted_private_key_required".to_string(),
+            ));
         }
 
         // Never trust the wire's fingerprint — recompute it from the key.
@@ -319,9 +335,18 @@ where
         // Flip the account only if it is still legacy. A racing migration on
         // another device turns this into a zero-row update.
         let flipped = users::Entity::update_many()
-            .col_expr(users::Column::Pubkey, Expr::value(data.new_identity_pubkey.clone()))
-            .col_expr(users::Column::Fingerprint, Expr::value(data.new_fingerprint.clone()))
-            .col_expr(users::Column::KeyType, Expr::value(KeyType::Curve25519.as_str()))
+            .col_expr(
+                users::Column::Pubkey,
+                Expr::value(data.new_identity_pubkey.clone()),
+            )
+            .col_expr(
+                users::Column::Fingerprint,
+                Expr::value(data.new_fingerprint.clone()),
+            )
+            .col_expr(
+                users::Column::KeyType,
+                Expr::value(KeyType::Curve25519.as_str()),
+            )
             .col_expr(
                 users::Column::WrappingPubkey,
                 Expr::value(data.new_wrapping_pubkey.clone()),
@@ -330,12 +355,12 @@ where
                 users::Column::EncryptedPrivateKey,
                 Expr::value(data.encrypted_private_key.clone()),
             )
-            .col_expr(users::Column::OpaquePasswordFile, Expr::value(password_file))
-            .col_expr(users::Column::SecurityVersion, Expr::value(1))
             .col_expr(
-                users::Column::Password,
-                Expr::value(Option::<String>::None),
+                users::Column::OpaquePasswordFile,
+                Expr::value(password_file),
             )
+            .col_expr(users::Column::SecurityVersion, Expr::value(1))
+            .col_expr(users::Column::Password, Expr::value(Option::<String>::None))
             .filter(users::Column::Id.eq(user.id))
             .filter(users::Column::SecurityVersion.eq(0))
             .exec(&tx)
@@ -405,7 +430,9 @@ where
 
                 let Some(signature) = row.signature.as_deref() else {
                     tx.rollback().await?;
-                    return Err(Error::InternalError("staged_link_missing_signature".to_string()));
+                    return Err(Error::InternalError(
+                        "staged_link_missing_signature".to_string(),
+                    ));
                 };
 
                 if KeyType::Curve25519
@@ -429,7 +456,9 @@ where
 
                 if updated.rows_affected != 1 {
                     tx.rollback().await?;
-                    return Err(Error::BadRequest("rewrapped_link_key_not_owned".to_string()));
+                    return Err(Error::BadRequest(
+                        "rewrapped_link_key_not_owned".to_string(),
+                    ));
                 }
             }
         }
@@ -438,6 +467,47 @@ where
             .filter(migration_rewrap_staging::Column::UserId.eq(user.id))
             .exec(&tx)
             .await?;
+
+        // The account-wide search key is derived from the private key, which
+        // this migration just replaced. Every root-scope tag the account holds
+        // was written under the old one and can never be matched again, so
+        // leaving them in place would mean search returning nothing with
+        // nothing to explain why. Dropping them clears the dead index, and
+        // blanking each file's `name_hash` — the marker the re-key migration
+        // introduced — is what puts the account back on the sweep, which
+        // rebuilds both under the new key. File-scope tags are keyed on the
+        // file key, which the rewrap above carried across untouched.
+        let owned: Vec<Uuid> = user_files::Entity::find()
+            .filter(user_files::Column::UserId.eq(user.id))
+            .filter(user_files::Column::IsOwner.eq(true))
+            .select_only()
+            .column(user_files::Column::FileId)
+            .into_tuple()
+            .all(&tx)
+            .await?;
+
+        if !owned.is_empty() {
+            // Digest-root tags go with the word tags: both were keyed under
+            // the replaced key. The word tags come back through the sweep,
+            // but a digest tag needs the bare digest, which nothing client-
+            // side can recover from the keyed column — so these are gone
+            // until the file's next content write, while the file-scope
+            // digest tags keep answering shared lookups throughout.
+            file_tokens::Entity::delete_many()
+                .filter(file_tokens::Column::FileId.is_in(owned.clone()))
+                .filter(file_tokens::Column::Scope.is_in([
+                    i32::from(file_tokens::Scope::Root),
+                    i32::from(file_tokens::Scope::DigestRoot),
+                ]))
+                .exec(&tx)
+                .await?;
+
+            files::Entity::update_many()
+                .col_expr(files::Column::NameHash, Expr::value(""))
+                .filter(files::Column::Id.is_in(owned))
+                .exec(&tx)
+                .await?;
+        }
 
         key_transitions::Entity::insert(key_transitions::ActiveModel {
             id: ActiveValue::Set(Uuid::new_v4()),
@@ -515,14 +585,13 @@ async fn append_key_rotation_event<C: ConnectionTrait>(
         .one(db)
         .await?;
 
-    let prev_hash: [u8; AUDIT_HASH_LEN] = match latest {
-        Some(row) => row
-            .this_event_hash
-            .as_slice()
-            .try_into()
-            .map_err(|_| Error::InternalError("share_events.this_event_hash bad length".into()))?,
-        None => [0u8; AUDIT_HASH_LEN],
-    };
+    let prev_hash: [u8; AUDIT_HASH_LEN] =
+        match latest {
+            Some(row) => row.this_event_hash.as_slice().try_into().map_err(|_| {
+                Error::InternalError("share_events.this_event_hash bad length".into())
+            })?,
+            None => [0u8; AUDIT_HASH_LEN],
+        };
 
     let row = AuditEventRowV1 {
         sender_id: user_id.into_bytes(),

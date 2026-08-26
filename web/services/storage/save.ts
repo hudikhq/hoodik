@@ -1,7 +1,9 @@
 import Api, { ErrorResponse } from '../api'
+import * as logger from '!/logger'
 import * as cryptfns from '../cryptfns'
 import { CHUNK_SIZE_BYTES } from '../constants'
 import { uploadChunk } from './upload/sync'
+import { evictChunkUrls } from './download/direct'
 import * as meta from './meta'
 import {
   uploadIntoSharedFolder,
@@ -17,7 +19,8 @@ export interface ReplaceContentRequest {
   chunks: number
   encrypted_name?: string
   encrypted_thumbnail?: string
-  search_tokens_hashed?: string[]
+  search_tokens_root?: string[]
+  search_tokens_file?: string[]
   /**
    * Abandon any in-flight pending edit on the server and start fresh.
    * Set when the previous save died mid-way (the user picks "discard"
@@ -58,7 +61,56 @@ export async function replaceContent(
     throw new Error('Failed to replace file content')
   }
 
+  // A cached manifest describes the version that was active when it was
+  // signed, and those URLs stay valid for days. Left in place, the next
+  // download of this file serves the previous version's chunks — or a mix of
+  // two versions, which fails to decrypt rather than merely being stale.
+  evictChunkUrls(fileId)
+
   return response.body
+}
+
+/**
+ * Persist a note's content digest, keyed, along with the tags that make the
+ * note findable by pasting that digest into search.
+ *
+ * Binary uploads get this from the hash worker. A note never goes near one —
+ * its bytes are written here — so without this its digest column stays empty
+ * and its digest never reaches the index. Keyed before anything touches the
+ * wire: the column stores the digest under the file's search key, and the
+ * bare digest never leaves this function.
+ *
+ * A failure here costs digest search on this note, never the save: the bytes
+ * are already committed by the time it runs.
+ */
+async function persistNoteDigest(
+  fileId: string,
+  contentBytes: Uint8Array,
+  fileKey: Uint8Array,
+  keypair: KeyPair,
+  isOwner: boolean
+): Promise<void> {
+  try {
+    const bare = cryptfns.sha256.digest(contentBytes)
+    const keyed = cryptfns.searchTag(cryptfns.searchFileKey(fileKey), bare)
+
+    const update: meta.KeyedHashesUpdate = {
+      sha256: keyed,
+      search_tokens_file: [`${keyed}:1`]
+    }
+
+    // Only the owner can produce root-scope tags; an editor saving a shared
+    // note indexes the digest under the file scope alone.
+    if (isOwner) {
+      update.search_tokens_root = [
+        `${cryptfns.searchTag(cryptfns.searchRootKey(keypair), bare)}:1`
+      ]
+    }
+
+    await meta.updateHashes(fileId, update)
+  } catch (err) {
+    logger.error('[save] could not persist the note digest for', fileId, ':', err)
+  }
 }
 
 /**
@@ -69,6 +121,7 @@ export async function replaceContent(
 export async function saveFileContent(
   file: AppFile,
   content: string,
+  keypair: KeyPair,
   force = false
 ): Promise<AppFile> {
   if (!file.key) {
@@ -81,14 +134,22 @@ export async function saveFileContent(
   const contentBytes = encoder.encode(safeContent)
   const size = contentBytes.length
   const chunkCount = Math.ceil(size / CHUNK_SIZE_BYTES) || 1
-  const searchTokens = cryptfns.stringToHashedTokens(safeContent)
+  // Body only. The title lives in a different source; sending it here would
+  // wipe the name the moment a save follows a rename, and concatenating the
+  // two used to leave stale body words in the name source after a rename.
+  // An editor who is not the owner can only refresh the file scope.
+  const fileTags = cryptfns.searchTags(cryptfns.searchFileKey(file.key), safeContent)
+  const rootTags = file.is_owner
+    ? cryptfns.searchTags(cryptfns.searchRootKey(keypair), safeContent)
+    : undefined
 
   let updatedFile: AppFile
   try {
     updatedFile = await replaceContent(file.id, {
       size,
       chunks: chunkCount,
-      search_tokens_hashed: searchTokens,
+      search_tokens_root: rootTags,
+      search_tokens_file: fileTags,
       force
     })
   } catch (err) {
@@ -119,6 +180,8 @@ export async function saveFileContent(
     const chunkData = contentBytes.slice(start, end)
     await uploadChunk(uploadFile, chunkData, i, 0, api)
   }
+
+  await persistNoteDigest(file.id, contentBytes, file.key, keypair, file.is_owner !== false)
 
   return {
     ...updatedFile,
@@ -163,7 +226,6 @@ export async function createNote(
   callerUserId?: string
 ): Promise<AppFile> {
   const fileName = name.endsWith('.md') ? name : `${name}.md`
-  const tokens = cryptfns.stringToHashedTokens(fileName.toLowerCase())
 
   const initialContent = `# ${fileName.replace(/\.md$/i, '')}\n`
   const contentBytes = new TextEncoder().encode(initialContent)
@@ -195,8 +257,7 @@ export async function createNote(
       callerUserId,
       parent: parentFile,
       fileName,
-      contentBytes,
-      tokens
+      contentBytes
     })
   }
 
@@ -206,9 +267,9 @@ export async function createNote(
     editable: true,
     size: contentBytes.length,
     chunks: 1,
-    search_tokens_hashed: tokens,
     file_id: parentFile?.id ?? (typeof parent === 'string' ? parent : undefined),
-    cipher: cryptfns.cipher.defaultCipher()
+    cipher: cryptfns.cipher.defaultCipher(),
+    content: initialContent
   }
 
   const file = await meta.create(keypair, createData)
@@ -228,6 +289,10 @@ export async function createNote(
     api
   )
 
+  if (file.key) {
+    await persistNoteDigest(file.id, contentBytes, file.key, keypair, true)
+  }
+
   return file
 }
 
@@ -237,13 +302,15 @@ async function createNoteInSharedFolder(args: {
   parent: AppFile
   fileName: string
   contentBytes: Uint8Array
-  tokens: string[]
 }): Promise<AppFile> {
   const cipher = cryptfns.cipher.defaultCipher()
   const fileKey = await cryptfns.cipher.generateKey(cipher)
   const fileKeyHex = cryptfns.uint8.toHex(fileKey)
   const encryptedName = await cryptfns.cipher.encryptString(cipher, args.fileName, fileKey)
-  const nameHash = cryptfns.sha256.digest(args.fileName)
+  const rootKey = cryptfns.searchRootKey(args.keypair)
+  const nameHash = cryptfns.searchTag(rootKey, args.fileName)
+  const nameIndexed = args.fileName.toLowerCase()
+  const body = new TextDecoder().decode(args.contentBytes)
   const newFileId = uuidv4()
   const modified = new Date()
 
@@ -263,7 +330,10 @@ async function createNoteInSharedFolder(args: {
       cipher,
       editable: true,
       fileModifiedAt: utcStringFromLocal(modified),
-      searchTokensHashed: args.tokens
+      searchTokensRoot: cryptfns.searchTags(rootKey, nameIndexed),
+      searchTokensFile: cryptfns.searchTags(cryptfns.searchFileKey(fileKey), nameIndexed),
+      contentTokensRoot: cryptfns.searchTags(rootKey, body),
+      contentTokensFile: cryptfns.searchTags(cryptfns.searchFileKey(fileKey), body)
     },
     trustedFingerprints: trustedFingerprintsStore(),
     onUnknownMember: async () => true
@@ -306,6 +376,9 @@ async function createNoteInSharedFolder(args: {
     0,
     api
   )
+
+  // The uploader owns what they created, shared folder or not.
+  await persistNoteDigest(newFileId, args.contentBytes, fileKey, args.keypair, true)
 
   return await meta.get(args.keypair, newFileId)
 }

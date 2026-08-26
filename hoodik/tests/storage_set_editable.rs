@@ -11,7 +11,7 @@ use crate::helpers::create_byte_chunks;
 #[actix_web::test]
 async fn test_set_editable_converts_file_to_note() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-set-editable-1".to_string()))
+        context::Context::mock_with_data_dir(Some("../data/test-set-editable-1".to_string()))
             .await;
 
     let app = test::init_service(server::app(context.clone())).await;
@@ -26,8 +26,11 @@ async fn test_set_editable_converts_file_to_note() {
         encrypted_key: Some("encrypted-key".to_string()),
         encrypted_name: Some("note.enc".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
-        name_hash: Some(checksum),
+        search_tokens_root: None,
+        search_tokens_file: None,
+        content_tokens_root: None,
+        content_tokens_file: None,
+        name_hash: Some(helpers::name_tag(&checksum)),
         mime: Some("text/markdown".to_string()),
         size: Some(size),
         chunks: Some(data.len() as i64),
@@ -37,6 +40,8 @@ async fn test_set_editable_converts_file_to_note() {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None, // not editable
     };
@@ -81,7 +86,7 @@ async fn test_set_editable_converts_file_to_note() {
 #[actix_web::test]
 async fn test_set_editable_can_revert_note_to_regular_file() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-set-editable-2".to_string()))
+        context::Context::mock_with_data_dir(Some("../data/test-set-editable-2".to_string()))
             .await;
 
     let app = test::init_service(server::app(context.clone())).await;
@@ -96,8 +101,11 @@ async fn test_set_editable_can_revert_note_to_regular_file() {
         encrypted_key: Some("encrypted-key".to_string()),
         encrypted_name: Some("note.enc".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
-        name_hash: Some(checksum),
+        search_tokens_root: None,
+        search_tokens_file: None,
+        content_tokens_root: None,
+        content_tokens_file: None,
+        name_hash: Some(helpers::name_tag(&checksum)),
         mime: Some("text/markdown".to_string()),
         size: Some(size),
         chunks: Some(data.len() as i64),
@@ -107,6 +115,8 @@ async fn test_set_editable_can_revert_note_to_regular_file() {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: Some(true),
     };
@@ -140,7 +150,7 @@ async fn test_set_editable_can_revert_note_to_regular_file() {
 #[actix_web::test]
 async fn test_set_editable_rejects_directory() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-set-editable-3".to_string()))
+        context::Context::mock_with_data_dir(Some("../data/test-set-editable-3".to_string()))
             .await;
 
     let app = test::init_service(server::app(context.clone())).await;
@@ -152,7 +162,10 @@ async fn test_set_editable_rejects_directory() {
         encrypted_key: Some("encrypted-key".to_string()),
         encrypted_name: Some("dir.enc".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
+        search_tokens_root: None,
+        search_tokens_file: None,
+        content_tokens_root: None,
+        content_tokens_file: None,
         name_hash: Some("dir-hash-editable".to_string()),
         mime: Some("dir".to_string()),
         size: None,
@@ -163,6 +176,8 @@ async fn test_set_editable_rejects_directory() {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     };
@@ -194,7 +209,7 @@ async fn test_set_editable_rejects_directory() {
 #[actix_web::test]
 async fn test_set_editable_requires_editable_field() {
     let context =
-        context::Context::mock_with_data_dir(Some("../data-test-set-editable-4".to_string()))
+        context::Context::mock_with_data_dir(Some("../data/test-set-editable-4".to_string()))
             .await;
 
     let app = test::init_service(server::app(context.clone())).await;
@@ -209,8 +224,11 @@ async fn test_set_editable_requires_editable_field() {
         encrypted_key: Some("encrypted-key".to_string()),
         encrypted_name: Some("note.enc".to_string()),
         encrypted_thumbnail: None,
-        search_tokens_hashed: None,
-        name_hash: Some(checksum),
+        search_tokens_root: None,
+        search_tokens_file: None,
+        content_tokens_root: None,
+        content_tokens_file: None,
+        name_hash: Some(helpers::name_tag(&checksum)),
         mime: Some("text/markdown".to_string()),
         size: Some(size),
         chunks: Some(data.len() as i64),
@@ -220,6 +238,8 @@ async fn test_set_editable_requires_editable_field() {
         sha1: None,
         sha256: None,
         blake2b: None,
+        digest_tokens_root: None,
+        digest_tokens_file: None,
         cipher: None,
         editable: None,
     };

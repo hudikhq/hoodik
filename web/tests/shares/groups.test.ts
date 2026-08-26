@@ -61,6 +61,19 @@ function enabledCapabilities(overrides: Partial<Capabilities> = {}): Capabilitie
   }
 }
 
+/**
+ * Install a capability fixture the way a completed fetch would. Setting only
+ * `caps` left `lastFetchedAt` unset, so `useCapability`'s mounted hook issued
+ * a real fetch — which fails in jsdom and stomps the fixture with the
+ * fail-closed set whenever the rejection landed before an assertion. That was
+ * this suite's random-victim flake.
+ */
+function installCapabilities(fixture: Capabilities): void {
+  const store = capabilitiesStore()
+  store.caps = fixture
+  store.lastFetchedAt = Math.floor(Date.now() / 1000)
+}
+
 function emptyGroups(): GroupsResponse {
   return { owned: [], member_of: [] }
 }
@@ -974,7 +987,7 @@ describe('share dialog group target routing', () => {
     const fileKeyHex = cryptfns.uint8.toHex(fileKey)
     const callerWrap = await cryptfns.rsa.encryptMessage(fileKeyHex, kpAlice.publicKey as string)
 
-    capabilitiesStore().caps = enabledCapabilities()
+    installCapabilities(enabledCapabilities())
 
     const fpBob = shareCrypto.computeFingerprint(kpBob.publicKey as string)
     const fpCarol = shareCrypto.computeFingerprint(kpCarol.publicKey as string)
@@ -1028,7 +1041,7 @@ describe('share dialog group target routing', () => {
       cryptfns.uint8.toHex(fileKey),
       kpAlice.publicKey as string
     )
-    capabilitiesStore().caps = enabledCapabilities()
+    installCapabilities(enabledCapabilities())
     vi.spyOn(sharesApi, 'listGroups').mockResolvedValue({
       owned: [makeGroup({ name: 'Owned' })],
       member_of: [
@@ -1059,7 +1072,7 @@ describe('share dialog group target routing', () => {
       cryptfns.uint8.toHex(fileKey),
       kpAlice.publicKey as string
     )
-    capabilitiesStore().caps = enabledCapabilities({ share_groups: false })
+    installCapabilities(enabledCapabilities({ share_groups: false }))
     const listSpy = vi.spyOn(sharesApi, 'listGroups').mockResolvedValue({
       owned: [makeGroup({ name: 'Owned' })],
       member_of: []
@@ -1091,7 +1104,7 @@ describe('group role UI', () => {
 
   it('owned_group_owner_can_set_any_member_role', async () => {
     const kpAlice = await cryptfns.rsa.generateKeyPair()
-    capabilitiesStore().caps = enabledCapabilities()
+    installCapabilities(enabledCapabilities())
     const group = makeGroup({
       members: [
         { user_id: MEMBER_A, email: 'bob@example.com', fingerprint: 'fp-bob', added_at: 1, group_role: 'reader' }
@@ -1101,7 +1114,7 @@ describe('group role UI', () => {
     const setRole = vi.spyOn(sharesApi, 'setGroupMemberRole').mockResolvedValue(undefined)
 
     const wrapper = mountHub({ input: kpAlice.input as string, publicKey: kpAlice.publicKey as string })
-    await flushPromises()
+    await rowAppears(wrapper, `share-hub-groups-owned-${GROUP_ID}-member-${MEMBER_A}-role`)
 
     const select = wrapper.get(
       `[data-testid="share-hub-groups-owned-${GROUP_ID}-member-${MEMBER_A}-role"]`
@@ -1117,7 +1130,7 @@ describe('group role UI', () => {
 
   it('member_of_editor_sees_share_hint_not_manage', async () => {
     const kpAlice = await cryptfns.rsa.generateKeyPair()
-    capabilitiesStore().caps = enabledCapabilities()
+    installCapabilities(enabledCapabilities())
     vi.spyOn(sharesApi, 'listGroups').mockResolvedValue({
       owned: [],
       member_of: [
@@ -1125,15 +1138,14 @@ describe('group role UI', () => {
       ]
     })
     const wrapper = mountHub({ input: kpAlice.input as string, publicKey: kpAlice.publicKey as string })
-    await flushPromises()
-    expect(wrapper.find('[data-testid="share-hub-groups-member-of-g-ed-editor-hint"]').exists()).toBe(true)
+    expect(await rowAppears(wrapper, 'share-hub-groups-member-of-g-ed-editor-hint')).toBe(true)
     expect(wrapper.find('[data-testid="share-hub-groups-member-of-g-ed-manage"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="share-hub-groups-member-of-g-ed-add"]').exists()).toBe(false)
   })
 
   it('member_of_co_owner_gets_manage_controls_no_delete', async () => {
     const kpAlice = await cryptfns.rsa.generateKeyPair()
-    capabilitiesStore().caps = enabledCapabilities()
+    installCapabilities(enabledCapabilities())
     vi.spyOn(sharesApi, 'listGroups').mockResolvedValue({
       owned: [],
       member_of: [
@@ -1141,8 +1153,7 @@ describe('group role UI', () => {
       ]
     })
     const wrapper = mountHub({ input: kpAlice.input as string, publicKey: kpAlice.publicKey as string })
-    await flushPromises()
-    expect(wrapper.find('[data-testid="share-hub-groups-member-of-g-co-manage"]').exists()).toBe(true)
+    expect(await rowAppears(wrapper, 'share-hub-groups-member-of-g-co-manage')).toBe(true)
     expect(wrapper.find('[data-testid="share-hub-groups-member-of-g-co-add"]').exists()).toBe(true)
     // Rename and delete are owner-only — a co-owner has neither affordance.
     expect(wrapper.find('[data-testid="share-hub-groups-member-of-g-co-rename"]').exists()).toBe(false)
@@ -1153,7 +1164,7 @@ describe('group role UI', () => {
     const kpAlice = await cryptfns.rsa.generateKeyPair()
     const kpOwner = await cryptfns.rsa.generateKeyPair()
     const kpBob = await cryptfns.rsa.generateKeyPair()
-    capabilitiesStore().caps = enabledCapabilities()
+    installCapabilities(enabledCapabilities())
     vi.spyOn(sharesApi, 'listGroups').mockResolvedValue({
       owned: [],
       member_of: [
@@ -1178,7 +1189,7 @@ describe('group role UI', () => {
   it('owned_group_add_dialog_offers_co_owner_to_owner', async () => {
     const kpAlice = await cryptfns.rsa.generateKeyPair()
     const kpBob = await cryptfns.rsa.generateKeyPair()
-    capabilitiesStore().caps = enabledCapabilities()
+    installCapabilities(enabledCapabilities())
     vi.spyOn(sharesApi, 'listGroups').mockResolvedValue({ owned: [makeGroup()], member_of: [] })
     vi.spyOn(sharesApi, 'discoverUser').mockResolvedValue({
       user_id: MEMBER_A,
@@ -1203,7 +1214,7 @@ describe('group role UI', () => {
   it('co_owner_managed_group_add_dialog_hides_co_owner_role', async () => {
     const kpAlice = await cryptfns.rsa.generateKeyPair()
     const kpBob = await cryptfns.rsa.generateKeyPair()
-    capabilitiesStore().caps = enabledCapabilities()
+    installCapabilities(enabledCapabilities())
     vi.spyOn(sharesApi, 'listGroups').mockResolvedValue({
       owned: [],
       member_of: [

@@ -55,6 +55,11 @@ export const store = defineStore('crypto', () => {
    */
   async function clear() {
     KeyPair.value = { keySize: 2048, publicKey: null, input: null, fingerprint: null }
+
+    // Shared-file keys are unwrapped with the key being dropped here, so they
+    // must not survive it.
+    const { clearIncomingSearchKeys } = await import('./storage')
+    clearIncomingSearchKeys()
   }
 
   return {

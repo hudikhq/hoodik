@@ -770,14 +770,11 @@ export const store = defineStore('files', () => {
    * Create a directory in the storage
    */
   async function createDir(keypair: KeyPair, name: string, dir_id?: string): Promise<AppFile> {
-    const search_tokens_hashed = cryptfns.stringToHashedTokens(name.toLowerCase())
-
     const createFile: CreateFile = {
       name,
       mime: 'dir',
       file_id: dir_id,
       file_modified_at: utcStringFromLocal(new Date()),
-      search_tokens_hashed,
       cipher: cryptfns.cipher.defaultCipher()
     }
 
@@ -797,12 +794,7 @@ export const store = defineStore('files', () => {
    * for the original row.
    */
   async function rename(keypair: KeyPair, file: AppFile, name: string): Promise<AppFile> {
-    const search_tokens_hashed = cryptfns.stringToHashedTokens(name.toLowerCase())
-
-    const renamed = await meta.rename(keypair, file, {
-      name,
-      search_tokens_hashed
-    })
+    const renamed = await meta.rename(keypair, file, { name })
 
     const placed = placeForRecipient(renamed, file)
     updateItem(placed)
@@ -926,6 +918,67 @@ export const store = defineStore('files', () => {
 })
 
 /**
+ * File keys for every file shared with this account, cached for the session.
+ *
+ * Search tags a shared file under the file's own key, so a query has to carry
+ * one tag set per such file. `/api/shares/keys` returns the untrimmed set —
+ * `/api/shares/mine` reports roots only, which would leave everything inside a
+ * shared folder unsearchable.
+ *
+ * Cached because it costs one asymmetric unwrap per shared file, but only for
+ * a few minutes: the set changes when a share is granted or revoked, and the
+ * grant that matters most is someone else's — which this client only learns
+ * about by asking again. A short expiry makes a freshly shared file
+ * searchable within minutes instead of after the next login.
+ * `clearIncomingSearchKeys` drops the cache on logout, so the keys never
+ * outlive the session that unlocked them.
+ */
+let incomingKeyCache: { keys: Uint8Array[]; fetchedAt: number } | null = null
+
+const INCOMING_KEYS_TTL_MS = 5 * 60 * 1000
+
+export function clearIncomingSearchKeys() {
+  incomingKeyCache = null
+}
+
+async function incomingSearchKeys(kp: KeyPair): Promise<Uint8Array[]> {
+  if (incomingKeyCache && Date.now() - incomingKeyCache.fetchedAt < INCOMING_KEYS_TTL_MS) {
+    return incomingKeyCache.keys
+  }
+
+  const privateKey = kp.wrappingPrivate || kp.input
+  if (!privateKey) return []
+
+  try {
+    const sharesApi = await import('../shares/api')
+    const rows = await sharesApi.getIncomingKeys()
+
+    const keys = await Promise.all(
+      rows.map(async (row) => {
+        try {
+          return await meta.decryptFileKey(row.encrypted_key, privateKey)
+        } catch {
+          // A row wrapped under a superseded key is not worth failing the
+          // whole search over; it simply will not match.
+          return undefined
+        }
+      })
+    )
+
+    incomingKeyCache = {
+      keys: keys.filter((key): key is Uint8Array => !!key),
+      fetchedAt: Date.now()
+    }
+
+    return incomingKeyCache.keys
+  } catch {
+    // Search over owned files is the common case and must not fail because
+    // the shares list is unavailable.
+    return []
+  }
+}
+
+/**
  * Do a full text search through the files and folders
  */
 export async function search(
@@ -938,7 +991,12 @@ export async function search(
   }
 
   const privateKey = kp.wrappingPrivate || kp.input
-  const response = await meta.search(query, options)
+
+  // Files shared with the caller are tagged under each file's own key, so the
+  // query has to carry one tag set per such file. Only the shares the caller
+  // holds directly are reachable here — see the note on `incomingSearchKeys`.
+  const sharedKeys = await incomingSearchKeys(kp)
+  const response = await meta.search(query, kp, sharedKeys, options)
 
   const results = await Promise.all(
     response.map(async (file: EncryptedAppFile) => {

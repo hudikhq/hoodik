@@ -166,6 +166,16 @@ export const store = defineStore('login', () => {
     // Lazy import avoids the storage → services → auth import cycle at boot.
     const { store: filesStore } = await import('../storage')
     filesStore().reset()
+
+    // Signed chunk URLs stay valid for days, so they outlive the session that
+    // obtained them, in both directions. Same lazy import, same reason.
+    const [{ clearChunkUrlCache }, { forgetAllUploads }] = await Promise.all([
+      import('../storage/download/direct'),
+      import('../storage/upload/direct')
+    ])
+    clearChunkUrlCache()
+    forgetAllUploads()
+
     clearInterval(_refresher.value)
 
     if (full) {

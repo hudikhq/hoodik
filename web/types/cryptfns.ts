@@ -42,6 +42,14 @@ export interface KeyPair {
    * change; dropping it makes that older ciphertext permanently unreadable.
    */
   legacyPrivate?: string | null
+
+  /**
+   * Account-wide search key, derived from the private key above and cached for
+   * the session. Tags everything the user owns, so their own search costs one
+   * tag per query word no matter how large the drive is. Derived lazily by
+   * `cryptfns.searchRootKey` — never sent anywhere, and never persisted.
+   */
+  searchKey?: string | null
 }
 
 /**

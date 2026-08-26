@@ -149,6 +149,25 @@ export async function getShareRecipients(fileId: string): Promise<AppShare[]> {
 /**
  * `GET /api/shares/mine` — recipient-side paged list of incoming shares.
  */
+export interface IncomingKey {
+  file_id: string
+  encrypted_key: string
+}
+
+/**
+ * Every file shared with the caller, as `(file_id, encrypted_key)` pairs.
+ *
+ * Distinct from `getSharesMine`, which reports share roots for browsing —
+ * it trims any row whose parent is also shared. Search needs the untrimmed
+ * set, because files inside a shared folder are tagged under their own keys
+ * and the query has to carry a tag per key.
+ */
+export async function getIncomingKeys(): Promise<IncomingKey[]> {
+  const response = await Api.get<IncomingKey[]>(`/api/shares/keys`)
+
+  return response.body ?? []
+}
+
 export async function getSharesMine(
   limit?: number,
   offset?: number

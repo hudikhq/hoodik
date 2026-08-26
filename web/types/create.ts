@@ -2,13 +2,17 @@ import type { AppFileUnencryptedPart } from './file'
 
 export interface Rename {
   name: string
-  search_tokens_hashed?: string[]
+  search_tokens_root?: string[]
+
+  search_tokens_file?: string[]
 }
 
 export interface EncryptedRename {
   encrypted_name: string
   name_hash: string
-  search_tokens_hashed?: string[]
+  search_tokens_root?: string[]
+
+  search_tokens_file?: string[]
 }
 
 export interface CreateFile extends AppFileUnencryptedPart {
@@ -49,10 +53,17 @@ export interface CreateFile extends AppFileUnencryptedPart {
   file_modified_at?: string
 
   /**
-   * Tokenize the unencrypted file name or any search data,
-   * hash each token and load it in this array.
+   * Tokenize the unencrypted file name, hash each token and load it in this array.
    */
-  search_tokens_hashed?: string[]
+  search_tokens_root?: string[]
+
+  search_tokens_file?: string[]
+
+  /**
+   * Plaintext body of a note, used only to fill `content_tokens_*` on
+   * create. Never sent to the server.
+   */
+  content?: string
 
   /**
    * Unencrypted file MD5 hash
@@ -95,10 +106,18 @@ export interface EncryptedCreateFile {
   encrypted_metadata?: string
 
   /**
-   * Tokenize the unencrypted file name or any search data,
-   * hash each token and load it in this array.
+   * Tokenize the unencrypted file name, hash each token and load it in this array.
    */
-  search_tokens_hashed?: string[]
+  search_tokens_root?: string[]
+
+  search_tokens_file?: string[]
+
+  /**
+   * Note-body tokens. Absent on regular files; a new note sends them so
+   * the body is searchable before the first save. Written to `source=content`.
+   */
+  content_tokens_root?: string[]
+  content_tokens_file?: string[]
 
   /**
    * Unencrypted name hash

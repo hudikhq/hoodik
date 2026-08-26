@@ -1,6 +1,6 @@
 use crate::error::{Error, HttpError, Result};
 use crate::platform::HttpClient;
-use crate::types::{Auth, ChunkResponse, DownloadSource, FileHashes};
+use crate::types::{Auth, ChunkResponse, ChunkTarget, FileHashes};
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -165,23 +165,44 @@ impl HttpClient for WasmHttpClient {
 
     fn download_chunk<'a>(
         &'a self,
-        auth: &Auth,
-        source: DownloadSource<'_>,
+        target: ChunkTarget<'_>,
         chunk_index: u64,
         on_bytes: Box<dyn Fn(u64) + 'a>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + 'a>> {
-        let auth = auth.clone();
-        let url = source.chunk_url(&auth.base_url, chunk_index);
-        let method = source.method();
+        let url = target.url(chunk_index);
+        let method = target.method();
+        // Cloned out of the target so the future owns it. The `Direct` arm has
+        // no auth to clone, which is the whole point of the split.
+        let auth = match target {
+            ChunkTarget::Api { auth, .. } => Some(auth.clone()),
+            ChunkTarget::Direct(_) => None,
+        };
 
         Box::pin(async move {
-            let headers = Self::build_headers(&auth)?;
-
             let opts = RequestInit::new();
             opts.set_method(method);
-            opts.set_headers(&headers);
             opts.set_mode(RequestMode::Cors);
-            opts.set_credentials(RequestCredentials::Include);
+
+            match auth {
+                Some(auth) => {
+                    let headers = Self::build_headers(&auth)?;
+                    opts.set_headers(&headers);
+                    opts.set_credentials(RequestCredentials::Include);
+                }
+                None => {
+                    // `Omit` is not only about withholding cookies. A
+                    // credentialed cross-origin fetch obliges the bucket to
+                    // answer with an exact-origin `Access-Control-Allow-Origin`
+                    // and `Allow-Credentials: true`; against the wildcard
+                    // policy buckets normally carry, the browser discards the
+                    // response and reports an opaque network failure.
+                    //
+                    // No headers either: any custom header makes the request
+                    // non-simple and buys a preflight round trip per chunk,
+                    // which is most of what going direct was meant to save.
+                    opts.set_credentials(RequestCredentials::Omit);
+                }
+            }
 
             let resp = Self::do_fetch(&opts, &url).await?;
             let status = resp.status();
@@ -201,6 +222,91 @@ impl HttpClient for WasmHttpClient {
             }
 
             Self::read_streaming(&resp, &on_bytes).await
+        })
+    }
+
+    fn put_chunk_direct(
+        &self,
+        url: &str,
+        data: &[u8],
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>> {
+        let url = url.to_string();
+        let data = data.to_vec();
+
+        Box::pin(async move {
+            let body = js_sys::Uint8Array::from(data.as_slice());
+
+            let opts = RequestInit::new();
+            opts.set_method("PUT");
+            opts.set_body(&body);
+            opts.set_mode(RequestMode::Cors);
+            // Same rule as the read side: credentials would oblige the bucket
+            // to answer with an exact-origin CORS policy it does not carry,
+            // and several S3 implementations reject a request that arrives
+            // both presigned and authenticated. No headers either — the
+            // signature already covers the content length the browser sets,
+            // and a custom one would buy a preflight per chunk.
+            opts.set_credentials(RequestCredentials::Omit);
+
+            let resp = Self::do_fetch(&opts, &url).await?;
+            let status = resp.status();
+
+            if status >= 400 {
+                let text_promise = resp.text().map_err(|e| Error::Io(format!("{e:?}")))?;
+                let text = JsFuture::from(text_promise)
+                    .await
+                    .map_err(|e| Error::Io(format!("{e:?}")))?
+                    .as_string()
+                    .unwrap_or_default();
+                return Err(Error::Http(HttpError {
+                    status,
+                    message: text,
+                    validation: None,
+                }));
+            }
+
+            Ok(())
+        })
+    }
+
+    fn finalize_upload(
+        &self,
+        auth: &Auth,
+        file_id: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>> {
+        let auth = auth.clone();
+        let file_id = file_id.to_string();
+
+        Box::pin(async move {
+            let headers = Self::build_headers(&auth)?;
+            let url = format!("{}/api/storage/{}/finalize", auth.base_url, file_id);
+
+            let opts = RequestInit::new();
+            opts.set_method("POST");
+            opts.set_headers(&headers);
+            opts.set_mode(RequestMode::Cors);
+            opts.set_credentials(RequestCredentials::Include);
+
+            let resp = Self::do_fetch(&opts, &url).await?;
+            let status = resp.status();
+
+            let text_promise = resp.text().map_err(|e| Error::Io(format!("{e:?}")))?;
+            let text = JsFuture::from(text_promise)
+                .await
+                .map_err(|e| Error::Io(format!("{e:?}")))?
+                .as_string()
+                .unwrap_or_default();
+
+            if status >= 400 {
+                let validation = parse_validation(&text, status);
+                return Err(Error::Http(HttpError {
+                    status,
+                    message: text,
+                    validation,
+                }));
+            }
+
+            Ok(())
         })
     }
 

@@ -510,10 +510,35 @@ pub fn text_into_tokens(input: &str) -> Option<String> {
         .map(crate::tokenizer::into_string)
 }
 
+/// Derive the account-wide search key from the private key PEM the client
+/// already holds unlocked. Returned as hex so it can sit in memory alongside
+/// the other client-side key material; it is never sent anywhere.
+#[wasm_bindgen]
+pub fn search_root_key(private_key: &str) -> Option<String> {
+    crate::search::root_key(private_key)
+        .ok()
+        .map(hex::encode)
+}
+
+/// Derive a file's search key from its symmetric key. Every recipient of a
+/// share can do this, which is what keeps sharing free of index work.
+#[wasm_bindgen]
+pub fn search_file_key(file_key: Vec<u8>) -> Option<String> {
+    crate::search::file_key(&file_key).ok().map(hex::encode)
+}
+
+/// Tag a single value — a file name for `name_hash`, or one query word.
+#[wasm_bindgen]
+pub fn search_tag(key: &str, value: &str) -> Option<String> {
+    crate::search::tag(&hex::decode(key).ok()?, value).ok()
+}
+
+/// Tokenize `input` and tag every distinct token, returning the
+/// `"{tag}:{weight};..."` form the index routes accept.
 #[cfg(feature = "tokenizer")]
 #[wasm_bindgen]
-pub fn text_into_hashed_tokens(input: &str) -> Option<String> {
-    crate::tokenizer::into_hashed_tokens(input)
+pub fn search_tag_tokens(key: &str, input: &str) -> Option<String> {
+    crate::search::tag_tokens(&hex::decode(key).ok()?, input)
         .ok()
         .map(crate::tokenizer::into_string)
 }

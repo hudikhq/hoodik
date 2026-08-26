@@ -14,6 +14,7 @@
 
 use chrono::Utc;
 use entity::{
+    file_tokens::{DigestTags, SearchTags, Source},
     file_versions, files, ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait,
     Order, QueryFilter, QueryOrder, Uuid,
 };
@@ -72,11 +73,7 @@ where
 
     /// Look up a specific version's metadata. Used by the download route
     /// for `GET /versions/{version}?format=tar`.
-    pub(crate) async fn get(
-        &self,
-        file_id: Uuid,
-        version: i32,
-    ) -> AppResult<file_versions::Model> {
+    pub(crate) async fn get(&self, file_id: Uuid, version: i32) -> AppResult<file_versions::Model> {
         let _ = self.repository.by_id(file_id, self.owner_id).await?;
 
         file_versions::Entity::find()
@@ -111,16 +108,12 @@ where
         // existing 409-with-force flow on the in-flight edit if they
         // really mean to abandon it.
         if file.has_pending_upload() {
-            return Err(Error::Conflict(
-                "another_edit_is_in_progress".to_string(),
-            ));
+            return Err(Error::Conflict("another_edit_is_in_progress".to_string()));
         }
 
         // Self-restore is a no-op — bail before allocating a slot.
         if file.active_version == target_version {
-            return Err(Error::BadRequest(
-                "version_already_active".to_string(),
-            ));
+            return Err(Error::BadRequest("version_already_active".to_string()));
         }
 
         let target = self.get(file_id, target_version).await?;
@@ -156,6 +149,19 @@ where
         // Flip pointers. `chunks/size/sha256` come from the target's
         // recorded metadata so the restored content's hashes match
         // exactly — no need for a follow-up `update_hashes` call.
+        //
+        // The index cannot come along the same way. The route carries no
+        // body, by design — a restore names a version and nothing else — so
+        // no client can send tags for the text being restored, and the server
+        // holds only ciphertext to derive them from. Left alone, the note
+        // would answer searches for the words of the version it just replaced
+        // and none of the words it now holds, with a name hash the sweep
+        // cannot select and therefore no way back.
+        //
+        // So the file is enrolled instead: the blank hash means "waiting for
+        // its owner's sweep", and the sweep decrypts the restored content and
+        // rebuilds name and body from it. Restore is owner-only, so both
+        // scopes are the caller's to clear.
         files::ActiveModel {
             id: ActiveValue::Set(file_id),
             active_version: ActiveValue::Set(next),
@@ -166,12 +172,42 @@ where
             md5: ActiveValue::Set(None),
             sha1: ActiveValue::Set(None),
             blake2b: ActiveValue::Set(None),
+            name_hash: ActiveValue::Set(String::new()),
             finished_upload_at: ActiveValue::Set(Some(now)),
             file_modified_at: ActiveValue::Set(now),
             ..Default::default()
         }
         .update(self.repository.connection())
         .await?;
+
+        // An empty set is a delete with nothing written after it.
+        //
+        // The content source, not the name one: a restore swaps the bytes and
+        // leaves the name alone, so the tags describing the note's text are
+        // exactly the ones that now describe a version this file no longer
+        // has. Clearing the name tags instead would drop an index that was
+        // still correct and keep the one that had gone wrong.
+        //
+        // The digest scopes go too — they key on scope rather than source, and
+        // every digest column but sha256 is nulled in the statement above, so
+        // there is nothing left for the sweep to re-key from.
+        let empty = || SearchTags {
+            root: Some(Vec::new()),
+            file: Some(Vec::new()),
+        };
+        let tokens = self.repository.tokens(self.owner_id);
+        tokens
+            .replace_source(file_id, Source::Content, empty())
+            .await?;
+        tokens
+            .replace_digests(
+                file_id,
+                DigestTags {
+                    root: Some(Vec::new()),
+                    file: Some(Vec::new()),
+                },
+            )
+            .await?;
 
         Ok(RestoreOutcome {
             source_version: target_version,
@@ -190,7 +226,9 @@ where
         source_version: i32,
         new_file_active_model: files::ActiveModel,
         encrypted_key: String,
+        tags: (SearchTags, SearchTags, DigestTags),
     ) -> AppResult<ForkOutcome> {
+        let (search_tags, content_tags, digest_tags) = tags;
         // Caller's permission was already gated at the route. The
         // `by_id(source_file_id, caller_id)` call confirms the caller
         // has at least a `user_files` row on the source — whether owner
@@ -208,10 +246,12 @@ where
             self.get(source_file_id, source_version).await?;
         }
 
-        // Insert the new file row + ownership record. Mirrors the
-        // create-file flow but skips the search-token plumbing — fork is
-        // primarily a recovery feature, the user can rename or re-tokenize
-        // the new note later.
+        // Insert the new file row + ownership record, indexed the way the
+        // create flow indexes one. The client sends the tags for the copy and
+        // this is the only moment they can be written: nothing else revisits
+        // a forked note, and its name_hash is keyed, so it never appears on
+        // the re-index sweep either. Dropped here, the copy would be
+        // unfindable for as long as it existed.
         let new_file_id = entity::active_value_to_uuid(new_file_active_model.id.clone())
             .ok_or(Error::as_wrong_id("file"))?;
 
@@ -236,6 +276,13 @@ where
         entity::user_files::Entity::insert(user_file)
             .exec_without_returning(self.repository.connection())
             .await?;
+
+        let tokens = self.repository.tokens(self.owner_id);
+        tokens.reindex(new_file_id, search_tags).await?;
+        tokens
+            .replace_source(new_file_id, Source::Content, content_tags)
+            .await?;
+        tokens.replace_digests(new_file_id, digest_tags).await?;
 
         Ok(ForkOutcome {
             new_file_id,
@@ -302,11 +349,7 @@ where
     /// Best-effort by design: we prune AFTER a successful finalize, and a
     /// failure here doesn't roll back the commit. The next successful
     /// commit will catch up.
-    pub(crate) async fn prune_over_cap(
-        &self,
-        file_id: Uuid,
-        cap: usize,
-    ) -> AppResult<Vec<i32>> {
+    pub(crate) async fn prune_over_cap(&self, file_id: Uuid, cap: usize) -> AppResult<Vec<i32>> {
         let mut rows = file_versions::Entity::find()
             .filter(file_versions::Column::FileId.eq(file_id))
             .order_by(file_versions::Column::Version, Order::Asc)

@@ -23,7 +23,8 @@ async fn create_file_and_rename_it() {
             Rename {
                 name_hash: Some("dir2".to_string()),
                 encrypted_name: Some("dir2".to_string()),
-                search_tokens_hashed: Some(vec!["dir2".to_string()]),
+                search_tokens_root: Some(vec!["dir2:1".to_string()]),
+                search_tokens_file: Some(vec!["dir2:1".to_string()]),
             },
         )
         .await

@@ -39,6 +39,7 @@ pub(crate) async fn upload(
     body: web::Payload,
 ) -> AppResult<HttpResponse> {
     if util::actix::query_var::<String>(&req, "format").ok().as_deref() == Some("tar") {
+        super::reject_tar_when_disabled(&context)?;
         return super::upload_tar::upload_tar(req, claims, context, body).await;
     }
 

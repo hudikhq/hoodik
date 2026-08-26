@@ -8,6 +8,7 @@
  */
 
 import Api from '../api'
+import { evictChunkUrls, markDirectTransportBroken, versionChunkUrls } from './download/direct'
 import type { AppFile, FileVersion } from 'types'
 
 /**
@@ -25,7 +26,11 @@ export interface ForkRequest {
   cipher: string
   editable?: boolean
   file_id?: string
-  search_tokens_hashed?: string[]
+  search_tokens_root?: string[]
+
+  search_tokens_file?: string[]
+  content_tokens_root?: string[]
+  content_tokens_file?: string[]
 }
 
 /**
@@ -39,9 +44,13 @@ export async function list(fileId: string): Promise<FileVersion[]> {
 }
 
 /**
- * `GET /api/storage/{fileId}/versions/{version}?chunk=N` — fetch a
- * single encrypted chunk of a historical version. The caller decrypts
+ * Fetch a single encrypted chunk of a historical version. The caller decrypts
  * with the file's key.
+ *
+ * Goes straight to the storage bucket when the deployment serves presigned
+ * URLs, and through `GET /api/storage/{fileId}/versions/{version}?chunk=N`
+ * otherwise. Same manifest module every other read path uses, so a deployment
+ * that transfers directly does so here too.
  */
 export async function downloadChunk(
   fileId: string,
@@ -49,12 +58,40 @@ export async function downloadChunk(
   chunk: number,
   signal?: AbortSignal
 ): Promise<Uint8Array> {
-  const response = await new Api().download(
-    `/api/storage/${fileId}/versions/${version}?chunk=${chunk}`,
-    undefined,
-    undefined,
-    signal
-  )
+  const direct = (await versionChunkUrls(fileId, version))?.[chunk]
+
+  // Credentials would oblige the bucket to answer with an exact-origin CORS
+  // policy it does not carry, and are meaningless against a presigned URL.
+  let response: Response | undefined
+  try {
+    response = direct ? await fetch(direct, { credentials: 'omit', signal }) : undefined
+  } catch {
+    // A broken CORS policy or an unreachable bucket throws instead of
+    // answering; heal it the same way an error answer heals below, and stand
+    // direct reads down for a while — no fresh manifest fixes a transport
+    // that cannot be reached. Aborts rethrow from the relaying read, which
+    // shares the signal.
+    markDirectTransportBroken()
+    response = undefined
+  }
+
+  if (direct && (!response || !response.ok)) {
+    // An expired URL or a pruned object answers with an XML error document —
+    // a body, but not the chunk. Read as ciphertext it would fail much later
+    // as a baffling decrypt error, so drop the manifest and take the
+    // relaying route for this read instead.
+    evictChunkUrls(fileId)
+    response = undefined
+  }
+
+  if (!response) {
+    response = await new Api().download(
+      `/api/storage/${fileId}/versions/${version}?chunk=${chunk}`,
+      undefined,
+      undefined,
+      signal
+    )
+  }
 
   if (!response.body) {
     throw new Error(`Failed to download chunk ${chunk} of v${version}`)
@@ -92,7 +129,32 @@ export async function restore(fileId: string, version: number): Promise<AppFile>
     throw new Error(`Failed to restore v${version}`)
   }
 
+  // The active version just moved, so any manifest held for this file points
+  // at the version it moved away from.
+  evictChunkUrls(fileId)
+
   return response.body
+}
+
+/**
+ * `PUT /api/storage/{fileId}/content-tokens` — replace the note-body search
+ * tags, leaving the name and extra sources alone.
+ *
+ * Sent after a restore. That request names a version and carries no body, and
+ * the server holds only ciphertext, so it cannot index the text it just
+ * restored — it clears the body tags and enrols the file in the owner's sweep.
+ * Having decrypted the restored version to show it, the client already holds
+ * what the server could not derive.
+ */
+export async function replaceContentTokens(
+  fileId: string,
+  contentTokensRoot: string[],
+  contentTokensFile: string[]
+): Promise<void> {
+  await Api.put(`/api/storage/${fileId}/content-tokens`, undefined, {
+    content_tokens_root: contentTokensRoot,
+    content_tokens_file: contentTokensFile
+  })
 }
 
 /**

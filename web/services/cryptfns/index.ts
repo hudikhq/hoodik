@@ -12,6 +12,8 @@ import * as sha256 from './sha256'
 
 import * as wasm from './wasm'
 
+import type { KeyPair } from 'types'
+
 export {
   rsa,
   aes,
@@ -28,10 +30,70 @@ export {
 }
 
 /**
- * Convert input string into hashed tokens
+ * The account's search key, derived from its unlocked private key and cached
+ * on the keypair for the session.
+ *
+ * Curve accounts derive from the wrapping key, legacy RSA accounts from their
+ * RSA key — whichever one the account actually has. Migrating between the two
+ * changes the key and so requires a re-index, which rides along with the
+ * rewrap sweep that migration already performs.
  */
-export function stringToHashedTokens(s: string): string[] {
-  const output = wasm.text_into_hashed_tokens(s) || ''
+export function searchRootKey(keypair: KeyPair): string {
+  if (keypair.searchKey) {
+    return keypair.searchKey
+  }
+
+  const privateKey = keypair.wrappingPrivate || keypair.input
+
+  if (!privateKey) {
+    throw new Error('Cannot derive a search key without an unlocked private key')
+  }
+
+  const key = wasm.search_root_key(privateKey)
+
+  if (!key) {
+    throw new Error('Failed to derive the search key')
+  }
+
+  keypair.searchKey = key
+
+  return key
+}
+
+/**
+ * A file's search key, derived from the key the file itself is encrypted with.
+ * That key is wrapped for every recipient of a share, so anyone who can open
+ * the file can reproduce these tags — which is what lets a share grant skip
+ * touching the index entirely.
+ */
+export function searchFileKey(fileKey: Uint8Array): string {
+  const key = wasm.search_file_key(fileKey)
+
+  if (!key) {
+    throw new Error('Failed to derive the file search key')
+  }
+
+  return key
+}
+
+/**
+ * Tag a single value: a file name for `name_hash`, or one query word.
+ */
+export function searchTag(key: string, value: string): string {
+  const tag = wasm.search_tag(key, value)
+
+  if (!tag) {
+    throw new Error('Failed to tag the search value')
+  }
+
+  return tag
+}
+
+/**
+ * Tokenize and tag text, in the `"{tag}:{weight}"` form the index accepts.
+ */
+export function searchTags(key: string, text: string): string[] {
+  const output = wasm.search_tag_tokens(key, text) || ''
 
   return output.split(';').filter((token) => token !== '')
 }

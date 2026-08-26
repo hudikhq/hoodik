@@ -77,6 +77,17 @@ impl Cipher {
         }
     }
 
+    /// How many bytes encryption adds to a payload — the AEAD tag.
+    ///
+    /// Measured by encrypting nothing rather than declared as a constant, so
+    /// it cannot drift from what [`Cipher::encrypt_chunk`] actually produces.
+    /// Callers that must state a ciphertext length before they have the
+    /// ciphertext need this: a presigned upload URL is signed over the exact
+    /// content length, and the bucket refuses a body of any other size.
+    pub fn overhead(&self) -> CryptoResult<usize> {
+        Ok(self.encrypt(self.generate_key()?, Vec::new())?.len())
+    }
+
     /// Encrypt one chunk of a multi-chunk payload.
     ///
     /// Encrypting every chunk with the blob as-is would reuse the embedded nonce

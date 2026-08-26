@@ -8,7 +8,7 @@ use entity::Uuid;
 use error::{AppResult, Error};
 use fs::prelude::*;
 
-use crate::repository::cached::get_file;
+use crate::{permission::require_read, repository::cached::get_file};
 
 /// Get file content by its id
 ///
@@ -30,6 +30,11 @@ pub(crate) async fn download(
     let chunk = util::actix::query_var::<i64>(&req, "chunk").ok();
     let format = util::actix::query_var::<String>(&req, "format").ok();
 
+    // Authorize against the database, not the metadata cache. The cache is
+    // keyed per caller so it already refuses another user's file, but an
+    // explicit read gate keeps authorization from ever riding on that keying.
+    require_read(&context.db, file_id, claims.sub()).await?;
+
     let file = get_file(&context, claims.sub(), file_id)
         .await
         .ok_or_else(|| Error::NotFound("file_not_found".to_string()))?;
@@ -44,6 +49,8 @@ pub(crate) async fn download(
     let versioned = file.use_versioned_layout();
 
     if format.as_deref() == Some("tar") {
+        super::reject_tar_when_disabled(&context)?;
+
         let (content_length, streamer) = if versioned {
             (
                 storage.tar_content_length_v(&file, file.active_version).await?,
@@ -104,11 +111,15 @@ pub(crate) async fn head(
     let chunk = util::actix::query_var::<i64>(&req, "chunk").ok();
     let format = util::actix::query_var::<String>(&req, "format").ok();
 
+    require_read(&context.db, file_id, claims.sub()).await?;
+
     let file = get_file(&context, claims.sub(), file_id)
         .await
         .ok_or_else(|| Error::NotFound("file_not_found".to_string()))?;
 
     if format.as_deref() == Some("tar") {
+        super::reject_tar_when_disabled(&context)?;
+
         let filename = format!("{}", file_id);
         return Ok(HttpResponse::Ok()
             .insert_header(("Content-Type", "application/x-tar"))
