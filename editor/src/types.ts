@@ -5,6 +5,10 @@ export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 export interface EditorCallbacks {
   onContentChanged: (markdown: string) => void
   onSave: () => void
+  /** Cmd/Ctrl+F inside the editor. Hosts show their own find bar. */
+  onFindRequested?: () => void
+  /** Cmd/Ctrl+W inside the editor. Hosts close the active notes tab. */
+  onCloseTabRequested?: () => void
 }
 
 export interface EditorOptions {

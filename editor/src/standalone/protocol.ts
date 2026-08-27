@@ -20,6 +20,11 @@ export type HostToEditorMessage =
   | { type: 'assetResolveFailed'; requestId: string; error: string }
   // B4: wiki-link note list for autocomplete
   | { type: 'setNoteList'; notes: Array<{ id: string; name: string }> }
+  // In-note find. Plaintext (not regex). Empty query clears highlights.
+  | { type: 'find'; query: string; caseSensitive?: boolean }
+  | { type: 'findNext' }
+  | { type: 'findPrev' }
+  | { type: 'clearFind' }
 
 // Webview -> Flutter (editor -> host)
 export type EditorToHostMessage =
@@ -36,3 +41,9 @@ export type EditorToHostMessage =
   | { type: 'wikiLinkClicked'; noteTitle: string }
   // B4: parsed wiki-links on save
   | { type: 'linksResolved'; links: Array<{ title: string; fileId?: string }> }
+  // In-note find. index is 0-based current match, or -1 if count is 0.
+  | { type: 'findResult'; query: string; count: number; index: number }
+  // User hit Cmd/Ctrl+F inside the webview — host should show its find bar.
+  | { type: 'findRequested' }
+  // User hit Cmd/Ctrl+W inside the webview — host should close the active notes tab.
+  | { type: 'closeTabRequested' }

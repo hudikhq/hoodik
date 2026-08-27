@@ -4,6 +4,7 @@ export type { KeyboardShortcutCallbacks } from './plugins/keyboard-shortcuts'
 export { createHeadingAnchorPlugin } from './plugins/heading-anchor'
 export { htmlRenderView } from './plugins/html-render'
 export { taskListItemView, toggleTaskListCommand } from './plugins/task-list'
+export { createFindPlugin } from './plugins/find'
 
 // Editor setup
 export { configureEditor, getBasePlugins } from './setup'
