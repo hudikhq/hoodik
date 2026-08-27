@@ -16,7 +16,8 @@
     "build": "npm run build:lib && npm run build:standalone",
     "build:lib": "vite build",
     "build:standalone": "vite build --mode standalone",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test src/plugins/find-matches.test.ts"
   },
   "peerDependencies": {
     "@milkdown/core": "^7.20.0",

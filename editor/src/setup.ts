@@ -13,6 +13,7 @@ import { createHeadingAnchorPlugin } from './plugins/heading-anchor'
 import { htmlRenderView } from './plugins/html-render'
 import { taskListItemView, toggleTaskListCommand } from './plugins/task-list'
 import { configurePrismLanguages } from './plugins/prism-languages'
+import { createFindPlugin } from './plugins/find'
 import type { EditorOptions } from './types'
 
 /**
@@ -48,7 +49,8 @@ export function configureEditor(ctx: Ctx, options: EditorOptions): void {
  * Returns the standard set of Milkdown plugins for Hoodik's editor.
  *
  * Includes: CommonMark, GFM, listener, prism, history, HTML render,
- * heading anchors, and keyboard shortcuts (Mod-s for save in edit mode).
+ * heading anchors, in-note find, and keyboard shortcuts (Mod-s for save
+ * in edit mode, Mod-f to request the host find bar).
  *
  * Pass `options.extraPlugins` to append additional plugins (e.g. wiki-link,
  * image-upload) without modifying this function.
@@ -64,13 +66,12 @@ export function getBasePlugins(options: EditorOptions): (MilkdownPlugin | Milkdo
     taskListItemView,
     toggleTaskListCommand,
     createHeadingAnchorPlugin(),
+    createFindPlugin(),
+    createKeyboardShortcutsPlugin({
+      onSave: options.editable ? options.callbacks.onSave : undefined,
+      onFindRequested: options.callbacks.onFindRequested,
+    }),
   ]
-
-  if (options.editable) {
-    plugins.push(
-      createKeyboardShortcutsPlugin({ onSave: options.callbacks.onSave })
-    )
-  }
 
   if (options.extraPlugins) {
     plugins.push(...options.extraPlugins)

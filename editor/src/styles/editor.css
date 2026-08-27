@@ -50,6 +50,8 @@
   --md-row-even: rgba(0, 0, 0, 0.02);
   --md-row-hover: rgba(238, 155, 92, 0.08);
   --md-selection: rgba(238, 132, 52, 0.3);
+  --md-find-match: rgba(238, 132, 52, 0.28);
+  --md-find-current: rgba(238, 132, 52, 0.55);
   --md-task-border: rgba(0, 0, 0, 0.3);
   --md-scrollbar: rgba(0, 0, 0, 0.15);
   --md-scrollbar-hover: rgba(0, 0, 0, 0.25);
@@ -99,6 +101,8 @@
   --md-row-even: rgba(255, 255, 255, 0.015);
   --md-row-hover: rgba(238, 155, 92, 0.04);
   --md-selection: rgba(238, 132, 52, 0.25);
+  --md-find-match: rgba(238, 155, 92, 0.35);
+  --md-find-current: rgba(238, 155, 92, 0.7);
   --md-task-border: rgba(255, 255, 255, 0.3);
   --md-scrollbar: rgba(255, 255, 255, 0.08);
   --md-scrollbar-hover: rgba(255, 255, 255, 0.15);
@@ -379,3 +383,14 @@
 .milkdown-wrapper::-webkit-scrollbar-track { background: transparent; }
 .milkdown-wrapper::-webkit-scrollbar-thumb { background: var(--md-scrollbar); border-radius: 4px; }
 .milkdown-wrapper::-webkit-scrollbar-thumb:hover { background: var(--md-scrollbar-hover); }
+
+/* In-note find highlights. Current match is visually distinct. */
+.milkdown-wrapper .milkdown .ProseMirror .hoodik-find-match {
+  background: var(--md-find-match);
+  border-radius: 2px;
+}
+
+.milkdown-wrapper .milkdown .ProseMirror .hoodik-find-match-current {
+  background: var(--md-find-current);
+  box-shadow: 0 0 0 1px rgba(238, 132, 52, 0.85);
+}

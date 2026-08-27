@@ -1,7 +1,12 @@
 import type { Editor } from '@milkdown/core'
-import { editorViewOptionsCtx } from '@milkdown/core'
+import { editorViewCtx, editorViewOptionsCtx } from '@milkdown/core'
 import { getMarkdown, replaceAll, callCommand } from '@milkdown/utils'
 import type { HostToEditorMessage, EditorToHostMessage } from './protocol'
+import {
+  dispatchFind,
+  scrollToCurrentMatch,
+  type FindMeta,
+} from '../plugins/find'
 
 declare global {
   interface Window {
@@ -81,6 +86,26 @@ export class EditorBridgeHost {
         document.documentElement.classList.toggle('dark', msg.theme === 'dark')
         break
 
+      case 'find':
+        this.runFind({
+          type: 'query',
+          query: msg.query,
+          caseSensitive: msg.caseSensitive ?? false,
+        })
+        break
+
+      case 'findNext':
+        this.runFind({ type: 'next' })
+        break
+
+      case 'findPrev':
+        this.runFind({ type: 'prev' })
+        break
+
+      case 'clearFind':
+        this.runFind({ type: 'clear' })
+        break
+
       default:
         // Future message types (assetResolved, setNoteList, etc.)
         // will be handled here as they're implemented
@@ -96,6 +121,10 @@ export class EditorBridgeHost {
 
   notifySaveRequested(): void {
     this.postToHost({ type: 'saveRequested' })
+  }
+
+  notifyFindRequested(): void {
+    this.postToHost({ type: 'findRequested' })
   }
 
   postReady(): void {
@@ -121,6 +150,23 @@ export class EditorBridgeHost {
     }
   }
 
+  private runFind(meta: FindMeta): void {
+    if (!this.editor) return
+    this.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx)
+      const find = dispatchFind(view, meta)
+      if (find.index >= 0) {
+        scrollToCurrentMatch(view)
+      }
+      this.postToHost({
+        type: 'findResult',
+        query: find.query,
+        count: find.matches.length,
+        index: find.index,
+      })
+    })
+  }
+
   private postToHost(msg: EditorToHostMessage): void {
     const json = JSON.stringify(msg)
     // Flutter webview — JavaScriptChannel
@@ -128,7 +174,11 @@ export class EditorBridgeHost {
       window.HoodikBridge.postMessage(json)
       return
     }
-    // Fallback for debugging in a browser
+    // Fallback for debugging in a browser. Do not log note bodies.
+    if (msg.type === 'contentChanged' || msg.type === 'markdownResult') {
+      console.debug('[EditorBridge →]', msg.type)
+      return
+    }
     console.debug('[EditorBridge →]', msg)
   }
 }

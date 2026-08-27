@@ -3,7 +3,8 @@ import { InitReady, prosePluginsCtx } from '@milkdown/core'
 import { keymap } from '@milkdown/prose/keymap'
 
 export interface KeyboardShortcutCallbacks {
-  onSave: () => void
+  onSave?: () => void
+  onFindRequested?: () => void
 }
 
 export function createKeyboardShortcutsPlugin(
@@ -13,12 +14,24 @@ export function createKeyboardShortcutsPlugin(
     return async () => {
       await ctx.wait(InitReady)
 
-      const keymapPlugin = keymap({
-        'Mod-s': () => {
-          callbacks.onSave()
+      const bindings: Record<string, () => boolean> = {}
+
+      if (callbacks.onSave) {
+        bindings['Mod-s'] = () => {
+          callbacks.onSave!()
           return true
         }
-      })
+      }
+
+      if (callbacks.onFindRequested) {
+        // Returning true prevents the browser find bar.
+        bindings['Mod-f'] = () => {
+          callbacks.onFindRequested!()
+          return true
+        }
+      }
+
+      const keymapPlugin = keymap(bindings)
 
       ctx.update(prosePluginsCtx, (plugins) => [...plugins, keymapPlugin])
     }

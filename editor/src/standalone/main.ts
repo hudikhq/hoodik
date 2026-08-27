@@ -40,6 +40,7 @@ async function init() {
     callbacks: {
       onContentChanged: (markdown: string) => bridge.notifyContentChanged(markdown),
       onSave: () => bridge.notifySaveRequested(),
+      onFindRequested: () => bridge.notifyFindRequested(),
     },
   }
 
