@@ -70,6 +70,7 @@ export function getBasePlugins(options: EditorOptions): (MilkdownPlugin | Milkdo
     createKeyboardShortcutsPlugin({
       onSave: options.editable ? options.callbacks.onSave : undefined,
       onFindRequested: options.callbacks.onFindRequested,
+      onCloseTabRequested: options.callbacks.onCloseTabRequested,
     }),
   ]
 

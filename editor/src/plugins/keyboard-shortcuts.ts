@@ -5,6 +5,7 @@ import { keymap } from '@milkdown/prose/keymap'
 export interface KeyboardShortcutCallbacks {
   onSave?: () => void
   onFindRequested?: () => void
+  onCloseTabRequested?: () => void
 }
 
 export function createKeyboardShortcutsPlugin(
@@ -27,6 +28,14 @@ export function createKeyboardShortcutsPlugin(
         // Returning true prevents the browser find bar.
         bindings['Mod-f'] = () => {
           callbacks.onFindRequested!()
+          return true
+        }
+      }
+
+      if (callbacks.onCloseTabRequested) {
+        // Returning true keeps Cmd/Ctrl+W from the host window-close path.
+        bindings['Mod-w'] = () => {
+          callbacks.onCloseTabRequested!()
           return true
         }
       }

@@ -41,6 +41,7 @@ async function init() {
       onContentChanged: (markdown: string) => bridge.notifyContentChanged(markdown),
       onSave: () => bridge.notifySaveRequested(),
       onFindRequested: () => bridge.notifyFindRequested(),
+      onCloseTabRequested: () => bridge.notifyCloseTabRequested(),
     },
   }
 

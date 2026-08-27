@@ -127,6 +127,10 @@ export class EditorBridgeHost {
     this.postToHost({ type: 'findRequested' })
   }
 
+  notifyCloseTabRequested(): void {
+    this.postToHost({ type: 'closeTabRequested' })
+  }
+
   postReady(): void {
     this.postToHost({ type: 'ready' })
   }

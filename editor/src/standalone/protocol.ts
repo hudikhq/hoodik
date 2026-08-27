@@ -45,3 +45,5 @@ export type EditorToHostMessage =
   | { type: 'findResult'; query: string; count: number; index: number }
   // User hit Cmd/Ctrl+F inside the webview — host should show its find bar.
   | { type: 'findRequested' }
+  // User hit Cmd/Ctrl+W inside the webview — host should close the active notes tab.
+  | { type: 'closeTabRequested' }
