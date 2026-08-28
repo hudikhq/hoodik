@@ -61,7 +61,12 @@ async function migrateLegacyAccount(page: Page, email: string): Promise<void> {
 
   await loginAsUser(page, email, PASSWORD)
   await expect(page).not.toHaveURL(/\/auth\/login/)
+
+  // The sweep fires on unlock and fails against the blocked writes; its
+  // finished modal now stays up at the bottom of the modal stack, so the
+  // recovery-key notice goes first and the sweep modal is acknowledged last.
   await page.getByRole('button', { name: 'Got it' }).click()
+  await page.getByTestId('reindex-done').click({ timeout: 30_000 })
 
   expect(await pendingCount(page)).toBeGreaterThan(0)
 }

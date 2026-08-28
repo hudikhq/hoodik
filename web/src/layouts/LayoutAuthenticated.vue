@@ -92,10 +92,12 @@ const menuClick = (event: Event, item: NavBarItem) => {
 
       <ResendActivationNotification :authenticated="login.authenticated" />
 
-      <MigrationNoticeModal />
-
-      <ConnectAppModal />
+      <!-- Bottom of the modal stack on purpose: the re-index modal stays up
+           until acknowledged, and the one-time notices above it must stay
+           clickable while it waits. -->
       <ReindexModal />
+      <MigrationNoticeModal />
+      <ConnectAppModal />
 
       <slot :authenticated="login.authenticated" :keypair="crypto.keypair" />
 

@@ -41,9 +41,12 @@ test.describe('Legacy → Curve25519 auto-migration', () => {
     await expect(page).not.toHaveURL(/\/auth\/login/)
     await expect(page.getByTestId(`file-row-${FILE_NAME}`)).toBeVisible()
 
-    // A successful migration raises the one-time recovery-key notice; its overlay
-    // intercepts the sidebar clicks below, so dismiss it first.
+    // The migrated files kick off the re-index sweep, whose modal now stays up
+    // once the sweep completes — at the bottom of the modal stack, so the
+    // recovery-key notice is dismissed first and the sweep modal last, or the
+    // sidebar clicks below get intercepted.
     await page.getByRole('button', { name: 'Got it' }).click()
+    await page.getByTestId('reindex-done').click({ timeout: 30_000 })
 
     // The pre-migration public link still lists for its owner with its decrypted
     // name — the guard for the shipped bug where migration never re-wrapped

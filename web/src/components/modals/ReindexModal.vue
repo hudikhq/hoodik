@@ -91,6 +91,7 @@ watch(
         <BaseButtons>
           <BaseButton
             v-if="reindex.finished"
+            data-testid="reindex-done"
             :label="t('reindex.done')"
             color="info"
             @click="reindex.acknowledge()"
