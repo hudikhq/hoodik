@@ -1,10 +1,24 @@
 use std::{
     collections::HashMap,
     fmt::{Display, Formatter},
+    sync::OnceLock,
 };
 
 use crate::error::CryptoResult;
 use tokenizers::tokenizer::Tokenizer;
+
+/// Built once per process. The embedded config is close to a megabyte of
+/// JSON and constructing the pipeline allocates heavily; doing it on every
+/// call meant every save and every search keystroke paid the full parse.
+fn tokenizer() -> CryptoResult<&'static Tokenizer> {
+    static TOKENIZER: OnceLock<Option<Tokenizer>> = OnceLock::new();
+    TOKENIZER
+        .get_or_init(|| {
+            Tokenizer::from_bytes(include_bytes!("../assets/bert-base-cased.json")).ok()
+        })
+        .as_ref()
+        .ok_or_else(|| tokenizers::Error::from("embedded tokenizer config failed to parse").into())
+}
 
 #[derive(Debug, Clone)]
 pub struct Token {
@@ -33,7 +47,7 @@ impl Display for Token {
 
 /// Use a pre-trained model to convert text into tokens
 pub fn into_tokens(input: &str) -> CryptoResult<Vec<Token>> {
-    let tokenizer = Tokenizer::from_bytes(include_bytes!("../assets/bert-base-cased.json"))?;
+    let tokenizer = tokenizer()?;
     let input = tokenizers::decoders::wordpiece::cleanup(input).replace(';', "");
 
     let encoding = tokenizer.encode(input, false)?;
