@@ -128,11 +128,8 @@ describe('Search privacy', () => {
     const keyHex = Array.from({ length: 32 }, (_, i) => i.toString(16).padStart(2, '0')).join('')
 
     expect(cryptfns.searchTags(keyHex, 'Invoice Q1')).toEqual([
-      'ade2702652df2b527ea85d06ea18cc2a:1',
-      '81a20aa0d8d8b149b992f4d641fffcad:1',
-      'e9e098de1b057acdc1f7eafdd37a96a5:1',
-      'e48f3669b623c473d2ae2e75739fd62f:1',
-      '6520fd80f2b3010402038bcc9af77100:1'
+      'ec4767d0aabcccd2fc223bf3afde7a6c:1',
+      'bac924ee3ab4879a38f37ee48077cc3f:1'
     ])
   })
 
@@ -144,5 +141,9 @@ describe('Search privacy', () => {
     expect(body.editable).toBe(true)
     expect(body.limit).toBe(50)
     expect(body.skip).toBe(0)
+
+    // The exact-name fast path: the raw trimmed query hashed the way create
+    // hashes names, so the server can rank a pasted filename first.
+    expect(body.name_hash).toBe(cryptfns.searchTag(cryptfns.searchRootKey(keypair), 'budget'))
   })
 })

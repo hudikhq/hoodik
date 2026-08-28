@@ -90,15 +90,24 @@ watch(
       <template #footer>
         <BaseButtons>
           <BaseButton
-            :label="t('reindex.background')"
+            v-if="reindex.finished"
+            data-testid="reindex-done"
+            :label="t('reindex.done')"
             color="info"
-            @click="reindex.continueInBackground()"
+            @click="reindex.acknowledge()"
           />
-          <BaseButton
-            :label="t('reindex.cancel')"
-            color="light"
-            @click="reindex.cancel()"
-          />
+          <template v-else>
+            <BaseButton
+              :label="t('reindex.background')"
+              color="info"
+              @click="reindex.continueInBackground()"
+            />
+            <BaseButton
+              :label="t('reindex.cancel')"
+              color="light"
+              @click="reindex.cancel()"
+            />
+          </template>
         </BaseButtons>
       </template>
     </CardBox>

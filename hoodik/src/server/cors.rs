@@ -26,6 +26,7 @@ pub fn setup() -> Cors {
             http::header::AUTHORIZATION,
             http::header::HeaderName::from_str("X-Auth-Refresh").unwrap(),
             http::header::HeaderName::from_str("X-Csrf-Token").unwrap(),
+            http::header::HeaderName::from_str("X-Hoodik-Client").unwrap(),
         ])
         .max_age(3600)
 }

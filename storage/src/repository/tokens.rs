@@ -180,14 +180,17 @@ where
     /// hits name or content or extra.
     pub(crate) async fn search(&self, search: Search) -> AppResult<Vec<AppFile>> {
         let compact = search.compact.unwrap_or(false);
-        let (file_id, root_tags, file_tags, limit, skip, editable) = search.into_tuple();
+        let (file_id, root_tags, file_tags, name_hash, limit, skip, editable) = search.into_tuple();
 
         let user_id = self.user_id;
         let selector = match compact {
             true => self.repository.compact_selector(user_id, false),
             false => self.repository.selector(user_id, false),
         };
-        let mut query = selector.inner_join(file_tokens::Entity);
+        // Left rather than inner: an exact name-hash match must surface even
+        // for a file whose word rows are gone — which after a re-tokenize
+        // migration is every file until its owner's sweep reaches it.
+        let mut query = selector.left_join(file_tokens::Entity);
 
         if let Some(file_id) = file_id {
             query = query.filter(files::Column::FileId.eq(file_id));
@@ -199,6 +202,7 @@ where
 
         let root_tags_empty = root_tags.is_empty();
         let file_tags_empty = file_tags.is_empty();
+        let name_hash_empty = name_hash.is_none();
         let mut filter = Condition::any();
 
         // Each word scope brings its digest counterpart along: both are keyed
@@ -219,6 +223,12 @@ where
             );
         }
 
+        // The whole query hashed as a filename: the file the user typed the
+        // name of belongs in the results no matter how its tokens rank.
+        if let Some(hash) = name_hash.clone() {
+            filter = filter.add(files::Column::NameHash.eq(hash));
+        }
+
         // Postgres only infers functional dependency from the GROUP BY
         // column to columns of the *same* table. The selector projects
         // columns from `files`, `user_files`, and (left-joined) `links`,
@@ -232,6 +242,28 @@ where
             .group_by(files::Column::Id)
             .group_by(user_files::Column::Id)
             .group_by(links::Column::Id)
+            // Ranking evidence for the client-side refinement pass: the
+            // client re-orders against the plaintext only it can see, so the
+            // server ships what it knows — how many distinct query tags hit,
+            // their weight, and how many hits came from the name source.
+            .column_as(Expr::cust("COUNT(DISTINCT file_tokens.tag)"), "search_hits")
+            .column_as(file_tokens::Column::Weight.sum(), "search_weight")
+            .column_as(
+                Expr::cust("SUM(CASE WHEN file_tokens.source = 0 THEN 1 ELSE 0 END)"),
+                "search_name_hits",
+            );
+
+        // An exact name match outranks every token score: it is the file the
+        // user typed the name of. Ordered first, ahead of the tag counts.
+        if let Some(hash) = name_hash {
+            query = query.order_by_desc(Expr::cust_with_values(
+                "MAX(CASE WHEN files.name_hash = ? THEN 1 ELSE 0 END)",
+                [hash],
+            ));
+        }
+
+        let mut query = query
+            .order_by_desc(Expr::cust("COUNT(DISTINCT file_tokens.tag)"))
             .order_by_desc(file_tokens::Column::Weight.sum());
 
         if let Some(limit) = limit {
@@ -242,7 +274,7 @@ where
             query = query.offset(skip);
         }
 
-        if root_tags_empty && file_tags_empty {
+        if root_tags_empty && file_tags_empty && name_hash_empty {
             // No tags to match. Skipping the query matters: an unfiltered one
             // would join every indexed row the caller can see and return the
             // whole drive.

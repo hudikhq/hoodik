@@ -97,13 +97,21 @@ export const store = defineStore('reindex', () => {
   const failed = ref(0)
 
   /**
+   * A completed sweep keeps the modal up until the user dismisses it — the
+   * result (and any failures) should be seen, not flash away mid-read.
+   */
+  const finished = ref(false)
+
+  /**
    * Stop after the batch in flight. Whatever is left is still pending
    * server-side, so the next session picks it up from there.
    */
   const cancelled = ref(false)
 
   const progress = computed(() => (total.value === 0 ? 0 : Math.round((done.value / total.value) * 100)))
-  const visible = computed(() => running.value && !background.value && !cancelled.value)
+  const visible = computed(
+    () => (running.value || finished.value) && !background.value && !cancelled.value
+  )
 
   async function fetchPending(): Promise<EncryptedAppFile[]> {
     const response = await Api.get<EncryptedAppFile[]>('/api/storage/reindex')
@@ -202,6 +210,7 @@ export const store = defineStore('reindex', () => {
     running.value = true
     cancelled.value = false
     background.value = false
+    finished.value = false
     done.value = 0
     failed.value = 0
 
@@ -258,6 +267,7 @@ export const store = defineStore('reindex', () => {
       }
     } finally {
       running.value = false
+      finished.value = !cancelled.value && !background.value
     }
   }
 
@@ -271,6 +281,11 @@ export const store = defineStore('reindex', () => {
     background.value = true
   }
 
+  /** Dismiss the completed-sweep modal. */
+  function acknowledge() {
+    finished.value = false
+  }
+
   return {
     total,
     done,
@@ -278,11 +293,13 @@ export const store = defineStore('reindex', () => {
     running,
     background,
     cancelled,
+    finished,
     progress,
     visible,
     countPending,
     run,
     cancel,
-    continueInBackground
+    continueInBackground,
+    acknowledge
   }
 })

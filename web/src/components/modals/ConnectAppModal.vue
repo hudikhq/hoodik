@@ -50,6 +50,7 @@ function goToAccount() {
 <template>
   <CardBoxModal
     v-model="show"
+    data-testid="connect-app-modal"
     :title="$t('account.connectDevice.promptTitle')"
     button="success"
     :button-label="

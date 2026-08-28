@@ -58,6 +58,12 @@ export interface SearchQuery {
   root_tags?: string[]
   /** The same words tagged per file shared *with* the caller, under each file's own key. */
   file_tags?: string[]
+  /**
+   * The whole query hashed the way file names are hashed at create. A file
+   * whose `name_hash` equals it is the file the user typed the name of; the
+   * server includes and ranks it first regardless of token scores.
+   */
+  name_hash?: string
   dir_id?: string
   limit?: number
   skip?: number

@@ -23,7 +23,12 @@ export async function dismissConnectPrompt(page: Page) {
 
   if (!(await prompt.isVisible().catch(() => false))) return
 
-  await page.getByRole('button', { name: /^(Done|Continue in the browser)$/ }).click()
+  // Scoped to the prompt's own modal: the re-index modal's "Done" can be on
+  // screen at the same time, and an unscoped role query would match both.
+  await page
+    .getByTestId('connect-app-modal')
+    .getByRole('button', { name: /^(Done|Continue in the browser)$/ })
+    .click()
   await prompt.waitFor({ state: 'hidden' })
 }
 

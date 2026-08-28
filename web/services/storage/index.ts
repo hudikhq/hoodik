@@ -3,6 +3,8 @@ import * as queue from '../queue'
 import * as thumbnailCache from './thumbnail-cache'
 import * as upload from './upload'
 import * as download from './download'
+import { downloadAndDecrypt } from './download/sync'
+import { rankSearchResults } from './rank'
 import { emitFileTreeChange } from './events'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
@@ -1009,5 +1011,46 @@ export async function search(
     })
   )
 
-  return results
+  // Server recall, client precision: hydrate candidate note bodies and
+  // re-rank against the plaintext only this side can see.
+  const bodies = await hydrateNoteBodies(results)
+
+  return rankSearchResults(query, results, bodies)
+}
+
+/** Notes above this size are ranked on their name and server evidence only. */
+const HYDRATE_MAX_BYTES = 512 * 1024
+/** How many note candidates get their body loaded per search. */
+const HYDRATE_MAX_NOTES = 20
+/** Parallel body downloads per batch. */
+const HYDRATE_CONCURRENCY = 4
+
+/**
+ * Download and decrypt the bodies of the note rows among [results] so the
+ * refinement pass can score real content matches. Best-effort: a body that
+ * fails to load leaves its row scored on name and server evidence alone.
+ */
+async function hydrateNoteBodies(results: AppFile[]): Promise<Map<string, string>> {
+  const bodies = new Map<string, string>()
+  const candidates = results
+    .filter((file) => file.editable && file.mime !== 'dir' && (file.size || 0) <= HYDRATE_MAX_BYTES)
+    .slice(0, HYDRATE_MAX_NOTES)
+
+  for (let i = 0; i < candidates.length; i += HYDRATE_CONCURRENCY) {
+    await Promise.all(
+      candidates.slice(i, i + HYDRATE_CONCURRENCY).map(async (file) => {
+        try {
+          const bytes = await downloadAndDecrypt(file)
+          bodies.set(file.id, new TextDecoder().decode(bytes))
+        } catch (
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          _
+        ) {
+          // Name-only scoring for this row.
+        }
+      })
+    )
+  }
+
+  return bodies
 }

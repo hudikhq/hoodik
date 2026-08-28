@@ -894,6 +894,7 @@
   "reindex": {
     "background": "Continuer en arrière-plan",
     "cancel": "Annuler",
+    "done": "Terminé",
     "explanation": "Nous avons renforcé le hachage de vos noms de fichiers et de vos notes pour la recherche, les rendant bien plus difficiles à casser. Vos fichiers doivent être réindexés sur cet appareil pour utiliser le nouveau format. Les notes sont téléchargées et déchiffrées ici, ce qui peut prendre un moment. Les fichiers pas encore traités n'apparaîtront pas dans la recherche.",
     "failed": "{count} fichiers n'ont pas pu être réindexés et seront retentés la prochaine fois.",
     "progress": "{done} sur {total} fichiers",
