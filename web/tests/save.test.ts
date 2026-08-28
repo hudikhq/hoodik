@@ -93,6 +93,7 @@ import {
   replaceContent,
   saveFileContent,
   createNote,
+  createDirInSharedFolder,
   needsMultikeyCreate,
   SaveConflictError
 } from '../services/storage/save'
@@ -451,5 +452,83 @@ describe('createNote into a shared folder', () => {
 
     expect(uploadIntoSharedFolder).not.toHaveBeenCalled()
     expect(metaCreate).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('createDirInSharedFolder', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  function makeKeypair(): KeyPair {
+    return {
+      publicKey: 'pub',
+      input: 'priv',
+      fingerprint: 'fp'
+    } as KeyPair
+  }
+
+  const parent = {
+    id: 'folder-id',
+    mime: 'dir',
+    is_owner: false,
+    share_role: 'editor'
+  } as unknown as AppFile
+
+  it('UNIT: fans the folder key out through uploadIntoSharedFolder', async () => {
+    ;(metaGet as unknown as { mockResolvedValueOnce: (v: AppFile) => void }).mockResolvedValueOnce({
+      id: 'shared-file-id',
+      mime: 'dir',
+      name: 'photos'
+    } as unknown as AppFile)
+
+    const created = await createDirInSharedFolder(makeKeypair(), 'photos', parent, 'caller-id')
+
+    expect(uploadIntoSharedFolder).toHaveBeenCalledTimes(1)
+    const args = (
+      uploadIntoSharedFolder as unknown as {
+        mock: { calls: [{ payload: Record<string, unknown>; rosterFolderId?: string }][] }
+      }
+    ).mock.calls[0][0]
+    expect(args.payload.mime).toBe('dir')
+    expect(args.payload.chunks).toBe(0)
+    expect(args.payload.size).toBeUndefined()
+    expect(args.payload.parentFileId).toBe('folder-id')
+    expect(args.rosterFolderId).toBeUndefined()
+    expect(searchTags).toHaveBeenCalledWith(expect.anything(), 'photos')
+    expect(metaCreate).not.toHaveBeenCalled()
+    expect(created.id).toBe('shared-file-id')
+  })
+
+  it('UNIT: pins the roster folder for creates below the share root', async () => {
+    ;(metaGet as unknown as { mockResolvedValueOnce: (v: AppFile) => void }).mockResolvedValueOnce({
+      id: 'shared-file-id',
+      mime: 'dir',
+      name: 'nested'
+    } as unknown as AppFile)
+
+    const intermediate = { ...parent, id: 'level-one-id', is_owner: true } as unknown as AppFile
+    await createDirInSharedFolder(
+      makeKeypair(),
+      'nested',
+      intermediate,
+      'caller-id',
+      'share-root-id'
+    )
+
+    const args = (
+      uploadIntoSharedFolder as unknown as {
+        mock: { calls: [{ payload: Record<string, unknown>; rosterFolderId?: string }][] }
+      }
+    ).mock.calls[0][0]
+    expect(args.payload.parentFileId).toBe('level-one-id')
+    expect(args.rosterFolderId).toBe('share-root-id')
+  })
+
+  it('UNIT: refuses to run without an active keypair', async () => {
+    await expect(
+      createDirInSharedFolder({ publicKey: 'pub' } as unknown as KeyPair, 'x', parent, 'caller-id')
+    ).rejects.toThrow('Cannot create directory without an active keypair')
+    expect(uploadIntoSharedFolder).not.toHaveBeenCalled()
   })
 })

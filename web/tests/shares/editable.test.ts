@@ -422,6 +422,7 @@ describe('editable folder upload pipeline', () => {
     ) as FolderMember
     trusted.trustFingerprint(THIRD_ID, thirdMember.pubkey_fingerprint, 'other')
     let attempts = 0
+    let fetches = 0
     const uploaderKp = first.keypairs.get(UPLOADER_ID) as KeyPair
     const result = await uploadIntoSharedFolder(
       {
@@ -442,7 +443,10 @@ describe('editable folder upload pipeline', () => {
         trustedFingerprints: trusted
       },
       {
-        fetchMembers: async () => first.response,
+        // The retry refetches the roster from its source rather than
+        // trusting the 409 payload, so the stub serves the live view:
+        // stale before the membership change, refreshed after it.
+        fetchMembers: async () => (++fetches === 1 ? first.response : refreshed.response),
         postUpload: async (body) => {
           attempts += 1
           if (attempts === 1) {
@@ -454,6 +458,7 @@ describe('editable folder upload pipeline', () => {
       }
     )
     expect(attempts).toBe(2)
+    expect(fetches).toBe(2)
     expect(result.file_id).toBe(NEW_FILE_ID)
   })
 
@@ -477,6 +482,7 @@ describe('editable folder upload pipeline', () => {
       return true
     })
     let attempts = 0
+    let fetches = 0
     const uploaderKp = first.keypairs.get(UPLOADER_ID) as KeyPair
     await uploadIntoSharedFolder(
       {
@@ -498,7 +504,7 @@ describe('editable folder upload pipeline', () => {
         onUnknownMember
       },
       {
-        fetchMembers: async () => first.response,
+        fetchMembers: async () => (++fetches === 1 ? first.response : refreshed.response),
         postUpload: async () => {
           attempts += 1
           if (attempts === 1) {

@@ -428,6 +428,49 @@ describe('Storage store: Shared with me virtual folder', () => {
     expect(rows[0].file_id).toEqual(SHARED_WITH_ME_DIR_ID)
   })
 
+  it('storage_shared_folder_visited_before_virtual_listing_stays_single', async () => {
+    // The reverse order of the case above, reported in GH #202: Bob
+    // refreshes the page while inside shared folder X (a deep link or an
+    // email link does the same), so X lands in the store under its real
+    // parent before `__shared_with_me__` was ever listed. The virtual
+    // listing then added a second copy under the synthetic parent, and
+    // the next visit rewrote the stale copy's placement too — X rendered
+    // twice inside Shared with me from then on.
+    vi.spyOn(meta, 'decrypt').mockImplementation(async (item) => {
+      const id = (item as { id?: string }).id
+      if (id === '11111111-1111-1111-1111-111111111111') return { name: 'shared-x' }
+      return { name: '' }
+    })
+    vi.spyOn(meta, 'find').mockResolvedValue({
+      children: [],
+      parents: [
+        {
+          id: '11111111-1111-1111-1111-111111111111',
+          file_id: null,
+          is_owner: false,
+          mime: 'dir',
+          name: '',
+          encrypted_name: '',
+          encrypted_key: '',
+          cipher: 'aegis128l'
+        }
+      ]
+    } as unknown as Awaited<ReturnType<typeof meta.find>>)
+    vi.spyOn(sharesApi, 'getSharesMine').mockResolvedValue(makeIncomingPage())
+
+    const store = storageStore()
+    // Cold start straight inside X, then two visits to the virtual folder.
+    await store.find(KEYPAIR, '11111111-1111-1111-1111-111111111111')
+    await store.find(KEYPAIR, SHARED_WITH_ME_DIR_ID)
+    await store.find(KEYPAIR, SHARED_WITH_ME_DIR_ID)
+
+    const rows = store.items.filter(
+      (r) => r.id === '11111111-1111-1111-1111-111111111111'
+    )
+    expect(rows).toHaveLength(1)
+    expect(rows[0].file_id).toEqual(SHARED_WITH_ME_DIR_ID)
+  })
+
   it('storage_owned_root_excludes_previously_visited_shared_folder', async () => {
     // After clicking through `__shared_with_me__` into a shared folder X
     // and then back to the owned root via the sidebar Files entry, X

@@ -11,6 +11,7 @@ use cryptfns::asn1::{AuditEventActionEnum, ShareRoleEnum};
 use entity::{share_events, user_files, ColumnTrait, EntityTrait, QueryFilter, Uuid};
 use hoodik::server;
 use serde_json::Value;
+use storage::data::response::Response as StorageResponse;
 
 use crate::shares_common::*;
 
@@ -1776,5 +1777,144 @@ async fn test_folder_owner_sees_full_member_roster() {
     for member in members {
         assert!(!member["email"].is_null());
     }
+    let _ = context;
+}
+
+/// The web and mobile "New folder" affordance inside a shared folder
+/// routes through `upload-multikey` with `mime: "dir"` — the regular
+/// create would wrap the folder key for the creator alone and leave the
+/// directory invisible to every other member (GH #202). This pins the
+/// server contract both clients rely on: a directory row lands with a
+/// wrapped key per member, and members see it when listing the parent.
+#[actix_web::test]
+async fn test_multikey_create_directory_fans_out_and_lists_for_members() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+    let folder = create_folder!(app, alice, "dir-create-root");
+    let members_after = owner_plus_recipient(&alice, &bob, ShareRoleEnum::Editor);
+    let envelope = build_folder_share_envelope(
+        &alice,
+        &bob,
+        ShareRoleEnum::Editor,
+        folder.id,
+        alice.user_id,
+        random_nonce(),
+        now_secs(),
+        &members_after,
+        &alice,
+    );
+    assert_eq!(post_share!(app, alice, envelope).status(), StatusCode::CREATED);
+
+    // Alice (the owner) creates a sub-directory through the multi-key path.
+    let new_dir_id = Uuid::new_v4();
+    let timestamp = now_secs();
+    let event_signature = sign_no_recipient_event(
+        &alice,
+        new_dir_id,
+        AuditEventActionEnum::SharedFolderUpload,
+        timestamp,
+    );
+    let mut body = build_upload_multikey_body(
+        new_dir_id,
+        folder.id,
+        "new-subfolder",
+        vec![
+            (alice.user_id, "wrap-for-alice", true),
+            (bob.user_id, "wrap-for-bob", false),
+        ],
+        timestamp,
+        None,
+        event_signature,
+        timestamp,
+    );
+    body["mime"] = serde_json::json!("dir");
+    body["chunks"] = serde_json::json!(0);
+    body["size"] = Value::Null;
+    body["sha256"] = Value::Null;
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage/upload-multikey")
+        .cookie(alice.jwt.clone())
+        .set_json(&body)
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::CREATED);
+
+    let rows = user_files::Entity::find()
+        .filter(user_files::Column::FileId.eq(new_dir_id))
+        .all(&context.db)
+        .await
+        .unwrap();
+    assert_eq!(rows.len(), 2, "one wrapped key per member");
+    assert!(rows.iter().any(|r| r.user_id == alice.user_id && r.is_owner));
+    assert!(rows.iter().any(|r| r.user_id == bob.user_id && !r.is_owner));
+
+    let req = test::TestRequest::get()
+        .uri(&format!("/api/storage?dir_id={}", folder.id))
+        .cookie(bob.jwt.clone())
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let listing: StorageResponse = test::read_body_json(resp).await;
+    let created = listing
+        .children
+        .iter()
+        .find(|c| c.id == new_dir_id)
+        .expect("bob sees the directory alice created in the shared folder");
+    assert_eq!(created.mime, "dir");
+
+    // Bob continues one level deeper. The intermediate directory carries
+    // no signed member list of its own, so the client authorises the
+    // wraps against the share root's list and targets the intermediate —
+    // the snapshot check compares against the target's (unset)
+    // membership stamp and the wrap set against the target's rows.
+    let nested_dir_id = Uuid::new_v4();
+    let timestamp = now_secs();
+    let event_signature = sign_no_recipient_event(
+        &bob,
+        nested_dir_id,
+        AuditEventActionEnum::SharedFolderUpload,
+        timestamp,
+    );
+    let mut body = build_upload_multikey_body(
+        nested_dir_id,
+        new_dir_id,
+        "nested-subfolder",
+        vec![
+            (alice.user_id, "wrap-for-alice", false),
+            (bob.user_id, "wrap-for-bob", true),
+        ],
+        timestamp,
+        None,
+        event_signature,
+        timestamp,
+    );
+    body["mime"] = serde_json::json!("dir");
+    body["chunks"] = serde_json::json!(0);
+    body["size"] = Value::Null;
+    body["sha256"] = Value::Null;
+
+    let req = test::TestRequest::post()
+        .uri("/api/storage/upload-multikey")
+        .cookie(bob.jwt.clone())
+        .set_json(&body)
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::CREATED);
+
+    let req = test::TestRequest::get()
+        .uri(&format!("/api/storage?dir_id={}", new_dir_id))
+        .cookie(alice.jwt.clone())
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let listing: StorageResponse = test::read_body_json(resp).await;
+    assert!(
+        listing.children.iter().any(|c| c.id == nested_dir_id),
+        "the owner sees the directory bob created below the share root"
+    );
     let _ = context;
 }

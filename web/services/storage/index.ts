@@ -613,10 +613,14 @@ export const store = defineStore('files', () => {
   }
 
   /**
-   * Add or update a new item in the list
+   * Add or update a new item in the list. Matched on id alone, like
+   * `upsertMany` — a row whose placement changed (a shared folder first
+   * seen under its real parent, then re-listed under the synthetic
+   * `__shared_with_me__` folder) replaces the existing copy instead of
+   * landing next to it and rendering the same file twice.
    */
   function upsertItem(item: AppFile): void {
-    if (hasItem(item.id, item.file_id || null)) {
+    if (getItem(item.id)) {
       updateItem(item)
     } else {
       addItem({ ...item, temporaryId: uuidv4() })
@@ -658,13 +662,6 @@ export const store = defineStore('files', () => {
   function takeItem(id: string): AppFile | null {
     const index = _items.value.findIndex((item) => item.id === id)
     return _items.value.slice(index, 1)[0] || null
-  }
-
-  /**
-   * Remove item from the list
-   */
-  function hasItem(id: string, file_id: string | null): boolean {
-    return _items.value.findIndex((item) => item.id === id && item.file_id === file_id) !== -1
   }
 
   /**
@@ -769,9 +766,43 @@ export const store = defineStore('files', () => {
   }
 
   /**
-   * Create a directory in the storage
+   * Create a directory in the storage. A parent that is a shared folder
+   * routes through the multi-key create so every member receives a wrap
+   * of the folder key — the regular create would leave the new directory
+   * visible to the creator alone. `rosterFolderId` carries the signed
+   * roster source for creates below a share root (folder uploads).
    */
-  async function createDir(keypair: KeyPair, name: string, dir_id?: string): Promise<AppFile> {
+  async function createDir(
+    keypair: KeyPair,
+    name: string,
+    dir_id?: string,
+    callerUserId?: string,
+    rosterFolderId?: string
+  ): Promise<AppFile> {
+    const parent = dir_id ? getItem(dir_id) : undefined
+    // Loaded lazily for the same reason `find` pulls the shares API in on
+    // demand — the multi-key pipeline stays out of the boot bundle.
+    const save = await import('./save')
+
+    // `rosterFolderId` marks the create as part of a shared tree even
+    // when the immediate parent is an unsigned intermediate directory
+    // the caller just created.
+    if (parent && (rosterFolderId != null || save.needsMultikeyCreate(parent))) {
+      if (!callerUserId) {
+        throw new Error('Cannot create directory in a shared folder without caller id')
+      }
+      const dir = await save.createDirInSharedFolder(
+        keypair,
+        name,
+        parent as AppFile,
+        callerUserId,
+        rosterFolderId
+      )
+      upsertItem(dir)
+      emitFileTreeChange({ type: 'created', folderId: dir_id })
+      return dir
+    }
+
     const createFile: CreateFile = {
       name,
       mime: 'dir',
@@ -887,7 +918,6 @@ export const store = defineStore('files', () => {
     firstRootListing,
     getItem,
     getSort,
-    hasItem,
     items,
     loading,
     loadStats,

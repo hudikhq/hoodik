@@ -308,6 +308,7 @@ export const store = defineStore('upload', () => {
       onProgress?: (p: UploadIntoSharedFolderProgress) => void
       signal?: AbortSignal
       onUnknownMember?: UploadIntoSharedFolderArgs['onUnknownMember']
+      rosterFolderId?: string
     } = {}
   ): Promise<UploadAppFile> {
     logger.info(
@@ -427,6 +428,7 @@ export const store = defineStore('upload', () => {
       onProgress?: (p: UploadIntoSharedFolderProgress) => void
       signal?: AbortSignal
       onUnknownMember?: UploadIntoSharedFolderArgs['onUnknownMember']
+      rosterFolderId?: string
     } = {}
   ): Promise<UploadAppFile> {
     if (!keypair.input || !keypair.publicKey) {
@@ -457,6 +459,7 @@ export const store = defineStore('upload', () => {
       callerUserId,
       callerPrivateKey: keypair.input,
       callerPublicKey: keypair.publicKey,
+      rosterFolderId: options.rosterFolderId,
       payload: {
         newFileId,
         parentFileId: parentFolder.id,

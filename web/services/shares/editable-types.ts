@@ -100,7 +100,7 @@ export interface SharedFolderFilePayload {
   encryptedName: string
   encryptedThumbnail?: string
   mime: string
-  size: number
+  size?: number
   chunks: number
   sha256?: string
   cipher: string
@@ -120,6 +120,16 @@ export interface UploadIntoSharedFolderArgs {
   /** PEM-encoded caller public key (echoed only — wraps for the caller come from `fileKeyHex`). */
   callerPublicKey: string
   payload: SharedFolderFilePayload
+  /**
+   * Folder whose signed member list authorises the wrap fan-out, when it
+   * isn't the direct parent. Folders below a share root carry the same
+   * roster as the root (fan-out, cascade moves and multi-key creates all
+   * copy it) but no signature of their own, so a create inside one
+   * verifies against the root's signed list; the server still checks the
+   * supplied wraps against the actual parent's member rows. Defaults to
+   * `payload.parentFileId`.
+   */
+  rosterFolderId?: string
   trustedFingerprints: TrustedFingerprintsStore
   onUnknownMember?: (prompt: UnknownMemberPrompt) => Promise<boolean>
 }

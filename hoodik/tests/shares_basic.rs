@@ -1115,3 +1115,122 @@ async fn test_storage_index_rejects_synthetic_shared_with_me_id() {
     assert_eq!(body["message"], "invalid_dir_id");
     let _ = context;
 }
+
+/// A folder created inside an already-shared parent through the plain
+/// owner-only create carries no wrapped key for the recipients, so it is
+/// invisible to them until a re-share of the parent backfills it (GH
+/// #202 — the clients now avoid this by fanning new folders out through
+/// `upload-multikey`). The re-share path must insert rows for subtree
+/// entries the recipient doesn't hold yet while leaving the unchanged
+/// ones alone, and the recipient's list must keep showing a single root.
+#[actix_web::test]
+async fn test_reshare_backfills_child_created_after_share() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+
+    let parent = create_folder!(app, alice, "backfill-parent");
+    let members = vec![
+        crate::shares_common::FolderListMemberSpec {
+            user: &alice,
+            share_role: ShareRoleEnum::CoOwner,
+            is_owner: true,
+            signed_by: &alice,
+        },
+        crate::shares_common::FolderListMemberSpec {
+            user: &bob,
+            share_role: ShareRoleEnum::Editor,
+            is_owner: false,
+            signed_by: &alice,
+        },
+    ];
+    let envelope = build_folder_share_envelope(
+        &alice,
+        &bob,
+        ShareRoleEnum::Editor,
+        parent.id,
+        alice.user_id,
+        random_nonce(),
+        now_secs(),
+        &members,
+        &alice,
+    );
+    assert_eq!(post_share!(app, alice, envelope).status(), StatusCode::CREATED);
+
+    // Created through the plain owner-only path after the share — no row
+    // for bob, so bob's listing of the parent must not carry it.
+    let child = create_folder!(app, alice, "backfill-child", parent.id);
+    let req = test::TestRequest::get()
+        .uri(&format!("/api/storage?dir_id={}", parent.id))
+        .cookie(bob.jwt.clone())
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let listing: Value = test::read_body_json(resp).await;
+    assert!(
+        !listing["children"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|c| c["id"] == Value::String(child.id.to_string())),
+        "plain-created child has no wrapped key for bob"
+    );
+
+    // Re-share at the same role with the full subtree: the parent row is
+    // untouched, the child row is inserted.
+    let entries = vec![
+        (parent.id, b"wrap-parent".to_vec()),
+        (child.id, b"wrap-child".to_vec()),
+    ];
+    let envelope = build_folder_share_envelope_with_entries(
+        &alice,
+        &bob,
+        ShareRoleEnum::Editor,
+        parent.id,
+        alice.user_id,
+        entries,
+        random_nonce(),
+        now_secs(),
+        &members,
+        &alice,
+    );
+    assert_eq!(post_share!(app, alice, envelope).status(), StatusCode::CREATED);
+
+    let child_row = user_files::Entity::find()
+        .filter(user_files::Column::FileId.eq(child.id))
+        .filter(user_files::Column::UserId.eq(bob.user_id))
+        .one(&context.db)
+        .await
+        .unwrap()
+        .expect("re-share backfilled bob's row on the child");
+    assert_eq!(child_row.share_role, "editor");
+
+    let req = test::TestRequest::get()
+        .uri(&format!("/api/storage?dir_id={}", parent.id))
+        .cookie(bob.jwt.clone())
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    let listing: Value = test::read_body_json(resp).await;
+    assert!(
+        listing["children"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|c| c["id"] == Value::String(child.id.to_string())),
+        "bob sees the child after the backfill"
+    );
+
+    // The recipient list still dedupes to the share root alone — the
+    // backfilled child must not surface as a second entry.
+    let req = test::TestRequest::get()
+        .uri("/api/shares/mine")
+        .cookie(bob.jwt.clone())
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let page: IncomingSharePage = test::read_body_json(resp).await;
+    assert_eq!(page.total, 1);
+    assert_eq!(page.items[0].file_id, parent.id);
+}

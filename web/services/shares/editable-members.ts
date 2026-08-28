@@ -339,13 +339,19 @@ export async function verifyAndReconcile(
 export async function withMembershipRetry<T>(
   initial: FolderMembersResponse,
   reverify: (snapshot: FolderMembersResponse) => Promise<void>,
-  submit: (snapshot: FolderMembersResponse) => Promise<T>
+  submit: (snapshot: FolderMembersResponse) => Promise<T>,
+  refetch?: () => Promise<FolderMembersResponse>
 ): Promise<T> {
   try {
     return await submit(initial)
   } catch (err) {
     if (err instanceof api.ShareMembershipChangedError) {
-      const refreshed = err.currentMembers
+      // The 409 payload carries the roster of the folder the write
+      // targeted. When the wrap fan-out was authorised by a different
+      // folder's signed list (a create below the share root), that
+      // payload has no signature to verify, so the caller supplies a
+      // refetch of the signed roster instead.
+      const refreshed = refetch ? await refetch() : err.currentMembers
       await reverify(refreshed)
       return submit(refreshed)
     }

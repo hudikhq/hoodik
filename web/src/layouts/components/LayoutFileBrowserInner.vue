@@ -359,12 +359,25 @@ const browseFolder = () => {
 /**
  * Core folder upload logic. Takes a flat list of { file, relativePath } items,
  * creates the directory hierarchy as needed, then enqueues each file.
+ *
+ * A shared base directory pins the whole tree to the multi-key path: the
+ * base folder's signed member list authorises every wrap, because the
+ * directories created along the way inherit its roster but carry no
+ * signed list of their own.
  */
 async function uploadByPaths(
   items: { file: File; relativePath: string }[],
   baseDir: string | undefined
 ) {
   const dirCache = new Map<string, string>()
+
+  const baseFolder = baseDir ? Storage.getItem(baseDir) : null
+  const sharedRootId =
+    baseFolder !== null &&
+    baseFolder.mime === 'dir' &&
+    (baseFolder.is_owner === false || baseFolder.members_signed_at != null)
+      ? baseFolder.id
+      : undefined
 
   // Shallowest paths first so parent dirs exist before children
   items.sort((a, b) => a.relativePath.split('/').length - b.relativePath.split('/').length)
@@ -380,13 +393,20 @@ async function uploadByPaths(
         try {
           const existing = await meta.getByName(props.keypair, parts[i], currentParent)
           if (existing.mime === 'dir') {
+            Storage.upsertItem(existing)
             dirCache.set(pathKey, existing.id)
           } else {
             throw new Error(`"${parts[i]}" exists but is not a directory`)
           }
         } catch (e: any) {
           if (e?.status === 404) {
-            const dir = await Storage.createDir(props.keypair, parts[i], currentParent)
+            const dir = await Storage.createDir(
+              props.keypair,
+              parts[i],
+              currentParent,
+              props.authenticated.user.id,
+              sharedRootId
+            )
             Storage.upsertItem(dir)
             dirCache.set(pathKey, dir.id)
           } else {
@@ -404,13 +424,16 @@ async function uploadByPaths(
       if (
         parentFolder !== null &&
         parentFolder.mime === 'dir' &&
-        (parentFolder.is_owner === false || parentFolder.members_signed_at != null)
+        (sharedRootId !== undefined ||
+          parentFolder.is_owner === false ||
+          parentFolder.members_signed_at != null)
       ) {
         await Upload.pushIntoSharedFolder(
           props.keypair,
           file,
           parentFolder,
-          props.authenticated.user.id
+          props.authenticated.user.id,
+          { rosterFolderId: sharedRootId }
         )
       } else {
         await Upload.push(props.keypair, file, currentParent)
@@ -561,6 +584,7 @@ watch(
     v-model="isModalCreateDirActive"
     :Crypto="Crypto"
     :Storage="Storage"
+    :authenticated-user-id="props.authenticated.user.id"
     @cancel="isModalCreateDirActive = false"
   />
   <CreateFileModal

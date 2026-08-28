@@ -382,3 +382,58 @@ async function createNoteInSharedFolder(args: {
 
   return await meta.get(args.keypair, newFileId)
 }
+
+/**
+ * Create a directory inside a shared folder through the multi-key
+ * pipeline, so every current member receives an RSA-wrapped copy of the
+ * folder key and can decrypt its name. The regular `POST /api/storage`
+ * create wraps the key for the creator alone, which leaves the folder
+ * invisible to everyone else on the share.
+ *
+ * `rosterFolderId` points at the folder whose signed member list
+ * authorises the fan-out when the direct parent doesn't carry one (a
+ * directory created below the share root during a folder upload).
+ */
+export async function createDirInSharedFolder(
+  keypair: KeyPair,
+  name: string,
+  parent: AppFile,
+  callerUserId: string,
+  rosterFolderId?: string
+): Promise<AppFile> {
+  if (!keypair.input || !keypair.publicKey) {
+    throw new Error('Cannot create directory without an active keypair')
+  }
+
+  const cipher = cryptfns.cipher.defaultCipher()
+  const fileKey = await cryptfns.cipher.generateKey(cipher)
+  const rootKey = cryptfns.searchRootKey(keypair)
+  const indexed = name.toLowerCase()
+  const newFileId = uuidv4()
+
+  const uploadArgs: UploadIntoSharedFolderArgs = {
+    callerUserId,
+    callerPrivateKey: keypair.input,
+    callerPublicKey: keypair.publicKey,
+    payload: {
+      newFileId,
+      parentFileId: parent.id,
+      fileKeyHex: cryptfns.uint8.toHex(fileKey),
+      nameHash: cryptfns.searchTag(rootKey, name),
+      encryptedName: await cryptfns.cipher.encryptString(cipher, name, fileKey),
+      mime: 'dir',
+      chunks: 0,
+      cipher,
+      fileModifiedAt: utcStringFromLocal(new Date()),
+      searchTokensRoot: cryptfns.searchTags(rootKey, indexed),
+      searchTokensFile: cryptfns.searchTags(cryptfns.searchFileKey(fileKey), indexed)
+    },
+    rosterFolderId,
+    trustedFingerprints: trustedFingerprintsStore(),
+    onUnknownMember: async () => true
+  }
+
+  await uploadIntoSharedFolder(uploadArgs)
+
+  return await meta.get(keypair, newFileId)
+}

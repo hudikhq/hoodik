@@ -41,7 +41,7 @@ export async function uploadIntoSharedFolder(
   ensureNotAborted(options.signal)
   const fetchMembers = options.fetchMembers ?? api.getFolderMembers
 
-  const response = await fetchMembers(args.payload.parentFileId)
+  const response = await fetchMembers(args.rosterFolderId ?? args.payload.parentFileId)
   options.onProgress?.({
     wrappedKeys: 0,
     totalKeys: response.members.length,
@@ -136,7 +136,8 @@ export async function uploadIntoSharedFolder(
         args.trustedFingerprints,
         args.onUnknownMember
       ),
-    submit
+    submit,
+    () => fetchMembers(args.rosterFolderId ?? args.payload.parentFileId)
   )
 }
 
