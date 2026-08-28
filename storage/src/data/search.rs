@@ -1,5 +1,5 @@
-use entity::{option_string_to_uuid, Uuid};
 use ::error::{AppResult, Error};
+use entity::{option_string_to_uuid, Uuid};
 use serde::{Deserialize, Serialize};
 use validr::*;
 

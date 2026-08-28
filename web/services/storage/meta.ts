@@ -365,6 +365,9 @@ export async function search(
       ...cryptfns.searchTags(rootKey, term).map(stripWeight),
       cryptfns.searchTag(rootKey, exact)
     ],
+    // Hashed the way create hashes names — raw and case-preserving — so a
+    // pasted filename matches the stored `name_hash` byte for byte.
+    name_hash: cryptfns.searchTag(rootKey, input.trim()),
     file_tags: sharedKeys.flatMap((key) => {
       const fileKey = cryptfns.searchFileKey(key)
       return [

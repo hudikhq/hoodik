@@ -180,8 +180,7 @@ where
     /// hits name or content or extra.
     pub(crate) async fn search(&self, search: Search) -> AppResult<Vec<AppFile>> {
         let compact = search.compact.unwrap_or(false);
-        let (file_id, root_tags, file_tags, name_hash, limit, skip, editable) =
-            search.into_tuple();
+        let (file_id, root_tags, file_tags, name_hash, limit, skip, editable) = search.into_tuple();
 
         let user_id = self.user_id;
         let selector = match compact {
@@ -247,10 +246,7 @@ where
             // client re-orders against the plaintext only it can see, so the
             // server ships what it knows — how many distinct query tags hit,
             // their weight, and how many hits came from the name source.
-            .column_as(
-                Expr::cust("COUNT(DISTINCT file_tokens.tag)"),
-                "search_hits",
-            )
+            .column_as(Expr::cust("COUNT(DISTINCT file_tokens.tag)"), "search_hits")
             .column_as(file_tokens::Column::Weight.sum(), "search_weight")
             .column_as(
                 Expr::cust("SUM(CASE WHEN file_tokens.source = 0 THEN 1 ELSE 0 END)"),

@@ -150,9 +150,15 @@ async fn exact_name_hash_outranks_token_weight() {
     let repository = Repository::new(&context.db);
     let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
 
-    let target = create_file(&context, &user, "IMG_0179.mov", None, Some("video/quicktime"))
-        .await
-        .unwrap();
+    let target = create_file(
+        &context,
+        &user,
+        "IMG_0179.mov",
+        None,
+        Some("video/quicktime"),
+    )
+    .await
+    .unwrap();
     let heavy = create_file(
         &context,
         &user,
