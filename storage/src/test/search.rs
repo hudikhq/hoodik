@@ -140,6 +140,61 @@ async fn heavier_matches_rank_first() {
     assert_eq!(second.id, dir.id);
 }
 
+/// A pasted filename must surface that file first, however much weight
+/// text-rich rows accumulate on the same tokens. The query's own name hash
+/// rides along and an exact `files.name_hash` match outranks every token
+/// score.
+#[actix_web::test]
+async fn exact_name_hash_outranks_token_weight() {
+    let context = Context::mock_sqlite().await;
+    let repository = Repository::new(&context.db);
+    let user = entity::mock::create_user(&context.db, "first@test.com", None).await;
+
+    let target = create_file(&context, &user, "IMG_0179.mov", None, Some("video/quicktime"))
+        .await
+        .unwrap();
+    let heavy = create_file(
+        &context,
+        &user,
+        "img 0179 mov img 0179 mov notes",
+        None,
+        Some("dir"),
+    )
+    .await
+    .unwrap();
+
+    let query = "IMG_0179.mov";
+    let name_hash = cryptfns::search::tag(&search_key(), query).unwrap();
+
+    // Without the name hash the heavier row out-weighs the file itself.
+    let blind = Search {
+        root_tags: Some(query_tags(&search_key(), query)),
+        ..Default::default()
+    };
+    let results = repository.tokens(user.id).search(blind).await.unwrap();
+    assert_eq!(results[0].id, heavy.id);
+
+    // With it, the exact match ranks first and carries its evidence.
+    let precise = Search {
+        root_tags: Some(query_tags(&search_key(), query)),
+        name_hash: Some(name_hash.clone()),
+        ..Default::default()
+    };
+    let results = repository.tokens(user.id).search(precise).await.unwrap();
+    assert_eq!(results[0].id, target.id);
+    assert!(results[0].search_hits.unwrap_or(0) >= 1);
+    assert!(results[0].search_name_hits.unwrap_or(0) >= 1);
+
+    // The hash alone is a valid query: the row surfaces with no tags sent.
+    let exact_only = Search {
+        name_hash: Some(name_hash),
+        ..Default::default()
+    };
+    let results = repository.tokens(user.id).search(exact_only).await.unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].id, target.id);
+}
+
 /// The property the whole scheme exists for: a recipient searches a shared
 /// file through the file scope, and the grant itself wrote nothing.
 #[actix_web::test]

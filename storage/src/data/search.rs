@@ -15,6 +15,12 @@ pub struct Search {
     /// so a file can only ever match through one scope and the weight ranking
     /// stays honest.
     pub file_tags: Option<Vec<String>>,
+    /// The whole query hashed as a filename under the caller's key. A file
+    /// whose `name_hash` equals it is the file the user typed the name of —
+    /// ranked above every token match, so pasting a filename always surfaces
+    /// that file first instead of whichever document happens to share the
+    /// most words with it.
+    pub name_hash: Option<String>,
     pub limit: Option<u64>,
     pub skip: Option<u64>,
     pub editable: Option<bool>,
@@ -36,6 +42,7 @@ pub type SearchData = (
     Option<Uuid>,
     Vec<String>,
     Vec<String>,
+    Option<String>,
     Option<u64>,
     Option<u64>,
     Option<bool>,
@@ -65,6 +72,7 @@ impl Search {
             option_string_to_uuid(self.dir_id),
             sanitize(self.root_tags),
             sanitize(self.file_tags),
+            self.name_hash.filter(|hash| !hash.is_empty()),
             self.limit,
             self.skip,
             self.editable,
@@ -127,7 +135,7 @@ mod test {
             ..Default::default()
         };
 
-        let (_, root, file, _, _, _) = search.into_tuple();
+        let (_, root, file, _, _, _, _) = search.into_tuple();
 
         assert_eq!(root, vec!["a3f1".to_string()]);
         assert!(file.is_empty());

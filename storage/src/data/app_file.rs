@@ -76,6 +76,19 @@ pub struct AppFile {
     /// the file with.
     #[serde(default)]
     pub shared_with_count: i64,
+    /// Distinct query tags this row matched. Projected only by search —
+    /// ranking evidence for the client, which re-orders results against the
+    /// plaintext it alone can see (decrypted names, the raw query).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub search_hits: Option<i64>,
+    /// Summed weight of the matched tags, the coarse server-side order.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub search_weight: Option<i64>,
+    /// How many of the matched rows came from the name source. Non-zero
+    /// means the file's own name contains query words — the client ranks
+    /// those above body matches.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub search_name_hits: Option<i64>,
 }
 
 impl IntoFilename for AppFile {
@@ -200,6 +213,9 @@ impl FromQueryResult for AppFile {
             },
             owner_email: None,
             shared_with_count: 0,
+            search_hits: res.try_get::<i64>("", "search_hits").ok(),
+            search_weight: res.try_get::<i64>("", "search_weight").ok(),
+            search_name_hits: res.try_get::<i64>("", "search_name_hits").ok(),
         })
     }
 }
