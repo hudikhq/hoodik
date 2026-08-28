@@ -24,7 +24,7 @@ default-run = "hoodik"
 minimum_client_version = "2.5.0"
 # Below this everything still works; the app only nudges. Raising this is
 # cheap, raising the minimum breaks people, which is why they are separate.
-recommended_client_version = "2.5.0"
+recommended_client_version = "2.5.2"
 
 [dependencies]
 openssl = { workspace = true }
