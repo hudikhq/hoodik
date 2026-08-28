@@ -1493,7 +1493,11 @@ async fn test_rekey_migration_transforms_a_pre_migration_database() {
 }
 
 /// Rows that predate `file_tokens.source` keep their tags and become `name`,
-/// so filename search against them still matches after the column lands.
+/// so filename search against them still matches after the column lands. The
+/// retokenize migration that follows then drops those word rows on purpose —
+/// the second half of this test pins that boundary: word tags go, digest tags
+/// and their re-keying stay, and the blanked `name_hash` marks the file for
+/// the client sweep.
 #[actix_web::test]
 async fn test_source_migration_keeps_existing_filename_tags() {
     use entity::ConnectionTrait;
@@ -1508,6 +1512,7 @@ async fn test_source_migration_keeps_existing_filename_tags() {
     let user_id = entity::Uuid::new_v4();
     let file_id = entity::Uuid::new_v4();
     let tag = "a3f1a3f1a3f1a3f1a3f1a3f1a3f1a3f1";
+    let digest_tag = "b4e2b4e2b4e2b4e2b4e2b4e2b4e2b4e2";
 
     context
         .db
@@ -1548,8 +1553,17 @@ async fn test_source_migration_keeps_existing_filename_tags() {
         ))
         .await
         .expect("seed a pre-source name tag");
+    context
+        .db
+        .execute_unprepared(&format!(
+            "INSERT INTO file_tokens (id, file_id, scope, tag, weight) \
+             VALUES ('{}', '{file_id}', 2, '{digest_tag}', 1)",
+            entity::Uuid::new_v4()
+        ))
+        .await
+        .expect("seed a pre-source digest tag");
 
-    migration::Migrator::up(&context.db, None)
+    migration::Migrator::up(&context.db, Some(1))
         .await
         .expect("the source column lands over existing rows");
 
@@ -1572,4 +1586,34 @@ async fn test_source_migration_keeps_existing_filename_tags() {
         .expect("the filename tag must still join the way search does");
     let source: i32 = row.try_get("", "source").unwrap();
     assert_eq!(source, 0, "existing rows migrate to name");
+
+    // The retokenize migration then deliberately drops every word-scope row
+    // and blanks `name_hash` — whole-word tags have to be rebuilt by the
+    // client sweep, and the blank hash is what marks a file as pending.
+    // Digest-scope rows carry re-keyed digests the sweep can recover from the
+    // stored columns, so they stay.
+    migration::Migrator::up(&context.db, None)
+        .await
+        .expect("the retokenize migration lands");
+
+    let row = context
+        .db
+        .query_one(entity::Statement::from_string(
+            backend,
+            format!(
+                "SELECT \
+                   (SELECT count(*) FROM file_tokens WHERE file_id = '{file_id}' AND scope = 0) AS words, \
+                   (SELECT count(*) FROM file_tokens WHERE file_id = '{file_id}' AND scope = 2) AS digests, \
+                   (SELECT name_hash FROM files WHERE id = '{file_id}') AS name_hash"
+            ),
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    let words: i64 = row.try_get("", "words").unwrap();
+    let digests: i64 = row.try_get("", "digests").unwrap();
+    let name_hash: String = row.try_get("", "name_hash").unwrap();
+    assert_eq!(words, 0, "word tags are dropped for the client sweep to rebuild");
+    assert_eq!(digests, 1, "digest tags survive the retokenize migration");
+    assert_eq!(name_hash, "", "a blank name_hash marks the file pending");
 }
