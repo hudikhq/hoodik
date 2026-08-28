@@ -8,8 +8,6 @@ use rsa::{
     pkcs8::Error as PKCS8Error, signature::Error as SignatureError,
 };
 use std::string::FromUtf8Error;
-#[cfg(feature = "tokenizer")]
-use tokenizers::Error as TokenizersError;
 
 pub type CryptoResult<T> = Result<T, Error>;
 
@@ -31,8 +29,6 @@ pub enum Error {
     /// Key parsing/encoding failures from the Curve25519 PKCS#8/SPKI stack,
     /// which uses a newer `der` major than the RSA-era variants above.
     KeyEncoding(String),
-    #[cfg(feature = "tokenizer")]
-    TokenizersError(TokenizersError),
 }
 
 impl std::fmt::Display for Error {
@@ -109,12 +105,5 @@ impl From<AsconError> for Error {
 impl From<RandomError> for Error {
     fn from(error: RandomError) -> Self {
         Error::RandomError(error)
-    }
-}
-
-#[cfg(feature = "tokenizer")]
-impl From<TokenizersError> for Error {
-    fn from(error: TokenizersError) -> Self {
-        Error::TokenizersError(error)
     }
 }

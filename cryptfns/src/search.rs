@@ -298,11 +298,8 @@ mod test {
 
         assert_eq!(
             encoded,
-            "ade2702652df2b527ea85d06ea18cc2a:1;\
-             81a20aa0d8d8b149b992f4d641fffcad:1;\
-             e9e098de1b057acdc1f7eafdd37a96a5:1;\
-             e48f3669b623c473d2ae2e75739fd62f:1;\
-             6520fd80f2b3010402038bcc9af77100:1"
+            "ec4767d0aabcccd2fc223bf3afde7a6c:1;\
+             bac924ee3ab4879a38f37ee48077cc3f:1"
         );
     }
 
