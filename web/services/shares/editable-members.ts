@@ -336,16 +336,46 @@ export async function verifyAndReconcile(
  * the fresh roster is re-verified and re-reconciled before the single retry;
  * any other error — and a second conflict — propagates unchanged.
  */
+/**
+ * Bind a roster fetch to one folder id: the returned closure fetches that
+ * folder's member list and refuses a response whose `folder_id` differs
+ * from the id it asked about. The list signature only authenticates the
+ * roster *for the folder named inside the canonical* — without this
+ * check a hostile server could satisfy the verification with any other
+ * validly signed roster of the same owner.
+ */
+export function rosterFetcher(
+  rosterFolderId: string,
+  fetchMembers: (folderId: string) => Promise<FolderMembersResponse>
+): () => Promise<FolderMembersResponse> {
+  return async () => {
+    const response = await fetchMembers(rosterFolderId)
+    if (response.folder_id !== rosterFolderId) {
+      throw new FolderMemberListInvalid(
+        'folder_mismatch',
+        `Member list is for folder ${response.folder_id}, not the requested ${rosterFolderId}.`
+      )
+    }
+    return response
+  }
+}
+
 export async function withMembershipRetry<T>(
   initial: FolderMembersResponse,
   reverify: (snapshot: FolderMembersResponse) => Promise<void>,
-  submit: (snapshot: FolderMembersResponse) => Promise<T>
+  submit: (snapshot: FolderMembersResponse) => Promise<T>,
+  refetch?: () => Promise<FolderMembersResponse>
 ): Promise<T> {
   try {
     return await submit(initial)
   } catch (err) {
     if (err instanceof api.ShareMembershipChangedError) {
-      const refreshed = err.currentMembers
+      // The 409 payload carries the roster of the folder the write
+      // targeted. When the wrap fan-out was authorised by a different
+      // folder's signed list (a create below the share root), that
+      // payload has no signature to verify, so the caller supplies a
+      // refetch of the signed roster instead.
+      const refreshed = refetch ? await refetch() : err.currentMembers
       await reverify(refreshed)
       return submit(refreshed)
     }

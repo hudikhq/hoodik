@@ -20,7 +20,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import { computed, ref, watch } from 'vue'
 import type { AppFile } from 'types'
 import { isPreviewable, isMarkdownFile } from '!/preview'
-import { SHARED_WITH_ME_DIR_ID } from '!/storage'
+import { SHARED_WITH_ME_DIR_ID, canWriteToShared } from '!/storage'
 
 const props = defineProps<{
   selected: AppFile[]
@@ -159,18 +159,18 @@ const showDownloadMany = computed(() => {
 const isSharedWithMeRoot = computed(() => props.parentId === SHARED_WITH_ME_DIR_ID)
 
 /**
- * Inside a shared folder (caller has a write share but doesn't own it),
- * file uploads go through the multi-key path. Creating a subdirectory
- * has no multi-key equivalent yet, so the directory affordance hides
- * until that endpoint exists — falling back to the regular create would
- * produce a `parent_directory_not_found` toast the user can't recover
- * from.
+ * Directory creation and folder upload work wherever the multi-key
+ * create can run: any folder the caller owns, and any folder shared
+ * with a write role — the create resolves the authorising member list
+ * from the nearest signed ancestor, so depth doesn't matter. Readers
+ * keep no write affordances.
  */
-const isSharedFolder = computed(() => {
+const canCreateDirHere = computed(() => {
   const d = props.dir
-  if (!d) return false
+  if (!d) return true
   if (d.mime !== 'dir') return false
-  return d.is_owner === false
+  if (d.is_owner !== false) return true
+  return canWriteToShared(d)
 })
 
 const singleSelected = computed(() => {
@@ -356,7 +356,7 @@ const sizes = {
       :icon="mdiFolderPlusOutline"
       color="light"
       @click="emits('directory')"
-      v-if="!checkedRows.length && !isSharedWithMeRoot && !isSharedFolder"
+      v-if="!checkedRows.length && !isSharedWithMeRoot && canCreateDirHere"
     />
 
     <BaseButton
@@ -389,7 +389,7 @@ const sizes = {
       :icon="mdiFolderArrowUpOutline"
       color="light"
       @click="emits('browse-folder')"
-      v-if="!checkedRows.length && !isSharedWithMeRoot && !isSharedFolder"
+      v-if="!checkedRows.length && !isSharedWithMeRoot && canCreateDirHere"
     />
   </div>
 

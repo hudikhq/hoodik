@@ -12,6 +12,7 @@ import BaseIcon from '@/components/ui/BaseIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import RevokeConfirmModal from '@/components/shares/RevokeConfirmModal.vue'
 import { api as sharesApi, crypto as shareCrypto, editable as editableSvc } from '!/shares'
+import { store as filesStoreFactory } from '!/storage'
 import { errorNotification, notification, humanizeError } from '!/index'
 
 import type {
@@ -38,9 +39,12 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const files = filesStoreFactory()
+
+type SignatureStatus = 'verified' | 'via-root' | 'failed' | 'unsigned'
 
 const response = ref<FolderMembersResponse | null>(null)
-const signatureStatus = ref<Record<string, 'verified' | 'failed' | 'unsigned'>>({})
+const signatureStatus = ref<Record<string, SignatureStatus>>({})
 const loading = ref(false)
 const loadError = ref<string | null>(null)
 const revokeConfirm = ref<{
@@ -69,34 +73,83 @@ async function refresh(): Promise<void> {
  * The per-row badge reflects whether the member's presence in the list
  * is covered by a verified `FolderMemberListV1` signature. The list
  * signature is the primary authentication — every member named in a
- * list whose signature verifies is itself verified. Truly legacy rows
- * (shares from before this protocol existed) are the only case where we
- * surface "no signature".
+ * list whose signature verifies is itself verified. A folder below a
+ * share root has no signature of its own, so its roster verifies
+ * against the nearest signed ancestor's list — the same resolution
+ * every multi-key write uses. Truly legacy rows (shares from before
+ * this protocol existed) are the only case left surfacing "no
+ * signature".
  */
 async function verifySignatures(payload: FolderMembersResponse): Promise<void> {
-  const statuses: Record<string, 'verified' | 'failed' | 'unsigned'> = {}
   const hasListSignature = Boolean(payload.members_list_signature)
-  const fallback: 'verified' | 'unsigned' = hasListSignature
-    ? 'verified'
-    : 'unsigned'
+  if (!hasListSignature) {
+    const viaRoot = await verifyViaAncestor(payload)
+    if (viaRoot) {
+      signatureStatus.value = viaRoot
+      return
+    }
+    const statuses: Record<string, SignatureStatus> = {}
+    for (const member of payload.members) {
+      statuses[member.user_id] = 'unsigned'
+    }
+    signatureStatus.value = statuses
+    return
+  }
+
+  const statuses: Record<string, SignatureStatus> = {}
   try {
     await editableSvc.verifyFolderMemberList(payload)
     for (const member of payload.members) {
-      statuses[member.user_id] = fallback
+      statuses[member.user_id] = 'verified'
     }
   } catch (err) {
     if (err instanceof editableSvc.FolderMemberListInvalid && err.userId) {
       for (const member of payload.members) {
         statuses[member.user_id] =
-          member.user_id === err.userId ? 'failed' : fallback
+          member.user_id === err.userId ? 'failed' : 'verified'
       }
     } else {
       for (const member of payload.members) {
-        statuses[member.user_id] = hasListSignature ? 'failed' : 'unsigned'
+        statuses[member.user_id] = 'failed'
       }
     }
   }
   signatureStatus.value = statuses
+}
+
+/**
+ * Verify a signature-less roster against the nearest signed ancestor: a
+ * member is covered when the ancestor's verified list names the same
+ * user with the same key fingerprint and role — rosters below a share
+ * root are copies of the root's, so any deviation is worth a red badge.
+ * Returns null when there is no signed ancestor (a true legacy share)
+ * or its list cannot be verified, leaving the plain "unsigned" state.
+ */
+async function verifyViaAncestor(
+  payload: FolderMembersResponse
+): Promise<Record<string, SignatureStatus> | null> {
+  try {
+    const source = await files.resolveRosterFolder(props.folder.id)
+    if (!source || source.id === props.folder.id) return null
+    const roster = await sharesApi.getFolderMembers(source.id)
+    if (roster.folder_id !== source.id) return null
+    await editableSvc.verifyFolderMemberList(roster)
+
+    const covered = new Set(
+      roster.members.map((m) => `${m.user_id}|${m.pubkey_fingerprint}|${m.share_role}`)
+    )
+    const statuses: Record<string, SignatureStatus> = {}
+    for (const member of payload.members) {
+      statuses[member.user_id] = covered.has(
+        `${member.user_id}|${member.pubkey_fingerprint}|${member.share_role}`
+      )
+        ? 'via-root'
+        : 'failed'
+    }
+    return statuses
+  } catch {
+    return null
+  }
 }
 
 const members = computed<FolderMember[]>(() => response.value?.members ?? [])
@@ -392,6 +445,14 @@ function cancelRevoke(): void {
                 class="inline-flex items-center text-greeny-600 dark:text-greeny-300 shrink-0"
                 :data-testid="`folder-members-view-row-${member.user_id}-sig-verified`"
                 :title="$t('shares.members.sigVerified')"
+              >
+                <BaseIcon :path="mdiCheckCircle" :size="12" />
+              </span>
+              <span
+                v-else-if="signatureStatus[member.user_id] === 'via-root'"
+                class="inline-flex items-center text-greeny-600 dark:text-greeny-300 shrink-0"
+                :data-testid="`folder-members-view-row-${member.user_id}-sig-via-root`"
+                :title="$t('shares.members.sigViaRoot')"
               >
                 <BaseIcon :path="mdiCheckCircle" :size="12" />
               </span>

@@ -13,6 +13,7 @@ const props = defineProps<{
   modelValue?: boolean | undefined
   Storage: FilesStore
   Crypto: CryptoStore
+  authenticatedUserId?: string
 }>()
 
 const emit = defineEmits(['update:modelValue', 'cancel', 'confirm'])
@@ -32,7 +33,12 @@ const init = () => {
     }),
     onSubmit: async (values: { name: string }, ctx: any) => {
       try {
-        await props.Storage.createDir(props.Crypto.keypair, values.name, props.Storage.dir?.id)
+        await props.Storage.createDir(
+          props.Crypto.keypair,
+          values.name,
+          props.Storage.dir?.id,
+          props.authenticatedUserId
+        )
         ctx.resetForm()
         props.Storage.find(props.Crypto.keypair, props.Storage.dir?.id || undefined)
         emit('confirm')

@@ -1132,7 +1132,8 @@
       "roleReaderTitle": "Reader · view only, cannot add new files",
       "sigFailed": "Signature did not verify",
       "sigLegacy": "Legacy row (no signature)",
-      "sigVerified": "Signature verified"
+      "sigVerified": "Signature verified",
+      "sigViaRoot": "Verified against the share root's signed member list"
     },
     "modal": {
       "peopleEmpty": "No accounts have access yet.",

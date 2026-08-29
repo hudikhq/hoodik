@@ -1132,7 +1132,8 @@
       "roleReaderTitle": "Čitatelj · samo pregled, ne može dodavati nove datoteke",
       "sigFailed": "Potpis nije prošao provjeru",
       "sigLegacy": "Stari zapis (bez potpisa)",
-      "sigVerified": "Potpis provjeren"
+      "sigVerified": "Potpis provjeren",
+      "sigViaRoot": "Provjereno prema potpisanom popisu članova korijena dijeljenja"
     },
     "modal": {
       "peopleEmpty": "Još nijedan račun nema pristup.",

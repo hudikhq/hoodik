@@ -4,6 +4,7 @@ import * as api from './api'
 import * as shareCrypto from './crypto'
 import {
   ensureNotAborted,
+  rosterFetcher,
   verifyAndReconcile,
   withMembershipRetry,
   wrapForEveryMember
@@ -40,8 +41,12 @@ export async function uploadIntoSharedFolder(
 ): Promise<UploadMultiKeyResponse> {
   ensureNotAborted(options.signal)
   const fetchMembers = options.fetchMembers ?? api.getFolderMembers
+  const fetchRoster = rosterFetcher(
+    args.rosterFolderId ?? args.payload.parentFileId,
+    fetchMembers
+  )
 
-  const response = await fetchMembers(args.payload.parentFileId)
+  const response = await fetchRoster()
   options.onProgress?.({
     wrappedKeys: 0,
     totalKeys: response.members.length,
@@ -136,7 +141,8 @@ export async function uploadIntoSharedFolder(
         args.trustedFingerprints,
         args.onUnknownMember
       ),
-    submit
+    submit,
+    fetchRoster
   )
 }
 

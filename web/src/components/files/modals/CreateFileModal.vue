@@ -43,7 +43,8 @@ const init = () => {
           props.Crypto.keypair,
           values.name,
           parent,
-          props.authenticatedUserId
+          props.authenticatedUserId,
+          parent ? await props.Storage.writeRosterId(parent.id) : undefined
         )
 
         emitFileTreeChange({ type: 'created', folderId })

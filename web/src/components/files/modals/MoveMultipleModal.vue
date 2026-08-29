@@ -85,7 +85,8 @@ const select = async (file?: AppFile) => {
     sources: props.Storage.selected,
     destination: file,
     sourceParent: props.Storage.dir,
-    sharingEnabled: sharingEnabled.value
+    sharingEnabled: sharingEnabled.value,
+    destinationRosterId: file ? await props.Storage.writeRosterId(file.id) : undefined
   })
 
   if (decision.kind === 'blocked') {

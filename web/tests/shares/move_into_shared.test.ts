@@ -330,6 +330,7 @@ describe('move folder cascade into shared folder', () => {
     )
 
     let attempts = 0
+    let fetches = 0
     await moveIntoSharedFolder(
       {
         callerUserId: CALLER_ID,
@@ -340,7 +341,9 @@ describe('move folder cascade into shared folder', () => {
         trustedFingerprints: trusted
       },
       {
-        fetchMembers: async () => first.response,
+        // The retry refetches the roster from its source rather than
+        // trusting the 409 payload — the stub serves the live view.
+        fetchMembers: async () => (++fetches === 1 ? first.response : refreshed.response),
         collectSubtree: async () => [root.node],
         postMove: async (body) => {
           attempts += 1
@@ -352,6 +355,7 @@ describe('move folder cascade into shared folder', () => {
       }
     )
     expect(attempts).toBe(2)
+    expect(fetches).toBe(2)
   })
 
   it('hard-stops on a tampered roster before any wrap', async () => {
@@ -539,6 +543,24 @@ describe('classifyMove decision tree', () => {
       sharingEnabled: true
     })
     expect(d).toMatchObject({ kind: 'into-shared', destinationFolderId: 'dest' })
+  })
+
+  it('routes into a folder below the share root via the resolved roster', () => {
+    // An owned, unsigned intermediate directory looks private to the
+    // `isSharedFolder` predicate; the caller-resolved roster id is what
+    // marks it as part of a shared tree and rides into the decision.
+    const d = classifyMove({
+      sources: [file('f1')],
+      destination: dir('nested'),
+      sourceParent: null,
+      sharingEnabled: true,
+      destinationRosterId: 'dest'
+    })
+    expect(d).toMatchObject({
+      kind: 'into-shared',
+      destinationFolderId: 'nested',
+      rosterFolderId: 'dest'
+    })
   })
 
   it('blocks the whole move when any source into a shared destination is not owned', () => {
