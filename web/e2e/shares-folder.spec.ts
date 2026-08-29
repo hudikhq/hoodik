@@ -157,10 +157,22 @@ test.describe('Folder shares: creating folders inside a share (GH #202)', () => 
     await page.getByRole('button', { name: 'Create', exact: true }).click()
     await expect(page.getByTestId('file-row-from-bob')).toBeVisible({ timeout: 15_000 })
 
+    // One level deeper: the intermediate folder has no signed member
+    // list of its own, so the create verifies against the share root's —
+    // and the result still reaches the other side.
+    await page.getByTestId('file-row-from-alice').dblclick()
+    await expect(page).toHaveURL(/[0-9a-f-]{36}/)
+    await page.locator('[name="create-dir"]').click()
+    await page.locator('#name').fill('bob-nested')
+    await page.getByRole('button', { name: 'Create', exact: true }).click()
+    await expect(page.getByTestId('file-row-bob-nested')).toBeVisible({ timeout: 15_000 })
+
     await logout(page)
     await loginAsUser(page, alice.email, alice.password)
     await page.getByTestId('file-row-shared-folder').dblclick()
     await expect(page.getByTestId('file-row-from-bob')).toBeVisible({ timeout: 15_000 })
+    await page.getByTestId('file-row-from-alice').dblclick()
+    await expect(page.getByTestId('file-row-bob-nested')).toBeVisible({ timeout: 15_000 })
   })
 
   test('a share opened from search lists once in Shared with me', async ({ page }) => {

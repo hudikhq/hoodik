@@ -1132,7 +1132,8 @@
       "roleReaderTitle": "Lecteur · lecture seule, ne peut pas ajouter de fichiers",
       "sigFailed": "La signature n’a pas pu être vérifiée",
       "sigLegacy": "Ancienne entrée (sans signature)",
-      "sigVerified": "Signature vérifiée"
+      "sigVerified": "Signature vérifiée",
+      "sigViaRoot": "Vérifié selon la liste de membres signée de la racine du partage"
     },
     "modal": {
       "peopleEmpty": "Aucun compte n’a encore accès.",

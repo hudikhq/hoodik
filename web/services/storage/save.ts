@@ -223,7 +223,8 @@ export async function createNote(
   keypair: KeyPair,
   name: string,
   parent?: AppFile | string | null,
-  callerUserId?: string
+  callerUserId?: string,
+  rosterFolderId?: string
 ): Promise<AppFile> {
   const fileName = name.endsWith('.md') ? name : `${name}.md`
 
@@ -244,8 +245,7 @@ export async function createNote(
     }
   }
 
-  if (needsMultikeyCreate(parentFile)) {
-    if (!parentFile) throw new Error('Cannot create file without parent context')
+  if (parentFile && (rosterFolderId != null || needsMultikeyCreate(parentFile))) {
     if (!keypair.input || !keypair.publicKey) {
       throw new Error('Cannot create file without an active keypair')
     }
@@ -257,7 +257,8 @@ export async function createNote(
       callerUserId,
       parent: parentFile,
       fileName,
-      contentBytes
+      contentBytes,
+      rosterFolderId
     })
   }
 
@@ -302,6 +303,7 @@ async function createNoteInSharedFolder(args: {
   parent: AppFile
   fileName: string
   contentBytes: Uint8Array
+  rosterFolderId?: string
 }): Promise<AppFile> {
   const cipher = cryptfns.cipher.defaultCipher()
   const fileKey = await cryptfns.cipher.generateKey(cipher)
@@ -335,6 +337,7 @@ async function createNoteInSharedFolder(args: {
       contentTokensRoot: cryptfns.searchTags(rootKey, body),
       contentTokensFile: cryptfns.searchTags(cryptfns.searchFileKey(fileKey), body)
     },
+    rosterFolderId: args.rosterFolderId,
     trustedFingerprints: trustedFingerprintsStore(),
     onUnknownMember: async () => true
   }

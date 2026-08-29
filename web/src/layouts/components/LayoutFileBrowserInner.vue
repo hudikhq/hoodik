@@ -290,11 +290,11 @@ const downloadMany = async () => {
 /**
  * Takes the FileList object and adds all the selected files into upload queue.
  *
- * Branches on the target directory's ownership: when the parent is a
- * shared folder where the caller is NOT the owner, the upload routes
- * through `pushIntoSharedFolder` (multi-key fan-out) so every folder
- * member receives an RSA-wrapped copy of the new file's
- * key. Owned folders take the existing single-key `push` path.
+ * Uploads into any folder of a shared tree route through
+ * `pushIntoSharedFolder` (multi-key fan-out) so every member receives an
+ * RSA-wrapped copy of the new file's key. The authorising member list is
+ * resolved once for the batch — the nearest ancestor-or-self with a
+ * signed list. Private folders take the single-key `push` path.
  */
 const uploadMany = async (files?: FileList, dirId?: string) => {
   if (!files) return
@@ -303,14 +303,10 @@ const uploadMany = async (files?: FileList, dirId?: string) => {
 
   if (files.length) {
     const parentFolder = dirId ? Storage.getItem(dirId) : null
-    // Use multi-key for any folder that's been shared, whether the
-    // caller owns it or not. Owner-side uploads to a private folder
-    // (no `members_signed_at`) stay on the regular create path because
-    // multi-key requires a signed member list to verify against.
-    const useMultiKey =
-      parentFolder !== null &&
-      parentFolder.mime === 'dir' &&
-      (parentFolder.is_owner === false || parentFolder.members_signed_at != null)
+    const rosterFolderId =
+      parentFolder !== null && parentFolder.mime === 'dir'
+        ? await Storage.writeRosterId(dirId)
+        : undefined
 
     for (let i = 0; i < files.length; i++) {
       try {
@@ -321,12 +317,13 @@ const uploadMany = async (files?: FileList, dirId?: string) => {
       }
 
       try {
-        if (useMultiKey && parentFolder) {
+        if (rosterFolderId !== undefined && parentFolder) {
           await Upload.pushIntoSharedFolder(
             props.keypair,
             files[i],
             parentFolder,
-            callerUserId
+            callerUserId,
+            { rosterFolderId }
           )
         } else {
           await Upload.push(props.keypair, files[i], dirId)
@@ -360,10 +357,10 @@ const browseFolder = () => {
  * Core folder upload logic. Takes a flat list of { file, relativePath } items,
  * creates the directory hierarchy as needed, then enqueues each file.
  *
- * A shared base directory pins the whole tree to the multi-key path: the
- * base folder's signed member list authorises every wrap, because the
- * directories created along the way inherit its roster but carry no
- * signed list of their own.
+ * A base directory inside a shared tree pins the whole batch to the
+ * multi-key path: the nearest signed member list above it authorises
+ * every wrap, because the directories created along the way inherit
+ * that roster but carry no signed list of their own.
  */
 async function uploadByPaths(
   items: { file: File; relativePath: string }[],
@@ -371,13 +368,7 @@ async function uploadByPaths(
 ) {
   const dirCache = new Map<string, string>()
 
-  const baseFolder = baseDir ? Storage.getItem(baseDir) : null
-  const sharedRootId =
-    baseFolder !== null &&
-    baseFolder.mime === 'dir' &&
-    (baseFolder.is_owner === false || baseFolder.members_signed_at != null)
-      ? baseFolder.id
-      : undefined
+  const sharedRootId = await Storage.writeRosterId(baseDir)
 
   // Shallowest paths first so parent dirs exist before children
   items.sort((a, b) => a.relativePath.split('/').length - b.relativePath.split('/').length)

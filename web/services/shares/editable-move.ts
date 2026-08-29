@@ -3,6 +3,7 @@ import * as shareCrypto from './crypto'
 import * as subtree from './subtree'
 import {
   ensureNotAborted,
+  rosterFetcher,
   verifyAndReconcile,
   withMembershipRetry,
   wrapForEveryMember
@@ -38,6 +39,9 @@ export async function moveSingleFileIntoSharedFolder(
     callerWrappingPrivateKey: string
     file: AppFile
     destinationFolderId: string
+    /** Folder whose signed member list authorises the wraps when the
+     *  destination is below a share root — see `UploadIntoSharedFolderArgs`. */
+    rosterFolderId?: string
     trustedFingerprints: TrustedFingerprintsStore
     onUnknownMember?: (prompt: UnknownMemberPrompt) => Promise<boolean>
   },
@@ -49,6 +53,10 @@ export async function moveSingleFileIntoSharedFolder(
 ): Promise<void> {
   ensureNotAborted(options.signal)
   const fetchMembers = options.fetchMembers ?? api.getFolderMembers
+  const fetchRoster = rosterFetcher(
+    args.rosterFolderId ?? args.destinationFolderId,
+    fetchMembers
+  )
   const poster = options.postMove ?? api.moveIntoShared
 
   const fileKeyHex = await shareCrypto.decryptOwnFileKey(
@@ -56,7 +64,7 @@ export async function moveSingleFileIntoSharedFolder(
     args.callerWrappingPrivateKey
   )
 
-  const response = await fetchMembers(args.destinationFolderId)
+  const response = await fetchRoster()
   await verifyAndReconcile(
     response,
     args.callerUserId,
@@ -106,7 +114,8 @@ export async function moveSingleFileIntoSharedFolder(
         args.trustedFingerprints,
         args.onUnknownMember
       ),
-    submit
+    submit,
+    fetchRoster
   )
 }
 
@@ -129,6 +138,10 @@ export async function moveIntoSharedFolder(
 ): Promise<void> {
   ensureNotAborted(options.signal)
   const fetchMembers = options.fetchMembers ?? api.getFolderMembers
+  const fetchRoster = rosterFetcher(
+    args.rosterFolderId ?? args.destinationFolderId,
+    fetchMembers
+  )
   const walk = options.collectSubtree ?? ((root: AppFile) =>
     subtree.collectSubtree(root, {
       signal: options.signal,
@@ -138,7 +151,7 @@ export async function moveIntoSharedFolder(
 
   const nodes = await walk(args.root)
 
-  const response = await fetchMembers(args.destinationFolderId)
+  const response = await fetchRoster()
   options.onProgress?.({
     wrappedKeys: 0,
     totalKeys: nodes.length * response.members.length,
@@ -220,7 +233,8 @@ export async function moveIntoSharedFolder(
         args.trustedFingerprints,
         args.onUnknownMember
       ),
-    submit
+    submit,
+    fetchRoster
   )
 }
 

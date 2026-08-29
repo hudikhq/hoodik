@@ -311,6 +311,104 @@ describe('editable folder upload pipeline', () => {
     expect(ownerOfFile[0].user_id).toEqual(UPLOADER_ID)
   })
 
+  it('upload_into_shared_folder_pins_roster_to_the_share_root', async () => {
+    // A create below the share root wraps against the root's signed list
+    // while targeting the real parent — the roster folder and the
+    // parent_file_id diverge on purpose.
+    const ROSTER_ID = '55555555-5555-5555-5555-555555555555'
+    const ownerKp = await cryptfns.rsa.generateKeyPair()
+    const { response, keypairs } = await buildResponse(ROSTER_ID, ownerKp, OWNER_ID, [
+      { user_id: OWNER_ID, email: 'a@example.com', role: 'co-owner', isOwner: true },
+      { user_id: UPLOADER_ID, email: 'b@example.com', role: 'editor' }
+    ])
+    const trusted = trustedFingerprintsStore()
+    trusted.bind(UPLOADER_ID)
+    trusted.trustFingerprint(OWNER_ID, response.folder_owner_pubkey_fingerprint, 'other')
+
+    const fetchedIds: string[] = []
+    let captured: UploadMultiKeyBody | null = null
+    await uploadIntoSharedFolder(
+      {
+        callerUserId: UPLOADER_ID,
+        callerPrivateKey: (keypairs.get(UPLOADER_ID) as KeyPair).input as string,
+        callerPublicKey: (keypairs.get(UPLOADER_ID) as KeyPair).publicKey as string,
+        payload: {
+          newFileId: NEW_FILE_ID,
+          parentFileId: FOLDER_ID,
+          fileKeyHex: 'aa'.repeat(16),
+          nameHash: 'h',
+          encryptedName: 'enc',
+          mime: 'dir',
+          chunks: 0,
+          cipher: 'aegis128l'
+        },
+        rosterFolderId: ROSTER_ID,
+        trustedFingerprints: trusted
+      },
+      {
+        fetchMembers: async (folderId) => {
+          fetchedIds.push(folderId)
+          return response
+        },
+        postUpload: async (body) => {
+          captured = body
+          return { file_id: NEW_FILE_ID }
+        }
+      }
+    )
+    expect(fetchedIds).toEqual([ROSTER_ID])
+    expect(captured!.parent_file_id).toEqual(FOLDER_ID)
+    expect(captured!.members_list_snapshot.members_list_signature).toEqual(
+      response.members_list_signature
+    )
+  })
+
+  it('upload_into_shared_folder_rejects_roster_for_a_different_folder', async () => {
+    // The list signature only authenticates the roster for the folder id
+    // inside the canonical — a response for any other folder, however
+    // validly signed, must not authorise the wraps.
+    const ownerKp = await cryptfns.rsa.generateKeyPair()
+    const { response, keypairs } = await buildResponse(
+      '66666666-6666-6666-6666-666666666666',
+      ownerKp,
+      OWNER_ID,
+      [
+        { user_id: OWNER_ID, email: 'a@example.com', role: 'co-owner', isOwner: true },
+        { user_id: UPLOADER_ID, email: 'b@example.com', role: 'editor' }
+      ]
+    )
+    const trusted = trustedFingerprintsStore()
+    trusted.bind(UPLOADER_ID)
+
+    await expect(
+      uploadIntoSharedFolder(
+        {
+          callerUserId: UPLOADER_ID,
+          callerPrivateKey: (keypairs.get(UPLOADER_ID) as KeyPair).input as string,
+          callerPublicKey: (keypairs.get(UPLOADER_ID) as KeyPair).publicKey as string,
+          payload: {
+            newFileId: NEW_FILE_ID,
+            parentFileId: FOLDER_ID,
+            fileKeyHex: 'bb'.repeat(16),
+            nameHash: 'h',
+            encryptedName: 'enc',
+            mime: 'text/plain',
+            size: 1,
+            chunks: 1,
+            cipher: 'aegis128l'
+          },
+          trustedFingerprints: trusted
+        },
+        {
+          fetchMembers: async () => response,
+          postUpload: async () => {
+            throw new Error('must not reach the server')
+          }
+        }
+      )
+    ).rejects.toMatchObject({ name: 'FolderMemberListInvalid', reason: 'folder_mismatch' })
+  })
+
   it('upload_into_shared_folder_signs_audit_event', async () => {
     const ownerKp = await cryptfns.rsa.generateKeyPair()
     const { response, keypairs } = await buildResponse(FOLDER_ID, ownerKp, OWNER_ID, [

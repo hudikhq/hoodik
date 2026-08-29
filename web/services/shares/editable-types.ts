@@ -25,6 +25,7 @@ export class FolderMemberListInvalid extends Error {
     | 'fingerprint_mismatch'
     | 'unknown_signer'
     | 'owner_missing'
+    | 'folder_mismatch'
   readonly userId: string | null
 
   constructor(
@@ -162,6 +163,9 @@ export interface MoveIntoSharedFolderArgs {
   /** The moved folder root. Its full subtree is enumerated and re-wrapped. */
   root: AppFile
   destinationFolderId: string
+  /** Folder whose signed member list authorises the wraps when the
+   *  destination is below a share root — see `UploadIntoSharedFolderArgs`. */
+  rosterFolderId?: string
   trustedFingerprints: TrustedFingerprintsStore
   onUnknownMember?: (prompt: UnknownMemberPrompt) => Promise<boolean>
 }

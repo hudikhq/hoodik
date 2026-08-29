@@ -1132,7 +1132,8 @@
       "roleReaderTitle": "Leser · darf nur ansehen, keine neuen Dateien hinzufügen",
       "sigFailed": "Signatur konnte nicht verifiziert werden",
       "sigLegacy": "Alte Zeile (ohne Signatur)",
-      "sigVerified": "Signatur verifiziert"
+      "sigVerified": "Signatur verifiziert",
+      "sigViaRoot": "Anhand der signierten Mitgliederliste des Freigabe-Stammordners verifiziert"
     },
     "modal": {
       "peopleEmpty": "Noch keine Konten mit Zugriff.",

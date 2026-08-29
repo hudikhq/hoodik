@@ -30,7 +30,12 @@ export function isSharedFolder(file: AppFile | null | undefined): boolean {
 export type MoveDecision =
   | { kind: 'plain'; sources: AppFile[]; destinationId: string | undefined }
   | { kind: 'blocked'; message: string }
-  | { kind: 'into-shared'; sources: AppFile[]; destinationFolderId: string }
+  | {
+      kind: 'into-shared'
+      sources: AppFile[]
+      destinationFolderId: string
+      rosterFolderId?: string
+    }
   | { kind: 'move-out'; sources: AppFile[]; destinationId: string | undefined }
 
 /**
@@ -50,13 +55,18 @@ export function classifyMove(args: {
   destination: AppFile | undefined
   sourceParent: AppFile | null
   sharingEnabled: boolean
+  /** Resolved roster source for the destination (`Storage.writeRosterId`).
+   *  Set for any destination inside a shared tree — including folders
+   *  below the share root, which `isSharedFolder` alone can't see. */
+  destinationRosterId?: string
 }): MoveDecision {
-  const { sources, destination, sourceParent, sharingEnabled } = args
+  const { sources, destination, sourceParent, sharingEnabled, destinationRosterId } = args
   if (sources.length === 0) {
     return { kind: 'plain', sources, destinationId: destination?.id }
   }
 
-  const destShared = sharingEnabled && isSharedFolder(destination)
+  const destShared =
+    sharingEnabled && (destinationRosterId != null || isSharedFolder(destination))
   if (destShared && destination) {
     if (sources.some((f) => !f.is_owner)) {
       return {
@@ -64,7 +74,12 @@ export function classifyMove(args: {
         message: 'You can only move files you own into a shared folder.'
       }
     }
-    return { kind: 'into-shared', sources, destinationFolderId: destination.id }
+    return {
+      kind: 'into-shared',
+      sources,
+      destinationFolderId: destination.id,
+      rosterFolderId: destinationRosterId
+    }
   }
 
   const sourceShared = sharingEnabled && isSharedFolder(sourceParent)
@@ -137,6 +152,7 @@ export async function executeMove(
                 callerWrappingPrivateKey: wrappingPrivateKey,
                 root: item,
                 destinationFolderId: decision.destinationFolderId,
+                rosterFolderId: decision.rosterFolderId,
                 trustedFingerprints: trusted,
                 onUnknownMember
               },
@@ -155,6 +171,7 @@ export async function executeMove(
               callerWrappingPrivateKey: wrappingPrivateKey,
               file: item,
               destinationFolderId: decision.destinationFolderId,
+              rosterFolderId: decision.rosterFolderId,
               trustedFingerprints: trusted,
               onUnknownMember
             })

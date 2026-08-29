@@ -643,3 +643,122 @@ describe('Storage store: Shared with me virtual folder', () => {
     expect(row?.finished_upload_at).toBeUndefined()
   })
 })
+
+describe('Storage store: roster resolution for writes in shared trees', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  const ROOT = 'aaaa1111-1111-1111-1111-111111111111'
+  const MID = 'bbbb2222-2222-2222-2222-222222222222'
+  const LEAF = 'cccc3333-3333-3333-3333-333333333333'
+
+  function seedChain(
+    store: ReturnType<typeof storageStore>,
+    { rootSigned = true }: { rootSigned?: boolean } = {}
+  ): void {
+    store.addItem({
+      id: ROOT,
+      file_id: SHARED_WITH_ME_DIR_ID,
+      mime: 'dir',
+      is_owner: false,
+      share_role: 'editor',
+      members_signed_at: rootSigned ? 1_700_000_000 : undefined,
+      name: 'root'
+    } as never)
+    store.addItem({
+      id: MID,
+      file_id: ROOT,
+      mime: 'dir',
+      is_owner: false,
+      share_role: 'editor',
+      name: 'mid'
+    } as never)
+    store.addItem({
+      id: LEAF,
+      file_id: MID,
+      mime: 'dir',
+      is_owner: false,
+      share_role: 'editor',
+      name: 'leaf'
+    } as never)
+  }
+
+  it('resolves the folder itself when it carries a signed list', async () => {
+    const store = storageStore()
+    seedChain(store)
+    const resolved = await store.resolveRosterFolder(ROOT)
+    expect(resolved?.id).toEqual(ROOT)
+  })
+
+  it('walks the store up to the nearest signed ancestor', async () => {
+    const store = storageStore()
+    seedChain(store)
+    const find = vi.spyOn(meta, 'find')
+    const resolved = await store.resolveRosterFolder(LEAF)
+    expect(resolved?.id).toEqual(ROOT)
+    expect(find).not.toHaveBeenCalled()
+  })
+
+  it('returns null for a private owned chain without fetching', async () => {
+    const store = storageStore()
+    store.addItem({
+      id: MID,
+      file_id: null,
+      mime: 'dir',
+      is_owner: true,
+      name: 'private-root'
+    } as never)
+    store.addItem({
+      id: LEAF,
+      file_id: MID,
+      mime: 'dir',
+      is_owner: true,
+      name: 'private-child'
+    } as never)
+    const find = vi.spyOn(meta, 'find')
+    expect(await store.resolveRosterFolder(LEAF)).toBeNull()
+    expect(find).not.toHaveBeenCalled()
+  })
+
+  it('falls back to one breadcrumb fetch when the chain is not in the store', async () => {
+    const store = storageStore()
+    const find = vi.spyOn(meta, 'find').mockResolvedValue({
+      children: [],
+      parents: [
+        { id: ROOT, file_id: null, mime: 'dir', members_signed_at: 1_700_000_000 },
+        { id: MID, file_id: ROOT, mime: 'dir' },
+        { id: LEAF, file_id: MID, mime: 'dir' }
+      ]
+    } as unknown as Awaited<ReturnType<typeof meta.find>>)
+
+    const resolved = await store.resolveRosterFolder(LEAF)
+    expect(resolved?.id).toEqual(ROOT)
+    expect(find).toHaveBeenCalledTimes(1)
+    expect(find).toHaveBeenCalledWith({ dir_id: LEAF })
+  })
+
+  it('writeRosterId falls back to the folder itself for a legacy share', async () => {
+    const store = storageStore()
+    seedChain(store, { rootSigned: false })
+    // The unsigned chain resolves nothing, but the recipient row itself
+    // stays the roster source so the write keeps today's verification
+    // error instead of silently landing owner-only.
+    expect(await store.writeRosterId(LEAF)).toEqual(LEAF)
+    expect(await store.writeRosterId(ROOT)).toEqual(ROOT)
+  })
+
+  it('writeRosterId returns undefined for private folders and the virtual root', async () => {
+    const store = storageStore()
+    store.addItem({
+      id: MID,
+      file_id: null,
+      mime: 'dir',
+      is_owner: true,
+      name: 'mine'
+    } as never)
+    expect(await store.writeRosterId(MID)).toBeUndefined()
+    expect(await store.writeRosterId(SHARED_WITH_ME_DIR_ID)).toBeUndefined()
+    expect(await store.writeRosterId(undefined)).toBeUndefined()
+  })
+})

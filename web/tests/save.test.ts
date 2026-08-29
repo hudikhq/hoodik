@@ -453,6 +453,33 @@ describe('createNote into a shared folder', () => {
     expect(uploadIntoSharedFolder).not.toHaveBeenCalled()
     expect(metaCreate).toHaveBeenCalledTimes(1)
   })
+
+  it('UNIT: a resolved roster routes an owned unsigned parent through multi-key', async () => {
+    // A directory below the share root is owned by its creator and has no
+    // signed list of its own — the caller-resolved roster id is the only
+    // signal that the note belongs to a shared tree.
+    const parent = {
+      id: 'nested-dir-id',
+      mime: 'dir',
+      is_owner: true
+    } as unknown as AppFile
+    ;(metaGet as unknown as { mockResolvedValueOnce: (v: AppFile) => void }).mockResolvedValueOnce({
+      id: 'shared-file-id',
+      name: 'note.md'
+    } as unknown as AppFile)
+
+    await createNote(makeKeypair(), 'note', parent, 'caller-id', 'share-root-id')
+
+    expect(metaCreate).not.toHaveBeenCalled()
+    expect(uploadIntoSharedFolder).toHaveBeenCalledTimes(1)
+    const args = (
+      uploadIntoSharedFolder as unknown as {
+        mock: { calls: [{ payload: Record<string, unknown>; rosterFolderId?: string }][] }
+      }
+    ).mock.calls[0][0]
+    expect(args.payload.parentFileId).toBe('nested-dir-id')
+    expect(args.rosterFolderId).toBe('share-root-id')
+  })
 })
 
 describe('createDirInSharedFolder', () => {

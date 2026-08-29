@@ -546,4 +546,77 @@ describe('FolderMembersView', () => {
       wrapper.find(`[data-testid="folder-members-view-row-${COOWNER_ID}-revoke"]`).exists()
     ).toBe(false)
   })
+
+  it('folder_members_view_verifies_descendant_roster_against_share_root', async () => {
+    // A folder below the share root carries the root's roster but no
+    // signed list of its own — the view resolves the nearest signed
+    // ancestor and verifies against its list. A member the root's list
+    // doesn't cover gets a red badge; the rest verify "via root".
+    const CHILD_ID = '22222222-2222-2222-2222-222222222222'
+    const ROGUE_ID = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'
+    const { response: rootResponse } = await buildSignedResponse()
+    const rogueKp = await cryptfns.rsa.generateKeyPair()
+    const rogue: FolderMember = {
+      user_id: ROGUE_ID,
+      email: 'mallory@example.com',
+      pubkey: rogueKp.publicKey as string,
+      key_type: 'rsa',
+      wrapping_pubkey: null,
+      pubkey_fingerprint: shareCrypto.computeFingerprint(rogueKp.publicKey as string),
+      share_role: 'reader',
+      is_owner: false,
+      added_at: 1_700_000_000,
+      signed_by_user_id: OWNER_ID,
+      member_signature: null
+    }
+    const childResponse: FolderMembersResponse = {
+      ...rootResponse,
+      folder_id: CHILD_ID,
+      members: [...rootResponse.members, rogue],
+      members_signed_at: null,
+      members_list_signature: null,
+      members_list_signed_by_user_id: null
+    }
+    vi.spyOn(sharesApi, 'getFolderMembers').mockImplementation(async (folderId: string) => {
+      if (folderId === CHILD_ID) return childResponse
+      if (folderId === FOLDER_ID) return rootResponse
+      throw new Error(`unexpected roster fetch for ${folderId}`)
+    })
+
+    const { store: storageStore } = await import('../../services/storage')
+    const files = storageStore()
+    files.addItem({ ...buildFolderFixture(), members_signed_at: 1_700_000_500 } as never)
+    files.addItem({
+      ...buildFolderFixture(),
+      id: CHILD_ID,
+      file_id: FOLDER_ID,
+      members_signed_at: undefined,
+      name: 'nested'
+    } as never)
+
+    const wrapper = mount(FolderMembersView, {
+      props: {
+        folder: files.getItem(CHILD_ID) as AppFile,
+        authenticatedUserId: OWNER_ID,
+        keypair: viewKeypair as KeyPair,
+        outgoingShares: []
+      }
+    })
+    await flushPromises()
+
+    expect(
+      wrapper.find(`[data-testid="folder-members-view-row-${EDITOR_ID}-sig-via-root"]`).exists()
+    ).toBe(true)
+    expect(
+      wrapper.find(`[data-testid="folder-members-view-row-${RESHARED_ID}-sig-via-root"]`).exists()
+    ).toBe(true)
+    expect(
+      wrapper.find(`[data-testid="folder-members-view-row-${ROGUE_ID}-sig-failed"]`).exists()
+    ).toBe(true)
+    expect(
+      wrapper.find(`[data-testid="folder-members-view-row-${EDITOR_ID}-sig-unsigned"]`).exists()
+    ).toBe(false)
+
+    wrapper.unmount()
+  })
 })

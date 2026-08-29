@@ -766,11 +766,74 @@ export const store = defineStore('files', () => {
   }
 
   /**
-   * Create a directory in the storage. A parent that is a shared folder
+   * Nearest ancestor-or-self folder of `dirId` that carries a signed
+   * member list — the folder whose list authorises a multi-key write
+   * anywhere in its subtree. Folders below a share root hold the root's
+   * roster (fan-out, cascade moves and multi-key creates all copy it)
+   * but no signature of their own, and the server rejects any write
+   * whose wrap set doesn't match the actual target's rows, so resolving
+   * at the root is exactly as strong as writing into the root itself.
+   *
+   * Walks the store first — the breadcrumb chain of any folder the user
+   * navigated into is already there — and falls back to one listing
+   * fetch for rows the store doesn't hold (a move-picker destination).
+   * Returns null for a private tree or a pre-signature legacy share.
+   */
+  async function resolveRosterFolder(
+    dirId: string | null | undefined
+  ): Promise<AppFile | null> {
+    if (!dirId || dirId === SHARED_WITH_ME_DIR_ID) return null
+
+    const seen = new Set<string>()
+    let cursor: string | null = dirId
+    while (cursor && cursor !== SHARED_WITH_ME_DIR_ID && !seen.has(cursor)) {
+      seen.add(cursor)
+      const row = getItem(cursor)
+      if (!row) {
+        try {
+          const response = await meta.find({ dir_id: dirId })
+          const parents = (response.parents ?? []) as AppFile[]
+          // `parents` runs root-first and includes the target itself, so
+          // the nearest signed folder is the last match.
+          for (let i = parents.length - 1; i >= 0; i--) {
+            if (parents[i].members_signed_at != null) return parents[i]
+          }
+        } catch {
+          // Unknown folder — treated the same as an unsigned chain.
+        }
+        return null
+      }
+      if (row.mime !== 'dir') return null
+      if (row.members_signed_at != null) return row
+      cursor = row.file_id ?? null
+    }
+    return null
+  }
+
+  /**
+   * Roster source for a write into `dirId`, or undefined for a plain
+   * owner-only write. A non-owned folder with no signed list anywhere in
+   * its chain (a pre-signature legacy share) falls back to the folder
+   * itself, so those writes keep today's verification error instead of
+   * silently producing an owner-only row.
+   */
+  async function writeRosterId(
+    dirId: string | null | undefined
+  ): Promise<string | undefined> {
+    if (!dirId || dirId === SHARED_WITH_ME_DIR_ID) return undefined
+    const resolved = await resolveRosterFolder(dirId)
+    if (resolved) return resolved.id
+    const row = getItem(dirId)
+    return row && row.mime === 'dir' && row.is_owner === false ? row.id : undefined
+  }
+
+  /**
+   * Create a directory in the storage. A parent inside a shared tree
    * routes through the multi-key create so every member receives a wrap
    * of the folder key — the regular create would leave the new directory
-   * visible to the creator alone. `rosterFolderId` carries the signed
-   * roster source for creates below a share root (folder uploads).
+   * visible to the creator alone. `rosterFolderId` carries a caller-
+   * resolved roster source (folder uploads resolve once for the whole
+   * batch); without it the parent's chain is resolved here.
    */
   async function createDir(
     keypair: KeyPair,
@@ -780,23 +843,21 @@ export const store = defineStore('files', () => {
     rosterFolderId?: string
   ): Promise<AppFile> {
     const parent = dir_id ? getItem(dir_id) : undefined
-    // Loaded lazily for the same reason `find` pulls the shares API in on
-    // demand — the multi-key pipeline stays out of the boot bundle.
-    const save = await import('./save')
+    const roster = rosterFolderId ?? (parent ? await writeRosterId(dir_id) : undefined)
 
-    // `rosterFolderId` marks the create as part of a shared tree even
-    // when the immediate parent is an unsigned intermediate directory
-    // the caller just created.
-    if (parent && (rosterFolderId != null || save.needsMultikeyCreate(parent))) {
+    if (parent && roster != null) {
       if (!callerUserId) {
         throw new Error('Cannot create directory in a shared folder without caller id')
       }
+      // Loaded lazily for the same reason `find` pulls the shares API in
+      // on demand — the multi-key pipeline stays out of the boot bundle.
+      const save = await import('./save')
       const dir = await save.createDirInSharedFolder(
         keypair,
         name,
         parent as AppFile,
         callerUserId,
-        rosterFolderId
+        roster
       )
       upsertItem(dir)
       emitFileTreeChange({ type: 'created', folderId: dir_id })
@@ -933,6 +994,7 @@ export const store = defineStore('files', () => {
     rename,
     replaceItem,
     reset,
+    resolveRosterFolder,
     selectAll,
     selected,
     selectOne,
@@ -945,7 +1007,8 @@ export const store = defineStore('files', () => {
     takeItem,
     title,
     updateItem,
-    upsertItem
+    upsertItem,
+    writeRosterId
   }
 })
 

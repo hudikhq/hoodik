@@ -160,17 +160,17 @@ const isSharedWithMeRoot = computed(() => props.parentId === SHARED_WITH_ME_DIR_
 
 /**
  * Directory creation and folder upload work wherever the multi-key
- * create can run: any folder the caller owns, and shared folders whose
- * signed member list is available — the share root, where the caller
- * holds a write role. Below the root a recipient has no verifiable
- * roster, so those affordances stay hidden there.
+ * create can run: any folder the caller owns, and any folder shared
+ * with a write role — the create resolves the authorising member list
+ * from the nearest signed ancestor, so depth doesn't matter. Readers
+ * keep no write affordances.
  */
 const canCreateDirHere = computed(() => {
   const d = props.dir
   if (!d) return true
   if (d.mime !== 'dir') return false
   if (d.is_owner !== false) return true
-  return d.members_signed_at != null && canWriteToShared(d)
+  return canWriteToShared(d)
 })
 
 const singleSelected = computed(() => {
