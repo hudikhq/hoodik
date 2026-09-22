@@ -41,7 +41,7 @@ services:
       - /var/lib/postgresql/data:size=4g
 
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     hostname: minio
     container_name: minio
     command: server /data --console-address ":9001"
@@ -59,7 +59,7 @@ services:
 
   # Creates the default bucket on first startup
   minio-init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:latest
     depends_on:
       - minio
     entrypoint: >
