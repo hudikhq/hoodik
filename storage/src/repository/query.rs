@@ -3,7 +3,7 @@
 
 use entity::{
     files, numeric::Numeric, user_files, ColumnTrait, ConnectionTrait,
-    EntityTrait, Expr, IntoCondition, JoinType, QueryFilter, QuerySelect, RelationTrait, Uuid,
+    EntityTrait, Expr, Func, IntoCondition, JoinType, QueryFilter, QuerySelect, RelationTrait, Uuid,
 };
 use error::AppResult;
 
@@ -68,24 +68,22 @@ where
             .unwrap_or(0))
     }
 
-    /// Get the stats for the user about the used space and the quota
+    /// Per-mime breakdown of the files the user owns, folders (`dir`) included,
+    /// so the sum of every group's size equals [Self::used_space].
     pub(crate) async fn stats(&self) -> AppResult<Vec<Stats>> {
         let stats = user_files::Entity::find()
             .select_only()
             .filter(user_files::Column::UserId.eq(self.user_id))
             .filter(user_files::Column::IsOwner.eq(true))
-            .join(
-                JoinType::InnerJoin,
-                user_files::Relation::Files
-                    .def()
-                    .on_condition(move |_left, right| {
-                        Expr::col((right, files::Column::Mime))
-                            .ne("dir")
-                            .into_condition()
-                    }),
-            )
+            .join(JoinType::InnerJoin, user_files::Relation::Files.def())
             .column_as(files::Column::Mime, "mime")
-            .column_as(files::Column::Size.sum(), "size")
+            .column_as(
+                Expr::expr(Func::coalesce([
+                    files::Column::Size.sum(),
+                    Expr::val(0).into(),
+                ])),
+                "size",
+            )
             .column_as(files::Column::Id.count(), "count")
             .group_by(files::Column::Mime)
             .into_model::<Stats>()
