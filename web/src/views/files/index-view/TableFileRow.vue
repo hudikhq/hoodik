@@ -190,6 +190,10 @@ const click = (event: MouseEvent) => {
     emits('select-range', props.file)
     return
   }
+  if (event.ctrlKey || event.metaKey) {
+    toggleOne()
+    return
+  }
   singleClick()
 }
 
@@ -225,6 +229,11 @@ const detailsOrPreview = () => {
 const singleClick = () => {
   if (isSyntheticRoot.value) return
   emits('deselect-all')
+  selectOne(!checked.value)
+}
+
+const toggleOne = () => {
+  if (isSyntheticRoot.value) return
   selectOne(!checked.value)
 }
 
