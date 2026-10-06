@@ -78,7 +78,10 @@
     },
     "invite": {
       "emailRequired": "E-Mail-Adresse ist erforderlich",
+      "linkTitle": "Einladungslink teilen",
+      "linkWarning": "Jeder mit diesem Link kann das Konto für diese E-Mail-Adresse erstellen. Er läuft am {date} ab.",
       "messageLabel": "Nachricht",
+      "noEmailBody": "Dieser Server kann keine E-Mails senden, daher wurde die Einladung nicht an {email} verschickt. Gib diesen Link weiter oder lass den QR-Code scannen.",
       "quotaTitle": "Speicherkontingent",
       "submit": "Einladen",
       "title": "Benutzer einladen"
