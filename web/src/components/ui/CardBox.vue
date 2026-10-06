@@ -39,7 +39,7 @@ const componentClass = computed(() => {
     props.isModal
       ? 'border-paper-300 dark:border-brownish-600 shadow-2xl'
       : 'border-paper-300 dark:border-brownish-700/40',
-    props.isModal ? 'dark:bg-brownish-800' : 'dark:bg-brownish-900'
+    'dark:bg-brownish-900'
   ]
 })
 

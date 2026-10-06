@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import CardBoxModal from '@/components/ui/CardBoxModal.vue'
 import FormError from '@/components/ui/FormError.vue'
 import { AppForm, AppField } from '@/components/form'
-import QuotaSlider from '@/components/ui/QuotaSlider.vue'
+import QuotaInput from '@/components/ui/QuotaInput.vue'
 import * as yup from 'yup'
 import type { ErrorResponse } from '!/api'
 import { create } from '!/admin/invitations'
@@ -74,7 +74,7 @@ init()
         :textarea="true"
       />
 
-      <QuotaSlider
+      <QuotaInput
         :model-value="form.values.quota"
         @update:model-value="(v) => form.setValues({ quota: v })"
         :title="$t('account.invite.quotaTitle')"

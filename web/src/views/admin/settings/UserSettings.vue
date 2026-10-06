@@ -5,7 +5,7 @@ import BaseIcon from '@/components/ui/BaseIcon.vue'
 import type { Data } from 'types/admin/settings'
 import ListInput from '@/components/ui/ListInput.vue'
 import { computed } from 'vue'
-import QuotaSlider from '@/components/ui/QuotaSlider.vue'
+import QuotaInput from '@/components/ui/QuotaInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { mdiContentSave, mdiAccountPlus, mdiEmailSearch, mdiDatabase, mdiShareVariantOutline } from '@mdi/js'
 
@@ -134,7 +134,7 @@ const data = computed({
         <p class="text-xs font-semibold text-brownish-400 dark:text-brownish-50">{{ $t('admin.settings.defaultQuota') }}</p>
       </div>
       <p class="text-xs text-brownish-400 dark:text-brownish-50 leading-relaxed mb-3">{{ $t('admin.settings.defaultQuotaHint') }}</p>
-      <QuotaSlider
+      <QuotaInput
         v-model="data.users.quota_bytes"
         :disabled="loading"
       />
