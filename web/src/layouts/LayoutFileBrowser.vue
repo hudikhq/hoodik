@@ -9,9 +9,10 @@ const props = defineProps<{
   clear?: boolean
 }>()
 
+// Keeps a stray drop from navigating the browser to the file. It must not stop
+// propagation: TableFiles listens on the window to accept drops page-wide.
 const drop = (e: DragEvent) => {
   e.preventDefault()
-  e.stopPropagation()
 }
 </script>
 <template>

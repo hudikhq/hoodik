@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { readFile } from 'fs/promises'
 import { randomEmail, randomPassword, createUser, logout, loginAsUser } from './helpers/auth'
 import path from 'path'
 
@@ -93,6 +94,23 @@ test.describe('Upload', () => {
     await loginAsUser(page, email, password)
     await expect(page.getByTestId('file-row-test-image.png')).toBeVisible()
     await expect(page.locator('img[name="thumbnail"][alt="test-image.png"]')).toBeVisible()
+  })
+
+  test('a file dropped outside the table still uploads', async ({ page }) => {
+    await setup(page)
+
+    const bytes = await readFile(imageFixture)
+    const dataTransfer = await page.evaluateHandle((data) => {
+      const dt = new DataTransfer()
+      dt.items.add(new File([new Uint8Array(data)], 'test-image.png', { type: 'image/png' }))
+      return dt
+    }, [...bytes])
+
+    const breadcrumb = page.getByLabel('Breadcrumb')
+    await breadcrumb.dispatchEvent('dragover', { dataTransfer })
+    await breadcrumb.dispatchEvent('drop', { dataTransfer })
+
+    await expect(page.getByTestId('file-row-test-image.png')).toBeVisible({ timeout: 30_000 })
   })
 
   test('a batch of files stays visible in the queue and every file lands complete', async ({

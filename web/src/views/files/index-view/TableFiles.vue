@@ -18,7 +18,7 @@ import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import SortableName from '@/components/ui/SortableName.vue'
 import TableFileRowWatcher from './TableFileRowWatcher.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { AppFile } from 'types'
 import { isPreviewable, isMarkdownFile } from '!/preview'
 import { SHARED_WITH_ME_DIR_ID, canWriteToShared } from '!/storage'
@@ -255,25 +255,32 @@ watch(
   }
 )
 
-const dragend = (e: DragEvent) => {
-  isDropZone.value = false
+const hasFiles = (e: DragEvent) => !!e.dataTransfer?.types.includes('Files')
 
+// Bound on the window rather than the table so a drop anywhere on the page,
+// including the empty space around a short listing, lands in this folder.
+// Folder rows handle their own drops and stop propagation before this runs.
+const dragover = (e: DragEvent) => {
+  if (!hasFiles(e)) return
   e.preventDefault()
-  e.stopPropagation()
+
+  if (isSharedWithMeRoot.value) {
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'none'
+    return
+  }
+  isDropZone.value = true
 }
 
-const dragover = (e: DragEvent) => {
-  isDropZone.value = true
-
-  e.preventDefault()
-  e.stopPropagation()
+const dragleave = (e: DragEvent) => {
+  // A null relatedTarget means the pointer left the window, not just moved
+  // between two elements of the page.
+  if (e.relatedTarget === null) isDropZone.value = false
 }
 
 const drop = (e: DragEvent) => {
+  if (!hasFiles(e)) return
   isDropZone.value = false
-
   e.preventDefault()
-  e.stopPropagation()
 
   if (isSharedWithMeRoot.value) return
 
@@ -295,6 +302,17 @@ const drop = (e: DragEvent) => {
     emits('upload-many', e.dataTransfer.files, dirId.value)
   }
 }
+
+onMounted(() => {
+  window.addEventListener('dragover', dragover)
+  window.addEventListener('dragleave', dragleave)
+  window.addEventListener('drop', drop)
+})
+onUnmounted(() => {
+  window.removeEventListener('dragover', dragover)
+  window.removeEventListener('dragleave', dragleave)
+  window.removeEventListener('drop', drop)
+})
 
 const borderClass = 'sm:border-l sm:border-paper-300 sm:dark:border-brownish-950'
 
@@ -452,11 +470,6 @@ const sizes = {
       'border-2 border-redish-300 border-spacing-0 m-[-2px]': isDropZone
     }"
     class="bg-white dark:bg-brownish-900 rounded-lg border border-paper-300/40 dark:border-brownish-700/40"
-    @dragenter="dragover"
-    @dragleave="dragend"
-    @dragend="dragend"
-    @dragover="dragover"
-    @drop="drop"
   >
     <div class="w-full flex rounded-t-lg bg-paper-100 dark:bg-brownish-950 border-b border-paper-300 dark:border-brownish-700/40">
       <div :class="sizes.checkbox">
