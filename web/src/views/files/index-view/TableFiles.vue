@@ -142,6 +142,10 @@ const selectAll = () => {
   }
 }
 
+const showDeleteAll = computed(() => {
+  return checkedRows.value.length > 0 && !props.hideDelete
+})
+
 useKeyboardShortcuts([
   // Ctrl+A selects every row in the current folder
   {
@@ -149,12 +153,13 @@ useKeyboardShortcuts([
     mod: true,
     when: () => !props.hideCheckbox && props.items.length > 0,
     handler: selectAll
+  },
+  {
+    key: 'Delete',
+    when: () => showDeleteAll.value,
+    handler: () => emits('remove-all')
   }
 ])
-
-const showDeleteAll = computed(() => {
-  return checkedRows.value.length > 0 && !props.hideDelete
-})
 
 const showMoveAll = computed(() => {
   return checkedRows.value.length > 0
