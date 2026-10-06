@@ -308,6 +308,7 @@ const drop = (e: DragEvent) => {
       :class="`${sizes.name} flex justify-start cursor-pointer prevent-select text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-redish-400/60 dark:focus:ring-redish-500/50`"
       :title="fileName"
       data-row-nav
+      :data-file-id="file.id"
       @click="click"
       @dblclick="doubleClick"
       @keydown.space.prevent="singleClick"

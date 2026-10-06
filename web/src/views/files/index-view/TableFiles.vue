@@ -115,9 +115,33 @@ const selectRange = (file: AppFile) => {
 }
 
 /**
+ * Shift+Arrow makes the selection exactly the rows between the anchor and the
+ * newly focused row, so reversing direction shrinks it again. The anchor is
+ * only kept while the row being left is part of the selection; otherwise the
+ * range starts fresh from that row.
+ */
+const selectRangeByKeyboard = (from: number, to: number) => {
+  const rows = props.items
+  const anchorIndex =
+    anchorId.value && checkedIds.value.has(rows[from].id)
+      ? rows.findIndex((f) => f.id === anchorId.value)
+      : -1
+  if (anchorIndex < 0) anchorId.value = rows[from].id
+
+  const start = anchorIndex >= 0 ? anchorIndex : from
+  const [lo, hi] = start <= to ? [start, to] : [to, start]
+  rows.forEach((file, i) => {
+    if (file.id === SHARED_WITH_ME_DIR_ID) return
+    const inRange = i >= lo && i <= hi
+    if (inRange !== checkedIds.value.has(file.id)) emits('select-one', inRange, file)
+  })
+}
+
+/**
  * Arrow keys walk the row buttons so the browser is operable without a
- * pointer. Enter is the button's own activation and Space is handled on the
- * row, which leaves only the movement to do here.
+ * pointer, and Shift+Arrow selects along the way. Enter is the button's own
+ * activation and Space is handled on the row, which leaves only the movement
+ * to do here.
  */
 const onListKeydown = (event: KeyboardEvent) => {
   if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
@@ -132,6 +156,12 @@ const onListKeydown = (event: KeyboardEvent) => {
 
   event.preventDefault()
   next.focus()
+
+  if (!event.shiftKey || props.hideCheckbox) return
+  const rowIndex = (el: HTMLElement) => props.items.findIndex((f) => f.id === el.dataset.fileId)
+  const from = rowIndex(target)
+  const to = rowIndex(next)
+  if (from >= 0 && to >= 0) selectRangeByKeyboard(from, to)
 }
 
 const selectAll = () => {
