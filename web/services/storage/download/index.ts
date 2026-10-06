@@ -1,21 +1,21 @@
-import * as sync from './sync'
-import { defineStore } from 'pinia'
 import * as logger from '!/logger'
+import { defineStore } from 'pinia'
 import { evictChunkUrls } from './direct'
+import { downloadAsZip, pickSaveTarget, saveBlob } from './folder'
+import * as sync from './sync'
 
+import { ref } from 'vue'
+import { errorIntoWorkerError, localDateFromUtcString, utcStringFromLocal, uuidv4 } from '../..'
 import type {
+  AppFile,
   DownloadAppFile,
   DownloadProgressFunction,
   FilesStore,
   IntervalType,
-  AppFile,
   QueueStore
 } from '../../../types'
-import { errorIntoWorkerError, localDateFromUtcString, utcStringFromLocal, uuidv4 } from '../..'
 import { FILES_DOWNLOADING_AT_ONE_TIME, KEEP_FINISHED_DOWNLOADS_FOR_MINUTES } from '../../constants'
-import { ref } from 'vue'
 import { startFileDownload } from '../workers'
-
 
 // The browser row only needs to track transfer state coarsely — byte-level
 // smoothness lives in the queue UI. Syncing the reactive listing on every
@@ -46,8 +46,11 @@ export const store = defineStore('download', () => {
 
     logger.debug('Starting download queue')
 
-    const tracker = (file: DownloadAppFile, chunkBytes: number) =>
-      progress(storage, file, chunkBytes)
+    const tracker = (
+      file: DownloadAppFile,
+      chunkBytes: number,
+      stage?: 'downloading' | 'processing'
+    ) => progress(storage, file, chunkBytes, undefined, stage)
 
     return setInterval(async () => {
       if (active.value) {
@@ -86,6 +89,11 @@ export const store = defineStore('download', () => {
    * the guard at the top of `progress`.
    */
   const cancelled = new Set<string>()
+
+  /**
+   * Keyed by `temporaryId`.
+   */
+  const saveTargets = new Map<string, FileSystemFileHandle>()
 
   /**
    * Create function that will track the progress
@@ -130,7 +138,13 @@ export const store = defineStore('download', () => {
     const currentFileId = file.file_id || null
     const currentDirId = storage?.dir?.id || null
 
-    if (storage && currentFileId === currentDirId && shouldSyncRow(file.id, !!file.error)) {
+    // A folder entry carries the archive's size, which its row must not adopt.
+    if (
+      storage &&
+      file.mime !== 'dir' &&
+      currentFileId === currentDirId &&
+      shouldSyncRow(file.id, !!file.error)
+    ) {
       storage.upsertItem(file)
     }
 
@@ -193,7 +207,19 @@ export const store = defineStore('download', () => {
         // We don't wait for this promise, it will be left to run in the background
         Promise.all(
           batch.map((file) => {
-            download(file, queue, progress).catch((err) => {
+            const transfer =
+              file.mime === 'dir'
+                ? downloadFolder(
+                    file,
+                    progress,
+                    () => cancelled.has(file.id),
+                    saveTargets.get(file.temporaryId as string)
+                  ).then(() => {
+                    saveTargets.delete(file.temporaryId as string)
+                  })
+                : download(file, queue, progress)
+
+            transfer.catch((err) => {
               setFailed({ ...file, error: errorIntoWorkerError(err) })
             })
           })
@@ -243,14 +269,44 @@ export const store = defineStore('download', () => {
       }
     }
 
+    // Otherwise `progress` would drop the retried transfer's reports.
+    cancelled.delete(file.id)
     waiting.value.push(file)
   }
 
   /**
-   * Add new file to the download queue
+   * Add new file or folder to the download queue
    */
   async function push(file: AppFile) {
-    return waiting.value.push({ ...file, temporaryId: uuidv4() })
+    cancelled.delete(file.id)
+    const entry: DownloadAppFile = { ...file, temporaryId: uuidv4() }
+
+    return file.mime === 'dir' ? queueArchive(entry) : waiting.value.push(entry)
+  }
+
+  async function pushArchive(items: AppFile[]) {
+    const entry = {
+      id: `archive:${uuidv4()}`,
+      name: archiveName(),
+      mime: 'dir',
+      size: 0,
+      chunks: 0,
+      items: items.map((item) => ({ ...item })),
+      temporaryId: uuidv4()
+    } as DownloadAppFile
+
+    return queueArchive(entry)
+  }
+
+  async function queueArchive(entry: DownloadAppFile) {
+    const target = await pickSaveTarget(`${entry.name || 'download'}.zip`)
+    if (target === null) return
+
+    if (target) {
+      saveTargets.set(entry.temporaryId as string, target)
+    }
+
+    return waiting.value.push(entry)
   }
 
   /**
@@ -287,6 +343,7 @@ export const store = defineStore('download', () => {
     start,
     retry,
     push,
+    pushArchive,
     progress
   }
 })
@@ -317,3 +374,51 @@ export async function download(
   }
 }
 
+function archiveName(date = new Date()): string {
+  const pad = (n: number) => `${n}`.padStart(2, '0')
+  const day = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`
+  const time = `${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+
+  return `download-${day}T${time}`
+}
+
+/**
+ * Every report before the last carries a stage: `size` is unknown until the
+ * tree is walked, and a stage-less report reaching it marks the entry done.
+ */
+export async function downloadFolder(
+  file: DownloadAppFile,
+  progress: DownloadProgressFunction,
+  isCancelled: () => boolean,
+  saveTarget?: FileSystemFileHandle
+): Promise<void> {
+  // Lazy, to keep the crypto module's wasm out of this module's static graph.
+  const { store: cryptoStore } = await import('../../crypto')
+  const keypair = cryptoStore().keypair
+  if (!keypair?.input) {
+    throw new Error('Cannot download a folder without an unlocked keypair')
+  }
+
+  file.started_download_at = utcStringFromLocal()
+
+  // Streaming to a picked file spares holding the whole archive in memory.
+  const target = saveTarget ? await saveTarget.createWritable() : undefined
+
+  const archive = await downloadAsZip(keypair, file.items ?? [file], {
+    isCancelled,
+    target,
+    onProgress: (stage, bytes, totalBytes) => {
+      file.size = totalBytes
+      progress(file, bytes, stage)
+    }
+  })
+
+  if (!archive) return
+
+  if (archive.blob) {
+    saveBlob(archive.blob, `${file.name || 'folder'}.zip`)
+  }
+
+  file.size = archive.size
+  await progress(file, archive.size)
+}

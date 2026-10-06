@@ -275,15 +275,22 @@ const confirmLeave = async () => {
 }
 
 /**
- * Sends multiple selected files to the download queue if they are files
- * that have finished uploading
+ * A selection with a folder becomes one ZIP, so there is one file to save
+ * rather than an archive per folder.
+ *
+ * Must run straight from the click: the save picker needs its activation.
  */
 const downloadMany = async () => {
-  for (const file of Storage.selected) {
-    if (file.mime === 'dir' || !file.finished_upload_at) {
-      continue
-    }
+  const selected = Storage.selected.filter(
+    (file) =>
+      file.id !== SHARED_WITH_ME_DIR_ID && (file.mime === 'dir' || !!file.finished_upload_at)
+  )
 
+  if (selected.length > 1 && selected.some((file) => file.mime === 'dir')) {
+    return Download.pushArchive(selected)
+  }
+
+  for (const file of selected) {
     await Download.push(file)
   }
 }

@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test'
+import { BlobReader, Uint8ArrayWriter, ZipReader } from '@zip.js/zip.js'
+import { readFile } from 'fs/promises'
 import { randomEmail, randomPassword, createUser, logout, loginAsUser } from './helpers/auth'
 import path from 'path'
 
@@ -156,7 +158,112 @@ test.describe('Download', () => {
 
     expect(download.suggestedFilename()).toBe('test-image.png')
   })
+
+  test('can download a folder as a zip archive', async ({ page }) => {
+    // Forces the in-memory fallback, which arrives as an ordinary download.
+    await page.addInitScript(() => {
+      delete (window as { showSaveFilePicker?: unknown }).showSaveFilePicker
+    })
+    await setup(page)
+    await createFolderWithImage(page, 'Photos')
+
+    await page.getByTestId('file-row-Photos').locator('input[type="checkbox"]').check()
+    await expect(page.getByTitle('Add to download queue')).toBeVisible()
+    await page.getByTestId('file-row-Photos').locator('input[type="checkbox"]').uncheck()
+
+    await page.getByTestId('file-row-Photos').locator('[name="actions-dropdown"]').click()
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 60_000 }),
+      page.locator('[name="download"]').first().click(),
+    ])
+
+    expect(download.suggestedFilename()).toBe('Photos.zip')
+    await expectArchiveOfImage(await readFile(await download.path()), 'Photos')
+  })
+
+  test('downloads several selected folders as one zip archive', async ({ page }) => {
+    await page.addInitScript(() => {
+      delete (window as { showSaveFilePicker?: unknown }).showSaveFilePicker
+    })
+    await setup(page)
+    await createFolderWithImage(page, 'Photos')
+    await createFolderWithImage(page, 'Scans')
+
+    await page.getByTestId('file-row-Photos').locator('input[type="checkbox"]').check()
+    await page.getByTestId('file-row-Scans').locator('input[type="checkbox"]').check()
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 60_000 }),
+      page.getByTitle('Add to download queue').click(),
+    ])
+
+    expect(download.suggestedFilename()).toMatch(/^hoodik-download-\d{8}T\d{6}\.zip$/)
+
+    const reader = new ZipReader(new BlobReader(new Blob([await readFile(await download.path())])))
+    const names = (await reader.getEntries()).map((entry) => entry.filename).sort()
+    expect(names).toEqual(['Photos/test-image.png', 'Scans/test-image.png'])
+    await reader.close()
+  })
+
+  test('streams a folder archive to the file picked in the save dialog', async ({ page }) => {
+    // The native dialog can't be driven from a test; an origin-private file
+    // is still a real handle with a real writable stream.
+    await page.addInitScript(() => {
+      ;(window as unknown as { showSaveFilePicker: unknown }).showSaveFilePicker = async (
+        options: { suggestedName: string }
+      ) => {
+        ;(window as unknown as { pickedName: string }).pickedName = options.suggestedName
+        const root = await navigator.storage.getDirectory()
+        return root.getFileHandle('picked.zip', { create: true })
+      }
+    })
+    await setup(page)
+    await createFolderWithImage(page, 'Photos')
+
+    await page.getByTestId('file-row-Photos').locator('[name="actions-dropdown"]').click()
+    await page.locator('[name="download"]').first().click()
+
+    // The writable only commits once the archive is closed.
+    const readPicked = () =>
+      page.evaluate(async () => {
+        const root = await navigator.storage.getDirectory()
+        const file = await (await root.getFileHandle('picked.zip')).getFile()
+        return Array.from(new Uint8Array(await file.arrayBuffer()))
+      })
+    await expect.poll(async () => (await readPicked()).length, { timeout: 60_000 }).toBeGreaterThan(0)
+
+    expect(await page.evaluate(() => (window as unknown as { pickedName: string }).pickedName)).toBe(
+      'Photos.zip'
+    )
+    await expectArchiveOfImage(Buffer.from(await readPicked()), 'Photos')
+  })
 })
+
+async function createFolderWithImage(page: Parameters<typeof createUser>[0], name: string) {
+  await page.locator('[name="create-dir"]').click()
+  await page.locator('#name').fill(name)
+  await page.getByRole('button', { name: 'Create', exact: true }).click()
+  await page.getByTestId(`file-row-${name}`).dblclick()
+  await expect(page).toHaveURL(/[0-9a-f-]{36}/)
+
+  await page.setInputFiles('[name="upload-file-input"]', imageFixture)
+  await page.getByTestId('upload-active').waitFor({ state: 'hidden', timeout: 30_000 })
+  await expect(page.getByTestId('file-row-test-image.png')).toBeVisible()
+
+  await page.getByLabel('Breadcrumb').getByRole('link', { name: 'My Files' }).click()
+  await expect(page.getByTestId(`file-row-${name}`)).toBeVisible()
+}
+
+async function expectArchiveOfImage(archive: Buffer, folder: string) {
+  const reader = new ZipReader(new BlobReader(new Blob([archive])))
+  const entries = await reader.getEntries()
+  expect(entries.map((entry) => entry.filename)).toEqual([`${folder}/test-image.png`])
+
+  const content = await entries[0].getData!(new Uint8ArrayWriter())
+  expect(Buffer.from(content).equals(await readFile(imageFixture))).toBe(true)
+  await reader.close()
+}
 
 test.describe('Rename', () => {
   test('can rename a file', async ({ page }) => {

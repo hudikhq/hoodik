@@ -98,7 +98,11 @@ export interface SingleChunk {
 export type IntervalType = ReturnType<typeof setInterval>
 
 export type UploadProgressFunction = (file: UploadAppFile, done: boolean) => Promise<void>
-export type DownloadProgressFunction = (file: AppFile, chunkBytes: number) => Promise<void>
+export type DownloadProgressFunction = (
+  file: AppFile,
+  chunkBytes: number,
+  stage?: 'downloading' | 'processing'
+) => Promise<void>
 
 export interface TransferTokenResponse {
   token: string
