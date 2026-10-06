@@ -86,6 +86,27 @@ async fn test_stats_used_space_counts_owner_bytes_not_shared_in() {
 }
 
 #[actix_web::test]
+async fn test_stats_breakdown_only_includes_own_files() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+
+    let file = create_file!(app, alice, "stats-breakdown");
+    grant!(app, alice, bob, ShareRoleEnum::Reader, file.id);
+
+    let alice_stats = stats_response!(app, alice);
+    let alice_breakdown = alice_stats["stats"].as_array().unwrap();
+    assert_eq!(alice_breakdown.len(), 1);
+    assert_eq!(alice_breakdown[0]["count"].as_i64().unwrap(), 1);
+    assert_eq!(alice_breakdown[0]["size"].as_i64().unwrap(), 1024);
+
+    let bob_stats = stats_response!(app, bob);
+    assert!(bob_stats["stats"].as_array().unwrap().is_empty());
+}
+
+#[actix_web::test]
 async fn test_shared_with_me_does_not_count_toward_recipient_quota() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;

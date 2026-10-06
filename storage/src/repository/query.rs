@@ -70,9 +70,20 @@ where
 
     /// Get the stats for the user about the used space and the quota
     pub(crate) async fn stats(&self) -> AppResult<Vec<Stats>> {
-        let stats = files::Entity::find()
+        let stats = user_files::Entity::find()
             .select_only()
-            .filter(files::Column::Mime.ne("dir"))
+            .filter(user_files::Column::UserId.eq(self.user_id))
+            .filter(user_files::Column::IsOwner.eq(true))
+            .join(
+                JoinType::InnerJoin,
+                user_files::Relation::Files
+                    .def()
+                    .on_condition(move |_left, right| {
+                        Expr::col((right, files::Column::Mime))
+                            .ne("dir")
+                            .into_condition()
+                    }),
+            )
             .column_as(files::Column::Mime, "mime")
             .column_as(files::Column::Size.sum(), "size")
             .column_as(files::Column::Id.count(), "count")
