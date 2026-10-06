@@ -228,8 +228,9 @@ const detailsOrPreview = () => {
 
 const singleClick = () => {
   if (isSyntheticRoot.value) return
+  const onlyThisSelected = checked.value && props.checkedIds.size === 1
   emits('deselect-all')
-  selectOne(!checked.value)
+  if (!onlyThisSelected) selectOne(true)
 }
 
 const toggleOne = () => {

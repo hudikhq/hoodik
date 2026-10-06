@@ -118,6 +118,35 @@ describe('TableFileRow: synthetic shared-with-me row', () => {
   })
 })
 
+describe('TableFileRow: plain click selection', () => {
+  const OTHER_ID = '22222222-2222-2222-2222-222222222222'
+
+  const clickRow = async (checkedIds: Set<string>) => {
+    const file = baseFile()
+    const wrapper = mount(TableFileRow, { props: { file, checkedIds, sizes: SIZES } })
+    await wrapper.find('button[data-row-nav]').trigger('click')
+    return wrapper
+  }
+
+  it('selects an unselected row on its own', async () => {
+    const wrapper = await clickRow(new Set([OTHER_ID]))
+    expect(wrapper.emitted('deselect-all')).toHaveLength(1)
+    expect(wrapper.emitted('select-one')).toEqual([[true, baseFile()]])
+  })
+
+  it('keeps a row selected when it was one of several', async () => {
+    const wrapper = await clickRow(new Set([baseFile().id, OTHER_ID]))
+    expect(wrapper.emitted('deselect-all')).toHaveLength(1)
+    expect(wrapper.emitted('select-one')).toEqual([[true, baseFile()]])
+  })
+
+  it('clears the selection when the row was the only one selected', async () => {
+    const wrapper = await clickRow(new Set([baseFile().id]))
+    expect(wrapper.emitted('deselect-all')).toHaveLength(1)
+    expect(wrapper.emitted('select-one')).toBeFalsy()
+  })
+})
+
 describe('isPreviewable: shared image without decrypted thumbnail', () => {
   // A shared image row arrives without a decrypted
   // thumbnail (the encrypted_thumbnail isn't always shipped to
