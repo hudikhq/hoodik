@@ -11,9 +11,10 @@ import {
 } from '@mdi/js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import PreviewImage from './PreviewImage.vue'
 import PreviewVideo from './PreviewVideo.vue'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { Preview } from '!/preview'
 import PreviewPdf from './PreviewPdf.vue'
 import PreviewMarkdown from './PreviewMarkdown.vue'
@@ -86,42 +87,31 @@ const details = () => {
   emits('details', props.modelValue)
 }
 
-/**
- * Keydown event handler
- */
-const previewKeydown = (e: KeyboardEvent) => {
-  // Don't intercept keys when user is typing in an editable element
-  const target = e.target as HTMLElement
-  const isEditing = target.isContentEditable
-    || target.tagName === 'INPUT'
-    || target.tagName === 'TEXTAREA'
-
-  if (e.key === 'Escape' && !props.hideClose) {
-    cancel()
+useKeyboardShortcuts([
+  {
+    key: 'Escape',
+    inEditable: true,
+    preventDefault: false,
+    when: () => !props.hideClose,
+    handler: cancel
+  },
+  {
+    key: 'ArrowLeft',
+    preventDefault: false,
+    handler: () => {
+      const previousId = preview.value.getPreviousId()
+      if (previousId) emits('previous', previousId)
+    }
+  },
+  {
+    key: 'ArrowRight',
+    preventDefault: false,
+    handler: () => {
+      const nextId = preview.value.getNextId()
+      if (nextId) emits('next', nextId)
+    }
   }
-
-  if (isEditing) return
-
-  if (e.key === 'ArrowLeft') {
-    const previousId = preview.value.getPreviousId()
-
-    if (previousId) emits('previous', previousId)
-  }
-
-  if (e.key === 'ArrowRight') {
-    const nextId = preview.value.getNextId()
-
-    if (nextId) emits('next', nextId)
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', previewKeydown)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', previewKeydown)
-})
+])
 </script>
 
 <template>

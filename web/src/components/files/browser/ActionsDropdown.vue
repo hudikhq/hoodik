@@ -3,7 +3,8 @@ import type { AppFile } from 'types'
 import { mdiDotsVertical } from '@mdi/js'
 import ActionsButtons from './ActionsButtons.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
+import { ref, computed } from 'vue'
 import { vOnClickOutside } from '@vueuse/components'
 
 const props = defineProps<{
@@ -132,14 +133,9 @@ const open = (event: MouseEvent) => {
   menu.value.style.display = 'block'
 }
 
-const onKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') {
-    close()
-  }
-}
-
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+useKeyboardShortcuts([
+  { key: 'Escape', inEditable: true, inDialog: true, preventDefault: false, handler: close }
+])
 </script>
 <template>
   <div ref="tracker" v-on-click-outside="close" :class="props.class" :key="`${file.id}-tracker`">

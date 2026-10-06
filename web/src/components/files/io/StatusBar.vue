@@ -5,6 +5,7 @@ import { store as uploadStore } from '!/storage/upload'
 import { store as downloadStore } from '!/storage/download'
 import SingleFile from '@/components/files/io/SingleFile.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { computed, ref, watch, onBeforeMount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { mdiChevronDown, mdiChevronUp } from '@mdi/js'
@@ -164,11 +165,16 @@ const remove = (file: UploadAppFile, type: QueueItemActionType) => {
   }
 }
 
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && showTable.value) {
-    showTable.value = false
+useKeyboardShortcuts([
+  {
+    key: 'Escape',
+    inEditable: true,
+    inDialog: true,
+    preventDefault: false,
+    when: () => showTable.value,
+    handler: () => (showTable.value = false)
   }
-})
+])
 </script>
 
 <template>

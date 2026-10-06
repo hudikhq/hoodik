@@ -13,6 +13,7 @@ import {
   mdiShareVariantOutline
 } from '@mdi/js'
 import { useCapability } from '@/composables/useCapability'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import SortableName from '@/components/ui/SortableName.vue'
 import TableFileRowWatcher from './TableFileRowWatcher.vue'
@@ -132,6 +133,24 @@ const onListKeydown = (event: KeyboardEvent) => {
   event.preventDefault()
   next.focus()
 }
+
+const selectAll = () => {
+  if (checked.value) {
+    emits('select-all', props.items, dirId.value)
+  } else {
+    checked.value = true
+  }
+}
+
+useKeyboardShortcuts([
+  // Ctrl+A selects every row in the current folder
+  {
+    key: 'a',
+    mod: true,
+    when: () => !props.hideCheckbox && props.items.length > 0,
+    handler: selectAll
+  }
+])
 
 const showDeleteAll = computed(() => {
   return checkedRows.value.length > 0 && !props.hideDelete

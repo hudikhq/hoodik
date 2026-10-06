@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { mdiClose } from '@mdi/js'
 import { useFocusTrap } from '@/composables/useFocusTrap'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseButtons from '@/components/ui/BaseButtons.vue'
 import CardBox from '@/components/ui/CardBox.vue'
@@ -53,14 +54,16 @@ const cancel = () => {
   emit('cancel')
 }
 
-const onKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape' && value.value) {
-    cancel()
+useKeyboardShortcuts([
+  {
+    key: 'Escape',
+    inEditable: true,
+    inDialog: true,
+    preventDefault: false,
+    when: () => !!value.value,
+    handler: cancel
   }
-}
-
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+])
 </script>
 
 <template>

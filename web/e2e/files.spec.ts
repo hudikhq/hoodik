@@ -226,4 +226,26 @@ test.describe('Delete', () => {
 
     await expect(page.getByTestId('file-row-test-image.png')).not.toBeVisible()
   })
+
+  // Ticking a checkbox leaves focus on it, which must not swallow the shortcut
+  test('Del deletes the rows just ticked with their checkboxes', async ({ page }) => {
+    await setup(page)
+
+    for (const name of ['Folder_A', 'Folder_B']) {
+      await page.locator('[name="create-dir"]').click()
+      await page.locator('#name').fill(name)
+      await page.getByRole('button', { name: 'Create', exact: true }).click()
+      await expect(page.getByTestId(`file-row-${name}`)).toBeVisible()
+    }
+
+    await page.getByTestId('file-row-Folder_A').locator('input[type="checkbox"]').check()
+    await page.getByTestId('file-row-Folder_B').locator('input[type="checkbox"]').check()
+    await page.keyboard.press('Delete')
+
+    await page.getByTestId('delete-confirm-count').fill('2')
+    await page.getByRole('button', { name: 'Yes, delete' }).click()
+
+    await expect(page.getByTestId('file-row-Folder_A')).not.toBeVisible()
+    await expect(page.getByTestId('file-row-Folder_B')).not.toBeVisible()
+  })
 })

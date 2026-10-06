@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import BaseButton from '@/components/ui/BaseButton.vue'
-import { computed, onMounted } from 'vue'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as index from '!'
 import { mdiMagnify } from '@mdi/js'
@@ -25,17 +26,9 @@ const label = computed(() => {
   return label
 })
 
-const fieldFocusHook = (e: KeyboardEvent) => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-    e.preventDefault()
-
-    emits('search')
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', fieldFocusHook)
-})
+useKeyboardShortcuts([
+  { key: 'k', mod: true, inEditable: true, inDialog: true, handler: () => emits('search') }
+])
 </script>
 <template>
   <BaseButton
