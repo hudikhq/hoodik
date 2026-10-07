@@ -303,7 +303,7 @@ const downloadMany = async () => {
  * resolved once for the batch — the nearest ancestor-or-self with a
  * signed list. Private folders take the single-key `push` path.
  */
-const uploadMany = async (files?: FileList, dirId?: string) => {
+const uploadMany = async (files?: ArrayLike<File>, dirId?: string) => {
   if (!files) return
 
   const callerUserId = props.authenticated.user.id
@@ -450,7 +450,7 @@ async function uploadByPaths(
  * Handles folder upload from a webkitdirectory file picker.
  * Each File in the FileList has webkitRelativePath set by the browser.
  */
-const uploadFolder = async (files: FileList, dirId?: string) => {
+const uploadFolder = async (files: ArrayLike<File>, dirId?: string) => {
   if (!files?.length) return
   const items = Array.from(files).map((f) => ({
     file: f,
@@ -574,8 +574,8 @@ watch(
     v-model:openFolder="openFolderWindow"
     :dir="Storage.dir"
     :kp="Crypto.keypair"
-    @upload-many="(f: FileList) => uploadMany(f, parentId)"
-    @upload-folder="(f: FileList) => uploadFolder(f, parentId)"
+    @upload-many="(f: File[]) => uploadMany(f, parentId)"
+    @upload-folder="(f: File[]) => uploadFolder(f, parentId)"
   />
   <RenameModal v-if="renameFile" v-model="renameFile" :Storage="Storage" :Crypto="Crypto" />
   <CreateDirectoryModal
