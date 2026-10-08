@@ -53,7 +53,7 @@ const hasPreview = computed(() => {
 
 const hasDownload = computed(() => {
   if (isSyntheticRoot.value) return false
-  return file.value?.mime !== 'dir' && file.value?.finished_upload_at
+  return file.value?.mime === 'dir' || !!file.value?.finished_upload_at
 })
 
 const canSharing = computed(() => {

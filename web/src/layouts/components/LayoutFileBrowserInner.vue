@@ -275,15 +275,22 @@ const confirmLeave = async () => {
 }
 
 /**
- * Sends multiple selected files to the download queue if they are files
- * that have finished uploading
+ * A selection with a folder becomes one ZIP, so there is one file to save
+ * rather than an archive per folder.
+ *
+ * Must run straight from the click: the save picker needs its activation.
  */
 const downloadMany = async () => {
-  for (const file of Storage.selected) {
-    if (file.mime === 'dir' || !file.finished_upload_at) {
-      continue
-    }
+  const selected = Storage.selected.filter(
+    (file) =>
+      file.id !== SHARED_WITH_ME_DIR_ID && (file.mime === 'dir' || !!file.finished_upload_at)
+  )
 
+  if (selected.length > 1 && selected.some((file) => file.mime === 'dir')) {
+    return Download.pushArchive(selected)
+  }
+
+  for (const file of selected) {
     await Download.push(file)
   }
 }
@@ -296,7 +303,7 @@ const downloadMany = async () => {
  * resolved once for the batch — the nearest ancestor-or-self with a
  * signed list. Private folders take the single-key `push` path.
  */
-const uploadMany = async (files?: FileList, dirId?: string) => {
+const uploadMany = async (files?: ArrayLike<File>, dirId?: string) => {
   if (!files) return
 
   const callerUserId = props.authenticated.user.id
@@ -443,7 +450,7 @@ async function uploadByPaths(
  * Handles folder upload from a webkitdirectory file picker.
  * Each File in the FileList has webkitRelativePath set by the browser.
  */
-const uploadFolder = async (files: FileList, dirId?: string) => {
+const uploadFolder = async (files: ArrayLike<File>, dirId?: string) => {
   if (!files?.length) return
   const items = Array.from(files).map((f) => ({
     file: f,
@@ -567,8 +574,8 @@ watch(
     v-model:openFolder="openFolderWindow"
     :dir="Storage.dir"
     :kp="Crypto.keypair"
-    @upload-many="(f: FileList) => uploadMany(f, parentId)"
-    @upload-folder="(f: FileList) => uploadFolder(f, parentId)"
+    @upload-many="(f: File[]) => uploadMany(f, parentId)"
+    @upload-folder="(f: File[]) => uploadFolder(f, parentId)"
   />
   <RenameModal v-if="renameFile" v-model="renameFile" :Storage="Storage" :Crypto="Crypto" />
   <CreateDirectoryModal

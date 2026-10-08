@@ -12,19 +12,28 @@ const props = defineProps<{
 const emits = defineEmits<{
   (event: 'update:modelValue', value: boolean): void
   (event: 'update:openFolder', value: boolean): void
-  (event: 'upload-many', files: FileList): void
-  (event: 'upload-folder', files: FileList): void
+  (event: 'upload-many', files: File[]): void
+  (event: 'upload-folder', files: File[]): void
 }>()
 
 const input = ref()
 const folderInput = ref()
 
 /**
+ * Takes the picked files and clears the input.
+ */
+const takeFiles = (el: HTMLInputElement): File[] => {
+  const files = Array.from(el.files ?? [])
+  el.value = ''
+  return files
+}
+
+/**
  * Adds selected files to the upload queue
  */
 const addFiles = async () => {
   if (input.value && input.value?.files?.length) {
-    emits('upload-many', input.value.files)
+    emits('upload-many', takeFiles(input.value))
   }
 }
 
@@ -33,7 +42,7 @@ const addFiles = async () => {
  */
 const addFolder = async () => {
   if (folderInput.value?.files?.length) {
-    emits('upload-folder', folderInput.value.files)
+    emits('upload-folder', takeFiles(folderInput.value))
   }
 }
 

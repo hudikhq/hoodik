@@ -31,6 +31,11 @@ vi.mock('./sync', () => ({
   downloadAndDecrypt: vi.fn()
 }))
 
+vi.mock('./folder', () => ({
+  downloadFolderAsZip: vi.fn(),
+  saveBlob: vi.fn()
+}))
+
 vi.mock('..', () => ({
   meta: { get: vi.fn() }
 }))
