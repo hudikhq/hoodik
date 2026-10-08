@@ -235,6 +235,8 @@ test.describe('Uploaded markdown — A1 file → editor routing', () => {
 
     await page.setInputFiles('[name="upload-file-input"]', markdownFixture)
     await page.getByTestId('file-row-readonly-note.md').waitFor({ state: 'visible', timeout: 30_000 })
+    // An unfinished upload opens its details instead of the editor.
+    await page.getByTestId('upload-active').waitFor({ state: 'hidden', timeout: 30_000 })
 
     // Double-clicking a .md routes to /notes/:id regardless of editable.
     await page.getByTestId('file-row-readonly-note.md').dblclick()

@@ -83,6 +83,10 @@ test.describe('Capabilities + kill switch + unread badge', () => {
 
     await page.getByTestId('file-row-test-image.png').locator('[name="actions-dropdown"]').click()
     await expect(page.locator('[data-testid="actions-share-account"]')).toHaveCount(0)
+
+    // The SPA can still have a capabilities fetch in flight here; without
+    // this its `route.fetch` throws during teardown and stalls the context.
+    await page.unrouteAll({ behavior: 'ignoreErrors' })
   })
 
   test('Share hub renders the unread badge until the virtual folder opens', async ({
