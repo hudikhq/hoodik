@@ -56,6 +56,7 @@ const leftStyle = computed(() => {
 <style lang="css">
 .upper-container {
   width: 100%;
+  min-width: 0;
   display: inline-block;
   display: flex;
   flex-wrap: wrap;

@@ -3,6 +3,7 @@ import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import TruncatedSpan from '@/components/ui/TruncatedSpan.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
+import FileIconTile from '@/components/files/FileIconTile.vue'
 import { formatPrettyDate, formatSize } from '!'
 import { store as linksStore } from '!/links'
 import { mdiOpenInNew, mdiDownload } from '@mdi/js'
@@ -162,13 +163,14 @@ const singleClick = () => {
         v-if="thumbnail"
         :src="thumbnail"
         :alt="linkName"
-        class="w-6 h-6 mr-2 rounded-md"
+        class="w-6 h-6 mr-2 rounded-md shrink-0"
       />
       <span
         v-else-if="thumbnailLoading"
         name="thumbnail-placeholder"
         class="inline-block w-6 h-6 mr-2 animate-pulse bg-paper-100 dark:bg-brownish-700 rounded-md"
       />
+      <FileIconTile v-else :mime="link.file_mime" tile-class="w-6 h-6 mr-2" />
 
       <TruncatedSpan :text="linkName" />
 
