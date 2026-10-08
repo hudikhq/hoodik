@@ -37,7 +37,7 @@ const confirmRemoveAll = async () => {
     :button-label="$t('links.deleteModal.confirm')"
     :has-cancel="true"
     @cancel="emits('update:modelValue', false)"
-    @confirm="confirmRemoveAll"
+    :action="confirmRemoveAll"
   >
     <p>
       {{ $t('links.deleteModal.body', Links.selected.length) }}

@@ -20,6 +20,11 @@ const props = defineProps<{
   hideSubmit?: boolean
   /** Holds the confirm button shut until the caller's own gate is satisfied. */
   confirmDisabled?: boolean
+  /**
+   * Runs on confirm with the dialog held open and a spinner on the confirm
+   * button.
+   */
+  action?: () => Promise<unknown>
   modelValue: boolean | undefined
   form?: FormType
 }>()
@@ -37,15 +42,28 @@ const isOpen = computed(() => !!props.modelValue)
 
 useFocusTrap(cardEl, isOpen)
 
+const busy = ref(false)
+
 const confirm = async () => {
-  if (props.confirmDisabled) return
-  if (!props.form) {
-    value.value = false
-    emit('confirm')
+  if (props.confirmDisabled || busy.value) return
+  if (props.form) return
+
+  if (props.action) {
+    busy.value = true
+    try {
+      await props.action()
+    } finally {
+      busy.value = false
+    }
   }
+
+  value.value = false
+  emit('confirm')
 }
 
 const cancel = () => {
+  if (busy.value) return
+
   if (props.form) {
     props.form.handleReset()
   }
@@ -87,6 +105,7 @@ useKeyboardShortcuts([
             :icon="mdiClose"
             :title="$t('common.close')"
             :aria-label="$t('common.close')"
+            :disabled="busy"
             color="dark"
             small
             rounded-full
@@ -104,6 +123,7 @@ useKeyboardShortcuts([
               :label="buttonLabel"
               :color="button || 'info'"
               :disabled="confirmDisabled || form?.isSubmitting.value"
+              :loading="busy"
               @click="confirm"
               type="submit"
               @keyup.enter="confirm()"
@@ -112,6 +132,7 @@ useKeyboardShortcuts([
               v-if="hasCancel"
               :label="$t('common.cancel')"
               color="light"
+              :disabled="busy"
               @click="cancel"
             />
           </slot>
