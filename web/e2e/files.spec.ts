@@ -198,7 +198,7 @@ test.describe('Download', () => {
       page.getByTitle('Add to download queue').click(),
     ])
 
-    expect(download.suggestedFilename()).toMatch(/^hoodik-download-\d{8}T\d{6}\.zip$/)
+    expect(download.suggestedFilename()).toMatch(/^download-\d{8}T\d{6}\.zip$/)
 
     const reader = new ZipReader(new BlobReader(new Blob([await readFile(await download.path())])))
     const names = (await reader.getEntries()).map((entry) => entry.filename).sort()
@@ -228,8 +228,10 @@ test.describe('Download', () => {
     const readPicked = () =>
       page.evaluate(async () => {
         const root = await navigator.storage.getDirectory()
-        const file = await (await root.getFileHandle('picked.zip')).getFile()
-        return Array.from(new Uint8Array(await file.arrayBuffer()))
+        // Absent until the stubbed picker has run.
+        const handle = await root.getFileHandle('picked.zip').catch(() => undefined)
+        if (!handle) return []
+        return Array.from(new Uint8Array(await (await handle.getFile()).arrayBuffer()))
       })
     await expect.poll(async () => (await readPicked()).length, { timeout: 60_000 }).toBeGreaterThan(0)
 
