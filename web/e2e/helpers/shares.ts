@@ -21,8 +21,11 @@ export async function closeOpenModal(page: Page): Promise<void> {
  */
 export async function openShareDialogFor(page: Page, fileName: string): Promise<void> {
   await closeOpenModal(page)
-  await page.getByTestId(`file-row-${fileName}`).locator('[name="actions-dropdown"]').click()
-  await page.locator('[data-testid="actions-share-account"]').first().click()
+  const row = page.getByTestId(`file-row-${fileName}`)
+  await row.locator('[name="actions-dropdown"]').click()
+  // Every row renders its own (hidden) menu, so an unscoped `.first()`
+  // lands on whichever row sorts first rather than the one just opened.
+  await row.getByTestId('actions-share-account').click()
   await expect(page.getByTestId('share-dialog-target')).toBeVisible()
 }
 

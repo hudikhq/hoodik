@@ -963,7 +963,7 @@ export const store = defineStore('files', () => {
    * Get the sort value for given directory
    */
   function getSort(dir: string): string {
-    return sort.value[dir] || 'name|desc'
+    return sort.value[dir] || 'name|asc'
   }
 
   return {
