@@ -18,9 +18,9 @@ const OWNER_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const SIZES = {
   checkbox: 'pl-2 pt-3 w-10 shrink-0',
   name: 'flex-1 p-2 pt-3 min-w-0 flex',
-  size: 'hidden p-2 pt-3 md:block w-24 shrink-0',
+  size: 'hidden p-2 pt-3 md:block w-28 shrink-0',
   type: 'hidden p-2 pt-3 xl:block w-24 shrink-0',
-  modifiedAt: 'hidden p-2 pt-3 sm:block w-44 shrink-0',
+  modifiedAt: 'hidden p-2 pt-3 sm:block w-52 shrink-0',
   buttons: 'w-10 p-2 shrink-0'
 }
 
