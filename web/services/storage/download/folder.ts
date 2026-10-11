@@ -12,6 +12,8 @@ import type { AppFile, KeyPair } from 'types'
  */
 const CHUNKS_AHEAD = 4
 
+const ZIP64_THRESHOLD = 0xffffffff
+
 export interface FolderEntry {
   /** Forward slashes, no leading slash. */
   path: string
@@ -265,7 +267,10 @@ export async function downloadAsZip(
           )
         : null
 
-      await zip.add(path, content, { lastModDate: modifiedAt(file) })
+      await zip.add(path, content, {
+        lastModDate: modifiedAt(file),
+        zip64: (file.size || 0) >= ZIP64_THRESHOLD
+      })
     }
 
     onProgress?.('processing', received, tree.totalBytes)

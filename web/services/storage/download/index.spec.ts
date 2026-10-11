@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { store as useDownload } from './index'
-import type { DownloadAppFile } from 'types'
+import { downloadAsZip, pickSaveTarget, type FolderDownloadHooks } from './folder'
+import type { AppFile, DownloadAppFile } from 'types'
 
 vi.mock('!/logger', () => ({
   debug: vi.fn(),
@@ -14,7 +15,7 @@ vi.mock('../..', () => ({
   errorIntoWorkerError: vi.fn((e) => e),
   localDateFromUtcString: vi.fn(() => new Date()),
   utcStringFromLocal: vi.fn(() => new Date().toISOString()),
-  uuidv4: vi.fn(() => 'test-uuid')
+  uuidv4: vi.fn(() => `uuid-${Math.random()}`)
 }))
 
 vi.mock('../../constants', () => ({
@@ -32,8 +33,13 @@ vi.mock('./sync', () => ({
 }))
 
 vi.mock('./folder', () => ({
-  downloadFolderAsZip: vi.fn(),
+  downloadAsZip: vi.fn(),
+  pickSaveTarget: vi.fn(async () => undefined),
   saveBlob: vi.fn()
+}))
+
+vi.mock('../../crypto', () => ({
+  store: () => ({ keypair: { input: 'private' } })
 }))
 
 vi.mock('..', () => ({
@@ -157,5 +163,93 @@ describe('download store — progress()', () => {
     expect(dl.running.find((f: DownloadAppFile) => f.id === 'file-a')).toBeDefined()
     expect(dl.running.find((f: DownloadAppFile) => f.id === 'file-b')).toBeUndefined()
     expect(dl.failed.find((f: DownloadAppFile) => f.id === 'file-b')).toBeDefined()
+  })
+})
+
+describe('download store — folders', () => {
+  const folder = { id: 'folder-1', name: 'Photos', mime: 'dir' } as AppFile
+  let runs: FolderDownloadHooks[]
+  let interval: ReturnType<typeof setInterval>
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    // Only the queue's interval: `downloadFolder` imports the crypto store
+    // lazily, which needs real ticks to resolve.
+    vi.useFakeTimers({ toFake: ['setInterval'] })
+    runs = []
+    // Each run reports once, then stays in flight like a stalled chunk fetch.
+    vi.mocked(downloadAsZip).mockImplementation(async (_keypair, _roots, hooks = {}) => {
+      runs.push(hooks)
+      hooks.onProgress?.('downloading', 1, 10)
+      return new Promise(() => {})
+    })
+  })
+
+  afterEach(() => {
+    clearInterval(interval)
+    vi.useRealTimers()
+  })
+
+  async function tick(expectedRuns: number) {
+    await vi.advanceTimersByTimeAsync(1000)
+    for (let i = 0; runs.length < expectedRuns && i < 100; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 1))
+    }
+    expect(runs).toHaveLength(expectedRuns)
+  }
+
+  it('names the queue row after the archive', async () => {
+    const dl = useDownload()
+
+    await dl.push(folder)
+
+    expect(dl.waiting[0].name).toBe('Photos.zip')
+    expect(dl.waiting[0].items?.map((item) => item.name)).toEqual(['Photos'])
+  })
+
+  it('names the queue row after the file picked in the save dialog', async () => {
+    vi.mocked(pickSaveTarget).mockResolvedValueOnce({ name: 'holiday.zip' } as FileSystemFileHandle)
+    const dl = useDownload()
+
+    await dl.push(folder)
+
+    expect(dl.waiting[0].name).toBe('holiday.zip')
+  })
+
+  it('keeps a cancelled folder run cancelled when the folder is downloaded again', async () => {
+    const dl = useDownload()
+    interval = await dl.start(mockStorage, {} as any)
+
+    await dl.push(folder)
+    await tick(1)
+    const [first] = dl.running
+    await dl.cancel(mockStorage, first)
+
+    await dl.push(folder)
+    await tick(2)
+
+    expect(runs[0].isCancelled?.()).toBe(true)
+    expect(runs[1].isCancelled?.()).toBe(false)
+
+    // A late report from the stopped run must not take over the new row.
+    runs[0].onProgress?.('downloading', 9, 10)
+    expect(dl.running).toHaveLength(1)
+    expect(dl.running[0].temporaryId).not.toBe(first.temporaryId)
+  })
+
+  it('retries a cancelled folder as a new run', async () => {
+    const dl = useDownload()
+    interval = await dl.start(mockStorage, {} as any)
+
+    await dl.push(folder)
+    await tick(1)
+    await dl.cancel(mockStorage, dl.running[0])
+
+    dl.retry(dl.failed[0])
+    await tick(2)
+
+    expect(runs[0].isCancelled?.()).toBe(true)
+    expect(runs[1].isCancelled?.()).toBe(false)
   })
 })

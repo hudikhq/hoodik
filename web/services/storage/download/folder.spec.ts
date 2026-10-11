@@ -259,6 +259,27 @@ describe('downloadAsZip', () => {
     })
   })
 
+  it('writes Zip64 entries only for files of 4 GiB or more', async () => {
+    listings.set('root', [
+      row('small', 'small.txt'),
+      row('huge', 'huge.bin', { size: 2 ** 32 })
+    ])
+
+    const archive = await downloadAsZip(keypair, [root])
+    const bytes = new Uint8Array(await (archive?.blob as Blob).arrayBuffer())
+    const view = new DataView(bytes.buffer)
+
+    // zip.js reads either form back, so check the version needed to extract.
+    const versions: number[] = []
+    for (let offset = 0; offset + 4 <= bytes.length; offset++) {
+      if (view.getUint32(offset, true) === 0x04034b50) {
+        versions.push(view.getUint16(offset + 4, true))
+      }
+    }
+
+    expect(versions).toEqual([10, 45])
+  })
+
   it('reads a bounded number of chunks ahead of the archive', async () => {
     listings.set(
       'root',

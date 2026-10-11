@@ -91,6 +91,11 @@ export const store = defineStore('download', () => {
   const cancelled = new Set<string>()
 
   /**
+   * Cancelled folder runs by temporaryId.
+   */
+  const cancelledRuns = new Set<string>()
+
+  /**
    * Keyed by `temporaryId`.
    */
   const saveTargets = new Map<string, FileSystemFileHandle>()
@@ -105,6 +110,10 @@ export const store = defineStore('download', () => {
     error?: any,
     stage?: 'downloading' | 'processing'
   ) {
+    if (file.temporaryId && cancelledRuns.has(file.temporaryId)) {
+      return
+    }
+
     // Chunk fetches already in flight settle after the cancel reaches the
     // worker, and each one reports. The worker's copy of the file never
     // learned about the cancel, so without this the transfer the user just
@@ -212,7 +221,7 @@ export const store = defineStore('download', () => {
                 ? downloadFolder(
                     file,
                     progress,
-                    () => cancelled.has(file.id),
+                    () => cancelledRuns.has(file.temporaryId as string),
                     saveTargets.get(file.temporaryId as string)
                   ).then(() => {
                     saveTargets.delete(file.temporaryId as string)
@@ -220,6 +229,8 @@ export const store = defineStore('download', () => {
                 : download(file, queue, progress)
 
             transfer.catch((err) => {
+              // Already listed as failed by `cancel`.
+              if (file.temporaryId && cancelledRuns.has(file.temporaryId)) return
               setFailed({ ...file, error: errorIntoWorkerError(err) })
             })
           })
@@ -271,6 +282,14 @@ export const store = defineStore('download', () => {
 
     // Otherwise `progress` would drop the retried transfer's reports.
     cancelled.delete(file.id)
+
+    if (file.temporaryId && cancelledRuns.has(file.temporaryId)) {
+      const target = saveTargets.get(file.temporaryId)
+      saveTargets.delete(file.temporaryId)
+      file = { ...file, temporaryId: uuidv4() }
+      if (target) saveTargets.set(file.temporaryId as string, target)
+    }
+
     waiting.value.push(file)
   }
 
@@ -281,7 +300,7 @@ export const store = defineStore('download', () => {
     cancelled.delete(file.id)
     const entry: DownloadAppFile = { ...file, temporaryId: uuidv4() }
 
-    return file.mime === 'dir' ? queueArchive(entry) : waiting.value.push(entry)
+    return file.mime === 'dir' ? queueArchive(entry, [file]) : waiting.value.push(entry)
   }
 
   async function pushArchive(items: AppFile[]) {
@@ -291,22 +310,26 @@ export const store = defineStore('download', () => {
       mime: 'dir',
       size: 0,
       chunks: 0,
-      items: items.map((item) => ({ ...item })),
       temporaryId: uuidv4()
     } as DownloadAppFile
 
-    return queueArchive(entry)
+    return queueArchive(entry, items)
   }
 
-  async function queueArchive(entry: DownloadAppFile) {
-    const target = await pickSaveTarget(`${entry.name || 'download'}.zip`)
+  async function queueArchive(entry: DownloadAppFile, items: AppFile[]) {
+    const name = `${entry.name || 'download'}.zip`
+    const target = await pickSaveTarget(name)
     if (target === null) return
 
     if (target) {
       saveTargets.set(entry.temporaryId as string, target)
     }
 
-    return waiting.value.push(entry)
+    return waiting.value.push({
+      ...entry,
+      name: target?.name || name,
+      items: items.map((item) => ({ ...item }))
+    })
   }
 
   /**
@@ -319,6 +342,9 @@ export const store = defineStore('download', () => {
 
     file.cancel = true
     cancelled.add(file.id)
+    if (file.mime === 'dir' && file.temporaryId) {
+      cancelledRuns.add(file.temporaryId)
+    }
 
     if ('DOWNLOAD' in window) {
       window.DOWNLOAD.postMessage({ type: 'cancel', kind: 'download', id: file.id })
@@ -404,7 +430,7 @@ export async function downloadFolder(
   // Streaming to a picked file spares holding the whole archive in memory.
   const target = saveTarget ? await saveTarget.createWritable() : undefined
 
-  const archive = await downloadAsZip(keypair, file.items ?? [file], {
+  const archive = await downloadAsZip(keypair, file.items ?? [], {
     isCancelled,
     target,
     onProgress: (stage, bytes, totalBytes) => {
@@ -416,7 +442,7 @@ export async function downloadFolder(
   if (!archive) return
 
   if (archive.blob) {
-    saveBlob(archive.blob, `${file.name || 'folder'}.zip`)
+    saveBlob(archive.blob, file.name || 'download.zip')
   }
 
   file.size = archive.size
