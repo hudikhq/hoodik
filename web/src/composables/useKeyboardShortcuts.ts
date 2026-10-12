@@ -21,6 +21,8 @@ export interface KeyboardShortcut {
   handler: (event: KeyboardEvent) => void
 }
 
+// Clicking a checkbox's label focuses the (visually hidden) input, so treating
+// every input as editable would swallow Del/Ctrl+A right after ticking rows.
 const NON_TEXT_INPUTS = [
   'checkbox',
   'radio',
