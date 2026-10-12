@@ -311,3 +311,38 @@ test.describe('Virtual "Shared with me" folder under /files', () => {
     await expect(page.locator('[name="md-save"]')).toBeVisible({ timeout: 15_000 })
   })
 })
+
+test.describe('Select all next to the virtual folder', () => {
+  test('Ctrl+A then Del deletes the owned rows and skips "Shared with me"', async ({ page }) => {
+    const alice = await createUser(page, randomEmail(), randomPassword())
+    await logout(page)
+    const bob = await createUser(page, randomEmail(), randomPassword())
+    await logout(page)
+
+    await loginAsUser(page, alice.email, alice.password)
+    await aliceSharesWithBob(page, bob.email, 'reader')
+    await logout(page)
+    await loginAsUser(page, bob.email, bob.password)
+
+    const sharedFolder = page.getByTestId('file-row-Shared with me')
+    await expect(sharedFolder).toBeVisible({ timeout: 15_000 })
+
+    for (const name of ['Folder_A', 'Folder_B']) {
+      await page.locator('[name="create-dir"]').click()
+      await page.locator('#name').fill(name)
+      await page.getByRole('button', { name: 'Create', exact: true }).click()
+      await expect(page.getByTestId(`file-row-${name}`)).toBeVisible()
+    }
+
+    await page.keyboard.press('ControlOrMeta+a')
+    await expect(page.getByTestId('files-selected-count')).toHaveText(/^2 selected$/)
+
+    await page.keyboard.press('Delete')
+    await page.getByTestId('delete-confirm-count').fill('2')
+    await page.getByRole('button', { name: 'Yes, delete' }).click()
+
+    await expect(page.getByTestId('file-row-Folder_A')).not.toBeVisible()
+    await expect(page.getByTestId('file-row-Folder_B')).not.toBeVisible()
+    await expect(sharedFolder).toBeVisible()
+  })
+})

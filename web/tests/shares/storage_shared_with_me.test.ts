@@ -762,3 +762,24 @@ describe('Storage store: roster resolution for writes in shared trees', () => {
     expect(await store.writeRosterId(undefined)).toBeUndefined()
   })
 })
+
+describe('Storage store: selecting around the Shared with me row', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  const synthetic = { id: SHARED_WITH_ME_DIR_ID, file_id: null, mime: 'dir' } as never
+  const owned = { id: 'aaa', file_id: null, mime: 'image/png' } as never
+
+  it('selectAll leaves the synthetic row out', () => {
+    const store = storageStore()
+    store.selectAll([synthetic, owned], null)
+    expect(store.selected.map((f) => f.id)).toEqual(['aaa'])
+  })
+
+  it('selectOne ignores the synthetic row', () => {
+    const store = storageStore()
+    store.selectOne(true, synthetic)
+    expect(store.selected).toEqual([])
+  })
+})
