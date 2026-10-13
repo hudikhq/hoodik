@@ -144,10 +144,12 @@ const showMoveAll = computed(() => {
 const { sharingEnabled } = useCapability()
 
 const showDownloadMany = computed(() => {
-  const hasDirsChecked = checkedRows.value.some((item) => item.mime === 'dir')
-  const hasIncompleteUploads = checkedRows.value.some((item) => !item.finished_upload_at)
+  const hasIncompleteUploads = checkedRows.value.some(
+    (item) => item.mime !== 'dir' && !item.finished_upload_at
+  )
+  const hasSyntheticRoot = checkedRows.value.some((item) => item.id === SHARED_WITH_ME_DIR_ID)
 
-  return checkedRows.value.length > 0 && !hasDirsChecked && !hasIncompleteUploads
+  return checkedRows.value.length > 0 && !hasIncompleteUploads && !hasSyntheticRoot
 })
 
 /**
