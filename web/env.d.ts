@@ -28,5 +28,11 @@ declare global {
       upload: string[]
       download: string[]
     }
+
+    /** File System Access API; Chromium only, hence optional. */
+    showSaveFilePicker?: (options?: {
+      suggestedName?: string
+      types?: { description?: string; accept: Record<string, string[]> }[]
+    }) => Promise<FileSystemFileHandle>
   }
 }

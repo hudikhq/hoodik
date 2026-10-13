@@ -27,6 +27,9 @@ export interface DownloadAppFile extends AppFile {
 
   /** See DownloadProgressResponseMessage — drives the transfer row label. */
   stage?: 'downloading' | 'processing'
+
+  /** Rows of a multi-row archive, whose own id matches no server row. */
+  items?: AppFile[]
 }
 
 export interface AppFile extends EncryptedAppFile, AppFileUnencryptedPart {
