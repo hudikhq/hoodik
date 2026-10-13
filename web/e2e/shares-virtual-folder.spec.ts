@@ -103,13 +103,11 @@ test.describe('Virtual "Shared with me" folder under /files', () => {
     await expect(page.locator('[data-testid="actions-share-account"]').first()).toBeVisible()
   })
 
-  test('synthetic Shared with me row offers no menu and a disabled checkbox', async ({ page }) => {
+  test('synthetic Shared with me row offers no menu and no checkbox', async ({ page }) => {
     // The synthetic root id is a client-only marker — every action would
     // route a literal `__shared_with_me__` into a real storage endpoint
-    // and bounce off the path-attribute validator with a 400. The
-    // dropdown stays hidden; the checkbox renders for visual rhythm with
-    // the rest of the listing but is disabled so it can never push the
-    // synthetic id into the selection state.
+    // and bounce off the path-attribute validator with a 400, so neither
+    // the dropdown nor the selection checkbox is rendered.
     const alice = await createUser(page, randomEmail(), randomPassword())
     await logout(page)
     const bob = await createUser(page, randomEmail(), randomPassword())
@@ -123,9 +121,7 @@ test.describe('Virtual "Shared with me" folder under /files', () => {
     const syntheticRow = page.getByTestId('file-row-Shared with me')
     await expect(syntheticRow).toBeVisible({ timeout: 15_000 })
     await expect(syntheticRow.locator('[name="actions-dropdown"]')).toHaveCount(0)
-    const checkbox = syntheticRow.locator('input[type="checkbox"]')
-    await expect(checkbox).toBeVisible()
-    await expect(checkbox).toBeDisabled()
+    await expect(syntheticRow.locator('input[type="checkbox"]')).toHaveCount(0)
   })
 
   test('rename of an incoming share keeps the row in the virtual folder', async ({ page }) => {

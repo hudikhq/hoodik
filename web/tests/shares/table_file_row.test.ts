@@ -91,13 +91,11 @@ describe('TableFileRow: shared-out hint', () => {
 })
 
 describe('TableFileRow: synthetic shared-with-me row', () => {
-  it('renders a disabled checkbox on the synthetic root', () => {
+  it('renders no checkbox on the synthetic root', () => {
     const wrapper = mountRow(
       baseFile({ id: SHARED_WITH_ME_DIR_ID, mime: 'dir', name: 'Shared with me' })
     )
-    const checkbox = wrapper.find('input[type="checkbox"]')
-    expect(checkbox.exists()).toBe(true)
-    expect((checkbox.element as HTMLInputElement).disabled).toBe(true)
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
   })
 
   it('clicking the row name does not emit select-one on the synthetic row', async () => {

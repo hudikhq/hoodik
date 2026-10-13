@@ -298,9 +298,8 @@ const drop = (e: DragEvent) => {
   >
     <div :class="sizes.checkbox">
       <TableCheckboxCell
-        v-if="!props.hideCheckbox"
+        v-if="!props.hideCheckbox && !isSyntheticRoot"
         v-model="checked"
-        :disabled="isSyntheticRoot"
         :label="$t('common.selectRow', { name: file.name })"
       />
     </div>
