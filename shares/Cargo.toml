@@ -9,7 +9,6 @@ description = "Account-to-account sharing service: signed share grants, audit lo
 
 [features]
 mock = ["context/mock", "entity/mock"]
-test-support = []
 
 [dependencies]
 log = { workspace = true }
