@@ -188,6 +188,12 @@ useKeyboardShortcuts([
     key: 'Delete',
     when: () => showDeleteAll.value,
     handler: () => emits('remove-all')
+  },
+  {
+    key: 'Backspace',
+    mod: true,
+    when: () => showDeleteAll.value,
+    handler: () => emits('remove-all')
   }
 ])
 
@@ -259,6 +265,12 @@ watch(
 
 const hasFiles = (e: DragEvent) => !!e.dataTransfer?.types.includes('Files')
 
+// Modals stay in the DOM behind v-show, so only a rendered one counts as open.
+const isDialogOpen = () =>
+  [...document.querySelectorAll('[role="dialog"]')].some((el) => el.getClientRects().length > 0)
+
+const isDropBlocked = () => isSharedWithMeRoot.value || isDialogOpen()
+
 // Bound on the window rather than the table so a drop anywhere on the page,
 // including the empty space around a short listing, lands in this folder.
 // Folder rows handle their own drops and stop propagation before this runs.
@@ -266,7 +278,7 @@ const dragover = (e: DragEvent) => {
   if (!hasFiles(e)) return
   e.preventDefault()
 
-  if (isSharedWithMeRoot.value) {
+  if (isDropBlocked()) {
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'none'
     return
   }
@@ -284,7 +296,7 @@ const drop = (e: DragEvent) => {
   isDropZone.value = false
   e.preventDefault()
 
-  if (isSharedWithMeRoot.value) return
+  if (isDropBlocked()) return
 
   // Extract FileSystemEntry objects synchronously — DataTransferItemList is only valid
   // during the event and becomes empty after the handler returns.
