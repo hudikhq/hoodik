@@ -858,6 +858,13 @@
     "nextImage": "Image suivante",
     "noPreview": "Aucun aperçu disponible",
     "previousImage": "Image précédente",
+    "text": {
+      "binary": "Ce fichier ne semble pas être du texte.",
+      "lines": "{count} ligne | {count} lignes",
+      "loadError": "Impossible de charger le fichier : {error}",
+      "truncated": "Seule la première ligne est affichée. Téléchargez le fichier pour voir la suite. | Seules les {count} premières lignes sont affichées. Téléchargez le fichier pour voir la suite.",
+      "wrap": "Renvoyer les longues lignes à la ligne"
+    },
     "versionHistory": {
       "authorAnonymous": "Anonyme",
       "authorOther": "Un autre collaborateur",
