@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ActionsDropdown from '@/components/files/browser/ActionsDropdown.vue'
 import FileThumbnail from '@/components/files/FileThumbnail.vue'
+import FileIconTile from '@/components/files/FileIconTile.vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import TruncatedSpan from '@/components/ui/TruncatedSpan.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -190,6 +191,10 @@ const click = (event: MouseEvent) => {
     emits('select-range', props.file)
     return
   }
+  if (event.ctrlKey || event.metaKey) {
+    toggleOne()
+    return
+  }
   singleClick()
 }
 
@@ -224,7 +229,13 @@ const detailsOrPreview = () => {
 
 const singleClick = () => {
   if (isSyntheticRoot.value) return
+  const onlyThisSelected = checked.value && props.checkedIds.size === 1
   emits('deselect-all')
+  if (!onlyThisSelected) selectOne(true)
+}
+
+const toggleOne = () => {
+  if (isSyntheticRoot.value) return
   selectOne(!checked.value)
 }
 
@@ -287,9 +298,8 @@ const drop = (e: DragEvent) => {
   >
     <div :class="sizes.checkbox">
       <TableCheckboxCell
-        v-if="!props.hideCheckbox"
+        v-if="!props.hideCheckbox && !isSyntheticRoot"
         v-model="checked"
-        :disabled="isSyntheticRoot"
         :label="$t('common.selectRow', { name: file.name })"
       />
     </div>
@@ -298,35 +308,36 @@ const drop = (e: DragEvent) => {
       :class="`${sizes.name} flex justify-start cursor-pointer prevent-select text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-redish-400/60 dark:focus:ring-redish-500/50`"
       :title="fileName"
       data-row-nav
+      :data-file-id="file.id"
       @click="click"
       @dblclick="doubleClick"
       @keydown.space.prevent="singleClick"
     >
-      <FileThumbnail :file="file" img-class="w-6 h-6 mr-2 rounded-md">
-        <BaseIcon
+      <FileThumbnail :file="file" img-class="w-6 h-6 mr-2 rounded-md shrink-0">
+        <FileIconTile
           v-if="showProgress"
           :path="mdiUploadOutline"
-          :size="16"
-          class="mr-2 text-greeny-500 dark:text-greeny-300"
+          tile-class="w-6 h-6 mr-2"
+          icon-class="text-greeny-500 dark:text-greeny-300"
           data-testid="uploading-icon"
         />
-        <BaseIcon
+        <FileIconTile
           v-else-if="isStalledUpload"
           :path="mdiAlertCircleOutline"
-          :size="16"
-          class="mr-2 text-orangy-800 dark:text-orangy-400"
+          tile-class="w-6 h-6 mr-2"
+          icon-class="text-orangy-800 dark:text-orangy-400"
           :title="$t('files.row.uploadIncomplete')"
           data-testid="stalled-upload-icon"
         />
+        <FileIconTile
+          v-else-if="file.id === SHARED_WITH_ME_DIR_ID"
+          :path="mdiFolderAccount"
+          tile-class="w-6 h-6 mr-2"
+          icon-class="text-orangy-800 dark:text-orangy-400"
+          data-testid="shared-with-me-folder-icon"
+        />
+        <FileIconTile v-else :mime="file.mime" tile-class="w-6 h-6 mr-2" />
       </FileThumbnail>
-
-      <BaseIcon
-        v-if="file.id === SHARED_WITH_ME_DIR_ID"
-        :path="mdiFolderAccount"
-        :size="18"
-        class="mr-2 text-orangy-800 dark:text-orangy-400"
-        data-testid="shared-with-me-folder-icon"
-      />
 
       <TruncatedSpan :text="fileName" />
       <span

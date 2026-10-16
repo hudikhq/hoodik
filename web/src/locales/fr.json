@@ -1168,7 +1168,8 @@
     "B": "o",
     "GB": "Go",
     "KB": "Ko",
-    "MB": "Mo"
+    "MB": "Mo",
+    "TB": "To"
   },
   "time": {
     "justNow": "à l’instant"
@@ -1189,7 +1190,7 @@
       "root": "Racine"
     },
     "loadingDecrypting": "Chargement et déchiffrement de vos données, veuillez patienter…",
-    "quotaSlider": {
+    "quotaInput": {
       "default": "par défaut"
     },
     "working": "Traitement…"

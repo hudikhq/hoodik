@@ -1168,7 +1168,8 @@
     "B": "B",
     "GB": "GB",
     "KB": "KB",
-    "MB": "MB"
+    "MB": "MB",
+    "TB": "TB"
   },
   "time": {
     "justNow": "gerade eben"
@@ -1189,7 +1190,7 @@
       "root": "Hauptordner"
     },
     "loadingDecrypting": "Ihre Daten werden geladen und entschlüsselt, bitte warten...",
-    "quotaSlider": {
+    "quotaInput": {
       "default": "Standard"
     },
     "working": "Wird bearbeitet…"

@@ -125,6 +125,7 @@ watch(
           <BaseIcon
             :path="mdiMagnify"
             :size="18"
+            h="h-full"
             class="absolute inset-y-0 left-3 text-brownish-300 dark:text-brownish-50 pointer-events-none"
           />
           <input

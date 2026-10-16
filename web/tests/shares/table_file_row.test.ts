@@ -18,9 +18,9 @@ const OWNER_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const SIZES = {
   checkbox: 'pl-2 pt-3 w-10 shrink-0',
   name: 'flex-1 p-2 pt-3 min-w-0 flex',
-  size: 'hidden p-2 pt-3 md:block w-24 shrink-0',
+  size: 'hidden p-2 pt-3 md:block w-28 shrink-0',
   type: 'hidden p-2 pt-3 xl:block w-24 shrink-0',
-  modifiedAt: 'hidden p-2 pt-3 sm:block w-44 shrink-0',
+  modifiedAt: 'hidden p-2 pt-3 sm:block w-52 shrink-0',
   buttons: 'w-10 p-2 shrink-0'
 }
 
@@ -91,13 +91,11 @@ describe('TableFileRow: shared-out hint', () => {
 })
 
 describe('TableFileRow: synthetic shared-with-me row', () => {
-  it('renders a disabled checkbox on the synthetic root', () => {
+  it('renders no checkbox on the synthetic root', () => {
     const wrapper = mountRow(
       baseFile({ id: SHARED_WITH_ME_DIR_ID, mime: 'dir', name: 'Shared with me' })
     )
-    const checkbox = wrapper.find('input[type="checkbox"]')
-    expect(checkbox.exists()).toBe(true)
-    expect((checkbox.element as HTMLInputElement).disabled).toBe(true)
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
   })
 
   it('clicking the row name does not emit select-one on the synthetic row', async () => {
@@ -115,6 +113,35 @@ describe('TableFileRow: synthetic shared-with-me row', () => {
     const checkbox = wrapper.find('input[type="checkbox"]')
     expect(checkbox.exists()).toBe(true)
     expect((checkbox.element as HTMLInputElement).disabled).toBe(false)
+  })
+})
+
+describe('TableFileRow: plain click selection', () => {
+  const OTHER_ID = '22222222-2222-2222-2222-222222222222'
+
+  const clickRow = async (checkedIds: Set<string>) => {
+    const file = baseFile()
+    const wrapper = mount(TableFileRow, { props: { file, checkedIds, sizes: SIZES } })
+    await wrapper.find('button[data-row-nav]').trigger('click')
+    return wrapper
+  }
+
+  it('selects an unselected row on its own', async () => {
+    const wrapper = await clickRow(new Set([OTHER_ID]))
+    expect(wrapper.emitted('deselect-all')).toHaveLength(1)
+    expect(wrapper.emitted('select-one')).toEqual([[true, baseFile()]])
+  })
+
+  it('keeps a row selected when it was one of several', async () => {
+    const wrapper = await clickRow(new Set([baseFile().id, OTHER_ID]))
+    expect(wrapper.emitted('deselect-all')).toHaveLength(1)
+    expect(wrapper.emitted('select-one')).toEqual([[true, baseFile()]])
+  })
+
+  it('clears the selection when the row was the only one selected', async () => {
+    const wrapper = await clickRow(new Set([baseFile().id]))
+    expect(wrapper.emitted('deselect-all')).toHaveLength(1)
+    expect(wrapper.emitted('select-one')).toBeFalsy()
   })
 })
 

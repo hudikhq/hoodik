@@ -243,17 +243,17 @@ describe('Storage store: Shared with me virtual folder', () => {
     await Promise.resolve()
     await Promise.resolve()
 
-    // Default sort is name|desc — under that order owned folders go
-    // zebra, academica.lux. The synthetic still has to be first.
+    // Default sort is name|asc — under that order owned folders go
+    // academica.lux, zebra. The synthetic still has to be first.
     let topThree = store.items.slice(0, 3).map((row) => row.id)
     expect(topThree[0]).toEqual(SHARED_WITH_ME_DIR_ID)
-    expect(topThree.slice(1)).toEqual(['dir-zebra', 'dir-academica'])
+    expect(topThree.slice(1)).toEqual(['dir-academica', 'dir-zebra'])
 
-    // Flip the sort to ascending; the synthetic still has to be first.
-    store.setSort('root', 'name', 'asc')
+    // Flip the sort to descending; the synthetic still has to be first.
+    store.setSort('root', 'name', 'desc')
     topThree = store.items.slice(0, 3).map((row) => row.id)
     expect(topThree[0]).toEqual(SHARED_WITH_ME_DIR_ID)
-    expect(topThree.slice(1)).toEqual(['dir-academica', 'dir-zebra'])
+    expect(topThree.slice(1)).toEqual(['dir-zebra', 'dir-academica'])
   })
 
   it('storage_rename_of_recipient_row_preserves_synthetic_parent', async () => {
@@ -760,5 +760,26 @@ describe('Storage store: roster resolution for writes in shared trees', () => {
     expect(await store.writeRosterId(MID)).toBeUndefined()
     expect(await store.writeRosterId(SHARED_WITH_ME_DIR_ID)).toBeUndefined()
     expect(await store.writeRosterId(undefined)).toBeUndefined()
+  })
+})
+
+describe('Storage store: selecting around the Shared with me row', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  const synthetic = { id: SHARED_WITH_ME_DIR_ID, file_id: null, mime: 'dir' } as never
+  const owned = { id: 'aaa', file_id: null, mime: 'image/png' } as never
+
+  it('selectAll leaves the synthetic row out', () => {
+    const store = storageStore()
+    store.selectAll([synthetic, owned], null)
+    expect(store.selected.map((f) => f.id)).toEqual(['aaa'])
+  })
+
+  it('selectOne ignores the synthetic row', () => {
+    const store = storageStore()
+    store.selectOne(true, synthetic)
+    expect(store.selected).toEqual([])
   })
 })

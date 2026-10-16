@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import CardBox from '@/components/ui/CardBox.vue'
 import OverlayLayer from '@/components/ui/OverlayLayer.vue'
 import { useFocusTrap } from '@/composables/useFocusTrap'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import type { FormType } from '../form'
 
 const props = defineProps<{
@@ -33,14 +34,16 @@ const cancel = () => {
   emit('cancel')
 }
 
-const onKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape' && value.value) {
-    cancel()
+useKeyboardShortcuts([
+  {
+    key: 'Escape',
+    inEditable: true,
+    inDialog: true,
+    preventDefault: false,
+    when: () => !!value.value,
+    handler: cancel
   }
-}
-
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+])
 </script>
 
 <template>

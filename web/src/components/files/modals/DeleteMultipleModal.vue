@@ -56,7 +56,7 @@ const confirmRemoveAll = async () => {
     :has-cancel="true"
     :confirm-disabled="confirmDisabled"
     @cancel="emits('update:modelValue', false)"
-    @confirm="confirmRemoveAll"
+    :action="confirmRemoveAll"
   >
     <template v-if="needsTyping">
       <p>{{ $t('files.delete.confirmMany', { count }) }}</p>

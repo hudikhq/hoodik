@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { ref } from 'vue'
 import { mdiClose, mdiDotsVertical } from '@mdi/js'
 import { containerMaxW } from '@/config.js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
@@ -7,6 +7,7 @@ import HelpModal from '@/components/ui/HelpModal.vue'
 import NavBarMenuList from '@/components/ui/NavBarMenuList.vue'
 import NavBarItemPlain from '@/components/ui/NavBarItemPlain.vue'
 import type { NavBarItem } from '@/menuNavBar'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 
 defineProps({
   menu: {
@@ -37,14 +38,15 @@ const menuClick = (event: Event, item: NavBarItem) => {
   emit('menu-click', event, item)
 }
 
-const onKeydown = (e: KeyboardEvent) => {
-  if (e.key !== '/' || !(e.metaKey || e.ctrlKey)) return
-  e.preventDefault()
-  helpOpen.value = !helpOpen.value
-}
-
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+useKeyboardShortcuts([
+  {
+    key: '/',
+    mod: true,
+    inEditable: true,
+    inDialog: true,
+    handler: () => (helpOpen.value = !helpOpen.value)
+  }
+])
 
 const isMenuNavBarActive = ref(false)
 </script>

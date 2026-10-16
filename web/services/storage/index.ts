@@ -897,12 +897,14 @@ export const store = defineStore('files', () => {
     return placed
   }
 
+  const isSelectable = (file: AppFile) => file.id !== SHARED_WITH_ME_DIR_ID
+
   /**
    * Add single file to select list
    */
   function selectOne(select: boolean, file: AppFile) {
     if (select) {
-      selected.value.push(file)
+      if (isSelectable(file)) selected.value.push(file)
     } else {
       selected.value = selected.value.filter((f) => f.id !== file.id)
     }
@@ -913,6 +915,10 @@ export const store = defineStore('files', () => {
    */
   function selectAll(files: AppFile[], fileId?: string | null) {
     selected.value = files.filter((f) => {
+      if (!isSelectable(f)) {
+        return false
+      }
+
       if (fileId && f.file_id !== fileId) {
         return false
       }
@@ -963,7 +969,7 @@ export const store = defineStore('files', () => {
    * Get the sort value for given directory
    */
   function getSort(dir: string): string {
-    return sort.value[dir] || 'name|desc'
+    return sort.value[dir] || 'name|asc'
   }
 
   return {

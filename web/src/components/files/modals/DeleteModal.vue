@@ -39,8 +39,8 @@ const confirmDisabled = computed(
 const confirmRemove = async () => {
   if (!props.modelValue || confirmDisabled.value) return
 
-  // The dialog is already closing by the time this runs, so a failure has
-  // to announce itself — the row simply staying put reads as success.
+  // The dialog closes once this settles, so a failure has to announce
+  // itself — the row simply staying put reads as success.
   try {
     await props.Storage.remove(props.kp, props.modelValue)
   } catch (err) {
@@ -60,7 +60,7 @@ const confirmRemove = async () => {
     :has-cancel="true"
     :confirm-disabled="confirmDisabled"
     @cancel="emits('update:modelValue', undefined)"
-    @confirm="confirmRemove"
+    :action="confirmRemove"
   >
     <p>
       {{

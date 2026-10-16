@@ -1168,7 +1168,8 @@
     "B": "B",
     "GB": "GB",
     "KB": "KB",
-    "MB": "MB"
+    "MB": "MB",
+    "TB": "TB"
   },
   "time": {
     "justNow": "upravo sada"
@@ -1189,7 +1190,7 @@
       "root": "Root"
     },
     "loadingDecrypting": "Učitavanje i dekriptiranje tvojih podataka, pričekaj...",
-    "quotaSlider": {
+    "quotaInput": {
       "default": "zadano"
     },
     "working": "U tijeku…"

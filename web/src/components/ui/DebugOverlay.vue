@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { formatSize } from '!'
 import { wasmMemoryBytes } from '!/cryptfns/wasm'
 import { store as downloadStore } from '!/storage/download'
@@ -60,10 +61,7 @@ function stop() {
   workers().forEach((worker) => worker.removeEventListener('message', onWorkerMessage))
 }
 
-function toggle(event: KeyboardEvent) {
-  if (!(event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'd')) return
-
-  event.preventDefault()
+function toggle() {
   enabled.value = !enabled.value
   localStorage.setItem(STORAGE_KEY, enabled.value ? '1' : '0')
   enabled.value ? start() : stop()
@@ -77,15 +75,17 @@ const transfers = computed(() => {
   return parts.join('   ')
 })
 
+useKeyboardShortcuts([
+  { key: 'd', mod: true, shift: true, inEditable: true, inDialog: true, handler: toggle }
+])
+
 onMounted(() => {
-  window.addEventListener('keydown', toggle)
   enabled.value = localStorage.getItem(STORAGE_KEY) === '1'
   if (enabled.value) start()
 })
 
 onUnmounted(() => {
   stop()
-  window.removeEventListener('keydown', toggle)
 })
 </script>
 

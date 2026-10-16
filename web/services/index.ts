@@ -137,9 +137,10 @@ export function formatRelative(unixSeconds: number, now: number = Date.now() / 1
 }
 
 function sized(value: number, unit: 'B' | 'KB' | 'MB' | 'GB'): string {
+  const fractionDigits = Number.isInteger(Math.round(value * 100) / 100) ? 0 : 2
   const formatted = new Intl.NumberFormat(currentLocale(), {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits
   }).format(value)
 
   return `${formatted} ${i18n.global.t(`size.${unit}`)}`

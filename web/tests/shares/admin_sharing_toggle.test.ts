@@ -31,7 +31,7 @@ vi.mock('@/components/ui/BaseIcon.vue', () => ({
 vi.mock('@/components/ui/ListInput.vue', () => ({
   default: { template: '<div />' }
 }))
-vi.mock('@/components/ui/QuotaSlider.vue', () => ({
+vi.mock('@/components/ui/QuotaInput.vue', () => ({
   default: { template: '<div />' }
 }))
 vi.mock('@/components/ui/BaseButton.vue', () => ({
