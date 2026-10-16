@@ -48,14 +48,20 @@ export const MAX_UPLOAD_RETRIES = 3
 /**
  * Uploading multiple chunks at once, this is only done when
  * the web worker is uploading your file.
+ *
+ * Also the budget the upload queue shares between files: one large file uses
+ * all of it, while up to this many single-chunk files upload side by side.
+ * Matches `CONCURRENT_UPLOADS_IN_FLIGHT` in the transfer crate.
  */
 export const CONCURRENT_CHUNKS_UPLOAD = 8
 
 /**
- * Number of files that will be running the upload at the same time,
- * during testing, best outcome was having only one file running.
+ * Number of files being prepared for the upload queue at the same time
+ * (name lookup, thumbnail, encrypted metadata create). Each one is a couple of
+ * round trips, so doing them one by one made queueing thousands of small
+ * files slower than uploading them.
  */
-export const FILES_UPLOADING_AT_ONE_TIME = 1
+export const FILES_PREPARED_AT_ONE_TIME = 4
 
 /**
  * How long will the finished upload be kept in the status bar

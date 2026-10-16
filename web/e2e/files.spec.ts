@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { BlobReader, Uint8ArrayWriter, ZipReader } from '@zip.js/zip.js'
-import { readFile } from 'fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
+import { tmpdir } from 'os'
 import { randomEmail, randomPassword, createUser, logout, loginAsUser } from './helpers/auth'
 import path from 'path'
 
@@ -110,15 +111,16 @@ test.describe('Upload', () => {
       }
     })
 
+    // Watched from before the files go in: small files upload side by side,
+    // so the sentinel can be gone again by the time the last create is back.
+    // Pinning it up first keeps a sentinel that never rendered from
+    // satisfying the wait for it to go away.
+    const sentinelShown = page.getByTestId('upload-active').waitFor({ timeout: 30_000 })
+
     await page.setInputFiles('[name="upload-file-input"]', batchFixtures)
 
-    // Metadata is created one file at a time; once the last POST is back the
-    // whole batch is queued and only one file can be transferring.
+    await sentinelShown
     await expect.poll(() => created.length, { timeout: 60_000 }).toBe(batchFixtures.length)
-
-    // Pin the sentinel up before waiting for it to go away, otherwise a
-    // sentinel that never rendered would satisfy that wait immediately.
-    await expect(page.getByTestId('upload-active')).toHaveCount(1)
 
     await page.getByTestId('upload-active').waitFor({ state: 'hidden', timeout: 120_000 })
 
@@ -135,6 +137,128 @@ test.describe('Upload', () => {
     for (const row of children) {
       expect(row.chunks_stored).toBe(row.chunks)
       expect(row.finished_upload_at).not.toBeNull()
+    }
+  })
+})
+
+test.describe('Many small files', () => {
+  type Row = {
+    name_hash: string
+    mime: string
+    chunks: number
+    chunks_stored: number | null
+    finished_upload_at: number | null
+  }
+
+  async function listing(page: Parameters<typeof createUser>[0], dirId?: string) {
+    const response = await page.request.get(dirId ? `/api/storage?dir_id=${dirId}` : '/api/storage')
+    expect(response.ok()).toBeTruthy()
+    return (await response.json()).children as (Row & { id: string })[]
+  }
+
+  const isFinished = (row: Row) =>
+    row.finished_upload_at !== null && row.chunks_stored === row.chunks
+
+  test('a batch of small files is prepared and uploaded side by side', async ({ page }) => {
+    await setup(page)
+
+    const count = 50
+    const files = Array.from({ length: count }, (_, i) => ({
+      name: `small-${String(i).padStart(3, '0')}.txt`,
+      mimeType: 'text/plain',
+      buffer: Buffer.from(`file number ${i}\n`)
+    }))
+
+    let creating = 0
+    let peakCreating = 0
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/storage') {
+        creating++
+        peakCreating = Math.max(peakCreating, creating)
+      }
+    })
+    const settled = (request: { method(): string; url(): string }) => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/storage') {
+        creating--
+      }
+    }
+    page.on('requestfinished', settled)
+    page.on('requestfailed', settled)
+
+    const started = Date.now()
+
+    await page.setInputFiles('[name="upload-file-input"]', files)
+
+    // The sentinel can drop between files while the next ones are still being
+    // prepared, so the server's view is what says the batch is done.
+    await expect
+      .poll(async () => (await listing(page)).filter(isFinished).length, { timeout: 120_000 })
+      .toBe(count)
+    const elapsed = Date.now() - started
+
+    expect(await listing(page)).toHaveLength(count)
+    await expect(page.getByTestId('upload-active')).toHaveCount(0)
+
+    expect(peakCreating).toBeGreaterThan(1)
+
+    // One file at a time, each waiting for the queue's next one-second tick,
+    // put a floor of `count` seconds under this; side by side it is a few.
+    expect(elapsed).toBeLessThan(count * 1000 * 0.6)
+  })
+
+  test('a folder of small files keeps its structure', async ({ page }) => {
+    await setup(page)
+
+    const root = await mkdtemp(path.join(tmpdir(), 'hoodik-e2e-'))
+    const top = path.join(root, 'tree')
+    const layout: Record<string, number> = { '': 6, a: 6, 'a/deep': 6, b: 6 }
+    for (const [dir, files] of Object.entries(layout)) {
+      await mkdir(path.join(top, dir), { recursive: true })
+      for (let i = 0; i < files; i++) {
+        await writeFile(path.join(top, dir, `f${i}.txt`), `${dir}/${i}\n`)
+      }
+    }
+
+    // Names are encrypted, so the shape is what can be checked from here:
+    // tree/ holds 6 files and 2 folders, a/ holds 6 files and 1 folder.
+    const shape = async (dirId?: string) => {
+      const children = await listing(page, dirId)
+      for (const row of children.filter((c) => c.mime !== 'dir')) {
+        expect(isFinished(row)).toBe(true)
+      }
+      return {
+        files: children.filter((c) => c.mime !== 'dir').length,
+        dirs: children.filter((c) => c.mime === 'dir')
+      }
+    }
+
+    try {
+      await page.setInputFiles('[name="upload-folder-input"]', top)
+
+      // Polled rather than gated on the sentinel, which can drop while the
+      // next folder is being created and nothing is queued yet.
+      await expect(async () => {
+        const rootLevel = await shape()
+        expect(rootLevel).toMatchObject({ files: 0 })
+        expect(rootLevel.dirs).toHaveLength(1)
+
+        const tree = await shape(rootLevel.dirs[0].id)
+        expect(tree.files).toBe(6)
+        expect(tree.dirs).toHaveLength(2)
+
+        const levels = await Promise.all(tree.dirs.map((d) => shape(d.id)))
+        const withSub = levels.find((l) => l.dirs.length === 1)
+        const leaf = levels.find((l) => l.dirs.length === 0)
+        expect(withSub?.files).toBe(6)
+        expect(leaf?.files).toBe(6)
+
+        const deep = await shape(withSub!.dirs[0].id)
+        expect(deep).toMatchObject({ files: 6, dirs: [] })
+      }).toPass({ timeout: 120_000 })
+
+      await expect(page.getByTestId('upload-active')).toHaveCount(0)
+    } finally {
+      await rm(root, { recursive: true, force: true })
     }
   })
 })

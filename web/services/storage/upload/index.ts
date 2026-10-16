@@ -13,7 +13,7 @@ import * as cryptfns from '../../cryptfns'
 import { emitFileTreeChange } from '../events'
 import {
   CHUNK_SIZE_BYTES,
-  FILES_UPLOADING_AT_ONE_TIME,
+  CONCURRENT_CHUNKS_UPLOAD,
   KEEP_FINISHED_UPLOADS_FOR_MINUTES
 } from '../../constants'
 import * as logger from '!/logger'
@@ -57,6 +57,45 @@ function shouldSyncRow(id: string, terminal: boolean): boolean {
   return true
 }
 
+/**
+ * How much of the shared chunk budget a file takes while it runs: the chunk
+ * requests it can have in flight at once. A file with more chunks left than
+ * the transfer layer uploads concurrently fills the budget by itself.
+ */
+function chunkWeight(file: UploadAppFile): number {
+  const left = (file.chunks || 0) - (file.chunks_stored || 0)
+  return Math.min(Math.max(left, 1), CONCURRENT_CHUNKS_UPLOAD)
+}
+
+/**
+ * Take files off the head of `waiting` while they fit in the chunk budget
+ * left over by `running`. A large file runs alone, as one file already keeps
+ * every chunk slot busy, while small files run side by side instead of each
+ * leaving the connection idle for most of its round trips.
+ *
+ * Strictly in order: letting small files overtake a large one at the head
+ * would starve it for as long as small files keep arriving.
+ */
+export function takeDispatchable(
+  waiting: UploadAppFile[],
+  running: UploadAppFile[]
+): UploadAppFile[] {
+  let used = running.reduce((sum, file) => sum + chunkWeight(file), 0)
+  let count = 0
+
+  while (count < waiting.length) {
+    const weight = chunkWeight(waiting[count])
+    if (used + weight > CONCURRENT_CHUNKS_UPLOAD) {
+      break
+    }
+
+    used += weight
+    count++
+  }
+
+  return waiting.splice(0, count)
+}
+
 export const store = defineStore('upload', () => {
   /**
    * Files the user cancelled, by id.
@@ -72,6 +111,15 @@ export const store = defineStore('upload', () => {
   const cancelled = new Set<string>()
 
   /**
+   * Runs a tick outside the interval, set once the queue has started.
+   *
+   * Without it a file that finished in a fraction of a second left its slot
+   * empty until the next interval, which put a floor of one second under
+   * every file however small.
+   */
+  let scheduleTick: (() => void) | undefined
+
+  /**
    * Start processing queue while its not stopped
    */
   async function start(storage: FilesStore, queue: QueueStore): Promise<IntervalType> {
@@ -81,11 +129,31 @@ export const store = defineStore('upload', () => {
 
     const tracker = (file: UploadAppFile, isDone: boolean) => progress(storage, file, isDone)
 
+    // Deferred rather than run inline, so a tick never starts from inside the
+    // progress report of the upload it would replace, and coalesced so that
+    // queueing a few thousand files runs one tick rather than thousands.
+    let pending = false
+    scheduleTick = () => {
+      if (pending) return
+      pending = true
+      setTimeout(() => {
+        pending = false
+        if (active.value) {
+          _tick(tracker, queue)
+        }
+      }, 0)
+    }
+
     return setInterval(async () => {
       if (active.value) {
         await _tick(tracker, queue)
       }
     }, 1000)
+  }
+
+  function enqueue(file: UploadAppFile) {
+    waiting.value.push(file)
+    scheduleTick?.()
   }
 
   /**
@@ -123,6 +191,7 @@ export const store = defineStore('upload', () => {
     if (cancelled.has(file.id)) {
       running.value = running.value.filter((f) => f.id !== file.id)
       storage.removeItem(file.id)
+      scheduleTick?.()
 
       return
     }
@@ -198,6 +267,7 @@ export const store = defineStore('upload', () => {
 
       running.value = running.value.filter((i) => i.id !== file.id)
       failed.value.push(file)
+      scheduleTick?.()
       return
     }
 
@@ -208,6 +278,7 @@ export const store = defineStore('upload', () => {
 
       done.value.push(file)
       emitFileTreeChange({ type: 'created', folderId: file.file_id || undefined })
+      scheduleTick?.()
 
       return
     }
@@ -221,15 +292,11 @@ export const store = defineStore('upload', () => {
    * files and starts the upload process for them
    */
   async function _tick(tracker: UploadProgressFunction, queue: QueueStore) {
-    let batch: UploadAppFile[] = []
+    const batch = takeDispatchable(waiting.value, running.value)
 
-    if (running.value.length < FILES_UPLOADING_AT_ONE_TIME) {
-      batch = waiting.value.splice(0, FILES_UPLOADING_AT_ONE_TIME - running.value.length)
-
-      // Until the worker acknowledges it, a dispatched file would belong to
-      // no list at all, and so fall outside the concurrency limit.
-      running.value.push(...batch)
-    }
+    // Until the worker acknowledges it, a dispatched file would belong to
+    // no list at all, and so fall outside the concurrency limit.
+    running.value.push(...batch)
 
     return new Promise((resolve) => {
       if (batch.length) {
@@ -287,6 +354,7 @@ export const store = defineStore('upload', () => {
     done.value = done.value.filter((f) => f.id !== file.id)
 
     failed.value.push(file)
+    scheduleTick?.()
   }
 
   /**
@@ -321,7 +389,7 @@ export const store = defineStore('upload', () => {
       callerUserId,
       options
     )
-    waiting.value.push({ ...created, temporaryId: uuidv4() })
+    enqueue({ ...created, temporaryId: uuidv4() })
     return created
   }
 
@@ -339,7 +407,7 @@ export const store = defineStore('upload', () => {
         logger.info(
           `[upload:push] "${file.name}" resuming — ${chunksStored}/${existing.chunks} chunks done`
         )
-        waiting.value.push({ ...existing, file, temporaryId: uuidv4() })
+        enqueue({ ...existing, file, temporaryId: uuidv4() })
       } else {
         throw new Error('File already exists')
       }
@@ -358,7 +426,7 @@ export const store = defineStore('upload', () => {
       }
 
       logger.info(`[upload:push] "${file.name}" created as ${created.id}, queued for upload`)
-      return waiting.value.push({ ...created, temporaryId: uuidv4() })
+      enqueue({ ...created, temporaryId: uuidv4() })
     }
   }
 
@@ -383,6 +451,7 @@ export const store = defineStore('upload', () => {
     if (!failed.value.some((f) => f.id === file.id)) {
       failed.value.push(file)
     }
+    scheduleTick?.()
 
     // Cancelling means the user does not want the file, so the part of it
     // already on the server goes too — including chunks an earlier attempt
