@@ -1,6 +1,6 @@
 [package]
 name = "hoodik"
-version = "2.5.5"
+version = "2.5.6"
 edition = "2021"
 rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
@@ -78,7 +78,7 @@ context = { path = "../context", features = ["mock"] }
 cryptfns = { path = "../cryptfns", features = ["mock"] }
 email = { path = "../email", features = ["mock"] }
 links = { path = "../links", features = ["mock"] }
-shares = { path = "../shares", features = ["mock", "test-support"] }
+shares = { path = "../shares", features = ["mock"] }
 storage = { path = "../storage", features = ["mock"] }
 settings = { path = "../settings", features = ["mock"] }
 transfer = { path = "../transfer" }
