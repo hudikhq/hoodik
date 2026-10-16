@@ -56,16 +56,6 @@ pub(crate) fn over_limit(user_id: Uuid, now: i64) -> bool {
     over
 }
 
-/// Test-only escape hatch — integration suites that exercise the limit
-/// repeatedly across scenarios need to reset between scenarios. Hidden
-/// behind `#[cfg(any(test, feature = "test-support"))]` so production
-/// builds never link it.
-#[cfg(any(test, feature = "test-support"))]
-pub fn reset_for_tests() {
-    let mut cache = cache().lock().expect("discover rate-limit cache poisoned");
-    cache.cache_clear();
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

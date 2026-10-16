@@ -78,7 +78,7 @@ context = { path = "../context", features = ["mock"] }
 cryptfns = { path = "../cryptfns", features = ["mock"] }
 email = { path = "../email", features = ["mock"] }
 links = { path = "../links", features = ["mock"] }
-shares = { path = "../shares", features = ["mock", "test-support"] }
+shares = { path = "../shares", features = ["mock"] }
 storage = { path = "../storage", features = ["mock"] }
 settings = { path = "../settings", features = ["mock"] }
 transfer = { path = "../transfer" }
