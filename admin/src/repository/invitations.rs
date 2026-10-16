@@ -10,7 +10,7 @@ use error::{AppResult, Error};
 use validr::Validation;
 
 use crate::{
-    data::invitations::{create::Create, search::Search},
+    data::invitations::{create::Create, created::Created, search::Search},
     emails::invite,
 };
 
@@ -95,7 +95,7 @@ where
     /// Invite a user to the platform, if the user already exists, throw error,
     /// if the platform has turned off free registration of the users, this invitation
     /// will be the only way to register
-    pub(crate) async fn create(&self, invitation: Create) -> AppResult<invitations::Model> {
+    pub(crate) async fn create(&self, invitation: Create) -> AppResult<Created> {
         let (email, message, role, quota, expires_at) = invitation.into_values()?;
 
         let now = Utc::now().timestamp();
@@ -146,8 +146,11 @@ where
             .await?
             .ok_or_else(|| Error::NotFound("invitation_not_found".to_string()))?;
 
-        invite::send(self.repository.context(), &invitation, message).await?;
+        let email_sent = invite::send(self.repository.context(), &invitation, message).await?;
 
-        Ok(invitation)
+        Ok(Created {
+            invitation,
+            email_sent,
+        })
     }
 }

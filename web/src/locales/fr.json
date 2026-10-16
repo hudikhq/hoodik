@@ -78,7 +78,10 @@
     },
     "invite": {
       "emailRequired": "L’adresse e-mail est requise",
+      "linkTitle": "Partager le lien d’invitation",
+      "linkWarning": "Toute personne disposant de ce lien peut créer le compte pour cette adresse e-mail. Il expire le {date}.",
       "messageLabel": "Message",
+      "noEmailBody": "Ce serveur ne peut pas envoyer d’e-mails, l’invitation n’a donc pas été envoyée à {email}. Transmettez-lui ce lien ou faites-lui scanner le QR code.",
       "quotaTitle": "Quota de stockage",
       "submit": "Inviter",
       "title": "Inviter un utilisateur"

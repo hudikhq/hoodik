@@ -78,7 +78,10 @@
     },
     "invite": {
       "emailRequired": "Email is required",
+      "linkTitle": "Share the invitation link",
+      "linkWarning": "Anyone with this link can create the account for this email address. It expires on {date}.",
       "messageLabel": "Message",
+      "noEmailBody": "This server can't send emails, so the invitation wasn't emailed to {email}. Send them this link, or let them scan the QR code.",
       "quotaTitle": "Storage quota",
       "submit": "Invite",
       "title": "Invite user"
