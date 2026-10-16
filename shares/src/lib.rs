@@ -11,11 +11,3 @@ pub(crate) mod repository;
 /// audit chain primitives.
 pub use repository::account_deletion::pre_emit_for_user_delete;
 
-/// Test-only state-reset hooks. Hidden behind `test-support` so they
-/// never link into production binaries.
-#[cfg(feature = "test-support")]
-pub mod test_support {
-    pub fn reset_discover_rate_limit() {
-        crate::repository::discover_rate_limit::reset_for_tests();
-    }
-}
