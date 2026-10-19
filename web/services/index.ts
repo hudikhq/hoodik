@@ -6,6 +6,7 @@ import { parseISO, format as f, formatDistanceStrict } from 'date-fns'
 import type { WorkerErrorType } from '../types'
 import type { ErrorResponse } from './api'
 import { i18n, currentDateFnsLocale, currentLocale } from '@/i18n'
+import * as logger from './logger'
 
 export { humanizeError, errorNotification, notification } from './notify'
 
@@ -16,6 +17,35 @@ const DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
  */
 export function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * Keep at most `limit` tasks running at once.
+ *
+ * `run` resolves once the task has started, not finished, so a loop that
+ * awaits it can keep producing work (creating folders, say) while earlier
+ * tasks are still in flight. Tasks own their errors: one that throws is
+ * logged and its slot freed.
+ */
+export function concurrencyLimit(limit: number) {
+  const inFlight = new Set<Promise<void>>()
+
+  return {
+    async run(task: () => Promise<void>) {
+      while (inFlight.size >= limit) {
+        await Promise.race(inFlight)
+      }
+
+      const running: Promise<void> = task()
+        .catch((err) => logger.error('[concurrencyLimit] task failed:', err))
+        .finally(() => inFlight.delete(running))
+      inFlight.add(running)
+    },
+
+    async settled() {
+      await Promise.all(inFlight)
+    }
+  }
 }
 
 /**

@@ -22,7 +22,9 @@ export async function closeOpenModal(page: Page): Promise<void> {
 export async function openShareDialogFor(page: Page, fileName: string): Promise<void> {
   await closeOpenModal(page)
   await page.getByTestId(`file-row-${fileName}`).locator('[name="actions-dropdown"]').click()
-  await page.locator('[data-testid="actions-share-account"]').first().click()
+  // Other rows keep hidden copies of this entry, and the open menu only gains
+  // it once the file's upload has finished, so wait for the visible one.
+  await page.locator('[data-testid="actions-share-account"]:visible').first().click()
   await expect(page.getByTestId('share-dialog-target')).toBeVisible()
 }
 

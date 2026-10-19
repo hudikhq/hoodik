@@ -17,8 +17,11 @@ async function setup(page: Parameters<typeof createUser>[0]) {
 async function uploadAndWait(page: Parameters<typeof createUser>[0], fixturePath: string) {
   const filename = path.basename(fixturePath)
   await page.setInputFiles('[name="upload-file-input"]', fixturePath)
-  // Wait for the file row to appear — reliable for both fast and slow uploads
+  // The row shows up while its upload is still running, and a file that has
+  // not finished opens its details rather than the preview. Once the row is
+  // there the upload has started, so the sentinel going away means it is done.
   await page.getByTestId(`file-row-${filename}`).first().waitFor({ state: 'visible', timeout: 30_000 })
+  await page.getByTestId('upload-active').waitFor({ state: 'hidden', timeout: 30_000 })
 }
 
 test.describe('Image preview', () => {
