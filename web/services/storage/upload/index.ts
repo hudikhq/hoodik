@@ -277,7 +277,7 @@ export const store = defineStore('upload', () => {
       logger.info(`File "${file.name}" finished uploading`)
 
       done.value.push(file)
-      emitFileTreeChange({ type: 'created', folderId: file.file_id || undefined })
+      emitFileTreeChange({ type: 'created', folderId: file.file_id || undefined, file })
       scheduleTick?.()
 
       return

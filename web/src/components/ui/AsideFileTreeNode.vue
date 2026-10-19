@@ -4,6 +4,9 @@ import { isMarkdownFile } from '!/preview'
 import * as meta from '!/storage/meta'
 import type { KeyPair, AppFile } from 'types'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
+import { computed } from 'vue'
+
+const MAX_VISIBLE_CHILDREN = 50
 
 interface TreeNode {
   file: AppFile
@@ -27,6 +30,11 @@ const emit = defineEmits<{
 }>()
 
 const padLeft = `padding-left: ${props.depth * 16 + 8}px`
+
+const visibleChildren = computed(() => props.node.children.slice(0, MAX_VISIBLE_CHILDREN))
+const hiddenChildren = computed(() =>
+  Math.max(0, props.node.children.length - MAX_VISIBLE_CHILDREN)
+)
 
 function iconFor(file: AppFile): string {
   if (file.mime === 'dir') {
@@ -91,7 +99,7 @@ async function fetchAndExpand(node: TreeNode) {
     </li>
     <template v-else>
       <AsideFileTreeNode
-        v-for="child in node.children"
+        v-for="child in visibleChildren"
         :key="child.file.id"
         :node="child"
         :depth="depth + 1"
@@ -102,6 +110,13 @@ async function fetchAndExpand(node: TreeNode) {
         @toggle-folder="(n: TreeNode) => emit('toggle-folder', n)"
         @file-click="(f: AppFile) => emit('file-click', f)"
       />
+      <li
+        v-if="hiddenChildren"
+        class="py-1 text-brownish-50 italic"
+        :style="`padding-left: ${(depth + 1) * 16 + 24}px`"
+      >
+        {{ $t('ui.fileTree.moreChildren', { count: hiddenChildren }) }}
+      </li>
       <li
         v-if="!node.children.length"
         class="py-1 text-brownish-50 italic"

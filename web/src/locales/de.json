@@ -620,6 +620,7 @@
       "pending": "Ausstehend",
       "preparing": "Wird vorbereitet…",
       "removeFromList": "Aus der Liste entfernen",
+      "showingPartial": "Zeige {shown} von {total}",
       "somethingWentWrong": "Etwas ist schiefgelaufen",
       "title": "Übertragungen"
     },
@@ -1196,6 +1197,7 @@
     },
     "fileTree": {
       "empty": "Leer",
+      "moreChildren": "+{count} weitere",
       "noFiles": "Noch keine Dateien",
       "noIncomingShares": "Noch keine erhaltenen Freigaben",
       "sharedWithMe": "Mit mir geteilt"

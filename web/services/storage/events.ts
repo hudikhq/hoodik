@@ -5,6 +5,8 @@
  * The sidebar file tree listens and refreshes the affected folder(s).
  */
 
+import type { AppFile } from 'types'
+
 type FileTreeEventType = 'created' | 'deleted' | 'renamed' | 'moved'
 
 interface FileTreeEvent {
@@ -13,6 +15,7 @@ interface FileTreeEvent {
   folderId?: string
   /** For moves: the destination folder. */
   targetFolderId?: string
+  file?: AppFile
 }
 
 type Listener = (event: FileTreeEvent) => void

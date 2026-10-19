@@ -620,6 +620,7 @@
       "pending": "En attente",
       "preparing": "Préparation…",
       "removeFromList": "Retirer de la liste",
+      "showingPartial": "{shown} sur {total} affichés",
       "somethingWentWrong": "Une erreur est survenue",
       "title": "Transferts"
     },
@@ -1196,6 +1197,7 @@
     },
     "fileTree": {
       "empty": "Vide",
+      "moreChildren": "+{count} de plus",
       "noFiles": "Aucun fichier ici pour l’instant",
       "noIncomingShares": "Aucun partage reçu pour l’instant",
       "sharedWithMe": "Partagés avec moi"

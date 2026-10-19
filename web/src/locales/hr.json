@@ -620,6 +620,7 @@
       "pending": "Na čekanju",
       "preparing": "Priprema…",
       "removeFromList": "Ukloni s popisa",
+      "showingPartial": "Prikazano {shown} od {total}",
       "somethingWentWrong": "Nešto je pošlo po zlu",
       "title": "Transferi"
     },
@@ -1196,6 +1197,7 @@
     },
     "fileTree": {
       "empty": "Prazno",
+      "moreChildren": "+{count} više",
       "noFiles": "Ovdje još nema datoteka",
       "noIncomingShares": "Još nema primljenih dijeljenja",
       "sharedWithMe": "Podijeljeno sa mnom"

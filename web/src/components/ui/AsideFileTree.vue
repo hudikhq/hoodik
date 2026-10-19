@@ -387,21 +387,77 @@ async function refreshFolder(folderId?: string) {
   }
 }
 
-const unsubscribe = onFileTreeChange(async (event) => {
-  const folders = new Set<string | undefined>()
-  folders.add(event.folderId)
-  if (event.targetFolderId !== undefined) folders.add(event.targetFolderId)
+const FILE_TREE_REFRESH_THROTTLE_MS = 2000
+const pendingFolders = new Set<string | undefined>()
+const refreshingFolders = new Set<string | undefined>()
+let refreshTimer: ReturnType<typeof setTimeout> | undefined
+
+function drainRefreshes() {
+  refreshTimer = undefined
+
+  const folders = [...pendingFolders]
+  pendingFolders.clear()
 
   for (const folderId of folders) {
-    try {
-      await refreshFolder(folderId)
-    } catch (err) {
-      console.error('Failed to refresh folder in tree:', folderId, err)
+    if (refreshingFolders.has(folderId)) {
+      pendingFolders.add(folderId)
+      continue
     }
+
+    refreshingFolders.add(folderId)
+    refreshFolder(folderId)
+      .catch((err) => {
+        console.error('Failed to refresh folder in tree:', folderId, err)
+      })
+      .finally(() => refreshingFolders.delete(folderId))
   }
+
+  if (pendingFolders.size) {
+    refreshTimer = setTimeout(drainRefreshes, FILE_TREE_REFRESH_THROTTLE_MS)
+  }
+}
+
+function scheduleRefresh(folderId?: string, targetFolderId?: string) {
+  pendingFolders.add(folderId)
+  if (targetFolderId !== undefined) pendingFolders.add(targetFolderId)
+
+  if (!refreshTimer) {
+    refreshTimer = setTimeout(drainRefreshes, FILE_TREE_REFRESH_THROTTLE_MS)
+  }
+}
+
+function insertCreated(file: AppFile, folderId?: string): boolean {
+  const node = toNode(file)
+
+  if (!folderId) {
+    if (!treeState.loaded) return false
+    const synthetic = treeState.rootNodes.find((n) => n.file.id === SHARED_WITH_ME_DIR_ID)
+    const rest = treeState.rootNodes.filter((n) => n.file.id !== SHARED_WITH_ME_DIR_ID)
+    if (rest.some((n) => n.file.id === file.id)) return true
+    rest.push(node)
+    treeState.rootNodes = synthetic ? [synthetic, ...rest] : rest
+    return true
+  }
+
+  const parent = findNode(treeState.rootNodes, folderId)
+  if (!parent || !parent.loaded) return false
+  if (parent.children.some((child) => child.file.id === file.id)) return true
+  parent.children.push(node)
+  return true
+}
+
+const unsubscribe = onFileTreeChange((event) => {
+  if (event.type === 'created' && event.file && insertCreated(event.file, event.folderId)) {
+    return
+  }
+
+  scheduleRefresh(event.folderId, event.targetFolderId)
 })
 
-onUnmounted(() => unsubscribe())
+onUnmounted(() => {
+  if (refreshTimer) clearTimeout(refreshTimer)
+  unsubscribe()
+})
 
 watch(
   () => props.keypair,

@@ -620,6 +620,7 @@
       "pending": "Pending",
       "preparing": "Preparing…",
       "removeFromList": "Remove from list",
+      "showingPartial": "Showing {shown} of {total}",
       "somethingWentWrong": "Something went wrong",
       "title": "Transfers"
     },
@@ -1196,6 +1197,7 @@
     },
     "fileTree": {
       "empty": "Empty",
+      "moreChildren": "+{count} more",
       "noFiles": "No files here yet",
       "noIncomingShares": "No incoming shares yet",
       "sharedWithMe": "Shared with me"

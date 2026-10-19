@@ -31,61 +31,67 @@ const showTable = ref(false)
 const showedTable = ref(false)
 const tab = ref<'running' | 'done' | 'waiting' | 'failed'>()
 
-const items = computed((): InnerFileList[] => {
-  const list = [
-    ...upload.running.map((item: UploadAppFile) => ({
-      type: 'upload:running' as QueueItemActionType,
-      file: item
-    })),
-    ...upload.waiting.map((item: UploadAppFile) => ({
-      type: 'upload:waiting' as QueueItemActionType,
-      file: item
-    })),
-    ...upload.done.map((item: UploadAppFile) => ({
-      type: 'upload:done' as QueueItemActionType,
-      file: item
-    })),
-    ...upload.failed.map((item: UploadAppFile) => ({
-      type: 'upload:failed' as QueueItemActionType,
-      file: item
-    })),
-    ...download.running.map((item: DownloadAppFile) => ({
-      type: 'download:running' as QueueItemActionType,
-      file: item
-    })),
-    ...download.waiting.map((item: DownloadAppFile) => ({
-      type: 'download:waiting' as QueueItemActionType,
-      file: item
-    })),
-    ...download.done.map((item: DownloadAppFile) => ({
-      type: 'download:done' as QueueItemActionType,
-      file: item
-    })),
-    ...download.failed.map((item: DownloadAppFile) => ({
-      type: 'download:failed' as QueueItemActionType,
-      file: item
-    }))
-  ]
+const MAX_QUEUE_ROWS = 100
 
-  list.sort((a, b) => {
-    if (a.type.endsWith('running')) return -1
-    if (b.type.endsWith('running')) return 1
-    return 0
-  })
+type Bucket = {
+  type: QueueItemActionType
+  files: readonly (UploadAppFile | DownloadAppFile)[]
+}
+
+const buckets = computed<Bucket[]>(() => [
+  { type: 'upload:running', files: upload.running },
+  { type: 'upload:waiting', files: upload.waiting },
+  { type: 'upload:done', files: upload.done },
+  { type: 'upload:failed', files: upload.failed },
+  { type: 'download:running', files: download.running },
+  { type: 'download:waiting', files: download.waiting },
+  { type: 'download:done', files: download.done },
+  { type: 'download:failed', files: download.failed }
+])
+
+const totalItems = computed(
+  () =>
+    upload.running.length +
+    upload.waiting.length +
+    upload.done.length +
+    upload.failed.length +
+    download.running.length +
+    download.waiting.length +
+    download.done.length +
+    download.failed.length
+)
+const activeItems = computed(() => upload.running.length + download.running.length)
+const pendingItems = computed(() => upload.waiting.length + download.waiting.length)
+const failedItems = computed(() => upload.failed.length + download.failed.length)
+const doneItems = computed(() => upload.done.length + download.done.length)
+
+const displayTotal = computed(() => {
+  if (!showTable.value) return 0
+  if (!tab.value) return totalItems.value
+
+  return buckets.value
+    .filter((bucket) => bucket.type.endsWith(tab.value as string))
+    .reduce((sum, bucket) => sum + bucket.files.length, 0)
+})
+
+const displaying = computed((): InnerFileList[] => {
+  if (!showTable.value) return []
+
+  const list: InnerFileList[] = []
+
+  for (const bucket of buckets.value) {
+    if (tab.value && !bucket.type.endsWith(tab.value as string)) continue
+
+    for (const file of bucket.files) {
+      list.push({ type: bucket.type, file })
+      if (list.length >= MAX_QUEUE_ROWS) return list
+    }
+  }
 
   return list
 })
 
-const totalItems = computed(() => items.value.length)
-const activeItems = computed(() => items.value.filter((i) => i.type.endsWith('running')).length)
-const pendingItems = computed(() => items.value.filter((i) => i.type.endsWith('waiting')).length)
-const failedItems = computed(() => items.value.filter((i) => i.type.endsWith('failed')).length)
-const doneItems = computed(() => items.value.filter((i) => i.type.endsWith('done')).length)
-
-const displaying = computed((): InnerFileList[] => {
-  if (!tab.value) return items.value
-  return items.value.filter((item) => item.type.endsWith(tab.value as string))
-})
+const hiddenItems = computed(() => Math.max(0, displayTotal.value - displaying.value.length))
 
 const headerLabel = computed(() => {
   const up = upload.running.length
@@ -235,6 +241,16 @@ useKeyboardShortcuts([
         <template v-for="item in displaying" :key="`${item.file.id}-${item.type}`">
           <SingleFile :file="item.file" :type="item.type" @remove="remove" />
         </template>
+
+        <div
+          v-if="hiddenItems"
+          class="text-center pb-2 pt-2 px-3 text-xs text-brownish-500 dark:text-brownish-50"
+          data-testid="transfers-truncated"
+        >
+          {{
+            $t('files.transfers.showingPartial', { shown: displaying.length, total: displayTotal })
+          }}
+        </div>
 
         <template v-if="!displaying.length">
           <div class="text-center pb-3 pt-4 text-sm text-brownish-500 dark:text-brownish-50">
