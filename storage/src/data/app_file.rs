@@ -8,6 +8,8 @@ pub struct AppFile {
     pub id: Uuid,
     pub user_id: Uuid,
     pub is_owner: bool,
+    #[serde(default)]
+    pub favorite: bool,
     pub encrypted_key: String,
     pub encrypted_name: String,
     /// Thumbnail encrypted with the file key. Sent by default; listings
@@ -175,6 +177,7 @@ impl FromQueryResult for AppFile {
             id: file.id,
             user_id: user_file.user_id,
             is_owner: user_file.is_owner,
+            favorite: user_file.favorite,
             encrypted_key: user_file.encrypted_key,
             name_hash: file.name_hash,
             md5: file.md5,

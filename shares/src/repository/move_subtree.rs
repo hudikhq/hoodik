@@ -121,6 +121,7 @@ pub(super) async fn rebind_node_to_roster<C: ConnectionTrait>(
                 file_id: ActiveValue::Unchanged(prev.file_id),
                 user_id: ActiveValue::Unchanged(prev.user_id),
                 created_at: ActiveValue::NotSet,
+                favorite: ActiveValue::NotSet,
             })
             .exec(tx)
             .await?;
@@ -140,6 +141,7 @@ pub(super) async fn rebind_node_to_roster<C: ConnectionTrait>(
                     inherited_member_signature.as_ref().map(|_| signed_timestamp),
                 ),
                 member_signature: ActiveValue::Set(inherited_member_signature),
+                favorite: ActiveValue::NotSet,
             })
             .exec_without_returning(tx)
             .await?;

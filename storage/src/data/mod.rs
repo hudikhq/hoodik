@@ -4,6 +4,7 @@ pub mod create_file;
 pub mod delete_many;
 pub mod content_tokens;
 pub mod extra_tokens;
+pub mod favorite;
 pub mod meta;
 pub mod move_many;
 pub mod query;

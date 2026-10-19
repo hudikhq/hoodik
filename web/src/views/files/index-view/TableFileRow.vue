@@ -13,6 +13,7 @@ import {
   mdiCloudSyncOutline,
   mdiFolderAccount,
   mdiShareVariantOutline,
+  mdiStar,
   mdiUploadOutline
 } from '@mdi/js'
 import type { AppFile } from 'types'
@@ -340,6 +341,14 @@ const drop = (e: DragEvent) => {
       </FileThumbnail>
 
       <TruncatedSpan :text="fileName" />
+      <span
+        v-if="file.favorite"
+        class="ml-2 inline-flex items-center text-orangy-500 dark:text-orangy-300"
+        :title="$t('files.row.favorite')"
+        data-testid="favorite-badge"
+      >
+        <BaseIcon :path="mdiStar" :size="14" />
+      </span>
       <span
         v-if="isSharedOut"
         class="ml-2 inline-flex items-center text-brownish-400 dark:text-brownish-50"

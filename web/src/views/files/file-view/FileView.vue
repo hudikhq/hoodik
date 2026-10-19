@@ -7,10 +7,11 @@ import PreviewView from '@/components/preview/PreviewView.vue'
 import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { FilesStore, KeyPair, AppFile } from 'types'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { FilePreview } from '!/preview/file'
 import type { Preview } from '!/preview'
 import { useTitle } from '@vueuse/core'
+import { errorNotification } from '!/index'
 
 const props = defineProps<{
   kp: KeyPair
@@ -99,6 +100,27 @@ const cancel = (preview: Preview) => {
     hash: `#${preview.id}`
   })
 }
+
+const favorite = computed<boolean>(() => {
+  const id = file.value?.id
+  if (!id) return false
+  const row = props.Storage.getItem(id)
+  return (row ?? file.value)?.favorite === true
+})
+
+const toggleFavorite = async () => {
+  const current = file.value
+  if (!current?.id) return
+
+  const next = !favorite.value
+
+  try {
+    await props.Storage.setFavorite(props.kp, [current], next)
+    file.value = { ...current, favorite: next }
+  } catch (err) {
+    errorNotification(err)
+  }
+}
 </script>
 <template>
   <!-- The stage appears the moment the route does; a deep link is still
@@ -114,9 +136,11 @@ const cancel = (preview: Preview) => {
     v-model="preview"
     :hideDelete="false"
     :hidePreviousAndNext="false"
+    :favorite="favorite"
     @details="emits('details', file)"
     @download="emits('download', file)"
     @remove="emits('remove', file)"
+    @favorite="toggleFavorite"
     @previous="nextOrPrevious"
     @next="nextOrPrevious"
     @cancel="cancel"

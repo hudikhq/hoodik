@@ -528,10 +528,12 @@
     "breadcrumbsShowAll": "Alle Ordner anzeigen",
     "browser": {
       "addToDownloadQueue": "Zur Download-Warteschlange hinzufügen",
+      "addToFavorites": "Zu Favoriten hinzufügen",
       "createDirectory": "Ordner erstellen",
       "emptyFolder": "Dieser Ordner ist leer",
       "emptyFolderHint": "Ziehen Sie Dateien hierher oder nutzen Sie die Hochladen-Schaltfläche",
       "newFile": "Neue Datei",
+      "removeFromFavorites": "Aus Favoriten entfernen",
       "renameTitle": "Datei oder Ordner umbenennen",
       "selectedCount": "{count} ausgewählt",
       "uploadFiles": "Dateien hochladen",
@@ -582,6 +584,7 @@
       "nameRequired": "Neuer Name ist erforderlich"
     },
     "row": {
+      "favorite": "Favorit",
       "ownedBy": "Eigentümer: {email}",
       "savingInAnotherSession": "Eine andere Sitzung speichert diese Notiz gerade",
       "sharedWith": "Mit {count} weiterem Konto geteilt | Mit {count} weiteren Konten geteilt",
@@ -844,6 +847,7 @@
     "deleteFile": "Datei löschen",
     "downloadFile": "Datei herunterladen",
     "exportPdf": "PDF exportieren",
+    "favoriteFile": "Zu Favoriten hinzufügen",
     "fileDetails": "Dateidetails",
     "markdown": {
       "conflictBody": "Der Server hat einen nicht abgeschlossenen Speichervorgang für diese Notiz aus einer anderen Sitzung. Wählen Sie {overwrite}, um deren ausstehende Änderung zu verwerfen und Ihre Version zu speichern, oder {cancel}, um Ihre lokalen Änderungen zu verwerfen und den anderen Speichervorgang abschließen zu lassen.",
@@ -868,6 +872,7 @@
       "truncated": "Nur die erste Zeile wird angezeigt. Laden Sie die Datei herunter, um den Rest zu sehen. | Nur die ersten {count} Zeilen werden angezeigt. Laden Sie die Datei herunter, um den Rest zu sehen.",
       "wrap": "Lange Zeilen umbrechen"
     },
+    "unfavoriteFile": "Aus Favoriten entfernen",
     "versionHistory": {
       "authorAnonymous": "Anonym",
       "authorOther": "Eine andere Person",

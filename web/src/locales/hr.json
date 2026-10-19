@@ -528,10 +528,12 @@
     "breadcrumbsShowAll": "Prikaži sve foldere",
     "browser": {
       "addToDownloadQueue": "Dodaj u red za download",
+      "addToFavorites": "Dodaj u favorite",
       "createDirectory": "Kreiraj folder",
       "emptyFolder": "Ovaj folder je prazan",
       "emptyFolderHint": "Dovuci datoteke ovdje ili ih dodaj gumbom za upload",
       "newFile": "Nova datoteka",
+      "removeFromFavorites": "Ukloni iz favorita",
       "renameTitle": "Preimenuj datoteku ili folder",
       "selectedCount": "Odabrano: {count}",
       "uploadFiles": "Upload datoteka",
@@ -582,6 +584,7 @@
       "nameRequired": "Novi naziv je obavezan"
     },
     "row": {
+      "favorite": "Favorit",
       "ownedBy": "Vlasnik: {email}",
       "savingInAnotherSession": "Druga sesija upravo sprema ovu bilješku",
       "sharedWith": "Podijeljeno s još {count} računom | Podijeljeno s još {count} računa | Podijeljeno s još {count} računa",
@@ -844,6 +847,7 @@
     "deleteFile": "Obriši datoteku",
     "downloadFile": "Preuzmi datoteku",
     "exportPdf": "Izvezi PDF",
+    "favoriteFile": "Dodaj u favorite",
     "fileDetails": "Detalji datoteke",
     "markdown": {
       "conflictBody": "Server ima nedovršeno spremanje ove bilješke iz druge sesije. Odaberi {overwrite} da odbaciš njihovu izmjenu i spremiš svoju verziju, ili {cancel} da odbaciš svoje lokalne izmjene i pustiš da se drugo spremanje dovrši.",
@@ -868,6 +872,7 @@
       "truncated": "Prikazan je samo prvi {count} redak. Preuzmi datoteku za ostatak. | Prikazana su samo prva {count} retka. Preuzmi datoteku za ostatak. | Prikazano je samo prvih {count} redaka. Preuzmi datoteku za ostatak.",
       "wrap": "Prelamaj duge retke"
     },
+    "unfavoriteFile": "Ukloni iz favorita",
     "versionHistory": {
       "authorAnonymous": "Anonimno",
       "authorOther": "Drugi suradnik",
