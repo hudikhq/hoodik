@@ -25,3 +25,8 @@ export interface Invitation {
   created_at: number
   expires_at: number
 }
+
+export interface CreatedInvitation extends Invitation {
+  /** False when the server has no email sender configured. */
+  email_sent: boolean
+}

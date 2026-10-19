@@ -8,7 +8,7 @@ async fn test_invite_user() {
 
     let repository = super::get_repo(&context).await;
 
-    repository
+    let created = repository
         .invitations()
         .create(Create {
             email: Some("eleven@test.com".to_string()),
@@ -19,6 +19,9 @@ async fn test_invite_user() {
         })
         .await
         .unwrap();
+
+    // The mock context has no email sender, so the admin must share the link.
+    assert!(!created.email_sent);
 
     let paginated = repository
         .invitations()
@@ -36,6 +39,28 @@ async fn test_invite_user() {
 
     assert_eq!(invitations.len(), 1);
     assert_eq!(invitations[0].email, "eleven@test.com");
+    assert_eq!(invitations[0].id, created.invitation.id);
+}
+
+#[async_std::test]
+async fn test_invite_user_with_sender() {
+    let context: Context = Context::add_mock_sender(Context::mock_sqlite().await);
+
+    let repository = super::get_repo(&context).await;
+
+    let created = repository
+        .invitations()
+        .create(Create {
+            email: Some("eleven@test.com".to_string()),
+            role: None,
+            quota: None,
+            message: None,
+            expires_at: None,
+        })
+        .await
+        .unwrap();
+
+    assert!(created.email_sent);
 }
 
 #[async_std::test]

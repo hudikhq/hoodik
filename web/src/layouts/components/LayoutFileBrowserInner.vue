@@ -24,7 +24,8 @@ import {
 } from '!/shares'
 import type { ForkProgress } from '!/shares'
 import { SHARED_WITH_ME_DIR_ID } from '!/storage'
-import { errorNotification, notification } from '!/index'
+import { concurrencyLimit, errorNotification, notification } from '!/index'
+import { FILES_PREPARED_AT_ONE_TIME } from '!/constants'
 import * as meta from '!/storage/meta'
 import { computed, ref, watch } from 'vue'
 import { useTitle } from '@vueuse/core'
@@ -315,30 +316,32 @@ const uploadMany = async (files?: ArrayLike<File>, dirId?: string) => {
         ? await Storage.writeRosterId(dirId)
         : undefined
 
-    for (let i = 0; i < files.length; i++) {
-      try {
-        await files[i].slice(0, 1).arrayBuffer()
-      } catch (err) {
-        errorNotification(t('nav.upload.fileIsDirectory', { name: files[i].name }))
-        continue
-      }
+    const pool = concurrencyLimit(FILES_PREPARED_AT_ONE_TIME)
 
-      try {
-        if (rosterFolderId !== undefined && parentFolder) {
-          await Upload.pushIntoSharedFolder(
-            props.keypair,
-            files[i],
-            parentFolder,
-            callerUserId,
-            { rosterFolderId }
-          )
-        } else {
-          await Upload.push(props.keypair, files[i], dirId)
+    for (const file of Array.from(files)) {
+      await pool.run(async () => {
+        try {
+          await file.slice(0, 1).arrayBuffer()
+        } catch (err) {
+          errorNotification(t('nav.upload.fileIsDirectory', { name: file.name }))
+          return
         }
-      } catch (error) {
-        errorNotification(error)
-      }
+
+        try {
+          if (rosterFolderId !== undefined && parentFolder) {
+            await Upload.pushIntoSharedFolder(props.keypair, file, parentFolder, callerUserId, {
+              rosterFolderId
+            })
+          } else {
+            await Upload.push(props.keypair, file, dirId)
+          }
+        } catch (error) {
+          errorNotification(error)
+        }
+      })
     }
+
+    await pool.settled()
   }
 
   if (!Upload.active) {
@@ -380,6 +383,10 @@ async function uploadByPaths(
   // Shallowest paths first so parent dirs exist before children
   items.sort((a, b) => a.relativePath.split('/').length - b.relativePath.split('/').length)
 
+  // Directories are created one at a time, as each may be the parent of the
+  // next; files go through a pool, since nothing orders them among themselves.
+  const pool = concurrencyLimit(FILES_PREPARED_AT_ONE_TIME)
+
   for (const { file, relativePath } of items) {
     const parts = relativePath.split('/')
     let currentParent = baseDir
@@ -409,6 +416,7 @@ async function uploadByPaths(
             dirCache.set(pathKey, dir.id)
           } else {
             errorNotification(e)
+            await pool.settled()
             return
           }
         }
@@ -417,29 +425,34 @@ async function uploadByPaths(
       currentParent = dirCache.get(pathKey)
     }
 
-    try {
-      const parentFolder = currentParent ? Storage.getItem(currentParent) : null
-      if (
-        parentFolder !== null &&
-        parentFolder.mime === 'dir' &&
-        (sharedRootId !== undefined ||
-          parentFolder.is_owner === false ||
-          parentFolder.members_signed_at != null)
-      ) {
-        await Upload.pushIntoSharedFolder(
-          props.keypair,
-          file,
-          parentFolder,
-          props.authenticated.user.id,
-          { rosterFolderId: sharedRootId }
-        )
-      } else {
-        await Upload.push(props.keypair, file, currentParent)
+    const parentId = currentParent
+    await pool.run(async () => {
+      try {
+        const parentFolder = parentId ? Storage.getItem(parentId) : null
+        if (
+          parentFolder !== null &&
+          parentFolder.mime === 'dir' &&
+          (sharedRootId !== undefined ||
+            parentFolder.is_owner === false ||
+            parentFolder.members_signed_at != null)
+        ) {
+          await Upload.pushIntoSharedFolder(
+            props.keypair,
+            file,
+            parentFolder,
+            props.authenticated.user.id,
+            { rosterFolderId: sharedRootId }
+          )
+        } else {
+          await Upload.push(props.keypair, file, parentId)
+        }
+      } catch (e) {
+        errorNotification(e)
       }
-    } catch (e) {
-      errorNotification(e)
-    }
+    })
   }
+
+  await pool.settled()
 
   if (!Upload.active) {
     Upload.active = true

@@ -1,6 +1,6 @@
 import Api from '!/api'
 import type { Paginated } from 'types'
-import type { Search, Invitation, Create } from 'types/admin/invitations'
+import type { Search, Invitation, Create, CreatedInvitation } from 'types/admin/invitations'
 
 /**
  * Get paginated array of the invitations sent to the potential new users
@@ -18,8 +18,8 @@ export async function index(search: Search): Promise<Paginated<Invitation>> {
 /**
  * Create and send an invitation to the potential new user
  */
-export async function create(create: Create): Promise<Invitation> {
-  const response = await Api.post<Create, Invitation>(`/api/admin/invitations`, undefined, create)
+export async function create(create: Create): Promise<CreatedInvitation> {
+  const response = await Api.post<Create, CreatedInvitation>(`/api/admin/invitations`, undefined, create)
 
   if (!response.body) {
     throw new Error('Failed to create invitation')

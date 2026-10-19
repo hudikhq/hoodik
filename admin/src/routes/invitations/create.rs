@@ -10,7 +10,7 @@ use crate::{data::invitations::create::Create, repository::Repository};
 ///
 /// Request: [crate::data::invitation::create::Create]
 ///
-/// Response: [entity::invitations::Model]
+/// Response: [crate::data::invitations::created::Created]
 #[route("/api/admin/invitations", method = "POST")]
 pub(crate) async fn create(
     staff: Staff,

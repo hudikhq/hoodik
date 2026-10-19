@@ -7,7 +7,8 @@ import {
   mdiInformationSlabCircleOutline,
   mdiArrowLeft,
   mdiArrowRight,
-  mdiFilePdfBox
+  mdiFilePdfBox,
+  mdiWrap
 } from '@mdi/js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -18,6 +19,7 @@ import { computed, ref } from 'vue'
 import type { Preview } from '!/preview'
 import PreviewPdf from './PreviewPdf.vue'
 import PreviewMarkdown from './PreviewMarkdown.vue'
+import PreviewText from './PreviewText.vue'
 
 const props = defineProps<{
   modelValue: Preview
@@ -38,6 +40,26 @@ const emits = defineEmits<{
 const preview = computed(() => props.modelValue)
 const previewType = computed(() => preview.value?.previewType())
 const markdownRef = ref<InstanceType<typeof PreviewMarkdown>>()
+
+const TEXT_WRAP_KEY = 'preview-text-wrap'
+const textWrap = ref(readTextWrap())
+
+function readTextWrap(): boolean {
+  try {
+    return localStorage.getItem(TEXT_WRAP_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function toggleTextWrap() {
+  textWrap.value = !textWrap.value
+  try {
+    localStorage.setItem(TEXT_WRAP_KEY, textWrap.value ? '1' : '0')
+  } catch {
+    // Storage blocked: the toggle still works for this session.
+  }
+}
 
 const index = computed(() => {
   return preview.value.getIndex()
@@ -87,6 +109,10 @@ const details = () => {
   emits('details', props.modelValue)
 }
 
+// A focused scroll pane (e.g. unwrapped text) needs the arrows to scroll sideways
+const ownsArrowKeys = (event: KeyboardEvent) =>
+  event.target instanceof Element && !!event.target.closest('[data-owns-arrow-keys]')
+
 useKeyboardShortcuts([
   {
     key: 'Escape',
@@ -98,7 +124,8 @@ useKeyboardShortcuts([
   {
     key: 'ArrowLeft',
     preventDefault: false,
-    handler: () => {
+    handler: (event) => {
+      if (ownsArrowKeys(event)) return
       const previousId = preview.value.getPreviousId()
       if (previousId) emits('previous', previousId)
     }
@@ -106,7 +133,8 @@ useKeyboardShortcuts([
   {
     key: 'ArrowRight',
     preventDefault: false,
-    handler: () => {
+    handler: (event) => {
+      if (ownsArrowKeys(event)) return
       const nextId = preview.value.getNextId()
       if (nextId) emits('next', nextId)
     }
@@ -122,7 +150,7 @@ useKeyboardShortcuts([
       v-if="preview"
       class="dark fixed top-0 left-0 flex flex-col items-center justify-center w-full h-full bg-brownish-950 text-brownish-100 pt-12"
       :class="{
-        'pb-20': previewType !== 'pdf' && previewType !== 'markdown'
+        'pb-20': previewType !== 'pdf' && previewType !== 'markdown' && previewType !== 'text'
       }"
     >
       <slot />
@@ -161,6 +189,17 @@ useKeyboardShortcuts([
             :title="$t('preview.exportPdf')"
             @click="markdownRef?.exportPdf()"
             name="preview-export-pdf"
+          />
+          <BaseButton
+            v-if="previewType === 'text'"
+            color="light"
+            :icon="mdiWrap"
+            small
+            :active="textWrap"
+            :title="$t('preview.text.wrap')"
+            :aria-pressed="textWrap"
+            @click="toggleTextWrap"
+            name="preview-text-wrap"
           />
           <BaseButton
             v-if="!hideClose"
@@ -205,6 +244,7 @@ useKeyboardShortcuts([
       <PreviewPdf v-else-if="previewType === 'pdf'" v-model="preview" />
       <PreviewVideo v-else-if="previewType === 'video'" v-model="preview" />
       <PreviewMarkdown v-else-if="previewType === 'markdown'" ref="markdownRef" v-model="preview" readonly />
+      <PreviewText v-else-if="previewType === 'text'" v-model="preview" :wrap="textWrap" />
 
       <div class="flex flex-col" v-else>
         <div class="mb-4 text-center">

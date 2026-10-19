@@ -104,6 +104,12 @@ describe('isPreviewable (files)', () => {
     expect(isPreviewable(file)).toBe(false)
   })
 
+  it('UNIT: text files are previewable by mime or by name', () => {
+    expect(isPreviewable(makeFile({ name: 'a', mime: 'text/plain' }))).toBe(true)
+    expect(isPreviewable(makeFile({ name: 'a', mime: 'application/json' }))).toBe(true)
+    expect(isPreviewable(makeFile({ name: 'ci.yml', mime: 'application/octet-stream' }))).toBe(true)
+  })
+
   it('UNIT: zero-byte files are not previewable even if mime matches', () => {
     const file = makeFile({ mime: 'text/markdown', size: 0 })
     expect(isPreviewable(file)).toBe(false)
@@ -139,6 +145,13 @@ describe('isPreviewable (links)', () => {
   it('UNIT: link with thumbnail is previewable', () => {
     expect(
       isPreviewable(makeLink({ file_mime: 'application/octet-stream', thumbnail: 'thumb' }))
+    ).toBe(true)
+  })
+
+  it('UNIT: text link is previewable by mime or by name', () => {
+    expect(isPreviewable(makeLink({ file_mime: 'text/plain' }))).toBe(true)
+    expect(
+      isPreviewable(makeLink({ file_mime: 'application/octet-stream', name: 'main.rs' }))
     ).toBe(true)
   })
 
@@ -203,6 +216,29 @@ describe('Preview.previewType', () => {
       editable: false
     })
     expect(p.previewType()).toBe('video')
+  })
+
+  it('UNIT: returns "text" for text-like files', () => {
+    for (const [name, mime] of [
+      ['a.txt', 'text/plain'],
+      ['data.json', 'application/json'],
+      ['main.rs', 'application/octet-stream']
+    ]) {
+      const p = new TestPreview({ id: '1', name, mime, size: 10, editable: false })
+      expect(p.previewType()).toBe('text')
+    }
+  })
+
+  it('UNIT: markdown and images win over text', () => {
+    const md = new TestPreview({ id: '1', name: 'a.md', mime: 'text/markdown', size: 10, editable: false })
+    expect(md.previewType()).toBe('markdown')
+    const svg = new TestPreview({ id: '1', name: 'a.svg', mime: 'image/svg+xml', size: 10, editable: false })
+    expect(svg.previewType()).toBe('image')
+  })
+
+  it('UNIT: an empty text file has no preview', () => {
+    const p = new TestPreview({ id: '1', name: 'a.txt', mime: 'text/plain', size: 0, editable: false })
+    expect(p.previewType()).toBeNull()
   })
 
   it('UNIT: returns null for non-previewable mime', () => {
