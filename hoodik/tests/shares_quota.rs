@@ -86,6 +86,73 @@ async fn test_stats_used_space_counts_owner_bytes_not_shared_in() {
 }
 
 #[actix_web::test]
+async fn test_stats_breakdown_only_includes_own_files() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+    register_user!(app, context, bob, "bob@example.com");
+
+    let file = create_file!(app, alice, "stats-breakdown");
+    create_folder!(app, alice, "stats-breakdown-folder");
+    grant!(app, alice, bob, ShareRoleEnum::Reader, file.id);
+
+    let alice_stats = stats_response!(app, alice);
+    assert_eq!(alice_stats["used_space"].as_i64().unwrap(), 1024);
+    let alice_breakdown = alice_stats["stats"].as_array().unwrap();
+    assert_eq!(alice_breakdown.len(), 1);
+    assert_eq!(alice_breakdown[0]["count"].as_i64().unwrap(), 1);
+    assert_eq!(alice_breakdown[0]["size"].as_i64().unwrap(), 1024);
+
+    let bob_stats = stats_response!(app, bob);
+    assert!(bob_stats["stats"].as_array().unwrap().is_empty());
+}
+
+#[actix_web::test]
+async fn test_stats_breakdown_groups_by_mime_and_sums_to_used_space() {
+    let context = context::Context::mock_sqlite().await;
+    let app = test::init_service(server::app(context.clone())).await;
+
+    register_user!(app, context, alice, "alice@example.com");
+
+    create_file!(app, alice, "stats-text-1");
+    create_file!(app, alice, "stats-text-2");
+    let mut image = make_create_file_for(&alice, "stats-image");
+    image.mime = Some("image/png".to_string());
+    image.size = Some(4096);
+    let req = test::TestRequest::post()
+        .uri("/api/storage")
+        .cookie(alice.jwt.clone())
+        .set_json(&image)
+        .to_request();
+    assert_eq!(test::call_service(&app, req).await.status(), StatusCode::OK);
+
+    let alice_stats = stats_response!(app, alice);
+    assert_eq!(alice_stats["used_space"].as_i64().unwrap(), 1024 * 2 + 4096);
+
+    let mut breakdown: Vec<(String, i64, i64)> = alice_stats["stats"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| {
+            (
+                s["mime"].as_str().unwrap().to_string(),
+                s["count"].as_i64().unwrap(),
+                s["size"].as_i64().unwrap(),
+            )
+        })
+        .collect();
+    breakdown.sort();
+    assert_eq!(
+        breakdown,
+        vec![
+            ("image/png".to_string(), 1, 4096),
+            ("text/plain".to_string(), 2, 2048),
+        ]
+    );
+}
+
+#[actix_web::test]
 async fn test_shared_with_me_does_not_count_toward_recipient_quota() {
     let context = context::Context::mock_sqlite().await;
     let app = test::init_service(server::app(context.clone())).await;
