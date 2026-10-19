@@ -78,7 +78,10 @@
     },
     "invite": {
       "emailRequired": "Email je obavezan",
+      "linkTitle": "Podijeli poveznicu pozivnice",
+      "linkWarning": "Svatko s ovom poveznicom može stvoriti račun za ovu email adresu. Vrijedi do {date}.",
       "messageLabel": "Poruka",
+      "noEmailBody": "Ovaj poslužitelj ne može slati emailove pa pozivnica nije poslana na {email}. Pošalji im ovu poveznicu ili neka skeniraju QR kod.",
       "quotaTitle": "Kvota pohrane",
       "submit": "Pozovi",
       "title": "Pozovi korisnika"

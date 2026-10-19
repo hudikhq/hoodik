@@ -2,18 +2,21 @@ use context::{Context, SenderContract};
 use entity::invitations;
 use error::{AppResult, Error};
 
-/// Send an invitation email to the provided email address
+/// Send an invitation email to the provided email address.
+///
+/// Returns `false` when no sender is configured, so the admin can hand the
+/// registration link over some other way.
 pub(crate) async fn send(
     context: &Context,
     invitation: &invitations::Model,
     message: Option<String>,
-) -> AppResult<()> {
+) -> AppResult<bool> {
     let sender = match &context.sender {
         Some(s) => s,
         None => {
-            log::warn!("No sender configured, skipping activation email sending");
+            log::warn!("No sender configured, skipping invitation email sending");
 
-            return Ok(());
+            return Ok(false);
         }
     };
 
@@ -76,5 +79,5 @@ pub(crate) async fn send(
     sender
         .send(vec![template.to(&invitation.email)?])
         .await
-        .map(|_| ())
+        .map(|_| true)
 }
