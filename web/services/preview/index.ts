@@ -1,4 +1,5 @@
 import type { AppLink, AppFile } from 'types'
+import { isTextFile } from './text'
 type NonFunctionPropertyNames<T> = { [K in keyof T]: T[K] extends Function ? never : K }[keyof T]
 export type ConstructPreview<T> = Pick<T, NonFunctionPropertyNames<T>>
 
@@ -31,6 +32,7 @@ function isFilePreviewable(item: AppFile): boolean {
  * they carry the same shape but none of the file row's upload state.
  */
 function hasPreviewableContent(item: {
+  name?: string
   size?: number
   mime: string
   thumbnail?: string
@@ -45,7 +47,8 @@ function hasPreviewableContent(item: {
       item.mime === 'text/markdown' ||
       item.mime === 'text/x-markdown' ||
       item.mime.startsWith('image/') ||
-      item.mime.startsWith('video/'))
+      item.mime.startsWith('video/') ||
+      isTextFile(item))
   )
 }
 
@@ -69,7 +72,8 @@ function isLinkPreviewable(item: AppLink): boolean {
     item.file_size > 0 &&
     (item.thumbnail !== undefined ||
       item.has_thumbnail === true ||
-      item.file_mime === 'application/pdf')
+      item.file_mime === 'application/pdf' ||
+      isTextFile({ name: item.name, mime: item.file_mime }))
   )
 }
 
@@ -180,11 +184,12 @@ export abstract class Preview {
   /**
    * Easily match the preview type
    */
-  public previewType(): 'image' | 'pdf' | 'video' | 'markdown' | null {
+  public previewType(): 'image' | 'pdf' | 'video' | 'markdown' | 'text' | null {
     if (this.isImage()) return 'image'
     if (this.isPdf()) return 'pdf'
     if (this.isVideo()) return 'video'
     if (this.isMarkdown()) return 'markdown'
+    if (this.isText()) return 'text'
     return null
   }
 
@@ -214,6 +219,13 @@ export abstract class Preview {
    */
   public isVideo(): boolean {
     return this.is() && this.mime.startsWith('video/')
+  }
+
+  /**
+   * Lets us know if the preview can be shown as plain text
+   */
+  public isText(): boolean {
+    return this.is() && isTextFile(this)
   }
 
   /**

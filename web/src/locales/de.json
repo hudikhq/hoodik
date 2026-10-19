@@ -858,6 +858,13 @@
     "nextImage": "Nächstes Bild",
     "noPreview": "Keine Vorschau verfügbar",
     "previousImage": "Vorheriges Bild",
+    "text": {
+      "binary": "Diese Datei scheint kein Text zu sein.",
+      "lines": "{count} Zeile | {count} Zeilen",
+      "loadError": "Datei konnte nicht geladen werden: {error}",
+      "truncated": "Nur die erste Zeile wird angezeigt. Laden Sie die Datei herunter, um den Rest zu sehen. | Nur die ersten {count} Zeilen werden angezeigt. Laden Sie die Datei herunter, um den Rest zu sehen.",
+      "wrap": "Lange Zeilen umbrechen"
+    },
     "versionHistory": {
       "authorAnonymous": "Anonym",
       "authorOther": "Eine andere Person",
