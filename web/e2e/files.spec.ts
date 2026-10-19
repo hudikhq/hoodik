@@ -98,6 +98,45 @@ test.describe('Upload', () => {
     await expect(page.locator('img[name="thumbnail"][alt="test-image.png"]')).toBeVisible()
   })
 
+  test('a file dropped outside the table still uploads', async ({ page }) => {
+    await setup(page)
+
+    const bytes = await readFile(imageFixture)
+    const dataTransfer = await page.evaluateHandle((data) => {
+      const dt = new DataTransfer()
+      dt.items.add(new File([new Uint8Array(data)], 'test-image.png', { type: 'image/png' }))
+      return dt
+    }, [...bytes])
+
+    const breadcrumb = page.getByLabel('Breadcrumb')
+    await breadcrumb.dispatchEvent('dragover', { dataTransfer })
+    await breadcrumb.dispatchEvent('drop', { dataTransfer })
+
+    await expect(page.getByTestId('file-row-test-image.png')).toBeVisible({ timeout: 30_000 })
+  })
+
+  test('a file dropped while a modal is open does not upload', async ({ page }) => {
+    await setup(page)
+
+    const bytes = await readFile(imageFixture)
+    const dataTransfer = await page.evaluateHandle((data) => {
+      const dt = new DataTransfer()
+      dt.items.add(new File([new Uint8Array(data)], 'test-image.png', { type: 'image/png' }))
+      return dt
+    }, [...bytes])
+
+    await page.locator('[name="create-dir"]').click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await dialog.dispatchEvent('dragover', { dataTransfer })
+    await dialog.dispatchEvent('drop', { dataTransfer })
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+
+    await expect(page.getByTestId('upload-active')).toBeHidden()
+    await expect(page.getByTestId('file-row-test-image.png')).toHaveCount(0)
+  })
+
   test('a batch of files stays visible in the queue and every file lands complete', async ({
     page
   }) => {
@@ -459,4 +498,28 @@ test.describe('Delete', () => {
 
     await expect(page.getByTestId('file-row-test-image.png')).not.toBeVisible()
   })
+
+  // Ticking a checkbox leaves focus on it, which must not swallow the shortcut
+  for (const key of ['Delete', 'ControlOrMeta+Backspace']) {
+    test(`${key} deletes the rows just ticked with their checkboxes`, async ({ page }) => {
+      await setup(page)
+
+      for (const name of ['Folder_A', 'Folder_B']) {
+        await page.locator('[name="create-dir"]').click()
+        await page.locator('#name').fill(name)
+        await page.getByRole('button', { name: 'Create', exact: true }).click()
+        await expect(page.getByTestId(`file-row-${name}`)).toBeVisible()
+      }
+
+      await page.getByTestId('file-row-Folder_A').locator('input[type="checkbox"]').check()
+      await page.getByTestId('file-row-Folder_B').locator('input[type="checkbox"]').check()
+      await page.keyboard.press(key)
+
+      await page.getByTestId('delete-confirm-count').fill('2')
+      await page.getByRole('button', { name: 'Yes, delete' }).click()
+
+      await expect(page.getByTestId('file-row-Folder_A')).not.toBeVisible()
+      await expect(page.getByTestId('file-row-Folder_B')).not.toBeVisible()
+    })
+  }
 })

@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import TableLinkRowWatcher from './TableLinkRowWatcher.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { mdiTrashCanOutline } from '@mdi/js'
 import type { AppLink } from 'types'
 
@@ -33,6 +34,14 @@ const checkedRows = computed(() => {
 const showDeleteAll = computed(() => {
   return checked.value || checkedRows.value.length > 0
 })
+
+useKeyboardShortcuts([
+  {
+    key: 'Delete',
+    when: () => checkedRows.value.length > 0,
+    handler: () => emits('remove-all', checkedRows.value)
+  }
+])
 
 watch(
   () => checkedRows.value,

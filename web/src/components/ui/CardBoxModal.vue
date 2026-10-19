@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { mdiClose } from '@mdi/js'
 import { useFocusTrap } from '@/composables/useFocusTrap'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseButtons from '@/components/ui/BaseButtons.vue'
 import CardBox from '@/components/ui/CardBox.vue'
@@ -19,6 +20,11 @@ const props = defineProps<{
   hideSubmit?: boolean
   /** Holds the confirm button shut until the caller's own gate is satisfied. */
   confirmDisabled?: boolean
+  /**
+   * Runs on confirm with the dialog held open and a spinner on the confirm
+   * button.
+   */
+  action?: () => Promise<unknown>
   modelValue: boolean | undefined
   form?: FormType
 }>()
@@ -36,15 +42,28 @@ const isOpen = computed(() => !!props.modelValue)
 
 useFocusTrap(cardEl, isOpen)
 
+const busy = ref(false)
+
 const confirm = async () => {
-  if (props.confirmDisabled) return
-  if (!props.form) {
-    value.value = false
-    emit('confirm')
+  if (props.confirmDisabled || busy.value) return
+  if (props.form) return
+
+  if (props.action) {
+    busy.value = true
+    try {
+      await props.action()
+    } finally {
+      busy.value = false
+    }
   }
+
+  value.value = false
+  emit('confirm')
 }
 
 const cancel = () => {
+  if (busy.value) return
+
   if (props.form) {
     props.form.handleReset()
   }
@@ -53,14 +72,16 @@ const cancel = () => {
   emit('cancel')
 }
 
-const onKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape' && value.value) {
-    cancel()
+useKeyboardShortcuts([
+  {
+    key: 'Escape',
+    inEditable: true,
+    inDialog: true,
+    preventDefault: false,
+    when: () => !!value.value,
+    handler: cancel
   }
-}
-
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+])
 </script>
 
 <template>
@@ -84,6 +105,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             :icon="mdiClose"
             :title="$t('common.close')"
             :aria-label="$t('common.close')"
+            :disabled="busy"
             color="dark"
             small
             rounded-full
@@ -101,6 +123,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
               :label="buttonLabel"
               :color="button || 'info'"
               :disabled="confirmDisabled || form?.isSubmitting.value"
+              :loading="busy"
               @click="confirm"
               type="submit"
               @keyup.enter="confirm()"
@@ -109,6 +132,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
               v-if="hasCancel"
               :label="$t('common.cancel')"
               color="light"
+              :disabled="busy"
               @click="cancel"
             />
           </slot>

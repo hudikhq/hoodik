@@ -2,6 +2,7 @@
 import { computed, useAttrs } from 'vue'
 import { getButtonColor, type ColorType } from '@/colors'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
+import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import type { RouteLocation } from 'vue-router'
 
 const props = defineProps<{
@@ -22,6 +23,8 @@ const props = defineProps<{
   outline?: boolean
   active?: boolean
   disabled?: boolean
+  /** Shows a spinner before the label and blocks clicks while work is in flight. */
+  loading?: boolean
   roundedFull?: boolean
   notRounded?: boolean
   noBorder?: boolean
@@ -44,6 +47,8 @@ const is = computed(() => {
 
   return 'button'
 })
+
+const isDisabled = computed(() => props.disabled || props.loading)
 
 const computedType = computed(() => {
   if (is.value === 'button') {
@@ -92,9 +97,9 @@ const componentClass = computed(() => {
     'transition-colors',
     'focus-visible:ring',
     'duration-150',
-    props.disabled ? 'cursor-not-allowed' : 'cursor-pointer',
+    isDisabled.value ? 'cursor-not-allowed' : 'cursor-pointer',
     props.roundedFull ? 'rounded-full' : props.notRounded ? '' : isDense.value ? 'rounded' : 'rounded-lg',
-    getButtonColor(props.color || 'light', !!props.outline, !props.disabled, !!props.active)
+    getButtonColor(props.color || 'light', !!props.outline, !isDisabled.value, !!props.active)
   ]
 
   if (!props.noBorder) {
@@ -112,7 +117,7 @@ const componentClass = computed(() => {
     base.push('py-2', props.roundedFull ? 'px-6' : 'px-3')
   }
 
-  if (props.disabled) {
+  if (isDisabled.value) {
     base.push(props.outline ? 'opacity-50' : 'opacity-70')
   }
 
@@ -133,9 +138,11 @@ const componentClass = computed(() => {
     :type="computedType"
     :to="to"
     :target="target"
-    :disabled="disabled"
+    :disabled="isDisabled"
+    :aria-busy="loading || undefined"
     :aria-label="iconLabel"
   >
+    <SpinnerIcon v-if="loading" :size="16" />
     <BaseIcon v-if="icon" :path="icon" :size="iconSize" />
     <span v-if="label" :class="labelClass">{{ label }}</span>
   </component>
@@ -145,9 +152,11 @@ const componentClass = computed(() => {
     :type="computedType"
     :to="to"
     :target="target"
-    :disabled="disabled"
+    :disabled="isDisabled"
+    :aria-busy="loading || undefined"
     :aria-label="iconLabel"
   >
+    <SpinnerIcon v-if="loading" :size="16" />
     <BaseIcon v-if="icon" :path="icon" :size="iconSize" />
     <span v-if="label" :class="labelClass">{{ label }}</span>
   </router-link>

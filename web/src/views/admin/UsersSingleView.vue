@@ -28,7 +28,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import SessionsInner from './user/SessionsInner.vue'
 import { useTitle } from '@vueuse/core'
-import QuotaSlider from '@/components/ui/QuotaSlider.vue'
+import QuotaInput from '@/components/ui/QuotaInput.vue'
 
 const title = useTitle()
 const route = useRoute()
@@ -215,9 +215,10 @@ watch(
               </div>
               <div v-else class="space-y-3">
                 <p class="text-xs font-medium text-brownish-400 dark:text-brownish-50">{{ $t('admin.user.editStorageQuota') }}</p>
-                <QuotaSlider v-model="user.quota" />
+                <QuotaInput v-model="user.quota" />
                 <div class="flex items-center gap-2 pt-1">
                   <BaseButtonConfirm
+                    :icon="mdiCheck"
                     :small="true"
                     :label="$t('admin.user.saveQuota')"
                     :confirm-label="$t('common.confirm')"

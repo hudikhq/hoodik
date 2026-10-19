@@ -77,6 +77,8 @@ describe('locale aware formatting', () => {
 
   it('formats sizes with the locale decimal separator', () => {
     expect(formatSize(1536)).toBe('1.50 KB')
+    expect(formatSize(200 * 1024 ** 3)).toBe('200 GB')
+    expect(formatSize(512)).toBe('512 B')
 
     setLocale('hr')
     expect(formatSize(1536)).toBe('1,50 KB')

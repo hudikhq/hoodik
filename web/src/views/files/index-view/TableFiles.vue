@@ -13,11 +13,12 @@ import {
   mdiShareVariantOutline
 } from '@mdi/js'
 import { useCapability } from '@/composables/useCapability'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import TableCheckboxCell from '@/components/ui/TableCheckboxCell.vue'
 import SortableName from '@/components/ui/SortableName.vue'
 import TableFileRowWatcher from './TableFileRowWatcher.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { AppFile } from 'types'
 import { isPreviewable, isMarkdownFile } from '!/preview'
 import { SHARED_WITH_ME_DIR_ID, canWriteToShared } from '!/storage'
@@ -114,9 +115,33 @@ const selectRange = (file: AppFile) => {
 }
 
 /**
+ * Shift+Arrow makes the selection exactly the rows between the anchor and the
+ * newly focused row, so reversing direction shrinks it again. The anchor is
+ * only kept while the row being left is part of the selection; otherwise the
+ * range starts fresh from that row.
+ */
+const selectRangeByKeyboard = (from: number, to: number) => {
+  const rows = props.items
+  const anchorIndex =
+    anchorId.value && checkedIds.value.has(rows[from].id)
+      ? rows.findIndex((f) => f.id === anchorId.value)
+      : -1
+  if (anchorIndex < 0) anchorId.value = rows[from].id
+
+  const start = anchorIndex >= 0 ? anchorIndex : from
+  const [lo, hi] = start <= to ? [start, to] : [to, start]
+  rows.forEach((file, i) => {
+    if (file.id === SHARED_WITH_ME_DIR_ID) return
+    const inRange = i >= lo && i <= hi
+    if (inRange !== checkedIds.value.has(file.id)) emits('select-one', inRange, file)
+  })
+}
+
+/**
  * Arrow keys walk the row buttons so the browser is operable without a
- * pointer. Enter is the button's own activation and Space is handled on the
- * row, which leaves only the movement to do here.
+ * pointer, and Shift+Arrow selects along the way. Enter is the button's own
+ * activation and Space is handled on the row, which leaves only the movement
+ * to do here.
  */
 const onListKeydown = (event: KeyboardEvent) => {
   if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
@@ -131,11 +156,46 @@ const onListKeydown = (event: KeyboardEvent) => {
 
   event.preventDefault()
   next.focus()
+
+  if (!event.shiftKey || props.hideCheckbox) return
+  const rowIndex = (el: HTMLElement) => props.items.findIndex((f) => f.id === el.dataset.fileId)
+  const from = rowIndex(target)
+  const to = rowIndex(next)
+  if (from >= 0 && to >= 0) selectRangeByKeyboard(from, to)
+}
+
+const selectAll = () => {
+  if (checked.value) {
+    emits('select-all', props.items, dirId.value)
+  } else {
+    checked.value = true
+  }
 }
 
 const showDeleteAll = computed(() => {
   return checkedRows.value.length > 0 && !props.hideDelete
 })
+
+useKeyboardShortcuts([
+  // Ctrl+A selects every row in the current folder
+  {
+    key: 'a',
+    mod: true,
+    when: () => !props.hideCheckbox && props.items.length > 0,
+    handler: selectAll
+  },
+  {
+    key: 'Delete',
+    when: () => showDeleteAll.value,
+    handler: () => emits('remove-all')
+  },
+  {
+    key: 'Backspace',
+    mod: true,
+    when: () => showDeleteAll.value,
+    handler: () => emits('remove-all')
+  }
+])
 
 const showMoveAll = computed(() => {
   return checkedRows.value.length > 0
@@ -203,27 +263,40 @@ watch(
   }
 )
 
-const dragend = (e: DragEvent) => {
-  isDropZone.value = false
+const hasFiles = (e: DragEvent) => !!e.dataTransfer?.types.includes('Files')
 
+// Modals stay in the DOM behind v-show, so only a rendered one counts as open.
+const isDialogOpen = () =>
+  [...document.querySelectorAll('[role="dialog"]')].some((el) => el.getClientRects().length > 0)
+
+const isDropBlocked = () => isSharedWithMeRoot.value || isDialogOpen()
+
+// Bound on the window rather than the table so a drop anywhere on the page,
+// including the empty space around a short listing, lands in this folder.
+// Folder rows handle their own drops and stop propagation before this runs.
+const dragover = (e: DragEvent) => {
+  if (!hasFiles(e)) return
   e.preventDefault()
-  e.stopPropagation()
+
+  if (isDropBlocked()) {
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'none'
+    return
+  }
+  isDropZone.value = true
 }
 
-const dragover = (e: DragEvent) => {
-  isDropZone.value = true
-
-  e.preventDefault()
-  e.stopPropagation()
+const dragleave = (e: DragEvent) => {
+  // A null relatedTarget means the pointer left the window, not just moved
+  // between two elements of the page.
+  if (e.relatedTarget === null) isDropZone.value = false
 }
 
 const drop = (e: DragEvent) => {
+  if (!hasFiles(e)) return
   isDropZone.value = false
-
   e.preventDefault()
-  e.stopPropagation()
 
-  if (isSharedWithMeRoot.value) return
+  if (isDropBlocked()) return
 
   // Extract FileSystemEntry objects synchronously — DataTransferItemList is only valid
   // during the event and becomes empty after the handler returns.
@@ -244,14 +317,25 @@ const drop = (e: DragEvent) => {
   }
 }
 
+onMounted(() => {
+  window.addEventListener('dragover', dragover)
+  window.addEventListener('dragleave', dragleave)
+  window.addEventListener('drop', drop)
+})
+onUnmounted(() => {
+  window.removeEventListener('dragover', dragover)
+  window.removeEventListener('dragleave', dragleave)
+  window.removeEventListener('drop', drop)
+})
+
 const borderClass = 'sm:border-l sm:border-paper-300 sm:dark:border-brownish-950'
 
 const sizes = {
   checkbox: 'pl-2 pt-3 w-10 shrink-0',
   name: 'flex-1 p-2 pt-3 min-w-0 flex',
-  size: 'hidden p-2 pt-3 md:block w-24 shrink-0',
+  size: 'hidden p-2 pt-3 md:block w-28 shrink-0',
   type: 'hidden p-2 pt-3 xl:block w-24 shrink-0',
-  modifiedAt: 'hidden p-2 pt-3 sm:block w-44 shrink-0',
+  modifiedAt: 'hidden p-2 pt-3 sm:block w-52 shrink-0',
   buttons: 'w-10 p-2 shrink-0'
 }
 </script>
@@ -400,11 +484,6 @@ const sizes = {
       'border-2 border-redish-300 border-spacing-0 m-[-2px]': isDropZone
     }"
     class="bg-white dark:bg-brownish-900 rounded-lg border border-paper-300/40 dark:border-brownish-700/40"
-    @dragenter="dragover"
-    @dragleave="dragend"
-    @dragend="dragend"
-    @dragover="dragover"
-    @drop="drop"
   >
     <div class="w-full flex rounded-t-lg bg-paper-100 dark:bg-brownish-950 border-b border-paper-300 dark:border-brownish-700/40">
       <div :class="sizes.checkbox">

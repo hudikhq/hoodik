@@ -1178,7 +1178,8 @@
     "B": "B",
     "GB": "GB",
     "KB": "KB",
-    "MB": "MB"
+    "MB": "MB",
+    "TB": "TB"
   },
   "time": {
     "justNow": "just now"
@@ -1199,7 +1200,7 @@
       "root": "Root"
     },
     "loadingDecrypting": "Loading and decrypting your data, please wait...",
-    "quotaSlider": {
+    "quotaInput": {
       "default": "default"
     },
     "working": "Working…"

@@ -21,10 +21,12 @@ export async function closeOpenModal(page: Page): Promise<void> {
  */
 export async function openShareDialogFor(page: Page, fileName: string): Promise<void> {
   await closeOpenModal(page)
-  await page.getByTestId(`file-row-${fileName}`).locator('[name="actions-dropdown"]').click()
-  // Other rows keep hidden copies of this entry, and the open menu only gains
-  // it once the file's upload has finished, so wait for the visible one.
-  await page.locator('[data-testid="actions-share-account"]:visible').first().click()
+  const row = page.getByTestId(`file-row-${fileName}`)
+  await row.locator('[name="actions-dropdown"]').click()
+  // Every row renders its own (hidden) menu, so an unscoped `.first()`
+  // lands on whichever row sorts first rather than the one just opened.
+  // The entry only appears once the file's upload has finished; click() waits for it.
+  await row.getByTestId('actions-share-account').click()
   await expect(page.getByTestId('share-dialog-target')).toBeVisible()
 }
 

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { mdiPlus, mdiMinus } from '@mdi/js'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import type { Preview } from '!/preview'
 import SpinnerIcon from '../ui/SpinnerIcon.vue'
 import { heicToJpegBlob } from '!/heic'
@@ -127,30 +128,11 @@ const downloadPercent = computed(() => {
   return Math.min(Math.round((loadedBytes.value / size) * 100), 99)
 })
 
-/**
- * Keydown event handler
- */
-const imageKeydown = (e: KeyboardEvent) => {
-  if (e.key === '+') {
-    plus()
-  }
-
-  if (e.key === '-') {
-    minus()
-  }
-
-  if (e.key === ' ') {
-    fit()
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', imageKeydown)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', imageKeydown)
-})
+useKeyboardShortcuts([
+  { key: '+', preventDefault: false, handler: plus },
+  { key: '-', preventDefault: false, handler: minus },
+  { key: ' ', preventDefault: false, handler: fit }
+])
 
 watch(
   () => props.modelValue,

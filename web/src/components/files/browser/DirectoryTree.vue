@@ -4,7 +4,6 @@ import { computed, ref, watch } from 'vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import {
   mdiChevronDown,
-  mdiChevronUp,
   mdiChevronRight,
   mdiFolderMove,
   mdiFolder,
@@ -158,9 +157,12 @@ watch(
       }"
       :data-testid="`picker-row-${parent?.name ?? 'root'}`"
     >
-      <div class="flex flex-shrink">
-        <div class="w-full cursor-pointer prevent-select" @click="opened = !opened">
-          <BaseIcon :path="opened ? mdiChevronDown : mdiChevronUp" size="20" w="w-6" h="h-6" />
+      <div class="flex flex-shrink items-center">
+        <div
+          class="w-full flex items-center cursor-pointer prevent-select"
+          @click="opened = !opened"
+        >
+          <BaseIcon :path="opened ? mdiChevronDown : mdiChevronRight" size="20" w="w-6" h="h-6" />
           {{ parent?.name || $t('files.tree.root') }}
         </div>
         <div class="text-right whitespace-nowrap">
@@ -191,12 +193,12 @@ watch(
     <template v-if="isTopLevelSelect && sharedRootItems.length > 0">
       <li class="w-full border-t-[1px] border-paper-200 dark:border-brownish-800 p-1">
         <div
-          class="w-full cursor-pointer prevent-select"
+          class="w-full flex items-center cursor-pointer prevent-select"
           @click="sharedOpened = !sharedOpened"
           data-testid="directory-tree-shared-with-me"
         >
           <BaseIcon
-            :path="sharedOpened ? mdiChevronDown : mdiChevronUp"
+            :path="sharedOpened ? mdiChevronDown : mdiChevronRight"
             size="20"
             w="w-6"
             h="h-6"

@@ -103,13 +103,11 @@ test.describe('Virtual "Shared with me" folder under /files', () => {
     await expect(page.locator('[data-testid="actions-share-account"]').first()).toBeVisible()
   })
 
-  test('synthetic Shared with me row offers no menu and a disabled checkbox', async ({ page }) => {
+  test('synthetic Shared with me row offers no menu and no checkbox', async ({ page }) => {
     // The synthetic root id is a client-only marker — every action would
     // route a literal `__shared_with_me__` into a real storage endpoint
-    // and bounce off the path-attribute validator with a 400. The
-    // dropdown stays hidden; the checkbox renders for visual rhythm with
-    // the rest of the listing but is disabled so it can never push the
-    // synthetic id into the selection state.
+    // and bounce off the path-attribute validator with a 400, so neither
+    // the dropdown nor the selection checkbox is rendered.
     const alice = await createUser(page, randomEmail(), randomPassword())
     await logout(page)
     const bob = await createUser(page, randomEmail(), randomPassword())
@@ -123,9 +121,7 @@ test.describe('Virtual "Shared with me" folder under /files', () => {
     const syntheticRow = page.getByTestId('file-row-Shared with me')
     await expect(syntheticRow).toBeVisible({ timeout: 15_000 })
     await expect(syntheticRow.locator('[name="actions-dropdown"]')).toHaveCount(0)
-    const checkbox = syntheticRow.locator('input[type="checkbox"]')
-    await expect(checkbox).toBeVisible()
-    await expect(checkbox).toBeDisabled()
+    await expect(syntheticRow.locator('input[type="checkbox"]')).toHaveCount(0)
   })
 
   test('rename of an incoming share keeps the row in the virtual folder', async ({ page }) => {
@@ -309,5 +305,40 @@ test.describe('Virtual "Shared with me" folder under /files', () => {
     await page.getByTestId('file-row-readonly-note.md').dblclick()
     await page.waitForURL(/\/notes\/[0-9a-f-]{36}/, { timeout: 15_000 })
     await expect(page.locator('[name="md-save"]')).toBeVisible({ timeout: 15_000 })
+  })
+})
+
+test.describe('Select all next to the virtual folder', () => {
+  test('Ctrl+A then Del deletes the owned rows and skips "Shared with me"', async ({ page }) => {
+    const alice = await createUser(page, randomEmail(), randomPassword())
+    await logout(page)
+    const bob = await createUser(page, randomEmail(), randomPassword())
+    await logout(page)
+
+    await loginAsUser(page, alice.email, alice.password)
+    await aliceSharesWithBob(page, bob.email, 'reader')
+    await logout(page)
+    await loginAsUser(page, bob.email, bob.password)
+
+    const sharedFolder = page.getByTestId('file-row-Shared with me')
+    await expect(sharedFolder).toBeVisible({ timeout: 15_000 })
+
+    for (const name of ['Folder_A', 'Folder_B']) {
+      await page.locator('[name="create-dir"]').click()
+      await page.locator('#name').fill(name)
+      await page.getByRole('button', { name: 'Create', exact: true }).click()
+      await expect(page.getByTestId(`file-row-${name}`)).toBeVisible()
+    }
+
+    await page.keyboard.press('ControlOrMeta+a')
+    await expect(page.getByTestId('files-selected-count')).toHaveText(/^2 selected$/)
+
+    await page.keyboard.press('Delete')
+    await page.getByTestId('delete-confirm-count').fill('2')
+    await page.getByRole('button', { name: 'Yes, delete' }).click()
+
+    await expect(page.getByTestId('file-row-Folder_A')).not.toBeVisible()
+    await expect(page.getByTestId('file-row-Folder_B')).not.toBeVisible()
+    await expect(sharedFolder).toBeVisible()
   })
 })
