@@ -41,34 +41,39 @@ services:
       - /var/lib/postgresql/data:size=4g
 
   minio:
-    image: quay.io/minio/minio:latest
+    image: versity/versitygw:v1.9.0@sha256:eb7f786fcd91e72194e48fcf1ac16302d686bf8e3a71434bdbc067a6efd3fdc7
     hostname: minio
     container_name: minio
-    command: server /data --console-address ":9001"
     environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
+      - ROOT_ACCESS_KEY=minioadmin
+      - ROOT_SECRET_KEY=minioadmin
+      - VGW_PORT=:9000
+      - VGW_BACKEND=posix
+      - VGW_BACKEND_ARG=/data
     ports:
       - "9000:9000"
-      - "9001:9001"
     volumes:
       # A named volume, not a bind mount: the daemon creates a host bind as
       # root, and one under data/ leaves the whole directory root-owned, so
       # the e2e recipe could no longer mkdir its own data/e2e beside it.
       - minio:/data
 
-  # Creates the default bucket on first startup
+  # Creates the default bucket and its browser CORS rule on first startup
   minio-init:
-    image: quay.io/minio/mc:latest
+    image: amazon/aws-cli:2.38.3@sha256:efe32e825cf203652eaca3e7e94679580274e7d567c39270aaa36a5144737108
     depends_on:
       - minio
-    entrypoint: >
-      /bin/sh -c "
-      sleep 2;
-      mc alias set local http://minio:9000 minioadmin minioadmin;
-      mc mb --ignore-existing local/hoodik;
-      echo 'Bucket ready.';
-      "
+    environment:
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_DEFAULT_REGION=us-east-1
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        s3="aws --endpoint-url http://minio:9000 s3api"
+        for i in $$(seq 1 30); do $$s3 head-bucket --bucket hoodik 2>/dev/null && break; $$s3 create-bucket --bucket hoodik >/dev/null && break; sleep 1; done
+        $$s3 put-bucket-cors --bucket hoodik --cors-configuration '{"CORSRules":[{"AllowedOrigins":["*"],"AllowedMethods":["GET","PUT","HEAD"],"AllowedHeaders":["*"],"ExposeHeaders":["ETag"],"MaxAgeSeconds":3600}]}'
+        echo 'Bucket ready.'
 
 volumes:
   minio:
