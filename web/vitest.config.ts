@@ -22,8 +22,10 @@ export default mergeConfig(
       // headroom without masking a genuine hang.
       testTimeout: 60000,
       hookTimeout: 60000,
-      deps: {
-        inline: ['transfer']
+      server: {
+        deps: {
+          inline: ['transfer']
+        }
       },
       setupFiles: ['./vitest.setup.ts'],
       environment: 'jsdom',

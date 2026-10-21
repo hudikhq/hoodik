@@ -170,7 +170,7 @@ pub async fn engage(context: Context) -> AppResult<()> {
     } else {
         let config = rustls_config.expect("rustls config must be built when SSL is enabled");
         server
-            .bind_rustls(&bind_address, config)?
+            .bind_rustls_0_23(&bind_address, config)?
             .run()
             .await
             .map_err(Error::from)
