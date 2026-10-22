@@ -1,6 +1,6 @@
 ARG BIN_DIR=amd64
 
-FROM alpine:3.18
+FROM alpine:3.22
 
 # Inherit build variables
 ARG BIN_DIR
