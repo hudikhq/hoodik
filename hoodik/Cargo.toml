@@ -1,6 +1,6 @@
 [package]
 name = "hoodik"
-version = "2.5.8"
+version = "2.5.9"
 edition = "2021"
 rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
@@ -30,7 +30,7 @@ recommended_client_version = "2.5.2"
 openssl = { workspace = true }
 log = { workspace = true }
 env_logger = { workspace = true }
-actix-web = { workspace = true, features = ["rustls"] }
+actix-web = { workspace = true, features = ["rustls-0_23"] }
 actix-cors = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }

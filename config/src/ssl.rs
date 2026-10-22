@@ -1,6 +1,6 @@
 use error::{AppResult, Error};
 use rcgen::generate_simple_self_signed;
-use rustls::{Certificate, PrivateKey, ServerConfig};
+use rustls::ServerConfig;
 use rustls_pemfile::{certs, pkcs8_private_keys};
 use std::{
     fs::File,
@@ -58,23 +58,20 @@ impl SslConfig {
 
     /// Build a rustls server config from the provided cert and key files through the environment
     pub fn build_rustls_config(&self, names: Vec<String>) -> AppResult<ServerConfig> {
-        let config = ServerConfig::builder()
-            .with_safe_defaults()
-            .with_no_client_auth();
+        let config = ServerConfig::builder().with_no_client_auth();
 
         let (cert_file, key_file) = self.load_or_generate(names)?;
 
         let cert_file = &mut BufReader::new(cert_file);
         let key_file = &mut BufReader::new(key_file);
 
-        let cert_chain = certs(cert_file)?.into_iter().map(Certificate).collect();
-        let mut keys: Vec<PrivateKey> = pkcs8_private_keys(key_file)?
-            .into_iter()
-            .map(PrivateKey)
-            .collect();
+        let cert_chain = certs(cert_file).collect::<Result<Vec<_>, _>>()?;
+        let key = pkcs8_private_keys(key_file)
+            .next()
+            .ok_or_else(|| Error::InternalError(format!("no PKCS#8 key in {}", self.key_file)))??;
 
         config
-            .with_single_cert(cert_chain, keys.remove(0))
+            .with_single_cert(cert_chain, key.into())
             .map_err(Error::from)
     }
 
@@ -106,9 +103,9 @@ impl SslConfig {
         &self,
         subject_alt_names: Vec<String>,
     ) -> AppResult<(String, String)> {
-        let cert = generate_simple_self_signed(subject_alt_names)?;
+        let certified = generate_simple_self_signed(subject_alt_names)?;
 
-        Ok((cert.serialize_pem()?, cert.serialize_private_key_pem()))
+        Ok((certified.cert.pem(), certified.signing_key.serialize_pem()))
     }
 }
 

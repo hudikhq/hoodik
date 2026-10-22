@@ -149,7 +149,6 @@ const componentClass = computed(() => {
   <router-link
     v-else-if="to"
     :class="componentClass"
-    :type="computedType"
     :to="to"
     :target="target"
     :disabled="isDisabled"

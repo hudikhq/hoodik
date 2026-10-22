@@ -9,7 +9,7 @@ use jsonwebtoken::errors::Error as JWTError;
 use lettre::{
     address::AddressError, error::Error as LettreError, transport::smtp::Error as SmtpError,
 };
-use rcgen::RcgenError;
+use rcgen::Error as RcgenError;
 use reqwest::Error as ReqwestError;
 use rustls::Error as RustlsError;
 use sea_orm::{
