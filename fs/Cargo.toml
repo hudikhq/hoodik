@@ -12,7 +12,7 @@ description = "File system abstraction library"
 
 [features]
 default = []
-s3 = ["dep:s3", "dep:base64", "dep:hex", "dep:md-5", "dep:sha2", "dep:hmac", "dep:http", "dep:hyper", "dep:time", "dep:url", "dep:reqwest"]
+s3 = ["dep:s3", "dep:base64", "dep:hex", "dep:md-5", "dep:sha2", "dep:hmac", "dep:http", "dep:time", "dep:url", "dep:reqwest"]
 # Gate the S3 versioned-chunk integration suite so the regular `cargo test`
 # pipeline doesn't try to hit MinIO. Enable via `just test-s3-integration`.
 s3-integration-tests = ["s3"]
@@ -24,8 +24,7 @@ hex = { workspace = true, optional = true }
 md-5 = { version = "0.10", optional = true }
 sha2 = { version = "0.10", optional = true }
 hmac = { version = "0.12", optional = true }
-http = { version = "0.2", optional = true }
-hyper = { version = "0.14", optional = true }
+http = { version = "1", optional = true }
 time = { version = "0.3", optional = true, features = ["formatting", "macros"] }
 url = { version = "^2", optional = true }
 # `rustls-tls` resolves to `rustls-tls-webpki-roots`, which is the point: the

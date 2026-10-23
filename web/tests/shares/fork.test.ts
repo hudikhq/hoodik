@@ -209,14 +209,17 @@ describe('fork pipeline', () => {
   it('fork_cancel_mid_upload_rolls_back_partial_upload', async () => {
     const env = await prepareForkEnvironment()
     const controller = new AbortController()
-    const originalEncrypt = downloadSync.downloadChunk
+    // prepareForkEnvironment already mocked downloadChunk; re-spying would
+    // hand back that same mock, so chain through its implementation instead.
+    const download = vi.mocked(downloadSync.downloadChunk)
+    const serveChunk = download.getMockImplementation()!
     let downloadCalls = 0
-    vi.spyOn(downloadSync, 'downloadChunk').mockImplementation(async (file, chunk) => {
+    download.mockImplementation(async (file, chunk) => {
       downloadCalls += 1
       if (downloadCalls === 2) {
         controller.abort()
       }
-      return originalEncrypt(file, chunk)
+      return serveChunk(file, chunk)
     })
     await expect(
       forkFile(

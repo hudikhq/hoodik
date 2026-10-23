@@ -176,28 +176,20 @@ async fn delete_one_batch(bucket: &s3::Bucket, keys: &[String]) -> AppResult<()>
 
     headers.insert(AUTHORIZATION, hv(&authorization)?);
 
-    // Build the hyper request from the assembled headers + body.
-    let mut request = hyper::Request::builder()
-        .method(hyper::Method::POST)
-        .uri(url.as_str());
-    for (name, value) in headers.iter() {
-        request = request.header(name, value);
-    }
-    let request = request
-        .body(hyper::Body::from(body))
-        .map_err(|e| Error::InternalError(format!("hyper request build: {}", e)))?;
-
-    let client = bucket.http_client();
-    let response = client
-        .request(request)
+    let response = bucket
+        .http_client()
+        .post(url)
+        .headers(headers)
+        .body(body)
+        .send()
         .await
         .map_err(|e| Error::StorageError(format!("S3 DeleteObjects request failed: {}", e)))?;
 
     let status = response.status();
-    let body_bytes = hyper::body::to_bytes(response.into_body())
+    let body_str = response
+        .text()
         .await
         .map_err(|e| Error::StorageError(format!("DeleteObjects body read failed: {}", e)))?;
-    let body_str = String::from_utf8_lossy(&body_bytes).into_owned();
 
     if !status.is_success() {
         return Err(Error::StorageError(format!(

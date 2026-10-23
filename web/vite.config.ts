@@ -4,7 +4,6 @@ import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import wasm from 'vite-plugin-wasm'
-import topLevelAwait from 'vite-plugin-top-level-await'
 import { serviceWorkerPlugin } from './plugins/service-worker'
 
 /**
@@ -80,8 +79,6 @@ const bootProgress = (): Plugin => {
   }
 }
 
-// import { VitePWA } from 'vite-plugin-pwa'
-
 // wasm-bindgen glue (transfer_bg.js) must not be tree-shaken: WASM imports
 // __wbindgen_closure_* from JS; if those exports are dropped, instantiate() fails.
 function transferWasmSideEffects(id: string): boolean | undefined {
@@ -102,8 +99,11 @@ export default defineConfig({
   envDir: '../',
   envPrefix: 'APP_',
   worker: {
+    // Every worker is spawned with `type: 'module'`, and the wasm plugin's
+    // instantiation is a top-level await, which an IIFE bundle cannot carry.
+    format: 'es',
     // Same as main build so nested workers (e.g. hash-worker) resolve `transfer` WASM correctly.
-    plugins: [wasm(), topLevelAwait()],
+    plugins: () => [wasm()],
     rollupOptions: {
       // Dynamic `import()` inside nested workers (hash-worker) must stay one chunk — otherwise Rollup
       // code-splits and conflicts with the sw.ts worker bundle format (IIFE / service-worker plugin).
@@ -119,7 +119,6 @@ export default defineConfig({
     vue(),
     vueJsx(),
     wasm(),
-    topLevelAwait(),
     bootProgress(),
     serviceWorkerPlugin({
       filename: 'sw.ts'

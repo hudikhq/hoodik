@@ -11,14 +11,23 @@ use crate::error::{CryptoResult, Error};
 use rsa::{
     pkcs1::LineEnding,
     pss::{Signature, SigningKey, VerifyingKey},
-    sha2::Sha256,
-    signature::{RandomizedSigner, Verifier},
+    sha2::{Digest, Sha256},
+    signature::{RandomizedSigner, SignatureEncoding, Verifier},
     Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey,
 };
 
-pub use rsa::PublicKeyParts;
+pub use rsa::traits::PublicKeyParts;
 pub type PrivateKey = RsaPrivateKey;
 pub type PublicKey = RsaPublicKey;
+
+/// PSS salt length: the maximum the modulus leaves room for. That was the
+/// rsa crate's default up to 0.8, so it is what every client has ever
+/// signed with and what the stored share signatures carry. The crate now
+/// defaults to the digest length and verifies strictly, so the length is
+/// pinned here on both sides rather than following the default.
+fn pss_salt_len(key: &impl PublicKeyParts) -> usize {
+    key.size() - 2 - <Sha256 as Digest>::output_size()
+}
 
 /// Generate fingerprint from private or public key
 pub fn fingerprint<T: PublicKeyParts>(key: T) -> CryptoResult<String> {
@@ -58,11 +67,12 @@ pub mod private {
     /// Sharing's signed-payload protocol requires signing DER-encoded
     /// payloads alongside a domain-prefix, which are not UTF-8 strings.
     pub fn sign_with_bytes(message: &[u8], key: PrivateKey) -> CryptoResult<String> {
-        let signing_key = SigningKey::<Sha256>::from(key);
+        let salt_len = pss_salt_len(&key);
+        let signing_key = SigningKey::<Sha256>::new_with_salt_len(key, salt_len);
         let mut rng = rand::thread_rng();
         let signature = signing_key.try_sign_with_rng(&mut rng, message)?;
 
-        Ok(crate::base64::encode(signature))
+        Ok(crate::base64::encode(signature.to_bytes()))
     }
 
     /// Sign a message with private key
@@ -133,7 +143,7 @@ pub mod public {
 
     use rsa::{
         pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey},
-        Oaep, PublicKey as _,
+        Oaep,
     };
 
     use super::*;
@@ -183,7 +193,8 @@ pub mod public {
     ) -> CryptoResult<()> {
         let signature_decoded = crate::base64::decode(signature)?;
         let signature = Signature::try_from(signature_decoded.as_slice())?;
-        let verifying_key = VerifyingKey::<Sha256>::from(key);
+        let salt_len = pss_salt_len(&key);
+        let verifying_key = VerifyingKey::<Sha256>::new_with_salt_len(key, salt_len);
 
         verifying_key
             .verify(message, &signature)
@@ -316,7 +327,10 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
 
     const TEST_ENCRYPTION_MESSAGE: &str = "hello world";
 
-    const TEST_SIGNATURE_BASE64: &str = "obSJu3pSjrnWyHvzM4L2aWRR8qT66qPHkAmOdNRuekxOHwjjXNp8zxUhnxgiZEKakBFOup6PEFqUD4526cKYVDc+/dRfiRW+asmQYAa1rga9slPtKU4RFpWl68DzL2HlEiKOnxW89dQsW007GZ7OyOF4B5KqSZUDC3lcH62Vs8/zx7fkbh3lGtLJ0iKHs8zz9aIxkNIesAwY1TH/YJTA+bARBaKEUJggZpLI7iQtTGbFtPsnsaeO9WgxK+zdp47tcO0kyKXmgMfEKXuSuDmEndQLzaSCYJvCXyUwONi/ujlii6LIqbObQGHXencbM8kUNY5tEWJVI4iQsWHtOFExsA==";
+    // Produced by the web client's WASM build of this crate at rsa 0.8, so it
+    // carries the maximum-length salt that every shipped client emits. It
+    // has to keep verifying for as long as such signatures sit in databases.
+    const TEST_SIGNATURE_BASE64: &str = "P2mRiP29GzFxByeERAcOgHqLM3vAR/buU+GohdIDDXBhghNMV1OBtMPmM94OJNuXEzpQFy/ZnsKbLIvOJmf8G1z23QkBqa5yy9K8Pdunks4jzCyoh9djaQGuRJL/VMrbT3QcRAHANmW+NEKz2o7DrJIFgfXcoN4d9F47Gr67OUTeiYoyBlBKsc3s1uo8QaAeZgRIzI+7+CSB7CDRohBYwAsJx/Sqc8Fl3KC7zB5yXwRLX9J8j5ikRvYGdesmN39AmIwLG1l5ntgX666BElbLaDjC9VDgqn43n60lEf1QJkNqlP2vAVYxVxpFhW5Nl0z0Z33HFE5TdCG6/hEkb9QYLg==";
 
     const _ENCRYPTED_BASE64: &str = "ADtuM6Ns6XIs0Xxw7PWDyZQCMQ/2xYYBtUueh/9LAskhQdGAI1AlhQ07VE78rzfMXWetg+oYm2Vus91UGrauJLgzXFyZqEKSLZ9ei6rxdS6ktxjMwBSlcrQtwiohnLpFhuy9H2FEoC8NxM+UhRqRqjCP7cRUsUpKT6fte4OsJ+UzCOUbaeZoMDRydRZvlfq8Zgk45M1SUnobpJfJ5bYNfwHZQ724NlwxnZIBgmA+XXpVM4nt9lb7Q4/796nKvKFu2/sEWaOsnOj09CE5EQE8vo19CugDTv95r1LcsKN1SjgIKHtLFXdJY0Gtp62F2zR1VjNLN/qT//1DMu/em/m/TA==";
 
@@ -401,7 +415,7 @@ Rp/vTZJD4LIeR91o55BWr+NLY2I52eSY6QIDAQAB
     }
 
     #[test]
-    fn test_rsa_signature_verification_from_javascript() {
+    fn test_rsa_signature_verification_from_wasm_build() {
         public::verify(
             TEST_SIGNATURE_MESSAGE,
             TEST_SIGNATURE_BASE64,
