@@ -60,6 +60,7 @@ async fn share_with(context: &Context, file_id: Uuid, user_id: Uuid) {
         shared_by_user_id: ActiveValue::Set(None),
         member_signature: ActiveValue::Set(None),
         member_signed_at: ActiveValue::Set(None),
+        favorite: ActiveValue::NotSet,
     })
     .exec_without_returning(&context.db)
     .await

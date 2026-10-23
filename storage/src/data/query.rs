@@ -9,6 +9,7 @@ pub struct Query {
     pub dirs_only: Option<bool>,
     pub is_owner: Option<bool>,
     pub editable: Option<bool>,
+    pub favorite: Option<bool>,
     /// Withhold `encrypted_thumbnail` from the rows and report only
     /// `has_thumbnail`. Absent means full rows — the compatible default
     /// for clients that predate the parameter.

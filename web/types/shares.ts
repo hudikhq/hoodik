@@ -124,6 +124,7 @@ export interface IncomingShare {
   sha256?: string | null
   blake2b?: string | null
   share_role: ShareRole
+  favorite?: boolean
   encrypted_key: string
   created_at: number
   shared_at: number | null

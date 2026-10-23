@@ -8,7 +8,9 @@ import {
   mdiArrowLeft,
   mdiArrowRight,
   mdiFilePdfBox,
-  mdiWrap
+  mdiWrap,
+  mdiStar,
+  mdiStarOutline
 } from '@mdi/js'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -26,6 +28,7 @@ const props = defineProps<{
   hidePreviousAndNext?: boolean
   hideDelete?: boolean
   hideClose?: boolean
+  favorite?: boolean
 }>()
 
 const emits = defineEmits<{
@@ -35,6 +38,7 @@ const emits = defineEmits<{
   (event: 'cancel', file: Preview): void
   (event: 'previous', id: string | undefined): void
   (event: 'next', id: string | undefined): void
+  (event: 'favorite'): void
 }>()
 
 const preview = computed(() => props.modelValue)
@@ -156,6 +160,15 @@ useKeyboardShortcuts([
       <slot />
       <div class="absolute top-0 w-full">
         <div class="float-right space-x-2 p-2">
+          <BaseButton
+            v-if="favorite !== undefined"
+            :color="favorite ? 'warning' : 'light'"
+            :icon="favorite ? mdiStar : mdiStarOutline"
+            small
+            :title="favorite ? $t('preview.unfavoriteFile') : $t('preview.favoriteFile')"
+            @click="emits('favorite')"
+            name="preview-favorite"
+          />
           <BaseButton
             v-if="!hideDelete"
             color="danger"
