@@ -311,6 +311,7 @@ async fn run_download_pipeline<'a>(
                 http,
                 target,
                 chunk,
+                chunk_count,
                 decryption_key,
                 cipher,
                 Box::new(move |bytes| {
@@ -350,6 +351,7 @@ async fn run_download_pipeline<'a>(
                     http,
                     ChunkTarget::Api { auth, source },
                     chunk_idx,
+                    chunk_count,
                     decryption_key,
                     cipher,
                     // The failed attempt already reported whatever it read,
@@ -388,6 +390,7 @@ pub(crate) async fn fetch_and_decrypt<'a>(
     http: &'a dyn HttpClient,
     target: ChunkTarget<'a>,
     chunk: u64,
+    chunk_count: u64,
     decryption_key: &'a [u8],
     cipher: &'a str,
     on_bytes: Box<dyn Fn(u64) + 'a>,
@@ -396,7 +399,7 @@ pub(crate) async fn fetch_and_decrypt<'a>(
         let encrypted = http.download_chunk(target, chunk, on_bytes).await?;
         let plaintext = cryptfns::cipher::Cipher::from_str(cipher)
             .map_err(Error::from)?
-            .decrypt_chunk(decryption_key, chunk, encrypted)
+            .decrypt_chunk(decryption_key, chunk, chunk_count, encrypted)
             .map_err(Error::from)?;
         Ok(plaintext)
     }
@@ -600,7 +603,7 @@ pub async fn decrypt_chunks_to_file(
             .map_err(|e| Error::Io(format!("chunk {i}: {e}")))?;
 
         let plaintext = cipher_impl
-            .decrypt_chunk(decryption_key, i, encrypted)
+            .decrypt_chunk(decryption_key, i, chunk_count, encrypted)
             .map_err(Error::from)?;
 
         file.write_all(&plaintext)

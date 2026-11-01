@@ -64,7 +64,7 @@ export function forgetAllUploads(): void {
  *
  * Same rule the server's own `target_version` follows.
  */
-function target(file: UploadAppFile): { size: number; chunks: number } {
+export function target(file: UploadAppFile): { size: number; chunks: number } {
   return {
     size: file.pending_size ?? file.size ?? file.file?.size ?? 0,
     chunks: file.pending_chunks ?? file.chunks ?? 0

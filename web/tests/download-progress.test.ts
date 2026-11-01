@@ -44,7 +44,7 @@ describe('download byte progress through the wasm pipeline', () => {
   async function makeFile(plaintext: Uint8Array) {
     const cipher = cryptfns.cipher.defaultCipher()
     const key = await cryptfns.cipher.generateKey(cipher)
-    const encrypted = await cryptfns.cipher.encrypt(cipher, plaintext, key, 0)
+    const encrypted = await cryptfns.cipher.encrypt(cipher, plaintext, key, 0, 1)
 
     const file = {
       id: 'f1',

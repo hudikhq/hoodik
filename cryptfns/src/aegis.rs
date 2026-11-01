@@ -14,12 +14,17 @@ pub fn generate_key() -> CryptoResult<Vec<u8>> {
 
 /// Encrypt with AEGIS-128L.  Output = ciphertext ‖ 16-byte tag.
 pub fn encrypt(key: Vec<u8>, plaintext: Vec<u8>) -> CryptoResult<Vec<u8>> {
+    encrypt_aad(key, plaintext, &[])
+}
+
+/// [`encrypt`] with associated data authenticated alongside the ciphertext.
+pub fn encrypt_aad(key: Vec<u8>, plaintext: Vec<u8>, aad: &[u8]) -> CryptoResult<Vec<u8>> {
     let (k, n) = split_key_nonce(key);
     let (ct, tag) = Aegis128L::<TAG_LENGTH>::new(
         k.as_slice().try_into().map_err(|_| Error::UnknownCipher("bad key length".into()))?,
         n.as_slice().try_into().map_err(|_| Error::UnknownCipher("bad nonce length".into()))?,
     )
-    .encrypt(&plaintext, &[]);
+    .encrypt(&plaintext, aad);
 
     let mut out = ct;
     out.extend_from_slice(&tag);
@@ -28,6 +33,11 @@ pub fn encrypt(key: Vec<u8>, plaintext: Vec<u8>) -> CryptoResult<Vec<u8>> {
 
 /// Decrypt with AEGIS-128L.  Expects ciphertext ‖ 16-byte tag as produced by [`encrypt`].
 pub fn decrypt(key: Vec<u8>, ciphertext_with_tag: Vec<u8>) -> CryptoResult<Vec<u8>> {
+    decrypt_aad(key, ciphertext_with_tag, &[])
+}
+
+/// [`decrypt`] that also verifies the associated data given to [`encrypt_aad`].
+pub fn decrypt_aad(key: Vec<u8>, ciphertext_with_tag: Vec<u8>, aad: &[u8]) -> CryptoResult<Vec<u8>> {
     if ciphertext_with_tag.len() < TAG_LENGTH {
         return Err(Error::UnknownCipher("ciphertext too short".into()));
     }
@@ -43,7 +53,7 @@ pub fn decrypt(key: Vec<u8>, ciphertext_with_tag: Vec<u8>) -> CryptoResult<Vec<u
         k.as_slice().try_into().map_err(|_| Error::UnknownCipher("bad key length".into()))?,
         n.as_slice().try_into().map_err(|_| Error::UnknownCipher("bad nonce length".into()))?,
     )
-    .decrypt(ct, tag, &[])
+    .decrypt(ct, tag, aad)
     .map_err(|_| Error::UnknownCipher("aegis128l decryption failed".into()))
 }
 

@@ -1051,9 +1051,58 @@ async fn download_legacy_fixed_nonce_file() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn upload_single_chunk_matches_legacy_ciphertext() {
-    // Chunk 0 derives the identity nonce, so files up to one chunk stay
-    // byte-identical across the scheme change in both directions.
+async fn download_mixed_format_file() {
+    // An upload started by an older release and finished by a newer one
+    // leaves one payload with early chunks in a legacy layout and the rest
+    // tagged. Each chunk carries its own format, so the download pipeline
+    // must decode such a file per chunk.
+    let cs = CHUNK_SIZE_BYTES as usize;
+    let mut original = vec![0x44u8; cs];
+    original.extend(vec![0x55u8; cs]);
+    original.extend(vec![0x66u8; 700]);
+
+    let cipher = cryptfns::cipher::Cipher::from_str(cryptfns::cipher::DEFAULT).unwrap();
+    let chunk_count = compute_chunk_count(original.len() as u64);
+    let http = MockHttpClient::new();
+
+    for (i, chunk) in original.chunks(cs).enumerate() {
+        let encrypted = if i < 2 {
+            // Legacy index-derived nonce: the little-endian index XOR-ed
+            // into the key blob's embedded nonce (identity for index 0).
+            let mut blob = test_key();
+            for (j, b) in (i as u64).to_le_bytes().iter().enumerate() {
+                blob[16 + j] ^= b;
+            }
+            cipher.encrypt(blob, chunk.to_vec()).unwrap()
+        } else {
+            cipher
+                .encrypt_chunk(&test_key(), i as u64, chunk_count, chunk.to_vec())
+                .unwrap()
+        };
+        http.stored_chunks.borrow_mut().insert(i as u64, encrypted);
+    }
+
+    let progress = MockProgressReporter::new();
+    let downloaded = crate::download::download_file(
+        &http,
+        &progress,
+        &test_auth(),
+        "mixed",
+        original.len() as u64,
+        chunk_count,
+        &test_key(),
+        cryptfns::cipher::DEFAULT,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(downloaded, original);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn upload_single_chunk_writes_tagged_format() {
+    // Even a one-chunk file is written in the tagged chunk format, not the
+    // whole-payload layout, and reads back through the chunk decoder.
     let data = vec![7u8; 1024];
     let source = MockDataSource::new(data.clone());
     let http = MockHttpClient::new();
@@ -1075,9 +1124,11 @@ async fn upload_single_chunk_matches_legacy_ciphertext() {
     .await
     .unwrap();
 
+    let stored = http.stored_chunks.borrow()[&0].clone();
+    assert!(cryptfns::cipher::is_tagged_chunk(&stored));
+
     let cipher = cryptfns::cipher::Cipher::from_str(cryptfns::cipher::DEFAULT).unwrap();
-    let legacy = cipher.encrypt(test_key(), data).unwrap();
-    assert_eq!(http.stored_chunks.borrow()[&0], legacy);
+    assert_eq!(cipher.decrypt_chunk(&test_key(), 0, 1, stored).unwrap(), data);
 }
 
 #[test]
@@ -1322,7 +1373,9 @@ async fn download_all_chunks_tar_roundtrip() {
 
     // Decrypt the chunk and verify it matches the original.
     let cipher = cryptfns::cipher::Cipher::from_str(cryptfns::cipher::DEFAULT).unwrap();
-    let decrypted = cipher.decrypt(test_key(), entries[0].data.clone()).unwrap();
+    let decrypted = cipher
+        .decrypt_chunk(&test_key(), 0, 1, entries[0].data.clone())
+        .unwrap();
     assert_eq!(decrypted, original);
 }
 
@@ -1368,7 +1421,7 @@ async fn download_all_chunks_tar_multi_chunk() {
     let mut reassembled = Vec::new();
     for (i, entry) in entries.iter().enumerate() {
         let plaintext = cipher
-            .decrypt_chunk(&test_key(), i as u64, entry.data.clone())
+            .decrypt_chunk(&test_key(), i as u64, entries.len() as u64, entry.data.clone())
             .unwrap();
         reassembled.extend_from_slice(&plaintext);
     }
@@ -1852,7 +1905,7 @@ fn declared_chunk_sizes_match_what_encryption_produces() {
                 accounted += plaintext_len;
 
                 let actual = parsed
-                    .encrypt_chunk(&key, chunk as u64, vec![0u8; plaintext_len as usize])
+                    .encrypt_chunk(&key, chunk as u64, declared.len() as u64, vec![0u8; plaintext_len as usize])
                     .unwrap()
                     .len() as u64;
 

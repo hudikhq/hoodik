@@ -2,7 +2,7 @@ import Api, { ErrorResponse } from '../../api'
 import * as cryptfns from '../../cryptfns'
 import { utcStringFromLocal } from '../..'
 import { MAX_UPLOAD_RETRIES } from '../../constants'
-import { forgetUpload, putChunk, uploadChunkUrls } from './direct'
+import { forgetUpload, putChunk, target, uploadChunkUrls } from './direct'
 import * as logger from '!/logger'
 
 import type { Query } from '../../api'
@@ -33,7 +33,12 @@ export async function uploadChunk(
     throw new Error(`File ${file.id} is missing key`)
   }
 
-  const encrypted = await cryptfns.cipher.encrypt(file.cipher, data, file.key, chunk)
+  const totalChunks = target(file).chunks
+  if (!totalChunks) {
+    throw new Error(`File ${file.id} is missing its chunk count`)
+  }
+
+  const encrypted = await cryptfns.cipher.encrypt(file.cipher, data, file.key, chunk, totalChunks)
 
   const client = api || new Api().withRefresh()
   const directUrl = (await uploadChunkUrls(file, client))?.[chunk]

@@ -471,34 +471,35 @@ pub fn cipher_decrypt_string(cipher: &str, hex_data: String, key: Vec<u8>) -> Op
     String::from_utf8(plaintext).ok()
 }
 
-/// Encrypt one chunk of a multi-chunk payload; the chunk index is folded
-/// into the key's embedded nonce so no two chunks share one. Index 0
-/// matches `cipher_encrypt` output byte-for-byte.
+/// Encrypt chunk `chunk_index` of a `total_chunks`-chunk payload under a
+/// fresh random nonce (see `Cipher::encrypt_chunk`).
 #[wasm_bindgen]
 pub fn cipher_encrypt_chunk(
     cipher: &str,
     key: Vec<u8>,
     chunk_index: u32,
+    total_chunks: u32,
     plaintext: Vec<u8>,
 ) -> Option<Vec<u8>> {
     crate::cipher::Cipher::from_str(cipher)
         .ok()?
-        .encrypt_chunk(&key, chunk_index as u64, plaintext)
+        .encrypt_chunk(&key, chunk_index as u64, total_chunks as u64, plaintext)
         .ok()
 }
 
-/// Decrypt one chunk of a multi-chunk payload. Falls back to the legacy
-/// fixed-nonce scheme so files uploaded before per-chunk nonces still open.
+/// Decrypt chunk `chunk_index` of a `total_chunks`-chunk payload. The chunk's
+/// own header picks the format, so chunks from earlier releases still open.
 #[wasm_bindgen]
 pub fn cipher_decrypt_chunk(
     cipher: &str,
     key: Vec<u8>,
     chunk_index: u32,
+    total_chunks: u32,
     ciphertext: Vec<u8>,
 ) -> Option<Vec<u8>> {
     crate::cipher::Cipher::from_str(cipher)
         .ok()?
-        .decrypt_chunk(&key, chunk_index as u64, ciphertext)
+        .decrypt_chunk(&key, chunk_index as u64, total_chunks as u64, ciphertext)
         .ok()
 }
 

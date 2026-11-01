@@ -25,6 +25,9 @@ pub enum Error {
     AsconError(AsconError),
     RandomError(RandomError),
     UnknownCipher(String),
+    /// A chunk failed validation before any cryptographic work: an index past
+    /// the chunk count, or a body too short to hold the declared layout.
+    InvalidChunk(&'static str),
     InvalidLength(&'static str),
     /// Key parsing/encoding failures from the Curve25519 PKCS#8/SPKI stack,
     /// which uses a newer `der` major than the RSA-era variants above.
