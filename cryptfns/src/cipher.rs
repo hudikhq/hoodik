@@ -1,6 +1,18 @@
 use crate::{aegis, aegis256, aes, chacha};
 use crate::error::{CryptoResult, Error};
 
+/// Leading bytes of every chunk written by [`Cipher::encrypt_chunk`].
+///
+/// Chunks from earlier releases carry no header, so this marks the format.
+/// Eight bytes keep the odds of a legacy chunk starting with it by chance at
+/// 2^-64.  The last byte is the chunk format version.
+pub const CHUNK_FORMAT_TAG: [u8; 8] = *b"HDKCHK\x00\x02";
+
+/// Whether `chunk` is in the [`CHUNK_FORMAT_TAG`] format.
+pub fn is_tagged_chunk(chunk: &[u8]) -> bool {
+    chunk.starts_with(&CHUNK_FORMAT_TAG)
+}
+
 /// Default cipher identifier — used when no cipher is specified.
 pub const DEFAULT: &str = "aegis128l";
 
@@ -77,7 +89,8 @@ impl Cipher {
         }
     }
 
-    /// How many bytes encryption adds to a payload — the AEAD tag.
+    /// How many bytes [`Cipher::encrypt_chunk`] adds to a chunk: the format
+    /// tag, the per-chunk nonce and the AEAD tag.
     ///
     /// Measured by encrypting nothing rather than declared as a constant, so
     /// it cannot drift from what [`Cipher::encrypt_chunk`] actually produces.
@@ -85,36 +98,108 @@ impl Cipher {
     /// ciphertext need this: a presigned upload URL is signed over the exact
     /// content length, and the bucket refuses a body of any other size.
     pub fn overhead(&self) -> CryptoResult<usize> {
-        Ok(self.encrypt(self.generate_key()?, Vec::new())?.len())
+        Ok(self
+            .encrypt_chunk(&self.generate_key()?, 0, 1, Vec::new())?
+            .len())
     }
 
-    /// Encrypt one chunk of a multi-chunk payload.
+    /// Encrypt one chunk of a `total_chunks`-chunk payload.
     ///
-    /// Encrypting every chunk with the blob as-is would reuse the embedded nonce
-    /// across all chunks of a file, voiding the AEAD security guarantees — for
-    /// ChaCha20-Poly1305 the XOR of two ciphertext chunks directly leaks the XOR
-    /// of their plaintexts.  Each chunk therefore gets its own nonce, derived by
-    /// XOR-ing the little-endian chunk index into the nonce portion of the blob.
+    /// Layout: [`CHUNK_FORMAT_TAG`] ‖ nonce ‖ ciphertext ‖ tag.  Every call
+    /// draws a fresh random nonce, so no two chunk encryptions under one file
+    /// key share a nonce, whichever save or position they belong to.  The
+    /// associated data binds the format tag, the cipher id, the chunk index
+    /// and the total chunk count, so a chunk only authenticates at the
+    /// position, and in a payload of the length, it was written for.
     ///
-    /// Index 0 leaves the blob unchanged, so single-chunk payloads are
-    /// byte-identical to [`Cipher::encrypt`] output.
+    /// Nonce sizes bound how many chunks one key can safely encrypt.  The
+    /// tightest is ChaCha20-Poly1305's 96-bit nonce: random draws collide
+    /// with probability about n²/2⁹⁷, which stays below 2⁻³² up to 2³²
+    /// chunks per key — 16 PiB at 4 MiB chunks, and keys here are
+    /// per-file.  The 128-bit (Ascon-128a, AEGIS-128L) and 256-bit
+    /// (AEGIS-256) nonces sit far below that.  Re-check this bound before
+    /// wiring in a cipher with a shorter nonce.
     pub fn encrypt_chunk(
         &self,
         key: &[u8],
         chunk_index: u64,
+        total_chunks: u64,
         plaintext: Vec<u8>,
     ) -> CryptoResult<Vec<u8>> {
-        self.encrypt(self.chunk_key(key, chunk_index), plaintext)
+        if chunk_index >= total_chunks {
+            return Err(Error::InvalidChunk("chunk index out of range"));
+        }
+
+        let (key_len, nonce_len) = self.key_nonce_lengths();
+        let mut nonce = vec![0u8; nonce_len];
+        getrandom::getrandom(&mut nonce)?;
+
+        let aad = self.chunk_aad(chunk_index, total_chunks);
+        let ciphertext = self.encrypt_aad(self.blob(key, key_len, &nonce), plaintext, &aad)?;
+
+        let mut out = Vec::with_capacity(CHUNK_FORMAT_TAG.len() + nonce_len + ciphertext.len());
+        out.extend_from_slice(&CHUNK_FORMAT_TAG);
+        out.extend_from_slice(&nonce);
+        out.extend_from_slice(&ciphertext);
+        Ok(out)
     }
 
-    /// Decrypt one chunk of a multi-chunk payload.
+    /// Decrypt one chunk of a `total_chunks`-chunk payload.
     ///
-    /// Tries the per-chunk nonce first (the [`Cipher::encrypt_chunk`] scheme).
-    /// Files uploaded before per-chunk nonces existed encrypted every chunk with
-    /// the blob's nonce as-is, so on failure the unmodified blob is tried as a
-    /// fallback.  The AEAD tag rejects the wrong branch, so the fallback cannot
-    /// misdecrypt.
+    /// The format is read from the chunk itself.  A chunk that starts with
+    /// [`CHUNK_FORMAT_TAG`] is decoded strictly as written by
+    /// [`Cipher::encrypt_chunk`]: there is no fallback, so it fails on any
+    /// change to its bytes, index, total chunk count or cipher.  Anything else
+    /// is a chunk written by an earlier release and goes through
+    /// [`Cipher::decrypt_legacy_chunk`], so existing files stay readable.
+    ///
+    /// The associated data does not identify the save a chunk belongs to:
+    /// two saves of the same file with the same chunk count produce chunks
+    /// that are interchangeable at equal indices, and a complete earlier
+    /// chunk set for a file remains decryptable as a whole.  Binding a
+    /// per-save identifier would close that and needs the identifier
+    /// threaded through every upload and download path.
     pub fn decrypt_chunk(
+        &self,
+        key: &[u8],
+        chunk_index: u64,
+        total_chunks: u64,
+        ciphertext: Vec<u8>,
+    ) -> CryptoResult<Vec<u8>> {
+        if !is_tagged_chunk(&ciphertext) {
+            // The legacy path predates total_chunks, so untagged chunks skip
+            // the index-range check below; their AEAD tag still binds the
+            // index through the nonce derivation.
+            return self.decrypt_legacy_chunk(key, chunk_index, ciphertext);
+        }
+
+        if chunk_index >= total_chunks {
+            return Err(Error::InvalidChunk("chunk index out of range"));
+        }
+
+        let (key_len, nonce_len) = self.key_nonce_lengths();
+        let body = &ciphertext[CHUNK_FORMAT_TAG.len()..];
+        if body.len() < nonce_len {
+            return Err(Error::InvalidChunk("chunk too short"));
+        }
+        let (nonce, sealed) = body.split_at(nonce_len);
+
+        let aad = self.chunk_aad(chunk_index, total_chunks);
+        self.decrypt_aad(self.blob(key, key_len, nonce), sealed.to_vec(), &aad)
+    }
+
+    /// Decrypt a chunk written before [`CHUNK_FORMAT_TAG`] existed.
+    ///
+    /// Those releases derived the chunk nonce from the key blob by XOR-ing the
+    /// little-endian index into it, and the earliest ones used the blob's
+    /// nonce as-is for every chunk.  Both layouts are read here; nothing new
+    /// is ever written in either.
+    ///
+    /// This path stays open for the life of a key: any chunk ever written
+    /// for a file in a legacy layout keeps decrypting, even after later
+    /// saves move the file to the tagged format.  Closing it would require
+    /// re-encrypting existing data.
+    pub fn decrypt_legacy_chunk(
         &self,
         key: &[u8],
         chunk_index: u64,
@@ -123,7 +208,7 @@ impl Cipher {
         if chunk_index == 0 {
             return self.decrypt(key.to_vec(), ciphertext);
         }
-        self.decrypt(self.chunk_key(key, chunk_index), ciphertext.clone())
+        self.decrypt(self.legacy_chunk_key(key, chunk_index), ciphertext.clone())
             .or_else(|_| self.decrypt(key.to_vec(), ciphertext))
     }
 
@@ -171,10 +256,9 @@ impl Cipher {
         self.decrypt(key, data)
     }
 
-    /// Derive the key blob for `chunk_index`: XOR the little-endian index into
-    /// the first 8 bytes of the embedded nonce, leaving the key bytes untouched.
-    /// Normalises the blob length first, matching each cipher's `split_key_nonce`.
-    fn chunk_key(&self, key: &[u8], chunk_index: u64) -> Vec<u8> {
+    /// Legacy chunk key blob for `chunk_index`: the little-endian index
+    /// XOR-ed into the first 8 bytes of the embedded nonce.  Read-only path.
+    fn legacy_chunk_key(&self, key: &[u8], chunk_index: u64) -> Vec<u8> {
         let (key_len, nonce_len) = self.key_nonce_lengths();
         let mut blob = key.to_vec();
         blob.resize(key_len + nonce_len, 0);
@@ -182,6 +266,44 @@ impl Cipher {
             blob[key_len + i] ^= b;
         }
         blob
+    }
+
+    /// The file key's key bytes followed by `nonce`.
+    fn blob(&self, key: &[u8], key_len: usize, nonce: &[u8]) -> Vec<u8> {
+        let mut blob = key.to_vec();
+        blob.resize(key_len, 0);
+        blob.extend_from_slice(nonce);
+        blob
+    }
+
+    /// Associated data of a tagged chunk.
+    fn chunk_aad(&self, chunk_index: u64, total_chunks: u64) -> Vec<u8> {
+        let id = self.as_str().as_bytes();
+        let mut aad = Vec::with_capacity(CHUNK_FORMAT_TAG.len() + 1 + id.len() + 16);
+        aad.extend_from_slice(&CHUNK_FORMAT_TAG);
+        aad.push(id.len() as u8);
+        aad.extend_from_slice(id);
+        aad.extend_from_slice(&chunk_index.to_le_bytes());
+        aad.extend_from_slice(&total_chunks.to_le_bytes());
+        aad
+    }
+
+    fn encrypt_aad(&self, key: Vec<u8>, plaintext: Vec<u8>, aad: &[u8]) -> CryptoResult<Vec<u8>> {
+        match self {
+            Self::Ascon128a => aes::encrypt_aad(key, plaintext, aad),
+            Self::ChaCha20Poly1305 => chacha::encrypt_aad(key, plaintext, aad),
+            Self::Aegis128L => aegis::encrypt_aad(key, plaintext, aad),
+            Self::Aegis256 => aegis256::encrypt_aad(key, plaintext, aad),
+        }
+    }
+
+    fn decrypt_aad(&self, key: Vec<u8>, ciphertext: Vec<u8>, aad: &[u8]) -> CryptoResult<Vec<u8>> {
+        match self {
+            Self::Ascon128a => aes::decrypt_aad(key, ciphertext, aad),
+            Self::ChaCha20Poly1305 => chacha::decrypt_aad(key, ciphertext, aad),
+            Self::Aegis128L => aegis::decrypt_aad(key, ciphertext, aad),
+            Self::Aegis256 => aegis256::decrypt_aad(key, ciphertext, aad),
+        }
     }
 
     fn key_nonce_lengths(&self) -> (usize, usize) {
@@ -273,48 +395,180 @@ mod tests {
     ];
 
     #[test]
-    fn chunk_zero_matches_whole_payload_encryption() {
-        for cipher in ALL_CIPHERS {
-            let key = cipher.generate_key().unwrap();
-            let plaintext = b"chunk zero identity".to_vec();
-            assert_eq!(
-                cipher.encrypt_chunk(&key, 0, plaintext.clone()).unwrap(),
-                cipher.encrypt(key.clone(), plaintext).unwrap(),
-                "{} chunk 0 must match legacy output",
-                cipher.as_str()
-            );
-        }
-    }
-
-    #[test]
     fn chunk_roundtrip_all_ciphers() {
         for cipher in ALL_CIPHERS {
             let key = cipher.generate_key().unwrap();
-            for index in [0u64, 1, 7, u64::MAX] {
+            for (index, total) in [(0u64, 1u64), (1, 2), (7, 9), (u64::MAX - 1, u64::MAX)] {
                 let plaintext = format!("chunk {index}").into_bytes();
-                let ciphertext = cipher.encrypt_chunk(&key, index, plaintext.clone()).unwrap();
-                let recovered = cipher.decrypt_chunk(&key, index, ciphertext).unwrap();
+                let ciphertext = cipher
+                    .encrypt_chunk(&key, index, total, plaintext.clone())
+                    .unwrap();
+                assert!(is_tagged_chunk(&ciphertext));
+                let recovered = cipher.decrypt_chunk(&key, index, total, ciphertext).unwrap();
                 assert_eq!(plaintext, recovered, "{} chunk {index}", cipher.as_str());
             }
         }
     }
 
     #[test]
-    fn per_chunk_nonces_remove_keystream_reuse() {
-        let cipher = Cipher::ChaCha20Poly1305;
+    fn empty_chunk_roundtrips() {
+        for cipher in ALL_CIPHERS {
+            let key = cipher.generate_key().unwrap();
+            let ciphertext = cipher.encrypt_chunk(&key, 0, 1, Vec::new()).unwrap();
+            assert_eq!(ciphertext.len(), cipher.overhead().unwrap());
+            assert!(cipher.decrypt_chunk(&key, 0, 1, ciphertext).unwrap().is_empty());
+        }
+    }
+
+    #[test]
+    fn overhead_matches_chunk_output() {
+        for cipher in ALL_CIPHERS {
+            let key = cipher.generate_key().unwrap();
+            let ciphertext = cipher.encrypt_chunk(&key, 3, 5, vec![7u8; 1000]).unwrap();
+            assert_eq!(ciphertext.len(), 1000 + cipher.overhead().unwrap());
+        }
+    }
+
+    #[test]
+    fn same_key_and_index_never_share_a_keystream() {
+        for cipher in ALL_CIPHERS {
+            let key = cipher.generate_key().unwrap();
+            let zeros = vec![0u8; 64];
+            let ones = vec![0xFFu8; 64];
+            let header = CHUNK_FORMAT_TAG.len() + cipher.key_nonce_lengths().1;
+
+            let ct_a = cipher.encrypt_chunk(&key, 0, 1, zeros.clone()).unwrap();
+            let ct_b = cipher.encrypt_chunk(&key, 0, 1, ones).unwrap();
+            assert_ne!(ct_a[..header], ct_b[..header], "{} headers must differ", cipher.as_str());
+            assert!(
+                !ct_a[header..header + 64]
+                    .iter()
+                    .zip(&ct_b[header..header + 64])
+                    .all(|(a, b)| a ^ b == 0xFF),
+                "{} bodies must be independent",
+                cipher.as_str()
+            );
+
+            // Same plaintext twice: the ciphertexts still differ.
+            let ct_c = cipher.encrypt_chunk(&key, 0, 1, zeros.clone()).unwrap();
+            assert_ne!(ct_a, ct_c, "{}", cipher.as_str());
+        }
+    }
+
+    #[test]
+    fn tampered_chunk_fails() {
+        for cipher in ALL_CIPHERS {
+            let key = cipher.generate_key().unwrap();
+            let ciphertext = cipher.encrypt_chunk(&key, 1, 3, b"tamper me".to_vec()).unwrap();
+            // Every byte after the format tag is covered: nonce, body and tag.
+            for i in CHUNK_FORMAT_TAG.len()..ciphertext.len() {
+                let mut bad = ciphertext.clone();
+                bad[i] ^= 0x01;
+                assert!(cipher.decrypt_chunk(&key, 1, 3, bad).is_err(), "{} byte {i}", cipher.as_str());
+            }
+        }
+    }
+
+    #[test]
+    fn chunk_at_wrong_index_fails() {
+        for cipher in ALL_CIPHERS {
+            let key = cipher.generate_key().unwrap();
+            let ciphertext = cipher.encrypt_chunk(&key, 2, 4, b"reordered".to_vec()).unwrap();
+            assert!(cipher.decrypt_chunk(&key, 3, 4, ciphertext.clone()).is_err());
+            assert!(cipher.decrypt_chunk(&key, 0, 4, ciphertext).is_err());
+        }
+    }
+
+    #[test]
+    fn chunk_with_wrong_total_fails() {
+        for cipher in ALL_CIPHERS {
+            let key = cipher.generate_key().unwrap();
+            // Truncating a 3-chunk payload to 2 chunks: chunk 1 now claims total 2.
+            let ciphertext = cipher.encrypt_chunk(&key, 1, 3, b"middle".to_vec()).unwrap();
+            assert!(cipher.decrypt_chunk(&key, 1, 2, ciphertext.clone()).is_err());
+            // Extending it fails the same way.
+            assert!(cipher.decrypt_chunk(&key, 1, 4, ciphertext).is_err());
+        }
+    }
+
+    #[test]
+    fn truncated_chunk_fails() {
+        for cipher in ALL_CIPHERS {
+            let key = cipher.generate_key().unwrap();
+            let ciphertext = cipher.encrypt_chunk(&key, 0, 1, b"cut short".to_vec()).unwrap();
+            for len in [ciphertext.len() - 1, CHUNK_FORMAT_TAG.len() + 4, CHUNK_FORMAT_TAG.len()] {
+                assert!(
+                    cipher.decrypt_chunk(&key, 0, 1, ciphertext[..len].to_vec()).is_err(),
+                    "{} len {len}",
+                    cipher.as_str()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn chunk_spliced_from_another_payload_fails() {
+        for cipher in ALL_CIPHERS {
+            let key = cipher.generate_key().unwrap();
+            // Chunk 1 of a 2-chunk save dropped into a 3-chunk save.
+            let other = cipher.encrypt_chunk(&key, 1, 2, b"other save".to_vec()).unwrap();
+            assert!(cipher.decrypt_chunk(&key, 1, 3, other).is_err());
+        }
+    }
+
+    #[test]
+    fn chunk_under_another_cipher_fails() {
+        // AEGIS-128L and Ascon-128a share key and nonce lengths, so only the
+        // cipher id in the associated data separates them.
+        let key = Cipher::Aegis128L.generate_key().unwrap();
+        let ciphertext = Cipher::Aegis128L.encrypt_chunk(&key, 0, 1, b"x".to_vec()).unwrap();
+        assert!(Cipher::Ascon128a.decrypt_chunk(&key, 0, 1, ciphertext).is_err());
+    }
+
+    #[test]
+    fn tagged_chunk_has_no_legacy_fallback() {
+        for cipher in ALL_CIPHERS {
+            let key = cipher.generate_key().unwrap();
+            let plaintext = b"legacy body".to_vec();
+            // A legacy ciphertext dressed with the format tag must not be
+            // accepted by falling through to the legacy decoder.
+            for legacy in [
+                cipher.encrypt(key.clone(), plaintext.clone()).unwrap(),
+                cipher.encrypt(cipher.legacy_chunk_key(&key, 2), plaintext.clone()).unwrap(),
+            ] {
+                let mut dressed = CHUNK_FORMAT_TAG.to_vec();
+                dressed.extend_from_slice(&legacy);
+                assert!(cipher.decrypt_chunk(&key, 2, 3, dressed).is_err(), "{}", cipher.as_str());
+            }
+        }
+    }
+
+    #[test]
+    fn index_past_total_is_rejected() {
+        let cipher = Cipher::Aegis128L;
         let key = cipher.generate_key().unwrap();
-        let zeros = vec![0u8; 64];
-        let ones = vec![0xFFu8; 64];
+        assert!(cipher.encrypt_chunk(&key, 1, 1, b"x".to_vec()).is_err());
+        let ciphertext = cipher.encrypt_chunk(&key, 0, 1, b"x".to_vec()).unwrap();
+        assert!(cipher.decrypt_chunk(&key, 1, 1, ciphertext).is_err());
+    }
 
-        // Under a shared nonce the keystream cancels: ct_a XOR ct_b == pt_a XOR pt_b.
-        let leak_a = cipher.encrypt(key.clone(), zeros.clone()).unwrap();
-        let leak_b = cipher.encrypt(key.clone(), ones.clone()).unwrap();
-        assert!(leak_a[..64].iter().zip(&leak_b[..64]).all(|(a, b)| a ^ b == 0xFF));
-
-        // Per-chunk nonces must break that relation.
-        let ct_a = cipher.encrypt_chunk(&key, 1, zeros).unwrap();
-        let ct_b = cipher.encrypt_chunk(&key, 2, ones).unwrap();
-        assert!(!ct_a[..64].iter().zip(&ct_b[..64]).all(|(a, b)| a ^ b == 0xFF));
+    #[test]
+    fn legacy_index_derived_chunks_still_decrypt() {
+        for cipher in ALL_CIPHERS {
+            let key = cipher.generate_key().unwrap();
+            let plaintext = b"chunk from a 2.x release".to_vec();
+            for index in [0u64, 1, 5] {
+                let legacy = cipher
+                    .encrypt(cipher.legacy_chunk_key(&key, index), plaintext.clone())
+                    .unwrap();
+                assert_eq!(
+                    cipher.decrypt_chunk(&key, index, 6, legacy).unwrap(),
+                    plaintext,
+                    "{} legacy chunk {index}",
+                    cipher.as_str()
+                );
+            }
+        }
     }
 
     #[test]
@@ -324,7 +578,7 @@ mod tests {
             let plaintext = b"pre-existing multi-chunk file".to_vec();
             let legacy = cipher.encrypt(key.clone(), plaintext.clone()).unwrap();
             assert_eq!(
-                cipher.decrypt_chunk(&key, 3, legacy).unwrap(),
+                cipher.decrypt_chunk(&key, 3, 4, legacy).unwrap(),
                 plaintext,
                 "{} legacy chunk must still decrypt",
                 cipher.as_str()
@@ -333,11 +587,11 @@ mod tests {
     }
 
     #[test]
-    fn chunk_at_wrong_index_fails_authentication() {
+    fn legacy_chunk_at_wrong_index_fails() {
         let cipher = Cipher::Aegis128L;
         let key = cipher.generate_key().unwrap();
-        let ciphertext = cipher.encrypt_chunk(&key, 2, b"reordered".to_vec()).unwrap();
-        assert!(cipher.decrypt_chunk(&key, 3, ciphertext).is_err());
+        let legacy = cipher.encrypt(cipher.legacy_chunk_key(&key, 2), b"x".to_vec()).unwrap();
+        assert!(cipher.decrypt_chunk(&key, 3, 4, legacy).is_err());
     }
 
     #[test]
@@ -403,6 +657,26 @@ mod tests {
         assert_eq!(
             Cipher::Ascon128a.decrypt_string(key, blob).unwrap(),
             b"hoodik.txt"
+        );
+    }
+
+    /// Cross-client anchor for the tagged chunk layout: the same vector is
+    /// asserted in `web/tests/crypto-cipher.test.ts` and the Flutter client's
+    /// `test/core/crypto/file_crypto_test.dart`. If any implementation of the
+    /// tag ‖ nonce ‖ ciphertext layout or the associated data drifts, one of
+    /// the three fails. Encryption cannot be goldened because the nonce is
+    /// random, so only decryption is pinned. AEGIS-128L chunk 1 of 3.
+    #[test]
+    fn chunk_golden_vector_decrypts() {
+        let key = hex::decode("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
+            .unwrap();
+        let chunk = hex::decode(
+            "48444b43484b0002a0a1a2a3a4a5a6a7a8a9aaabacadaeaf555f6e84c13c89dd00b3fe3a08937b3a8568eb1fbdc286e675a515fb",
+        )
+        .unwrap();
+        assert_eq!(
+            Cipher::Aegis128L.decrypt_chunk(&key, 1, 3, chunk).unwrap(),
+            b"hoodik chunk"
         );
     }
 

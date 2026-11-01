@@ -203,7 +203,7 @@ describe('Testing links', () => {
       new TextEncoder().encode('second-chunk')
     ]
     const encryptedChunks = await Promise.all(
-      plaintextChunks.map((c, i) => cryptfns.cipher.encrypt(cipher, c, file_key, i))
+      plaintextChunks.map((c, i) => cryptfns.cipher.encrypt(cipher, c, file_key, i, plaintextChunks.length))
     )
 
     // file_size drives the chunk count via ceil(size / CHUNK_SIZE_BYTES); one

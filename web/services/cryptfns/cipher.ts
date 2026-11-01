@@ -44,21 +44,23 @@ export async function generateKey(cipher = defaultCipher()): Promise<Key> {
 }
 
 /**
- * Encrypt one chunk of a file with the given cipher and key.
+ * Encrypt chunk `chunkIndex` of a `totalChunks`-chunk file.
  *
- * The chunk index is folded into the key's embedded nonce so no two
- * chunks of a file share one — encrypting every chunk with the blob
- * as-is reuses the nonce and voids the AEAD guarantees. Index 0 leaves
- * the nonce untouched, so single-chunk output is unchanged.
+ * Every chunk gets a fresh random nonce, stored in front of the
+ * ciphertext, and is authenticated together with its index and the
+ * file's chunk count. The format lives in
+ * `cryptfns::cipher::Cipher::encrypt_chunk` so every client produces
+ * identical output.
  */
 export async function encrypt(
   cipher: string,
   data: Uint8Array,
   key: Key,
-  chunkIndex: number
+  chunkIndex: number,
+  totalChunks: number
 ): Promise<Uint8Array> {
   await init()
-  const ciphertext = cipher_encrypt_chunk(cipher, key, chunkIndex, data)
+  const ciphertext = cipher_encrypt_chunk(cipher, key, chunkIndex, totalChunks, data)
 
   if (!ciphertext) {
     throw new Error(`cipher_encrypt_chunk failed for "${cipher}"`)
@@ -68,20 +70,21 @@ export async function encrypt(
 }
 
 /**
- * Decrypt one chunk of a file.
+ * Decrypt chunk `chunkIndex` of a `totalChunks`-chunk file.
  *
- * Tries the per-chunk nonce first, then falls back to the legacy
- * fixed-nonce scheme so files uploaded before per-chunk nonces still
- * decrypt — the AEAD tag rejects whichever branch is wrong.
+ * The chunk's header selects the format: chunks written by
+ * [[encrypt]] are decoded strictly, and chunks from earlier releases
+ * go through the legacy decoder so existing files stay readable.
  */
 export async function decrypt(
   cipher: string,
   ciphertext: Uint8Array,
   key: Key,
-  chunkIndex: number
+  chunkIndex: number,
+  totalChunks: number
 ): Promise<Uint8Array> {
   await init()
-  const plaintext = cipher_decrypt_chunk(cipher, key, chunkIndex, ciphertext)
+  const plaintext = cipher_decrypt_chunk(cipher, key, chunkIndex, totalChunks, ciphertext)
 
   if (!plaintext) {
     throw new Error(`cipher_decrypt_chunk failed for "${cipher}"`)

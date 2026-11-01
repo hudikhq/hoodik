@@ -1,5 +1,5 @@
 use crate::error::{CryptoResult, Error};
-use ascon_aead::aead::{Aead, KeyInit};
+use ascon_aead::aead::{Aead, KeyInit, Payload};
 use ascon_aead::{Ascon128a, Key, Nonce};
 
 pub(crate) const KEY_LENGTH: usize = 16;
@@ -19,32 +19,42 @@ pub fn generate_key() -> CryptoResult<Vec<u8>> {
 }
 
 pub fn encrypt(key: Vec<u8>, plaintext: Vec<u8>) -> CryptoResult<Vec<u8>> {
-    encrypt_aead(key, plaintext)
+    encrypt_aead(key, plaintext, &[])
 }
 
 pub fn decrypt(key: Vec<u8>, ciphertext: Vec<u8>) -> CryptoResult<Vec<u8>> {
-    decrypt_aead(key, ciphertext)
+    decrypt_aead(key, ciphertext, &[])
 }
 
-fn encrypt_aead(key: Vec<u8>, plaintext: Vec<u8>) -> CryptoResult<Vec<u8>> {
+/// [`encrypt`] with associated data authenticated alongside the ciphertext.
+pub fn encrypt_aad(key: Vec<u8>, plaintext: Vec<u8>, aad: &[u8]) -> CryptoResult<Vec<u8>> {
+    encrypt_aead(key, plaintext, aad)
+}
+
+/// [`decrypt`] that also verifies the associated data given to [`encrypt_aad`].
+pub fn decrypt_aad(key: Vec<u8>, ciphertext: Vec<u8>, aad: &[u8]) -> CryptoResult<Vec<u8>> {
+    decrypt_aead(key, ciphertext, aad)
+}
+
+fn encrypt_aead(key: Vec<u8>, plaintext: Vec<u8>, aad: &[u8]) -> CryptoResult<Vec<u8>> {
     let (key, nonce) = split_key_nonce(key);
 
     let key = Key::<Ascon128a>::from_slice(key.as_ref());
     let nonce = Nonce::<Ascon128a>::from_slice(nonce.as_ref());
 
     Ascon128a::new(key)
-        .encrypt(nonce, plaintext.as_ref())
+        .encrypt(nonce, Payload { msg: plaintext.as_ref(), aad })
         .map_err(Error::from)
 }
 
-fn decrypt_aead(key: Vec<u8>, ciphertext: Vec<u8>) -> CryptoResult<Vec<u8>> {
+fn decrypt_aead(key: Vec<u8>, ciphertext: Vec<u8>, aad: &[u8]) -> CryptoResult<Vec<u8>> {
     let (key, nonce) = split_key_nonce(key);
 
     let key = Key::<Ascon128a>::from_slice(key.as_ref());
     let nonce = Nonce::<Ascon128a>::from_slice(nonce.as_ref());
 
     Ascon128a::new(key)
-        .decrypt(nonce, ciphertext.as_ref())
+        .decrypt(nonce, Payload { msg: ciphertext.as_ref(), aad })
         .map_err(Error::from)
 }
 

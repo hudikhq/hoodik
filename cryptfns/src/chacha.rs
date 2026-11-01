@@ -1,5 +1,5 @@
 use crate::error::{CryptoResult, Error};
-use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, Key, KeyInit, Nonce};
+use chacha20poly1305::{aead::{Aead, Payload}, ChaCha20Poly1305, Key, KeyInit, Nonce};
 
 pub(crate) const KEY_LENGTH: usize = 32;
 pub(crate) const NONCE_LENGTH: usize = 12;
@@ -14,25 +14,35 @@ pub fn generate_key() -> CryptoResult<Vec<u8>> {
 
 /// Simple encrypt of the plaintext using chacha-poly1305
 pub fn encrypt(key: Vec<u8>, plaintext: Vec<u8>) -> CryptoResult<Vec<u8>> {
+    encrypt_aad(key, plaintext, &[])
+}
+
+/// [`encrypt`] with associated data authenticated alongside the ciphertext.
+pub fn encrypt_aad(key: Vec<u8>, plaintext: Vec<u8>, aad: &[u8]) -> CryptoResult<Vec<u8>> {
     let (key, nonce) = split_key_nonce(key);
     let key = Key::from_slice(&key);
     let nonce = Nonce::from_slice(&nonce);
     let cipher = ChaCha20Poly1305::new(key);
 
     cipher
-        .encrypt(nonce, plaintext.as_ref())
+        .encrypt(nonce, Payload { msg: plaintext.as_ref(), aad })
         .map_err(Error::from)
 }
 
 /// Simple decrypt of the ciphertext using chacha-poly1305
 pub fn decrypt(key: Vec<u8>, ciphertext: Vec<u8>) -> CryptoResult<Vec<u8>> {
+    decrypt_aad(key, ciphertext, &[])
+}
+
+/// [`decrypt`] that also verifies the associated data given to [`encrypt_aad`].
+pub fn decrypt_aad(key: Vec<u8>, ciphertext: Vec<u8>, aad: &[u8]) -> CryptoResult<Vec<u8>> {
     let (key, nonce) = split_key_nonce(key);
     let key = Key::from_slice(&key);
     let nonce = Nonce::from_slice(&nonce);
     let cipher = ChaCha20Poly1305::new(key);
 
     cipher
-        .decrypt(nonce, ciphertext.as_ref())
+        .decrypt(nonce, Payload { msg: ciphertext.as_ref(), aad })
         .map_err(Error::from)
 }
 

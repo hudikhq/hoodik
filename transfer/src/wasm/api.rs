@@ -450,6 +450,7 @@ impl TransferDownloader {
             &http,
             target,
             chunk_index as u64,
+            self.chunk_count,
             &decryption_key,
             &cipher,
             Box::new(move |bytes| {

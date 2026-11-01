@@ -13,6 +13,9 @@ import * as meta from '../services/storage/meta'
 
 import type { DownloadAppFile, UploadAppFile } from '../types'
 
+// Format tag (8) + nonce (16) + tag (16) that cryptfns adds to an AEGIS-128L chunk.
+const AEGIS128L_CHUNK_OVERHEAD = 8 + 16 + 16
+
 /**
  * Both worker paths relayed every chunk for the whole life of the feature
  * while `direct-transfer.spec.ts` passed, because that spec opens a preview
@@ -142,7 +145,7 @@ describe('worker transfers', () => {
     expect(path).toBe('/api/storage/file-2/upload-urls')
     // The AEAD tag on top of the payload — declaring the plaintext size would
     // have the bucket reject every chunk.
-    expect(body).toEqual({ chunks: [{ chunk: 0, size: 1024 + 16 }] })
+    expect(body).toEqual({ chunks: [{ chunk: 0, size: 1024 + AEGIS128L_CHUNK_OVERHEAD }] })
 
     expect(posted[0].message.directUrls).toEqual(['https://bucket/put/0'])
   })
@@ -314,8 +317,8 @@ describe('page-side chunk uploads', () => {
     ) as unknown[]
     expect(body).toEqual({
       chunks: [
-        { chunk: 0, size: 4 * 1024 * 1024 + 16 },
-        { chunk: 1, size: 20 + 16 }
+        { chunk: 0, size: 4 * 1024 * 1024 + AEGIS128L_CHUNK_OVERHEAD },
+        { chunk: 1, size: 20 + AEGIS128L_CHUNK_OVERHEAD }
       ]
     })
 
