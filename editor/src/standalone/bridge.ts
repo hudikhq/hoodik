@@ -57,10 +57,10 @@ export class EditorBridgeHost {
             editable: () => msg.editable,
           }))
         })
-        // Force view to re-evaluate editability
+        // Updating the context alone does not update an existing ProseMirror
+        // view. Apply the option to the live view as well.
         this.editor.action((ctx) => {
-          const view = ctx.get(editorViewOptionsCtx)
-          void view // trigger reconfiguration
+          ctx.get(editorViewCtx).setProps({ editable: () => msg.editable })
         })
         break
 
