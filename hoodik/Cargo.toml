@@ -1,6 +1,6 @@
 [package]
 name = "hoodik"
-version = "2.5.9"
+version = "2.6.0"
 edition = "2021"
 rust-version = "1.91"
 authors = ["Tibor Hudik <hello@hudik.eu>"]
@@ -19,12 +19,12 @@ default-run = "hoodik"
 # next to the version it ships with, and that is the one number a release
 # already has to touch. `build.rs` lifts both into the binary.
 [package.metadata.compat]
-# Below this an app is refused outright — 2.5.0 keyed the search index, and an
-# older app can only produce digests this server no longer stores.
-minimum_client_version = "2.5.0"
+# Below this an app is refused outright. 2.6.0 is the first app that works
+# with this release; 2.5.0 keyed the search index.
+minimum_client_version = "2.6.0"
 # Below this everything still works; the app only nudges. Raising this is
 # cheap, raising the minimum breaks people, which is why they are separate.
-recommended_client_version = "2.5.2"
+recommended_client_version = "2.6.0"
 
 [dependencies]
 openssl = { workspace = true }
