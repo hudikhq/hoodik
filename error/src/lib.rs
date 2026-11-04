@@ -379,9 +379,9 @@ impl From<&Error> for ErrorResponse {
                 context: None,
             },
             Error::UuidError(message) => ErrorResponse {
-                status: 500,
-                message: message.to_string(),
-                context: None,
+                status: 400,
+                message: "invalid_id".to_string(),
+                context: Some(serde_json::Value::String(message.to_string())),
             },
             Error::RustlsError(message) => ErrorResponse {
                 status: 500,
