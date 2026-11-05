@@ -227,6 +227,7 @@ impl Repository<'_> {
                 } else {
                     inherited_member_signature
                 }),
+                favorite: ActiveValue::NotSet,
             };
             user_files::Entity::insert(row)
                 .exec_without_returning(&tx)

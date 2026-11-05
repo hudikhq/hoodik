@@ -10,7 +10,9 @@ import {
   mdiEye,
   mdiInformationOutline,
   mdiFolderMove,
-  mdiShareVariantOutline
+  mdiShareVariantOutline,
+  mdiStar,
+  mdiStarOutline
 } from '@mdi/js'
 import { useCapability } from '@/composables/useCapability'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
@@ -50,6 +52,7 @@ const emits = defineEmits<{
   (event: 'file'): void
   (event: 'download-many'): void
   (event: 'download', file: AppFile): void
+  (event: 'favorite-all', value: boolean): void
   (event: 'move-all'): void
   (event: 'remove-all'): void
   (event: 'remove', file: AppFile): void
@@ -200,6 +203,22 @@ useKeyboardShortcuts([
 const showMoveAll = computed(() => {
   return checkedRows.value.length > 0
 })
+
+const favoritableRows = computed(() =>
+  checkedRows.value.filter((item) => item.id !== SHARED_WITH_ME_DIR_ID)
+)
+
+const showFavoriteAll = computed(() => favoritableRows.value.length > 0)
+
+const allFavorited = computed(
+  () =>
+    favoritableRows.value.length > 0 &&
+    favoritableRows.value.every((item) => item.favorite === true)
+)
+
+const toggleFavoriteAll = () => {
+  emits('favorite-all', !allFavorited.value)
+}
 
 const { sharingEnabled } = useCapability()
 
@@ -359,6 +378,19 @@ const sizes = {
       color="danger"
       v-if="showDeleteAll"
       @click="() => emits('remove-all')"
+    />
+
+    <BaseButton
+      :title="
+        allFavorited ? $t('files.browser.removeFromFavorites') : $t('files.browser.addToFavorites')
+      "
+      data-testid="favorite-selected"
+      :iconSize="20"
+      :xs="true"
+      :icon="allFavorited ? mdiStar : mdiStarOutline"
+      color="light"
+      v-if="showFavoriteAll"
+      @click="toggleFavoriteAll"
     />
 
     <BaseButton

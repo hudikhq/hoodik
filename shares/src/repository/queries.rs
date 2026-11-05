@@ -184,6 +184,7 @@ pub(crate) async fn incoming_for_recipient<C: ConnectionTrait>(
                 sha256: meta.and_then(|m| m.sha256.clone()),
                 blake2b: meta.and_then(|m| m.blake2b.clone()),
                 share_role: row.share_role,
+                favorite: row.favorite,
                 encrypted_key: row.encrypted_key,
                 created_at: row.created_at,
                 shared_at: row.shared_at,

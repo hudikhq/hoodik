@@ -10,6 +10,11 @@ export interface MoveManyFiles {
   file_id?: string | null | undefined
 }
 
+export interface FavoriteFiles {
+  ids: string[]
+  favorite: boolean
+}
+
 export interface UploadAppFile extends AppFile {
   file: File
   started_upload_at?: string
@@ -46,6 +51,9 @@ export interface EncryptedAppFile extends AppFileEncryptedPart {
   id: string
   user_id: string
   is_owner: boolean
+
+  favorite?: boolean
+
   name_hash: string
   mime: string
   size?: number

@@ -528,10 +528,12 @@
     "breadcrumbsShowAll": "Afficher tous les dossiers",
     "browser": {
       "addToDownloadQueue": "Ajouter à la file de téléchargement",
+      "addToFavorites": "Ajouter aux favoris",
       "createDirectory": "Créer un dossier",
       "emptyFolder": "Ce dossier est vide",
       "emptyFolderHint": "Déposez des fichiers ici ou utilisez le bouton de téléversement pour en ajouter",
       "newFile": "Nouveau fichier",
+      "removeFromFavorites": "Retirer des favoris",
       "renameTitle": "Renommer un fichier ou un dossier",
       "selectedCount": "{count} sélectionné(s)",
       "uploadFiles": "Téléverser des fichiers",
@@ -582,6 +584,7 @@
       "nameRequired": "Le nouveau nom est requis"
     },
     "row": {
+      "favorite": "Favori",
       "ownedBy": "Appartient à {email}",
       "savingInAnotherSession": "Une autre session enregistre cette note",
       "sharedWith": "Partagé avec {count} autre compte | Partagé avec {count} autres comptes",
@@ -617,6 +620,7 @@
       "pending": "En attente",
       "preparing": "Préparation…",
       "removeFromList": "Retirer de la liste",
+      "showingPartial": "{shown} sur {total} affichés",
       "somethingWentWrong": "Une erreur est survenue",
       "title": "Transferts"
     },
@@ -844,6 +848,7 @@
     "deleteFile": "Supprimer le fichier",
     "downloadFile": "Télécharger le fichier",
     "exportPdf": "Exporter en PDF",
+    "favoriteFile": "Ajouter aux favoris",
     "fileDetails": "Détails du fichier",
     "markdown": {
       "conflictBody": "Le serveur a un enregistrement inachevé de cette note provenant d’une autre session. Choisissez {overwrite} pour abandonner sa modification en attente et enregistrer votre version, ou {cancel} pour abandonner vos modifications locales et laisser l’autre enregistrement se terminer.",
@@ -868,6 +873,7 @@
       "truncated": "Seule la première ligne est affichée. Téléchargez le fichier pour voir la suite. | Seules les {count} premières lignes sont affichées. Téléchargez le fichier pour voir la suite.",
       "wrap": "Renvoyer les longues lignes à la ligne"
     },
+    "unfavoriteFile": "Retirer des favoris",
     "versionHistory": {
       "authorAnonymous": "Anonyme",
       "authorOther": "Un autre collaborateur",
@@ -1191,6 +1197,7 @@
     },
     "fileTree": {
       "empty": "Vide",
+      "moreChildren": "+{count} de plus",
       "noFiles": "Aucun fichier ici pour l’instant",
       "noIncomingShares": "Aucun partage reçu pour l’instant",
       "sharedWithMe": "Partagés avec moi"

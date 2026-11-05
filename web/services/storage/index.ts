@@ -221,10 +221,15 @@ export const store = defineStore('files', () => {
       parameter
     )
 
-    const ordered =
+    const sorted =
       order === 'desc'
         ? [...directories.reverse(), ...files.reverse()]
         : [...directories, ...files]
+
+    const ordered = [
+      ...sorted.filter((item) => item.favorite),
+      ...sorted.filter((item) => !item.favorite)
+    ]
 
     if (!fileId.value) {
       const synthetic = _items.value.find((item) => item.id === SHARED_WITH_ME_DIR_ID)
@@ -458,6 +463,7 @@ export const store = defineStore('files', () => {
       has_thumbnail: row.has_thumbnail ?? false,
       cipher: row.cipher,
       share_role: row.share_role,
+      favorite: row.favorite ?? false,
       shared_by_email: row.shared_by_email ?? row.owner_email,
       owner_email: row.owner_email,
       temporaryId: uuidv4()
@@ -899,6 +905,27 @@ export const store = defineStore('files', () => {
 
   const isSelectable = (file: AppFile) => file.id !== SHARED_WITH_ME_DIR_ID
 
+  async function setFavorite(kp: KeyPair, files: AppFile[], favorite: boolean): Promise<void> {
+    const targets = files.filter((file) => file.id && file.id !== SHARED_WITH_ME_DIR_ID)
+    if (targets.length === 0) {
+      return
+    }
+
+    if (targets.length === 1 && kp.input) {
+      const updated = await meta.setFavorite(kp, targets[0].id, favorite)
+      await replaceItem(updated, kp)
+      return
+    }
+
+    await meta.favoriteMany({ ids: targets.map((file) => file.id), favorite })
+    targets.forEach((file) => {
+      const item = getItem(file.id)
+      if (item) {
+        updateItem({ ...item, favorite })
+      }
+    })
+  }
+
   /**
    * Add single file to select list
    */
@@ -1004,6 +1031,7 @@ export const store = defineStore('files', () => {
     selectAll,
     selected,
     selectOne,
+    setFavorite,
     sharedDirectories,
     sharedRoots,
     setSort,

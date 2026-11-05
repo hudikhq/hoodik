@@ -157,6 +157,7 @@ async fn main() {
         shared_by_user_id: ActiveValue::NotSet,
         member_signature: ActiveValue::NotSet,
         member_signed_at: ActiveValue::NotSet,
+        favorite: ActiveValue::NotSet,
     })
     .exec_without_returning(&db)
     .await

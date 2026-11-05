@@ -275,6 +275,18 @@ const confirmLeave = async () => {
   }
 }
 
+const favoriteAll = async (favorite: boolean) => {
+  if (!Storage.selected.length) {
+    return
+  }
+
+  try {
+    await Storage.setFavorite(Crypto.keypair, Storage.selected, favorite)
+  } catch (err) {
+    errorNotification(err)
+  }
+}
+
 /**
  * A selection with a folder becomes one ZIP, so there is one file to save
  * rather than an archive per folder.
@@ -683,6 +695,7 @@ watch(
     :on="{
       'deselect-all': Storage.deselectAll,
       'download-many': downloadMany,
+      'favorite-all': favoriteAll,
       'move-all': moveAll,
       'remove-all': removeAll,
       'select-all': Storage.selectAll,

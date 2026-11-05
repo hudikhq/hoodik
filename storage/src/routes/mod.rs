@@ -10,6 +10,7 @@ pub mod delete_many;
 pub mod download;
 pub(crate) mod content_tokens;
 pub mod extra_tokens;
+pub mod favorite;
 pub mod index;
 pub mod metadata;
 pub mod move_many;
@@ -52,6 +53,8 @@ pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
     cfg.service(chunk_urls::version_urls);
     cfg.service(create::create);
     cfg.service(delete_many::delete_many);
+    cfg.service(favorite::set_favorite);
+    cfg.service(favorite::set_favorite_many);
     cfg.service(delete::delete);
     // Registers before the catch-all `GET /api/storage/{file_id}` below —
     // actix-web walks services in registration order, so the download route

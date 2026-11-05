@@ -192,6 +192,7 @@ impl Repository<'_> {
             shared_by_user_id: ActiveValue::Set(None),
             member_signature: ActiveValue::Set(None),
             member_signed_at: ActiveValue::Set(None),
+            favorite: ActiveValue::NotSet,
         };
         user_files::Entity::insert(user_file)
             .exec_without_returning(&tx)

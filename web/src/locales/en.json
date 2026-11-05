@@ -528,10 +528,12 @@
     "breadcrumbsShowAll": "Show all folders",
     "browser": {
       "addToDownloadQueue": "Add to download queue",
+      "addToFavorites": "Add to favourites",
       "createDirectory": "Create folder",
       "emptyFolder": "This folder is empty",
       "emptyFolderHint": "Drop files here or use the upload button to add some",
       "newFile": "New file",
+      "removeFromFavorites": "Remove from favourites",
       "renameTitle": "Rename file or folder",
       "selectedCount": "{count} selected",
       "uploadFiles": "Upload files",
@@ -582,6 +584,7 @@
       "nameRequired": "New name is required"
     },
     "row": {
+      "favorite": "Favourite",
       "ownedBy": "Owned by {email}",
       "savingInAnotherSession": "Another session is saving this note",
       "sharedWith": "Shared with {count} other account | Shared with {count} other accounts",
@@ -617,6 +620,7 @@
       "pending": "Pending",
       "preparing": "Preparing…",
       "removeFromList": "Remove from list",
+      "showingPartial": "Showing {shown} of {total}",
       "somethingWentWrong": "Something went wrong",
       "title": "Transfers"
     },
@@ -844,6 +848,7 @@
     "deleteFile": "Delete file",
     "downloadFile": "Download file",
     "exportPdf": "Export PDF",
+    "favoriteFile": "Add to favourites",
     "fileDetails": "File details",
     "markdown": {
       "conflictBody": "The server has an unfinished save for this note from another session. Choose {overwrite} to drop their pending edit and save your version, or {cancel} to drop your local changes and let the other save finish.",
@@ -868,6 +873,7 @@
       "truncated": "Showing the first {count} line only. Download the file to see the rest. | Showing the first {count} lines only. Download the file to see the rest.",
       "wrap": "Wrap long lines"
     },
+    "unfavoriteFile": "Remove from favourites",
     "versionHistory": {
       "authorAnonymous": "Anonymous",
       "authorOther": "Another collaborator",
@@ -1191,6 +1197,7 @@
     },
     "fileTree": {
       "empty": "Empty",
+      "moreChildren": "+{count} more",
       "noFiles": "No files here yet",
       "noIncomingShares": "No incoming shares yet",
       "sharedWithMe": "Shared with me"

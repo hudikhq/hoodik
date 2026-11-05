@@ -337,6 +337,7 @@ impl<'ctx> Repository<'ctx> {
                     file_id: ActiveValue::Unchanged(prev.file_id),
                     user_id: ActiveValue::Unchanged(prev.user_id),
                     created_at: ActiveValue::NotSet,
+                    favorite: ActiveValue::NotSet,
                 };
                 user_files::Entity::update(active).exec(&tx).await?;
                 produced.push(*file_id);
@@ -355,6 +356,7 @@ impl<'ctx> Repository<'ctx> {
                     shared_by_user_id: ActiveValue::Set(Some(sender.id)),
                     member_signature: ActiveValue::Set(persisted_member_sig.clone()),
                     member_signed_at: ActiveValue::Set(member_signed_at_col),
+                    favorite: ActiveValue::NotSet,
                 };
                 user_files::Entity::insert(active)
                     .exec_without_returning(&tx)

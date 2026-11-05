@@ -17,6 +17,7 @@ import type {
   EncryptedRename,
   DeleteManyFiles,
   MoveManyFiles,
+  FavoriteFiles,
   TransferTokenResponse
 } from 'types'
 
@@ -450,6 +451,35 @@ export async function setEditable(
   const unencryptedPart = await decrypt(file, keypair.wrappingPrivate || keypair.input)
 
   return { ...file, ...unencryptedPart }
+}
+
+export async function setFavorite(
+  keypair: KeyPair,
+  fileId: string,
+  favorite: boolean
+): Promise<AppFile> {
+  if (!keypair.input) {
+    throw new Error('Cannot update file without private key')
+  }
+
+  const response = await Api.put<{ favorite: boolean }, AppFile>(
+    `/api/storage/${fileId}/favorite`,
+    undefined,
+    { favorite }
+  )
+
+  if (!response?.body?.id) {
+    throw new Error('Failed to update favorite flag')
+  }
+
+  const file = response.body
+  const unencryptedPart = await decrypt(file, keypair.wrappingPrivate || keypair.input)
+
+  return { ...file, ...unencryptedPart }
+}
+
+export async function favoriteMany(body: FavoriteFiles): Promise<void> {
+  await Api.post<FavoriteFiles, undefined>(`/api/storage/favorite-many`, undefined, body)
 }
 
 /**

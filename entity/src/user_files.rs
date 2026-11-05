@@ -10,6 +10,7 @@ pub struct Model {
     pub user_id: Uuid,
     pub encrypted_key: String,
     pub is_owner: bool,
+    pub favorite: bool,
     pub created_at: i64,
     pub expires_at: Option<i64>,
     pub share_role: String,

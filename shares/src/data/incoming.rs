@@ -52,6 +52,8 @@ pub struct IncomingShare {
     pub sha256: Option<String>,
     pub blake2b: Option<String>,
     pub share_role: String,
+    #[serde(default)]
+    pub favorite: bool,
     pub encrypted_key: String,
     pub created_at: i64,
     pub shared_at: Option<i64>,
@@ -101,6 +103,7 @@ impl FromQueryResult for IncomingShare {
             sha256,
             blake2b,
             share_role: row.share_role,
+            favorite: row.favorite,
             encrypted_key: row.encrypted_key,
             created_at: row.created_at,
             shared_at: row.shared_at,

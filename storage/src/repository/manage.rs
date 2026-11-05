@@ -86,7 +86,7 @@ where
             parents = self.dir_tree(file_id).await?;
 
             selector = selector.filter(files::Column::FileId.eq(file_id));
-        } else if request_query.editable.is_some() {
+        } else if request_query.editable.is_some() || request_query.favorite.is_some() {
             // When filtering by editable, return files from ALL folders
         } else {
             selector = selector.filter(files::Column::FileId.is_null());
@@ -98,6 +98,10 @@ where
 
         if let Some(editable) = request_query.editable {
             selector = selector.filter(files::Column::Editable.eq(editable));
+        }
+
+        if let Some(favorite) = request_query.favorite {
+            selector = selector.filter(user_files::Column::Favorite.eq(favorite));
         }
 
         let mut order = Order::Asc;
@@ -622,6 +626,7 @@ where
             shared_by_user_id: ActiveValue::NotSet,
             member_signature: ActiveValue::NotSet,
             member_signed_at: ActiveValue::NotSet,
+            favorite: ActiveValue::NotSet,
         };
 
         user_files::Entity::insert(user_file)
@@ -885,6 +890,45 @@ where
         .await?;
 
         self.repository.by_id(id, self.owner_id).await
+    }
+
+    pub(crate) async fn set_favorite(&self, id: Uuid, favorite: bool) -> AppResult<AppFile> {
+        user_files::Entity::update_many()
+            .filter(user_files::Column::FileId.eq(id))
+            .filter(user_files::Column::UserId.eq(self.owner_id))
+            .set(user_files::ActiveModel {
+                favorite: ActiveValue::Set(favorite),
+                ..Default::default()
+            })
+            .exec(self.repository.connection())
+            .await?;
+
+        self.repository.by_id(id, self.owner_id).await
+    }
+
+    pub(crate) async fn set_favorite_many(
+        &self,
+        mut ids: Vec<Uuid>,
+        favorite: bool,
+    ) -> AppResult<u64> {
+        ids.sort();
+        ids.dedup();
+
+        if ids.is_empty() {
+            return Ok(0);
+        }
+
+        let result = user_files::Entity::update_many()
+            .filter(user_files::Column::UserId.eq(self.owner_id))
+            .filter(user_files::Column::FileId.is_in(ids))
+            .set(user_files::ActiveModel {
+                favorite: ActiveValue::Set(favorite),
+                ..Default::default()
+            })
+            .exec(self.repository.connection())
+            .await?;
+
+        Ok(result.rows_affected)
     }
 
     /// Commit either an initial upload or an edit. Auto-fired by the
