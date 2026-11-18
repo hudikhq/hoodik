@@ -8,7 +8,7 @@ use crate::platform::{DataSource, HttpClient, ProgressReporter};
 use crate::types::{Auth, FileHashes};
 use crate::upload_trace;
 use digest::Digest;
-use futures::future::LocalBoxFuture;
+use futures::future::{FutureExt, LocalBoxFuture};
 use futures::stream::{FuturesUnordered, StreamExt};
 use std::collections::{HashSet, VecDeque};
 use std::str::FromStr;
@@ -485,6 +485,10 @@ async fn run_upload_pipeline<'a>(
                     progress,
                     direct_urls,
                 );
+                if let Err(e) = poll_ready_uploads(&mut in_flight) {
+                    progress.on_error(file_id, &format!("{e}"));
+                    return Err(e);
+                }
             }
         }
 
@@ -573,6 +577,28 @@ async fn run_upload_pipeline<'a>(
         first_hook_chunk_len
     ));
 
+    Ok(())
+}
+
+/// Poll the in-flight uploads once, without waiting for any of them.
+///
+/// An `async fn` does nothing until it is first polled, so a request pushed
+/// into `in_flight` is not sent until something polls the set. The producer
+/// loop only awaited the set under memory backpressure, which meant the first
+/// [`ENCRYPTED_CHUNKS_BUFFER_LIMIT`] chunks were read and encrypted before a
+/// single request left, and a file smaller than that buffer was uploaded
+/// strictly after it had been encrypted in full. Polling right after each
+/// dispatch starts the request immediately, so the network works while the
+/// next chunk is encrypted, and settles uploads that have already finished.
+///
+/// Completions that arrive later are not lost: `FuturesUnordered` queues every
+/// woken future and the next poll of the set, here or in an `.await`, runs it.
+fn poll_ready_uploads(
+    in_flight: &mut FuturesUnordered<LocalBoxFuture<'_, Result<u64>>>,
+) -> Result<()> {
+    while let Some(Some(result)) = in_flight.next().now_or_never() {
+        result?;
+    }
     Ok(())
 }
 

@@ -2066,3 +2066,64 @@ async fn finalize_exhausted_retries_surface_the_error() {
         "a failed commit was never reported to the host"
     );
 }
+
+/// Records how many upload requests had been sent each time the pipeline
+/// read the next plaintext chunk.
+struct ObservingDataSource<'a> {
+    inner: MockDataSource,
+    http: &'a MockHttpClient,
+    uploads_seen_at_read: RefCell<Vec<u64>>,
+}
+
+impl DataSource for ObservingDataSource<'_> {
+    fn read_chunk(
+        &self,
+        offset: u64,
+        length: u64,
+    ) -> Pin<Box<dyn std::future::Future<Output = Result<Vec<u8>>> + '_>> {
+        self.uploads_seen_at_read
+            .borrow_mut()
+            .push(self.http.upload_count());
+        self.inner.read_chunk(offset, length)
+    }
+
+    fn total_size(&self) -> u64 {
+        self.inner.total_size()
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn upload_starts_sending_while_later_chunks_are_still_encrypted() {
+    // Smaller than the encrypted-chunk buffer, so the pipeline never hits
+    // memory backpressure: before the fix every request waited for the drain
+    // after the last chunk had been encrypted.
+    let chunks = 3u64;
+    let data = vec![42u8; (CHUNK_SIZE_BYTES * chunks) as usize];
+    let http = MockHttpClient::new();
+    let source = ObservingDataSource {
+        inner: MockDataSource::new(data),
+        http: &http,
+        uploads_seen_at_read: RefCell::new(Vec::new()),
+    };
+    let progress = MockProgressReporter::new();
+
+    crate::upload::upload_file(
+        &http,
+        &source,
+        &progress,
+        &test_auth(),
+        "overlap",
+        &test_key(),
+        &[],
+        UploadHashOptions::default(),
+        None,
+        cryptfns::cipher::DEFAULT,
+        None,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(http.upload_count(), chunks);
+    // Chunk 0 must already be on the wire when chunk 1 is read, and so on.
+    assert_eq!(*source.uploads_seen_at_read.borrow(), vec![0, 1, 2]);
+}
