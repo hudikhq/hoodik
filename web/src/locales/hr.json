@@ -721,6 +721,9 @@
       "title": "Otključaj link"
     },
     "view": {
+      "downloadFailed": "Preuzimanje nije uspjelo: {error}",
+      "downloadPreparing": "Pričekajte, preuzimanje će uskoro započeti",
+      "downloadPreparingHint": "Datoteka se dohvaća i dešifrira u vašem pregledniku. Ostavite ovu stranicu otvorenom.",
       "hasExpired": "Ovaj link je istekao {date}",
       "willExpire": "Ovaj link istječe {date}"
     }

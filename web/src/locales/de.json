@@ -721,6 +721,9 @@
       "title": "Link entsperren"
     },
     "view": {
+      "downloadFailed": "Download fehlgeschlagen: {error}",
+      "downloadPreparing": "Bitte warten, der Download startet gleich",
+      "downloadPreparingHint": "Die Datei wird in deinem Browser geladen und entschlüsselt. Bitte lass diese Seite geöffnet.",
       "hasExpired": "Dieser Link ist am {date} abgelaufen",
       "willExpire": "Dieser Link läuft am {date} ab"
     }

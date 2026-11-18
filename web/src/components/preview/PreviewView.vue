@@ -26,6 +26,8 @@ const props = defineProps<{
   hidePreviousAndNext?: boolean
   hideDelete?: boolean
   hideClose?: boolean
+  /** A download is in flight: the toolbar and center buttons show a spinner and ignore clicks. */
+  downloading?: boolean
 }>()
 
 const emits = defineEmits<{
@@ -89,7 +91,7 @@ const cancel = () => {
  * regular download process.
  */
 const download = () => {
-  if (!preview.value) return
+  if (!preview.value || props.downloading) return
   emits('download', preview.value)
 }
 
@@ -177,6 +179,7 @@ useKeyboardShortcuts([
             color="light"
             :icon="mdiDownload"
             small
+            :loading="downloading"
             :title="$t('preview.downloadFile')"
             @click="download"
             name="preview-download"
@@ -252,6 +255,16 @@ useKeyboardShortcuts([
         </div>
         <div class="text-center">
           <span>{{ $t('preview.noPreview') }}</span>
+        </div>
+        <div class="mt-6 text-center">
+          <BaseButton
+            color="info"
+            :icon="mdiDownload"
+            :label="$t('preview.downloadFile')"
+            :loading="downloading"
+            @click="download"
+            name="preview-download-center"
+          />
         </div>
       </div>
     </div>
