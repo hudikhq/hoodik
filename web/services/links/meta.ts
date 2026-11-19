@@ -143,15 +143,21 @@ export async function downloadLinkChunk(
  * Decrypt the link content client-side and trigger a browser save under the
  * name from the (client-decrypted) link metadata.
  */
-export async function saveDecrypted(link: AppLink): Promise<void> {
-  const data = await downloadAndDecrypt(link)
+export async function saveDecrypted(
+  link: AppLink,
+  onBytes?: (bytes: number) => void
+): Promise<void> {
+  const data = await downloadAndDecrypt(link, onBytes)
 
   const url = window.URL.createObjectURL(new Blob([data], { type: link.file_mime }))
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = link.name || 'download'
   anchor.click()
-  window.URL.revokeObjectURL(url)
+
+  // Revoking in the same tick can cancel the save in Firefox and Safari,
+  // which start reading the blob only after the click handler returns.
+  setTimeout(() => window.URL.revokeObjectURL(url), 60_000)
 }
 
 /**

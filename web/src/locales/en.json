@@ -721,6 +721,9 @@
       "title": "Unlock The Link"
     },
     "view": {
+      "downloadFailed": "Download failed: {error}",
+      "downloadPreparing": "Stand by, download will start soon",
+      "downloadPreparingHint": "The file is being fetched and decrypted in your browser. Please keep this page open.",
       "hasExpired": "This link has expired on {date}",
       "willExpire": "This link will expire on {date}"
     }

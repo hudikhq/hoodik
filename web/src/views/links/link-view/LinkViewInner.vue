@@ -9,6 +9,8 @@ import PreviewView from '@/components/preview/PreviewView.vue'
 import { formatPrettyDate } from '!/index'
 import PreviewInfoModal from '@/components/links/modals/PreviewInfoModal.vue'
 import { useTitle } from '@vueuse/core'
+import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
+import { formatSize } from '!/index'
 
 const props = defineProps<{
   Links: LinksStore
@@ -84,13 +86,41 @@ const load = async () => {
   }
 }
 
+/** True while the file is fetched and decrypted before the browser save starts. */
+const downloading = ref(false)
+const downloadedBytes = ref(0)
+const downloadError = ref<string>()
+
+const downloadPercent = computed(() => {
+  const total = link.value?.file_size
+  if (!total) return 0
+  return Math.min(100, Math.floor((downloadedBytes.value / total) * 100))
+})
+
 /**
  * Client-side download + decrypt for public link (server sends only ciphertext).
+ *
+ * The whole file is fetched and decrypted before the browser save dialog
+ * appears, which takes a while for large files. Without feedback, visitors
+ * assume nothing happens and click again, starting parallel downloads.
  */
 const download = async () => {
-  if (!link.value?.link_key_hex) return
+  if (!link.value?.link_key_hex || downloading.value) return
 
-  await props.Links.formDownload(link.value.id, link.value.link_key_hex)
+  downloading.value = true
+  downloadedBytes.value = 0
+  downloadError.value = undefined
+
+  try {
+    await props.Links.formDownload(link.value.id, link.value.link_key_hex, (bytes) => {
+      downloadedBytes.value = bytes
+    })
+  } catch (e) {
+    const error = e as ErrorResponse<unknown>
+    downloadError.value = error?.description || error?.message || String(e)
+  } finally {
+    downloading.value = false
+  }
 }
 
 /**
@@ -120,9 +150,38 @@ await load()
     :hideDelete="true"
     :hidePreviousAndNext="true"
     :hideClose="true"
+    :downloading="downloading"
     @download="download"
     @details="details"
   >
+    <div
+      v-if="downloading"
+      class="absolute inset-0 z-20 flex items-center justify-center bg-brownish-950/80"
+      role="status"
+      aria-live="polite"
+      data-testid="link-download-progress"
+    >
+      <div class="flex flex-col items-center max-w-sm px-6 text-center space-y-3">
+        <SpinnerIcon :size="48" />
+        <p class="text-lg">{{ $t('links.view.downloadPreparing') }}</p>
+        <p class="text-sm text-brownish-300">{{ $t('links.view.downloadPreparingHint') }}</p>
+        <template v-if="link?.file_size">
+          <div class="w-64 h-2 rounded bg-brownish-800 overflow-hidden">
+            <div class="h-full bg-redish-500 transition-all" :style="{ width: `${downloadPercent}%` }" />
+          </div>
+          <p class="text-sm tabular-nums">
+            {{ formatSize(downloadedBytes) }} / {{ formatSize(link.file_size) }} ({{ downloadPercent }} %)
+          </p>
+        </template>
+      </div>
+    </div>
+    <div
+      v-if="downloadError"
+      class="absolute bottom-8 z-20 px-4 text-center text-redish-300 dark:text-redish-100"
+      role="alert"
+    >
+      {{ $t('links.view.downloadFailed', { error: downloadError }) }}
+    </div>
     <div class="absolute bottom-0" v-if="linkExpiresAt">
       <span v-if="!isExpired">{{ $t('links.view.willExpire', { date: linkExpiresAt }) }}</span>
       <span v-else class="text-redish-300 dark:text-redish-100">{{ $t('links.view.hasExpired', { date: linkExpiresAt }) }}</span>

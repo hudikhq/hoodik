@@ -104,3 +104,90 @@ describe('LinkViewInner — revoked / unavailable link handling', () => {
     expect(wrapper.text()).toContain('Unlock The Link')
   })
 })
+
+describe('LinkViewInner — download feedback', () => {
+  const resolvedLink = {
+    id: 'link-id',
+    file_id: 'file-id',
+    name: 'big-archive.zip',
+    file_size: 1000,
+    file_mime: 'application/zip',
+    link_key_hex: 'deadbeef',
+    expires_at: undefined
+  }
+
+  function deferred() {
+    let resolve!: () => void
+    let reject!: (e: unknown) => void
+    const promise = new Promise<void>((res, rej) => {
+      resolve = res
+      reject = rej
+    })
+    return { promise, resolve, reject }
+  }
+
+  function downloadStore(pending: Promise<void>) {
+    let onBytes: ((bytes: number) => void) | undefined
+    const store = {
+      get: vi.fn(() => Promise.resolve(resolvedLink)),
+      formDownload: vi.fn((_id: string, _key: string, cb?: (bytes: number) => void) => {
+        onBytes = cb
+        return pending
+      })
+    } as unknown as LinksStore
+    return { store, report: (bytes: number) => onBytes?.(bytes) }
+  }
+
+  it('shows_waiting_overlay_with_progress_until_the_save_starts', async () => {
+    const pending = deferred()
+    const { store, report } = downloadStore(pending.promise)
+    const wrapper = await mountInner('deadbeef', store)
+
+    expect(wrapper.find('[data-testid="link-download-progress"]').exists()).toBe(false)
+
+    await wrapper.find('[name="preview-download"]').trigger('click')
+    await flushPromises()
+
+    const overlay = wrapper.find('[data-testid="link-download-progress"]')
+    expect(overlay.exists()).toBe(true)
+    expect(overlay.text()).toContain('Stand by, download will start soon')
+
+    report(500)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="link-download-progress"]').text()).toContain('50 %')
+
+    pending.resolve()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="link-download-progress"]').exists()).toBe(false)
+  })
+
+  it('center_button_triggers_the_same_download_and_repeat_clicks_are_ignored', async () => {
+    const pending = deferred()
+    const { store } = downloadStore(pending.promise)
+    const wrapper = await mountInner('deadbeef', store)
+
+    const center = wrapper.find('[name="preview-download-center"]')
+    expect(center.exists()).toBe(true)
+
+    await center.trigger('click')
+    await wrapper.find('[name="preview-download"]').trigger('click')
+    await flushPromises()
+
+    expect(store.formDownload).toHaveBeenCalledTimes(1)
+    pending.resolve()
+    await flushPromises()
+  })
+
+  it('shows_an_error_when_the_download_fails', async () => {
+    const pending = deferred()
+    const { store } = downloadStore(pending.promise)
+    const wrapper = await mountInner('deadbeef', store)
+
+    await wrapper.find('[name="preview-download"]').trigger('click')
+    pending.reject(new Error('network down'))
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="link-download-progress"]').exists()).toBe(false)
+    expect(wrapper.find('[role="alert"]').text()).toContain('network down')
+  })
+})

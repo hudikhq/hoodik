@@ -721,6 +721,9 @@
       "title": "Déverrouiller le lien"
     },
     "view": {
+      "downloadFailed": "Échec du téléchargement : {error}",
+      "downloadPreparing": "Patientez, le téléchargement va bientôt commencer",
+      "downloadPreparingHint": "Le fichier est récupéré et déchiffré dans votre navigateur. Veuillez garder cette page ouverte.",
       "hasExpired": "Ce lien a expiré le {date}",
       "willExpire": "Ce lien expirera le {date}"
     }

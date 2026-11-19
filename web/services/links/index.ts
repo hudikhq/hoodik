@@ -293,9 +293,13 @@ export const store = defineStore('links', () => {
    * Decrypt the link content client-side and save it under the real filename
    * from the decrypted link metadata.
    */
-  async function formDownload(id: string, key: string): Promise<void> {
+  async function formDownload(
+    id: string,
+    key: string,
+    onBytes?: (bytes: number) => void
+  ): Promise<void> {
     const link = await get(id, key)
-    await meta.saveDecrypted(link)
+    await meta.saveDecrypted(link, onBytes)
   }
 
   return {
