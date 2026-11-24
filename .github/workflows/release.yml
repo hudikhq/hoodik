@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Read the application version
         run: echo "version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "${{ env.HANDLE }}") | .version')" >> $GITHUB_OUTPUT
@@ -64,7 +64,7 @@ jobs:
           fi
 
       - name: "Create release"
-        uses: "actions/github-script@v6.3.3"
+        uses: actions/github-script@d556feaca394842dc55e4734bf3bb9f685482fa0 # v6.3.3
         with:
           # We are using the personal token here because the 
           # one provided by the Github actions wouldn't trigger

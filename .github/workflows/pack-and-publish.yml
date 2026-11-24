@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Get the previous tag
         id: prev-tag
@@ -59,7 +59,7 @@ jobs:
 
       - name: Extract Tag
         id: tag
-        uses: aaronbarnaby/get-tag@v1.0.0
+        uses: aaronbarnaby/get-tag@f7756d9337e4f06a36bab3176e3f8287278bd9e7 # v1.0.0
         continue-on-error: true
         with:
           without_prefix_v: true
@@ -140,7 +140,7 @@ jobs:
           echo " -- ${AUTHOR_NAME} <${AUTHOR_EMAIL}>  ${DATE}" >> changelog
 
       - name: Upload changelog
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: changelog
           path: changelog
@@ -158,9 +158,9 @@ jobs:
     needs: meta
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           # Pinned via .nvmrc — transfer WASM uses externref / reference-types
           # which older Node WebAssembly engines reject at parse time.
@@ -188,13 +188,13 @@ jobs:
           source "$HOME/.cargo/env"
           echo "bin_dir=$HOME/.cargo/bin" >> $GITHUB_OUTPUT
 
-      - uses: extractions/setup-just@v2
+      - uses: extractions/setup-just@dd310ad5a97d8e7b41793f8ef055398d51ad4de6 # v2
 
       - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        run: cargo install --locked wasm-pack@0.15.1
 
       - name: Install yarn and dependencies
-        run: npm install -g yarn && yarn install
+        run: corepack enable && yarn install --frozen-lockfile
 
       - name: Build WASM crates
         run: just wasm
@@ -209,7 +209,7 @@ jobs:
           find web/dist/ -mindepth 1 | xargs tar vpcf web-dist.tar
 
       - name: Upload tar
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: web-dist
           path: web-dist.tar
@@ -246,7 +246,7 @@ jobs:
             arch: "arm64"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       # Install Rust the hard way rather than using a GH Action because the action doesn't work inside a Docker container.
       # Cargo cross "requires a rustup installation of Rust", an O/S package provided Rust won't
@@ -267,7 +267,7 @@ jobs:
 
       - name: Fetch cargo cross if available
         id: cache-cargo-cross
-        uses: actions/cache@v3
+        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
         with:
           path: |
             ${{ steps.rust.outputs.bin_dir }}/cross
@@ -283,7 +283,7 @@ jobs:
 
       - name: Force cache save
         if: ${{ steps.install-cargo-cross.outputs.installed == 'true' }}
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@6f8efc29b200d32929f49075959781ed54ec270c # v3
         with:
           path: |
             ${{ steps.rust.outputs.bin_dir }}/cross
@@ -323,7 +323,7 @@ jobs:
           find target/${{ matrix.target }}/release/ -maxdepth 1 -type f -executable | xargs tar vpcf bins.tar
 
       - name: Upload built binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ env.handle }}-tmp-cross-binaries-${{ matrix.target }}
           path: bins.tar
@@ -351,7 +351,7 @@ jobs:
         if: ${{ needs.meta.outputs.has_release == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5 # v1
         with:
           upload_url: ${{ needs.meta.outputs.upload_url }}?name=${{ steps.binary.outputs.filename }}
           asset_path: ${{ steps.binary.outputs.file_path }}
@@ -424,7 +424,7 @@ jobs:
           echo "OS_NAME=$OS_NAME" >> $GITHUB_ENV
           echo "OS_REL=$OS_REL" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Download changelog
         uses: ./.github/actions/retry-download-artifact
@@ -462,7 +462,7 @@ jobs:
       # Speed up Rust builds by caching unchanged built dependencies.
       # See: https://github.com/actions/cache/blob/master/examples.md#rust---cargo
       - name: Fetch .cargo from cache
-        uses: actions/cache@v3
+        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
         with:
           path: |
             ~/.cargo/registry
@@ -473,7 +473,7 @@ jobs:
       # the tool that we are using.
       - name: Fetch cargo-deb from cache
         id: cache-cargo-deb
-        uses: actions/cache@v3
+        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
         with:
           path: ${{ steps.rust.outputs.bin_dir }}/cargo-deb
           key: ${{ matrix.image }}-cargo-deb-${{ endsWith(matrix.image, 'xenial')}}
@@ -488,7 +488,7 @@ jobs:
 
       - name: Force cache save
         if: ${{ steps.install-cargo-deb.outputs.installed == 'true' }}
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@6f8efc29b200d32929f49075959781ed54ec270c # v3
         with:
           path: ${{ steps.rust.outputs.bin_dir }}/cargo-deb
           key: ${{ matrix.image }}-cargo-deb-${{ endsWith(matrix.image, 'xenial')}}
@@ -659,7 +659,7 @@ jobs:
         if: ${{ needs.meta.outputs.has_release == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5 # v1
         with:
           upload_url: ${{ needs.meta.outputs.upload_url }}?name=${{ steps.file.outputs.filename }}
           asset_path: ${{ steps.file.outputs.file_path }}
@@ -671,7 +671,7 @@ jobs:
       # by the next job (see below) to sanity check that it can be installed and results in a working Krill installation.
       - name: Upload package
         if: ${{ needs.meta.outputs.has_release != 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ env.handle }}_${{ env.OS_NAME }}_${{ env.OS_REL }}_${{ matrix.target }}
           path: target/${{ matrix.target }}/debian/*.deb
@@ -712,7 +712,7 @@ jobs:
             target: "aarch64-unknown-linux-musl"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Print platform details
         # Disable default use of bash -x for easier to read output in the log
@@ -722,14 +722,14 @@ jobs:
           echo "Shortname: ${{ matrix.shortname }}"
           echo "Target: ${{ matrix.target }}"
 
-      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
         # Don't use QEmu for compiling, it's way too slow on GitHub Actions.
         # Only use it for making images that will contain prebuilt binaries.
         if: ${{ steps.verify.outputs.mode == 'copy' }}
         with:
           platforms: ${{ matrix.platform }}
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
         with:
           version: v0.9.1 # See: https://github.com/docker/build-push-action/issues/755
 
@@ -779,7 +779,7 @@ jobs:
       # combined multi-arch image that lacks the architecture specific tag value extension and that will ONLY be
       # pushed if all architecture specific images build and (where supported) passt he sanity check below.
       - name: Build Docker image ${{ steps.prepare.outputs.image_name }}
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
           file: ./Dockerfile
@@ -802,21 +802,21 @@ jobs:
           docker run --rm ${{ steps.prepare.outputs.image_name }} /usr/local/bin/hoodik --version
 
       - name: Log into Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       # Upload the Docker image as a GitHub Actions artifact, handy when not publishing or investigating a problem
       - name: Upload built image to GitHub Actions
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: tmp-docker-image-${{ matrix.shortname }}
           path: /tmp/docker-${{ matrix.shortname }}-img.tar
 
       - name: Publish image to Docker Hub
         id: publish
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
           file: ./Dockerfile
@@ -838,17 +838,17 @@ jobs:
       published: ${{ steps.publish.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Log into Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Apply rules to Git metadata to generate potential Docker tags
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ${{ env.docker_repo }}
           flavor: |
@@ -905,7 +905,7 @@ jobs:
               README.md > README.docker.md
 
       - name: Update repo description
-        uses: peter-evans/dockerhub-description@v4
+        uses: peter-evans/dockerhub-description@432a30c9e07499fd01da9f8a49f0faf9e0ca5b77 # v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}

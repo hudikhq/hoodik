@@ -21,13 +21,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Read the application version
         run: echo "version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "${{ env.HANDLE }}") | .version')" >> $GITHUB_OUTPUT
         id: extract_version
 
-      - uses: mukunku/tag-exists-action@v1.2.0
+      - uses: mukunku/tag-exists-action@9298fbcc409758ba624a0ae16b83df86637cb8ce # v1.2.0
         id: checkTag
         with:
           tag: "v${{ steps.extract_version.outputs.version }}"
