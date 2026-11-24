@@ -1,4 +1,6 @@
-mod client;
+mod client {
+    include!(concat!(env!("OUT_DIR"), "/client.rs"));
+}
 pub mod migrate;
 pub mod server;
 

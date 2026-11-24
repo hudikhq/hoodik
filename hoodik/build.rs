@@ -1,7 +1,8 @@
 use std::{
+    env,
     fs::{self, File},
     io::{self, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 /// If no dist dir is available, we will just write an empty client
@@ -18,7 +19,11 @@ fn handle_no_dist(client_out_file: &mut File) -> io::Result<()> {
 
 fn main() -> io::Result<()> {
     let client_dist_dir = PathBuf::from("../web/dist");
-    let out_dir = PathBuf::from("src");
+
+    // The generated table is a build artifact, so it goes to OUT_DIR and is
+    // pulled in with `include!` from lib.rs. Writing into `src/` made the
+    // source tree depend on the last build and breaks read-only checkouts.
+    let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is set by cargo"));
     let mut client_out_file = File::create(out_dir.join("client.rs"))?;
 
     // Always emit the rerun-if-changed directive — without it, a first build
@@ -33,58 +38,69 @@ fn main() -> io::Result<()> {
         return handle_no_dist(&mut client_out_file);
     }
 
-    let canonicalize_path = client_dist_dir.canonicalize().unwrap();
-    let str_path = canonicalize_path.to_str().unwrap();
+    let dist = client_dist_dir.canonicalize()?;
 
+    let mut files = Vec::new();
+    collect_files(&dist, &dist, &mut files)?;
+
+    // `read_dir` order is filesystem dependent. Sorting keeps the generated
+    // table, and therefore the binary, identical from one build to the next.
+    files.sort();
+
+    // Paths are written with `{:?}` so that quotes, backslashes and other
+    // special characters come out as a valid Rust string literal on every
+    // platform, Windows included.
     writeln!(
         client_out_file,
-        "pub(crate) const _DEFAULT: &[u8] = include_bytes!(concat!(\"{str_path}\", \"/index.html\"));"
+        "pub(crate) const _DEFAULT: &[u8] = include_bytes!({:?});",
+        path_str(&dist.join("index.html"))
     )?;
 
     writeln!(
         client_out_file,
         "pub(crate) const _CLIENT: [(&str, &[u8]); {}] = [",
-        count_files(&client_dist_dir)?
+        files.len()
     )?;
 
-    let mut queue = vec![client_dist_dir.clone()];
-    while let Some(dir) = queue.pop() {
-        for entry in fs::read_dir(dir)? {
-            let path = entry?.path();
-            if path.is_dir() {
-                queue.push(path);
-            } else {
-                let relative_path = path
-                    .strip_prefix(&client_dist_dir)
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .replace('\\', "/");
-
-                writeln!(
-                    client_out_file,
-                    r#"("{relative_path}", include_bytes!(concat!("{str_path}", "/{relative_path}"))),"#,
-                )?;
-            }
-        }
+    for (relative_path, absolute_path) in &files {
+        writeln!(
+            client_out_file,
+            "({:?}, include_bytes!({:?})),",
+            relative_path,
+            path_str(absolute_path)
+        )?;
     }
+
     writeln!(client_out_file, "];")?;
 
     Ok(())
 }
 
-/// Count files in the directory
-fn count_files(dir: &PathBuf) -> io::Result<usize> {
-    let mut count = 0;
+/// Walk `dir` and collect every file as (path relative to `root` with `/`
+/// separators, absolute path).
+fn collect_files(root: &Path, dir: &Path, files: &mut Vec<(String, PathBuf)>) -> io::Result<()> {
     for entry in fs::read_dir(dir)? {
         let path = entry?.path();
         if path.is_dir() {
-            count += count_files(&path)?;
+            collect_files(root, &path, files)?;
         } else {
-            count += 1;
+            let relative_path = path
+                .strip_prefix(root)
+                .expect("walked path is under the dist root")
+                .components()
+                .map(|c| path_str(Path::new(c.as_os_str())).to_owned())
+                .collect::<Vec<_>>()
+                .join("/");
+
+            files.push((relative_path, path));
         }
     }
-    Ok(count)
+    Ok(())
+}
+
+fn path_str(path: &Path) -> &str {
+    path.to_str()
+        .unwrap_or_else(|| panic!("non UTF-8 path in web/dist: {}", path.display()))
 }
 
 /// Lift `[package.metadata.compat]` out of Cargo.toml and into the binary.
